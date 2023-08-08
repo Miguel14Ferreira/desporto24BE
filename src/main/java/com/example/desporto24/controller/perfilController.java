@@ -216,9 +216,8 @@ public class perfilController extends ExceptionHandling {
         return headers;
     }
 
-    private Authentication autenticate(String username, String password) {
-        Authentication authentication = authenticationManager.authenticate(unauthenticated(username,password));
-        return authentication;
+    private void autenticate(String username, String password) {
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username,password));
     }
 }
 
