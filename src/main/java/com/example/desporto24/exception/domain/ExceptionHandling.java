@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
-import javax.persistence.NoResultException;
+import jakarta.persistence.NoResultException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.Objects;
@@ -82,7 +82,7 @@ public class ExceptionHandling {
 
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<HttpResponse> noHandlerFoundException(NoHandlerFoundException exception){
-        return createHttpResponse(BAD_REQUEST, "This page wasn't found");
+        return createHttpResponse(BAD_REQUEST, exception.getMessage());
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -114,8 +114,8 @@ public class ExceptionHandling {
     }
 
     @RequestMapping(ERROR_PATH)
-    public ResponseEntity<HttpResponse> notFound404(){
-        return createHttpResponse(NOT_FOUND, "There's no mapping for this URL");
+    public ResponseEntity<HttpResponse> notFound404(NotFoundException exception){
+        return createHttpResponse(NOT_FOUND, exception.getMessage());
     }
 
     public String getErrorPath() {

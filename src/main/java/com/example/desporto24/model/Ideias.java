@@ -1,11 +1,22 @@
 package com.example.desporto24.model;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
-import javax.persistence.*;
 import java.io.Serializable;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
+
+@Data
 @Entity
-@Table (name = "ideias")
-public class Ideias implements Serializable {
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(NON_DEFAULT)
+public class Ideias {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,21 +35,6 @@ public class Ideias implements Serializable {
     private String subject;
     @Column(name = "problem")
     private String problem;
-
-    public Ideias(Long id, String name, String age, String city, String gender, String phone, String subject, String problem) {
-        this.id = id;
-        this.name = name;
-        this.age = age;
-        this.city = city;
-        this.gender = gender;
-        this.phone = phone;
-        this.subject = subject;
-        this.problem = problem;
-    }
-
-    public Ideias() {
-
-    }
 
     public Long getId() {
         return id;

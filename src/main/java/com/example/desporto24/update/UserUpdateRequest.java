@@ -11,11 +11,9 @@ import java.util.Date;
 @EqualsAndHashCode
 @ToString
 public class UserUpdateRequest {
-    private Long id;
-    private String userId;
     private String username;
     private String fullName;
-    private Date dateOfBirth;
+    private String dateOfBirth;
     private String address;
     private String country;
     private String location;
@@ -23,5 +21,6 @@ public class UserUpdateRequest {
     private String desportosFavoritos;
     private String gender;
     private String email;
+    private String postalCode;
     private byte[] foto;
 }

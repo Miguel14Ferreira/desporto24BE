@@ -3,11 +3,11 @@ package com.example.desporto24;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
 class Desporto24ApplicationTests {
 
 	@Test
-	void contextLoads() {
+	void itShouldAddNumbers() {
 	}
-
 }

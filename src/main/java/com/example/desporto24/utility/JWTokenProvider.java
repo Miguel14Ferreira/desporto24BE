@@ -3,7 +3,6 @@ import com.auth0.jwt.JWT;
 import static com.auth0.jwt.algorithms.Algorithm.*;
 import static com.example.desporto24.constant.SecurityConstant.*;
 import static java.util.Arrays.stream;
-
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
@@ -16,7 +15,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -47,7 +46,7 @@ public class JWTokenProvider {
     }
 
     public Authentication getAuthentication(String username, List<GrantedAuthority> authorities, HttpServletRequest request){
-        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(username,null,authorities);
+        UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(username,authorities,authorities);
         usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         return usernamePasswordAuthenticationToken;
     }

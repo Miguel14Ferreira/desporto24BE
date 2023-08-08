@@ -4,15 +4,16 @@ import com.example.desporto24.exception.domain.SessionExistException;
 import com.example.desporto24.model.Sessao;
 import com.example.desporto24.service.impl.ProjectServiceImpl;
 import lombok.AllArgsConstructor;
-
-import javax.mail.MessagingException;
+import org.springframework.stereotype.Service;
 
 @AllArgsConstructor
+@Service
 public class SessaoRegistoService {
 
     private final ProjectServiceImpl sessaoService;
 
-    public String createSessao(SessaoRegistoRequest request) throws SessionExistException, MessagingException {
+    /*
+    public String createSessao(SessaoRegistoRequest request) throws SessionExistException, jakarta.mail.MessagingException {
         String sessao = sessaoService.createSessao(
                 new Sessao(
                         request.getUsername(),
@@ -25,4 +26,5 @@ public class SessaoRegistoService {
                         request.getPassword()));
         return sessao;
     }
+     */
 }

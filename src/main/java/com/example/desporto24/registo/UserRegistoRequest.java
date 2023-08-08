@@ -1,18 +1,18 @@
 package com.example.desporto24.registo;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.*;
-
-import java.util.Date;
-
 @Setter
 @Getter
 @AllArgsConstructor
 @EqualsAndHashCode
 @ToString
 public class UserRegistoRequest {
+    @NotEmpty(message = "Nome de utilizador não pode estar vazio!")
     private String username;
+    @NotEmpty(message = "Password não pode estar vazio!")
     private String password;
     private String fullName;
-    private Date dateOfBirth;
+    private String dateOfBirth;
     private String address;
     private String country;
     private String location;
@@ -20,5 +20,6 @@ public class UserRegistoRequest {
     private String phone;
     private String gender;
     private String email;
-    private byte[] foto;
+    private String postalCode;
+    private String foto;
 }

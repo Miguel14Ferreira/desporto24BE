@@ -8,8 +8,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class ideiasService {
 
+    public Ideias salvarIdeia(Ideias ideia){return ideiasRepository.save(ideia);}
+
     @Autowired
     private IdeiasRepository ideiasRepository;
 
-    public Ideias salvarIdeia(Ideias ideia){return ideiasRepository.save(ideia);}
 }

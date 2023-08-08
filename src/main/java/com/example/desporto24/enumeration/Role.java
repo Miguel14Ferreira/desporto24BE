@@ -1,5 +1,11 @@
 package com.example.desporto24.enumeration;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
 import static com.example.desporto24.constant.Authority.*;
 
 public enum Role {

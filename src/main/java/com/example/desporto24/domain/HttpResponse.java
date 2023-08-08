@@ -1,10 +1,16 @@
 package com.example.desporto24.domain;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Data;
+import lombok.experimental.SuperBuilder;
 import org.springframework.http.HttpStatus;
-
 import java.util.Date;
 
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
+
+@Data
+@SuperBuilder
+@JsonInclude(NON_DEFAULT)
 public class HttpResponse {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy hh:mm:ss", timezone = "Portugal/Lisbon")
     private Date timestamp;

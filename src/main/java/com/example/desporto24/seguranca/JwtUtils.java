@@ -1,6 +1,5 @@
 package com.example.desporto24.seguranca;
-
-import com.example.desporto24.model.CustomUserDetails;
+import com.example.desporto24.model.PerfilPrincipal;
 import io.jsonwebtoken.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +20,7 @@ public class JwtUtils {
 
     public String generateJwtToken(Authentication authentication) {
 
-        CustomUserDetails userPrincipal = (CustomUserDetails) authentication.getPrincipal();
+        PerfilPrincipal userPrincipal = (PerfilPrincipal) authentication.getPrincipal();
 
         return Jwts.builder()
                 .setSubject((userPrincipal.getUsername()))

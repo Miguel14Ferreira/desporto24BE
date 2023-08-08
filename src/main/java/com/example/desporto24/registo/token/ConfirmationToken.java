@@ -1,17 +1,15 @@
 package com.example.desporto24.registo.token;
-
 import com.example.desporto24.model.Perfil;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import javax.persistence.*;
 import java.time.LocalDateTime;
 
+@Entity
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
 public class ConfirmationToken {
     @SequenceGenerator( name = "confirmation_token_sequence",
             sequenceName = "confirmation_token_sequence",

@@ -12,6 +12,7 @@ public class FileConstant {
     public static final String TEMP_PROFILE_IMAGE_BASE_URL = "https://robohash.org/";
     public static final String NOT_A_FILE = "The file sent is not valid!";
     public static final String TEMP_SESSION_IMAGE_BASE_URL = "https://www.shutterstock.com/image-illustration/football-stadium-night-imaginary-modelled-rendered-1912601503";
+    public static final String NOT_AN_IMAGE_FILE = " is not an image file. Please upload an image file";
     public static final String DEFAULT_TEMP_IMAGE_PATH = "/api/auth/image/session/";
 
 }

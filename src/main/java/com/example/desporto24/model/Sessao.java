@@ -1,17 +1,22 @@
 package com.example.desporto24.model;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
+import lombok.experimental.SuperBuilder;
+
 import java.io.Serializable;
 import java.util.Date;
 
-@AllArgsConstructor
-@Getter
-@Setter
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
+
+@Data
 @Entity
-@EqualsAndHashCode
-@ToString
-public class Sessao implements Serializable {
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(NON_DEFAULT)
+public class Sessao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -26,6 +31,11 @@ public class Sessao implements Serializable {
     private String preco;
     private String password;
     private String foto;
+    private Date created_at;
+    @ManyToOne
+    @JoinColumn(nullable = false,
+            name = "perfil_id")
+    private Perfil perfil;
 
     public Sessao(String desporto, String username, String jogadores, Date dataDeJogo, String localidade, String morada, String preco, String password) {
         this.desporto = desporto;
@@ -36,9 +46,5 @@ public class Sessao implements Serializable {
         this.morada = morada;
         this.preco = preco;
         this.password = password;
-    }
-
-    public Sessao() {
-
     }
 }
