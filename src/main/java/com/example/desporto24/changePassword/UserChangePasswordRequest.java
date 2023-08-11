@@ -11,5 +11,6 @@ import lombok.*;
 public class UserChangePasswordRequest {
     private String username;
     private String newUsername;
+    private String email;
     private String password;
     }

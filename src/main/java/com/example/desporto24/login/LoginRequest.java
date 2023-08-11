@@ -13,6 +13,4 @@ public class LoginRequest {
     private String username;
     @NotEmpty(message = "Password não pode estar vazio!")
     private String password;
-    private String roleName;
-    private String permissions;
 }

@@ -17,7 +17,9 @@ public interface ProjectService {
 
     //Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
-    Perfil signUpPerfil2(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
+    Perfil signUpPerfil(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
+
+    Perfil signUpPerfil2(Perfil perfil);
 
     List<Perfil> getPerfis();
 
@@ -53,4 +55,8 @@ public interface ProjectService {
     String changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException;
 
     String confirmCode(String code);
+
+    Perfil resetPassword1(Perfil perfil) throws MessagingException, EmailNotVerifiedException;
+
+    Perfil resetPassword2(Perfil perfil);
 }

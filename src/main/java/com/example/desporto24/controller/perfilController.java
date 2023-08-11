@@ -7,7 +7,6 @@ import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.login.LoginRequest;
 import com.example.desporto24.login.LoginService;
 import com.example.desporto24.model.*;
-import com.example.desporto24.registo.SessaoRegistoRequest;
 import com.example.desporto24.registo.SessaoRegistoService;
 import com.example.desporto24.repository.IdeiasRepository;
 import com.example.desporto24.repository.PerfilRepository;
@@ -28,7 +27,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -41,7 +39,6 @@ import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SecurityConstant.JWT_TOKEN_HEADER;
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.*;
-import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 
 @RestController
 @AllArgsConstructor
@@ -70,7 +67,6 @@ public class perfilController extends ExceptionHandling {
 
     private final LoginService loginService;
 
-
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException {
         autenticate(loginRequest.getUsername(), loginRequest.getPassword());
@@ -81,7 +77,7 @@ public class perfilController extends ExceptionHandling {
     }
 
     @PostMapping("/login/registerNewUser")
-    public ResponseEntity<?> registerUser(@RequestBody UserRegistoRequest signUpRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException {
+    public ResponseEntity<?> registerUser(@RequestBody @Valid UserRegistoRequest signUpRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException {
         Perfil registerperfil = registoService.register(signUpRequest);
         return new ResponseEntity<>(registerperfil, OK);
     }
@@ -99,10 +95,30 @@ public class perfilController extends ExceptionHandling {
         return perfilService.confirmCode(code);
     }
 
-    @GetMapping(path = "/login/registerNewUser/{token}")
-    public String confirmRegistrationToken(@PathVariable ("token") String token){
-        return registoService.confirmToken(token);
+    @PutMapping(path = "/login/registerNewUser/confirmTokenRegistration")
+    public ResponseEntity<?> confirmRegistrationToken(@RequestBody UserRegistoRequest request) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
+        Perfil registerperfil2 = registoService.register2(request);
+        return new ResponseEntity<>(registerperfil2, OK);
     }
+
+    @PostMapping("/login/resetPassword")
+    public ResponseEntity<?> resetPassword(@RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotVerifiedException {
+        Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep1(userChangePasswordRequest);
+        return new ResponseEntity<>(alterarPassword, OK);
+    }
+
+    @PutMapping("/resetPassword/newPassword")
+    public ResponseEntity<?> resetPassword2(@RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
+        Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest);
+        return new ResponseEntity<>(alterarPassword, OK);
+    }
+
+    /*
+    @GetMapping(path = "/login/resetPassword/newPassword/{token}")
+    public String ConfirmResetPassword2(String token){
+        return changePasswordService.resetPasswordToken2(token);
+    }
+     */
 
     @GetMapping(path = "/tokenEmergency")
     public String confirmEmergencyToken(@PathVariable ("token") String token){

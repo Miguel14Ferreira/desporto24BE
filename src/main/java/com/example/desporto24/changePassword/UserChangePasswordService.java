@@ -1,30 +1,41 @@
 package com.example.desporto24.changePassword;
 
-import com.example.desporto24.exception.domain.EmailExistException;
-import com.example.desporto24.exception.domain.EqualUsernameAndPasswordException;
-import com.example.desporto24.exception.domain.PhoneExistException;
-import com.example.desporto24.exception.domain.UsernameExistException;
+import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.Perfil;
+import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.service.impl.ProjectServiceImpl;
 import jakarta.mail.MessagingException;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+
+@AllArgsConstructor
 @Service
 public class UserChangePasswordService {
 
-    private ProjectServiceImpl perfilService;
-
-    @Autowired
-    public UserChangePasswordService(ProjectServiceImpl perfilService) {
-        this.perfilService = perfilService;
-    }
+    private final ProjectServiceImpl perfilService;
 
     public String alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
         String p = perfilService.changeUsernameAndPassword(new Perfil(
                 changePassword.getUsername(),
                 changePassword.getNewUsername(),
+                changePassword.getPassword()));
+        return p;
+    }
+
+    public Perfil alterarPasswordPorTokenStep1(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, EmailNotVerifiedException {
+        Perfil p = perfilService.resetPassword1(new Perfil(
+                changePassword.getEmail()));
+        return p;
+    }
+
+    public Perfil alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+        Perfil p = perfilService.resetPassword2(new Perfil(
+                changePassword.getUsername(),
                 changePassword.getPassword()));
         return p;
     }

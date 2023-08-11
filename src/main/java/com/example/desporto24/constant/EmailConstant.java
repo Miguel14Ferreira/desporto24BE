@@ -6,7 +6,7 @@ public class EmailConstant {
     public static final String PASSWORD = "zgzqkjibyvmldptc";
     public static final String FROM_EMAIL = "desporto24app@gmail.com";
     public static final String CC_EMAIL = "";
-    public static final String EMAIL_SUBJECT = "Confirmação de criação de conta";
+    public static final String EMAIL_SUBJECT = "Desporto24";
     public static final String GMAIL_SMTP_SERVER = "smtp.gmail.com";
     public static final String SMTP_HOST = "mail.smtp.host";
     public static final String SMTP_AUTH = "mail.smtp.auth";

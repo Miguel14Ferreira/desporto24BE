@@ -14,7 +14,6 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 
 @Entity
 @Data
-@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(NON_DEFAULT)
@@ -36,6 +35,7 @@ public class Perfil implements Serializable {
     private String location;
     private String postalCode;
     private String phone;
+    @NotEmpty(message = "Género não pode estar vazio!")
     private String gender;
     @Unique
     @Email(message = "Email inválido, por favor coloca um email válido!")
@@ -93,6 +93,10 @@ public class Perfil implements Serializable {
         this.email = email;
         this.desportosFavoritos = desportosFavoritos;
         this.foto = foto;
+    }
+
+    public Perfil(String email) {
+        this.email = email;
     }
 
     public boolean isNotLocked() {

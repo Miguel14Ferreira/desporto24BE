@@ -18,7 +18,9 @@ public class UserRegistoRequest {
     private String location;
     private String desportosFavoritos;
     private String phone;
+    @NotEmpty(message = "Género não pode estar vazio")
     private String gender;
+    @NotEmpty(message = "Email não pode estar vazio")
     private String email;
     private String postalCode;
     private String foto;
