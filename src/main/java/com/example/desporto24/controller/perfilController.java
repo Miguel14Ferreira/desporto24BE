@@ -95,11 +95,19 @@ public class perfilController extends ExceptionHandling {
         return perfilService.confirmCode(code);
     }
 
+
     @PutMapping(path = "/login/registerNewUser/confirmTokenRegistration")
     public ResponseEntity<?> confirmRegistrationToken(@RequestBody UserRegistoRequest request) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
         Perfil registerperfil2 = registoService.register2(request);
         return new ResponseEntity<>(registerperfil2, OK);
     }
+
+    /*
+    @GetMapping(path = "{token}")
+    public String confirmLinkRegistrationToken(@PathVariable ("token") String token){
+        return registoService.confirmTokenRegistration(token);
+    }
+     */
 
     @PostMapping("/login/resetPassword")
     public ResponseEntity<?> resetPassword(@RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotVerifiedException {

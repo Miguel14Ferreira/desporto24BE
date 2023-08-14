@@ -273,11 +273,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return RandomStringUtils.randomNumeric(10);
     }
 
-    /*
+
     public int enablePerfil(String email) {
         return perfilRepository.enablePerfil(email);
     }
-     */
 
     public int disablePerfil(String email) {
         return perfilRepository.disablePerfil(email);
@@ -357,17 +356,33 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfil.setMFA(false);
         perfil.setLogginAttempts(0);
         perfilRepository.save(perfil);
+        String token = "registrationNewAccountToken"+perfil.getUsername();
+        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = "http://localhost:4200/login/registerNewUser/confirmTokenRegistration";
         emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(), link));
         return perfil;
     }
+
     public Perfil signUpPerfil2(Perfil perfil) {
         Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
         if (p == null) {
             LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
         } else {
-            p.setEnabled(true);
+            String token = "registrationNewAccountToken"+perfil.getUsername();
+            ConfirmationToken confirmationToken = confirmationTokenService
+                    .getToken(token)
+                    .orElseThrow(() ->
+                            new IllegalStateException("token não encontrado."));
+            if (confirmationToken.getConfirmedAt() != null) {
+                throw new IllegalStateException("Este link já foi clicado.");
+            }
+            if (confirmationToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+                throw new IllegalStateException("Código expirado");
+            }
+            confirmationTokenService.setConfirmedAt(token);
+            enablePerfil(confirmationToken.getPerfil().getEmail());
             perfilRepository.save(p);
             return p;
         }
