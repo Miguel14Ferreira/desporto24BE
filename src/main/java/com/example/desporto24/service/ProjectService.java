@@ -42,7 +42,9 @@ public interface ProjectService {
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    Perfil updateUser(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
+    Perfil updatePerfilEmergency(String username);
+
+    Perfil updateUser(String username,Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
     Perfil updateUserFoto(String perfil, MultipartFile foto) throws UsernameExistException, EmailExistException, PhoneExistException, IOException, NotAnImageFileException;
 
@@ -50,7 +52,7 @@ public interface ProjectService {
 
     void sendVerificationCode(Perfil perfil);
 
-    String changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException;
+    Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException;
 
     String confirmCode(String code);
 

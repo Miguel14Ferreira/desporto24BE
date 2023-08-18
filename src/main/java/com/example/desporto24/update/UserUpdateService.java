@@ -19,10 +19,13 @@ import java.io.IOException;
 public class UserUpdateService {
     private final ProjectServiceImpl pService;
 
-    public Perfil update(UserUpdateRequest request,MultipartFile file) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
-        Perfil perfil = pService.updateUser(
+    public Perfil update(String username,UserUpdateRequest request,MultipartFile file) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
+        System.out.println(request);
+        if (request.getMFA() == null){
+            request.setMFA(false);
+        }
+        Perfil perfil = pService.updateUser(username,
                 new Perfil(
-                        request.getUsername(),
                         request.getFullName(),
                         request.getDateOfBirth(),
                         request.getAddress(),
@@ -33,25 +36,9 @@ public class UserUpdateService {
                         request.getPhone(),
                         request.getGender(),
                         request.getEmail(),
-                        request.getDesportosFavoritos()),
+                        request.getDesportosFavoritos(),
+                        request.getMFA()),
                         file);
-        return perfil;
-    }
-    public Perfil updateEmergency(UserUpdateRequest request) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAImageFileException {
-        Perfil perfil = pService.updateUser2(
-                new Perfil(
-                        request.getUsername(),
-                        request.getFullName(),
-                        request.getDateOfBirth(),
-                        request.getAddress(),
-                        request.getCountry(),
-                        request.getLocation(),
-                        request.getIndicativePhone(),
-                        request.getPostalCode(),
-                        request.getPhone(),
-                        request.getGender(),
-                        request.getEmail(),
-                        request.getDesportosFavoritos()));
         return perfil;
     }
 }

@@ -519,8 +519,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil updateUser(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
-        Perfil p = findUserByUsername(perfil.getUsername());
+    public Perfil updateUser(String username,Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
+        Perfil p = findUserByUsername(username);
         p.setFullName(perfil.getFullName());
         p.setCountry(perfil.getCountry());
         p.setLocation(perfil.getLocation());
@@ -530,6 +530,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         p.setEmail(perfil.getEmail());
         p.setDateOfBirth(perfil.getDateOfBirth());
         p.setPostalCode(perfil.getPostalCode());
+        p.setMFA(perfil.getMFA());
         if (foto != null){
             saveProfileImage(p,foto);
         }
@@ -583,7 +584,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public String changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+    public Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
         Perfil p = validateNewUsernameEmailAndPhone(perfil.getUsername(), perfil.getNewUsername(), null, null);
         if (p == null) {
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
@@ -594,12 +595,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String encodedPassword = passwordEncoder.encode(perfil.getPassword());
             p.setUsername(perfil.getNewUsername());
             p.setPassword(encodedPassword);
-            String token = UUID.randomUUID().toString();
-            ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
-            confirmationTokenService.saveConfirmationToken(confirmationToken);
-            String link = "http://localhost:8080/api/auth/tokenEmergency/confirmEmergencyToken?token=" + token;
-            emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
-            return token;
+            return p;
         }
     }
 
@@ -693,7 +689,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         } else {
             validateLoginAttempt(perfil);
             validateLoginAttempt2(perfil);
-            validateLoginAttempt3(perfil);
             perfil.setLastLoginDateDisplay(perfil.getLastLoginDate());
             perfil.setLastLoginDate(new Date());
             perfilRepository.save(perfil);
@@ -726,11 +721,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             }
         }
 
-    public Perfil updateUser2(Perfil perfil) {
-        Perfil p = findUserByUsername(perfil.getUsername());
+    public Perfil updatePerfilEmergency(String username) {
+        Perfil p = findUserByUsername(username);
         if (p == null){
-            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
+            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
         }
         disablePerfil(p.getEmail());
         return p;

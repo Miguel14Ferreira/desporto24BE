@@ -13,5 +13,6 @@ public class SmsUtils {
     public static void sendSMS(String indicative, String to, String messageBody){
         Twilio.init(SID_KEY, TOKEN_KEY);
         Message message = creator(new PhoneNumber("+"+indicative+ to), new PhoneNumber(FROM_NUMBER),messageBody).create();
+        System.out.println(message);
     }
 }

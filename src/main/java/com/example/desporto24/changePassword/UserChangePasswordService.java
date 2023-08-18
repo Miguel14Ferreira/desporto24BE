@@ -19,8 +19,8 @@ public class UserChangePasswordService {
 
     private final ProjectServiceImpl perfilService;
 
-    public String alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
-        String p = perfilService.changeUsernameAndPassword(new Perfil(
+    public Perfil alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+        Perfil p = perfilService.changeUsernameAndPassword(new Perfil(
                 changePassword.getUsername(),
                 changePassword.getNewUsername(),
                 changePassword.getPassword()));

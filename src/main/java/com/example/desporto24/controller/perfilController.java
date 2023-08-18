@@ -107,8 +107,8 @@ public class perfilController extends ExceptionHandling {
     }
 
     @PutMapping(path = "/confirmEmergencyToken")
-    public ResponseEntity<?> confirmRegistrationToken(@RequestBody UserUpdateRequest request) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
-        Perfil updateUser = updateService.updateEmergency(request);
+    public ResponseEntity<?> confirmRegistrationToken(@RequestParam String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+        Perfil updateUser = perfilService.updatePerfilEmergency(username);
         return new ResponseEntity<>(updateUser, OK);
     }
 
@@ -138,8 +138,8 @@ public class perfilController extends ExceptionHandling {
     }
 
     @PutMapping("/menu/alterardados")
-    public ResponseEntity<?> updateUser(@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam MultipartFile foto) throws EmailExistException, MessagingException, PhoneExistException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
-        Perfil updatePerfil = updateService.update(updateRequest, foto);
+    public ResponseEntity<?> updateUser(@RequestParam String username,@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam(required = false) MultipartFile foto) throws EmailExistException, MessagingException, PhoneExistException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
+        Perfil updatePerfil = updateService.update(username,updateRequest, foto);
         return new ResponseEntity<>(updatePerfil, OK);
     }
     @PutMapping("/menu")
@@ -156,7 +156,7 @@ public class perfilController extends ExceptionHandling {
 
     @PutMapping("/menu/alterarPassword")
     public ResponseEntity<?> updateUserPassword(@RequestBody UserChangePasswordRequest changeRequest) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, EqualUsernameAndPasswordException, jakarta.mail.MessagingException {
-        String changePassword = changePasswordService.alterarPassword(changeRequest);
+        Perfil changePassword = changePasswordService.alterarPassword(changeRequest);
         return new ResponseEntity<>(changePassword, OK);
     }
 

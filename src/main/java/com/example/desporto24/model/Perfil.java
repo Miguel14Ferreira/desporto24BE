@@ -82,8 +82,7 @@ public class Perfil implements Serializable {
         this.desportosFavoritos = desportosFavoritos;
     }
 
-    public Perfil(String username, String fullName, String dateOfBirth, String address, String country, String location, String postalCode,String indicativePhone, String phone, String gender, String email, String desportosFavoritos) {
-        this.username = username;
+    public Perfil(String fullName, String dateOfBirth, String address, String country, String location, String postalCode,String indicativePhone, String phone, String gender, String email, String desportosFavoritos, Boolean mfa) {
         this.fullName = fullName;
         this.dateOfBirth = dateOfBirth;
         this.address = address;
@@ -95,6 +94,7 @@ public class Perfil implements Serializable {
         this.gender = gender;
         this.email = email;
         this.desportosFavoritos = desportosFavoritos;
+        this.MFA = mfa;
     }
 
     public Perfil(String email) {
