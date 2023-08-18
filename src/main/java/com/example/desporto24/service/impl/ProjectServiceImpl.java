@@ -519,7 +519,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil updateUser(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
+    public Perfil updateUser(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
         Perfil p = findUserByUsername(perfil.getUsername());
         p.setFullName(perfil.getFullName());
         p.setCountry(perfil.getCountry());
@@ -530,6 +530,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         p.setEmail(perfil.getEmail());
         p.setDateOfBirth(perfil.getDateOfBirth());
         p.setPostalCode(perfil.getPostalCode());
+        if (foto != null){
+            saveProfileImage(p,foto);
+        }
             perfilRepository.save(p);
             String link = "http://localhost:4200/confirmEmergencyToken";
             emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));

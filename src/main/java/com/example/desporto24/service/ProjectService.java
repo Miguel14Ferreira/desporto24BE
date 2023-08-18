@@ -42,7 +42,7 @@ public interface ProjectService {
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    Perfil updateUser(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
+    Perfil updateUser(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
     Perfil updateUserFoto(String perfil, MultipartFile foto) throws UsernameExistException, EmailExistException, PhoneExistException, IOException, NotAnImageFileException;
 

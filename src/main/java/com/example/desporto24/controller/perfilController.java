@@ -138,8 +138,8 @@ public class perfilController extends ExceptionHandling {
     }
 
     @PutMapping("/menu/alterardados")
-    public ResponseEntity<?> updateUser(@ModelAttribute @Valid UserUpdateRequest updateRequest) throws EmailExistException, MessagingException, PhoneExistException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
-        Perfil updatePerfil = updateService.update(updateRequest);
+    public ResponseEntity<?> updateUser(@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam MultipartFile foto) throws EmailExistException, MessagingException, PhoneExistException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
+        Perfil updatePerfil = updateService.update(updateRequest, foto);
         return new ResponseEntity<>(updatePerfil, OK);
     }
     @PutMapping("/menu")
