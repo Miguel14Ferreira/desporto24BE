@@ -1,6 +1,9 @@
 package com.example.desporto24.registo;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.*;
+
+import java.util.Date;
+
 @Setter
 @Getter
 @AllArgsConstructor
@@ -17,11 +20,11 @@ public class UserRegistoRequest {
     private String country;
     private String location;
     private String desportosFavoritos;
+    private String indicativePhone;
     private String phone;
     @NotEmpty(message = "Género não pode estar vazio")
     private String gender;
     @NotEmpty(message = "Email não pode estar vazio")
     private String email;
     private String postalCode;
-    private String foto;
 }

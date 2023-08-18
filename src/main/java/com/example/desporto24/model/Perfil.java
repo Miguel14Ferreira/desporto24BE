@@ -6,6 +6,7 @@ import org.checkerframework.common.aliasing.qual.Unique;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.Serializable;
 import java.util.*;
@@ -34,6 +35,7 @@ public class Perfil implements Serializable {
     private String country;
     private String location;
     private String postalCode;
+    private String indicativePhone;
     private String phone;
     @NotEmpty(message = "Género não pode estar vazio!")
     private String gender;
@@ -64,7 +66,7 @@ public class Perfil implements Serializable {
         this.password = password;
     }
 
-    public Perfil(String username, String password, String fullName, String dateOfBirth, String address, String country, String location, String postalCode, String phone, String gender, String email, String desportosFavoritos, String foto) {
+    public Perfil(String username, String password, String fullName, String dateOfBirth, String address, String country, String location, String postalCode,String indicativePhone, String phone, String gender, String email, String desportosFavoritos) {
         this.username = username;
         this.password = password;
         this.fullName = fullName;
@@ -73,14 +75,14 @@ public class Perfil implements Serializable {
         this.country = country;
         this.location = location;
         this.postalCode = postalCode;
+        this.indicativePhone = indicativePhone;
         this.phone = phone;
         this.gender = gender;
         this.email = email;
         this.desportosFavoritos = desportosFavoritos;
-        this.foto = foto;
     }
 
-    public Perfil(String username, String fullName, String dateOfBirth, String address, String country, String location, String postalCode, String phone, String gender, String email, String desportosFavoritos, String foto) {
+    public Perfil(String username, String fullName, String dateOfBirth, String address, String country, String location, String postalCode,String indicativePhone, String phone, String gender, String email, String desportosFavoritos) {
         this.username = username;
         this.fullName = fullName;
         this.dateOfBirth = dateOfBirth;
@@ -88,11 +90,11 @@ public class Perfil implements Serializable {
         this.country = country;
         this.location = location;
         this.postalCode = postalCode;
+        this.indicativePhone = indicativePhone;
         this.phone = phone;
         this.gender = gender;
         this.email = email;
         this.desportosFavoritos = desportosFavoritos;
-        this.foto = foto;
     }
 
     public Perfil(String email) {

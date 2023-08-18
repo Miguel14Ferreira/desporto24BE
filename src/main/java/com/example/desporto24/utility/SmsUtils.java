@@ -8,10 +8,10 @@ import static com.twilio.rest.api.v2010.account.Message.creator;
 public class SmsUtils {
     public static final String FROM_NUMBER = "+17622635693";
     public static final String SID_KEY = "ACd4aa786bd33571cbec3ec88f69617528";
-    public static final String TOKEN_KEY = "69a1abe809b0d0c861662e4275ddaa58";
+    public static final String TOKEN_KEY = "0bf1330145d951493ed32eed2b255def";
 
-    public static void sendSMS(String to, String messageBody){
+    public static void sendSMS(String indicative, String to, String messageBody){
         Twilio.init(SID_KEY, TOKEN_KEY);
-        Message message = creator(new PhoneNumber("+351" + to), new PhoneNumber(FROM_NUMBER),messageBody).create();
+        Message message = creator(new PhoneNumber("+"+indicative+ to), new PhoneNumber(FROM_NUMBER),messageBody).create();
     }
 }

@@ -5,6 +5,7 @@ import com.example.desporto24.model.PerfilPrincipal;
 import com.example.desporto24.model.Sessao;
 import com.example.desporto24.registo.MFA.MFAVerification;
 import com.example.desporto24.registo.MFA.MFAVerificationService;
+import com.example.desporto24.registo.UserRegistoRequest;
 import com.example.desporto24.registo.UserRegistoService;
 import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
@@ -12,12 +13,15 @@ import com.example.desporto24.repository.PerfilRepository;
 import com.example.desporto24.repository.SessaoRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.ProjectService;
+import com.example.desporto24.update.token.UpdateToken;
+import com.example.desporto24.update.token.UpdateTokenService;
 import jakarta.mail.MessagingException;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +50,7 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.hibernate.metamodel.mapping.MappingModelCreationLogger.LOGGER;
 import static org.springframework.http.MediaType.*;
 
 @Service
@@ -67,9 +72,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private SessaoRepository sessaoRepository;
     private final MFAVerificationService MFAverificationService;
     private final ExceptionHandling exceptionHandling;
+    private final UpdateTokenService updateTokenService;
 
     @Autowired
-    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling) {
+    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, UpdateTokenService updateTokenService) {
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -77,6 +83,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.sessaoRepository = sessaoRepository;
         this.MFAverificationService = mfaVerificationService;
         this.exceptionHandling = exceptionHandling;
+        this.updateTokenService = updateTokenService;
     }
 
 
@@ -178,10 +185,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
     */
 
-    private String getTemporaryProfileImageURL2(String Username) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath().path(DEFAULT_TEMP_IMAGE_PATH + Username).toUriString();
-    }
-
 
     private Sessao validateNewSessao(String currentUsername, String morada, Date dataDeJogo) throws SessionExistException {
         Sessao findSessaoByNewMorada = findSessaoByMorada(morada);
@@ -208,23 +211,21 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return 0;
     }
 
-
     public Perfil login(Perfil perfil) throws UsernameNotFoundException, EmailNotVerifiedException, AccountDisabledException {
-        System.out.println(perfil);
-        perfil = perfilRepository.findUserByUsername(perfil.getUsername());
-        if (perfil == null) {
+        Perfil p = findUserByUsername(perfil.getUsername());
+        if (perfil.getUsername() == null) {
             LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
         } else {
-            validateLoginAttempt(perfil);
-            validateLoginAttempt2(perfil);
-            validateLoginAttempt3(perfil);
-            perfil.setLastLoginDateDisplay(perfil.getLastLoginDate());
-            perfil.setLastLoginDate(new Date());
-            perfil.setLogginAttempts(0);
-            perfilRepository.save(perfil);
-            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + perfil.getUsername());
-            return perfil;
+            validateLoginAttempt(p);
+            validateLoginAttempt2(p);
+            validateLoginAttempt3(p);
+            p.setLastLoginDateDisplay(p.getLastLoginDate());
+            p.setLastLoginDate(new Date());
+            p.setLogginAttempts(0);
+            perfilRepository.save(p);
+            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
+            return p;
         }
     }
 
@@ -262,15 +263,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         } else {
             return perfil;
         }
-    }
-
-
-    private String getTemporaryProfileImageURL(String username) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath().path(DEFAULT_USER_IMAGE_PATH + username).toUriString();
-    }
-
-    private String generateUserId() {
-        return RandomStringUtils.randomNumeric(10);
     }
 
 
@@ -314,178 +306,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             }
             return null;
         }
-    }
-
-    /*
-    public Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException {
-        validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
-        String encodedPassword = passwordEncoder.encode(perfil.getPassword());
-        perfil.setPassword(encodedPassword);
-        perfil.setUserId(generateUserId());
-        perfil.setJoinDate(new Date());
-        perfil.setEnabled(false);
-        perfil.setNotLocked(true);
-        perfil.setRole(ROLE_USER.name());
-        perfil.setAuthorities(ROLE_USER.getAuthorities());
-        perfil.setFoto(getTemporaryProfileImageURL(perfil.getUsername()));
-        perfilRepository.save(perfil);
-        String token = UUID.randomUUID().toString();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
-        confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = "http://localhost:8080/api/auth/confirmRegistrationToken?token=" + token;
-        emailService.send(perfil.getEmail(),buildRegistrationEmail(perfil.getUsername(),link));
-        saveProfileImage(perfil, foto);
-        return perfil;
-    }
-
-    */
-    @Override
-    public Perfil signUpPerfil(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
-        validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
-        if (perfil.getFoto().equals("")) {
-            perfil.setFoto("C:/Users/miguferr/desporto24/src/main/resources/static/imagens/foto.png");
-        }
-        String encodedPassword = passwordEncoder.encode(perfil.getPassword());
-        perfil.setPassword(encodedPassword);
-        perfil.setUserId(generateUserId());
-        perfil.setJoinDate(new Date());
-        perfil.setEnabled(false);
-        perfil.setNotLocked(true);
-        perfil.setRole(ROLE_USER.name());
-        perfil.setAuthorities(ROLE_USER.getAuthorities());
-        perfil.setMFA(false);
-        perfil.setLogginAttempts(0);
-        perfilRepository.save(perfil);
-        String token = "registrationNewAccountToken"+perfil.getUsername();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
-        confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = "http://localhost:4200/login/registerNewUser/confirmTokenRegistration";
-        emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(), link));
-        return perfil;
-    }
-
-    public Perfil signUpPerfil2(Perfil perfil) {
-        Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
-        if (p == null) {
-            LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
-            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
-        } else {
-            String token = "registrationNewAccountToken"+perfil.getUsername();
-            ConfirmationToken confirmationToken = confirmationTokenService
-                    .getToken(token)
-                    .orElseThrow(() ->
-                            new IllegalStateException("token não encontrado."));
-            if (confirmationToken.getConfirmedAt() != null) {
-                throw new IllegalStateException("Este link já foi clicado.");
-            }
-            if (confirmationToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-                throw new IllegalStateException("Código expirado");
-            }
-            confirmationTokenService.setConfirmedAt(token);
-            enablePerfil(confirmationToken.getPerfil().getEmail());
-            perfilRepository.save(p);
-            return p;
-        }
-    }
-
-
-    public Perfil signUpPerfil3(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException {
-        validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
-        perfil.setUserId(generateUserId());
-        perfil.setJoinDate(new Date());
-        perfil.setEnabled(false);
-        perfil.setNotLocked(true);
-        perfil.setRole(ROLE_USER.name());
-        perfil.setAuthorities(ROLE_USER.getAuthorities());
-        perfilRepository.save(perfil);
-        return perfil;
-    }
-
-    private void saveProfileImage(Perfil perfil, MultipartFile profileImage) throws IOException, NotAnImageFileException {
-        if (profileImage != null) {
-            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
-                throw new NotAnImageFileException(profileImage.getOriginalFilename() + NOT_AN_IMAGE_FILE);
-            }
-            Path userFolder = Paths.get(USER_FOLDER + perfil.getUsername()).toAbsolutePath().normalize();
-            if (!Files.exists(userFolder)) {
-                Files.createDirectories(userFolder);
-                LOGGER.info(DIRECTORY_CREATED + userFolder);
-            }
-            Files.deleteIfExists(Paths.get(userFolder + perfil.getUsername() + DOT + JPG_EXTENSION));
-            Files.copy(profileImage.getInputStream(), userFolder.resolve(perfil.getUsername() + DOT + JPG_EXTENSION), REPLACE_EXISTING);
-            //perfil.setFoto(setProfileImageUrl(perfil.getUsername()));
-            perfilRepository.save(perfil);
-            LOGGER.info(FILE_SAVED_IN_FILE_SYSTEM + profileImage.getOriginalFilename());
-        }
-    }
-
-    private String setProfileImageUrl(String username) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath().path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
-    }
-
-    private String buildRegistrationEmail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Obrigado por te registares na nossa aplicação. Clica neste link para ativar a tua conta: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Ativar agora</a> </p><p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
     }
 
     private String buildResetPasswordEmail(String name, String link) {
@@ -553,6 +373,121 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
+    private String generateUserId() {
+        return RandomStringUtils.randomNumeric(10);
+    }
+
+    private String buildRegistrationEmail(String name, String link) {
+        return
+                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
+                        "    <tbody><tr>\n" +
+                        "        \n" +
+                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
+                        "          <tbody><tr>\n" +
+                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                    <td style=\"padding-left:10px\">\n" +
+                        "                  \n" +
+                        "                    </td>\n" +
+                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
+                        "                    </td>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "              </a>\n" +
+                        "            </td>\n" +
+                        "          </tr>\n" +
+                        "        </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
+                        "      <td>\n" +
+                        "        \n" +
+                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "\n" +
+                        "\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
+                        "        \n" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Obrigado por te registares na nossa aplicação. Clica neste link para ativar a tua conta: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Ativar agora</a> </p><p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
+                        "\n" +
+                        "</div></div>";
+    }
+
+    public Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
+        validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
+        String encodedPassword = passwordEncoder.encode(perfil.getPassword());
+        perfil.setPassword(encodedPassword);
+        perfil.setUserId(generateUserId());
+        perfil.setJoinDate(new Date());
+        perfil.setEnabled(false);
+        perfil.setNotLocked(true);
+        perfil.setRole(ROLE_USER.name());
+        perfil.setAuthorities(ROLE_USER.getAuthorities());
+        perfil.setMFA(false);
+        perfil.setLogginAttempts(0);
+        saveProfileImage(perfil,foto);
+        perfilRepository.save(perfil);
+        String token = "registrationNewAccountToken"+perfil.getUsername();
+        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        String link = "http://localhost:4200/login/registerNewUser/confirmTokenRegistration";
+        emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(), link));
+        return perfil;
+    }
+
+    public Perfil signUpPerfil2(Perfil perfil) {
+        Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
+        if (p == null) {
+            LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
+            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
+        } else {
+            String token = "registrationNewAccountToken"+perfil.getUsername();
+            ConfirmationToken confirmationToken = confirmationTokenService
+                    .getToken(token)
+                    .orElseThrow(() ->
+                            new IllegalStateException("token não encontrado."));
+            if (confirmationToken.getConfirmedAt() != null) {
+                throw new IllegalStateException("Este link já foi clicado.");
+            }
+            if (confirmationToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+                throw new IllegalStateException("Código expirado");
+            }
+            confirmationTokenService.setConfirmedAt(token);
+            enablePerfil(confirmationToken.getPerfil().getEmail());
+            perfilRepository.save(p);
+            return p;
+        }
+    }
+
     @Override
     public List<Perfil> getPerfis() {
         return perfilRepository.findAll();
@@ -584,7 +519,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil updateUser(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException {
+    public Perfil updateUser(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
         Perfil p = findUserByUsername(perfil.getUsername());
         p.setFullName(perfil.getFullName());
         p.setCountry(perfil.getCountry());
@@ -595,13 +530,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         p.setEmail(perfil.getEmail());
         p.setDateOfBirth(perfil.getDateOfBirth());
         p.setPostalCode(perfil.getPostalCode());
-        p.setFoto(perfil.getFoto());
-        perfilRepository.save(p);
-        String token = UUID.randomUUID().toString();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), p);
-        confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = "http://localhost:8080/tokenEmergency/confirmEmergencyToken?token=" + token;
-        emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+            perfilRepository.save(p);
+            String link = "http://localhost:4200/confirmEmergencyToken";
+            emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
         return p;
     }
 
@@ -616,7 +547,36 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String code = randomAlphabetic(8).toUpperCase();
         MFAVerification mfaVerification = new MFAVerification(code, LocalDateTime.now(), LocalDateTime.now().plusMinutes(5), perfil);
         MFAverificationService.saveConfirmationMFA(mfaVerification);
-        sendSMS(perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
+        sendSMS(perfil.getIndicativePhone(),perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
+    }
+
+    private void saveProfileImage(Perfil perfil, MultipartFile profileImage) throws IOException, NotAnImageFileException {
+        if (profileImage != null) {
+            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
+                throw new NotAnImageFileException(profileImage.getOriginalFilename() + NOT_AN_IMAGE_FILE);
+            }
+            Path userFolder = Paths.get(USER_FOLDER + perfil.getUsername()).toAbsolutePath().normalize();
+            if (!Files.exists(userFolder)) {
+                Files.createDirectories(userFolder);
+                LOGGER.info(DIRECTORY_CREATED + userFolder);
+            }
+            Files.deleteIfExists(Paths.get(userFolder + perfil.getUsername() + DOT + JPG_EXTENSION));
+            Files.copy(profileImage.getInputStream(), userFolder.resolve(perfil.getUsername() + DOT + JPG_EXTENSION), REPLACE_EXISTING);
+            perfil.setFoto(setProfileImageUrl(perfil.getUsername()));
+            perfilRepository.save(perfil);
+            LOGGER.info(FILE_SAVED_IN_FILE_SYSTEM + profileImage.getOriginalFilename());
+        } else {
+            if (perfil.getFoto() == null) {
+                perfil.setFoto(getTemporaryProfileImageURL(perfil.getUsername()));
+            }
+        }
+    }
+    private String setProfileImageUrl(String username) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
+    }
+
+    private String getTemporaryProfileImageURL(String username) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path(DEFAULT_USER_IMAGE_PATH + username).toUriString();
     }
 
     @Override
@@ -640,8 +600,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
-    @Override
-    @Transactional
     public String confirmCode(String code) {
         MFAVerification mfaVerification = MFAverificationService
                 .getCode(code)
@@ -764,4 +722,17 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 return p;
             }
         }
+
+    public Perfil updateUser2(Perfil perfil) {
+        Perfil p = findUserByUsername(perfil.getUsername());
+        if (p == null){
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+        }
+        disablePerfil(p.getEmail());
+        return p;
+    }
+
+    public void signUpPerfil3(Perfil perfil) {
+    }
 }

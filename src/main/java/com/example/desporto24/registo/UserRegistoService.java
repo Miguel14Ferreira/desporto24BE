@@ -8,11 +8,22 @@ import com.example.desporto24.registo.token.ConfirmationTokenService;
 import com.example.desporto24.repository.PerfilRepository;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import com.example.desporto24.service.impl.ProjectServiceImpl;
+import jakarta.mail.MessagingException;
 import lombok.AllArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Date;
+
+import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
+import static com.example.desporto24.enumeration.Role.ROLE_USER;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.hibernate.metamodel.mapping.MappingModelCreationLogger.LOGGER;
 
 @AllArgsConstructor
 @Service
@@ -20,8 +31,9 @@ public class UserRegistoService {
     private final ProjectServiceImpl pService;
     private final ConfirmationTokenService confirmationTokenService;
     private final PerfilRepository pr;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    public Perfil register(UserRegistoRequest request) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
+    public Perfil register(UserRegistoRequest request, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
         Perfil perfil = pService.signUpPerfil(
                 new Perfil(
                         request.getUsername(),
@@ -32,11 +44,12 @@ public class UserRegistoService {
                         request.getCountry(),
                         request.getLocation(),
                         request.getPostalCode(),
+                        request.getIndicativePhone(),
                         request.getPhone(),
                         request.getGender(),
                         request.getEmail(),
-                        request.getDesportosFavoritos(),
-                        request.getFoto()));
+                        request.getDesportosFavoritos()),
+                        foto);
         return perfil;
     }
 
@@ -51,46 +64,11 @@ public class UserRegistoService {
                         request.getCountry(),
                         request.getLocation(),
                         request.getPostalCode(),
+                        request.getIndicativePhone(),
                         request.getPhone(),
                         request.getGender(),
                         request.getEmail(),
-                        request.getDesportosFavoritos(),
-                        request.getFoto()));
+                        request.getDesportosFavoritos()));
         return perfil;
-    }
-    /*
-
-    public Perfil register2(UserRegistoRequest request,MultipartFile foto) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAnImageFileException {
-        Perfil perfil = pService.signUpPerfil(
-                new Perfil(
-                        request.getUsername(),
-                        request.getPassword(),
-                        request.getFullName(),
-                        request.getDateOfBirth(),
-                        request.getAddress(),
-                        request.getCountry(),
-                        request.getLocation(),
-                        request.getPostalCode(),
-                        request.getPhone(),
-                        request.getGender(),
-                        request.getEmail(),
-                        request.getDesportosFavoritos()),
-                        foto);
-        return perfil;
-    }
-     */
-
-    @Transactional
-    public String confirmEmergencyToken(String token) {
-        ConfirmationToken confirmationToken = confirmationTokenService
-                .getToken(token)
-                .orElseThrow(() ->
-                        new IllegalStateException("token não encontrado."));
-        if (confirmationToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Este link já foi clicado.");
-        }
-        confirmationTokenService.setConfirmedAt(token);
-        pService.disablePerfil(confirmationToken.getPerfil().getEmail());
-        return "A tua conta neste momento encontra-se bloqueada, podes fechar esta janela.";
     }
 }

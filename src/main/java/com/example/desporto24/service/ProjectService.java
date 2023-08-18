@@ -15,9 +15,7 @@ import java.util.List;
 
 public interface ProjectService {
 
-    //Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
-
-    Perfil signUpPerfil(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
+    Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
 
     Perfil signUpPerfil2(Perfil perfil);
 
@@ -44,7 +42,7 @@ public interface ProjectService {
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    Perfil updateUser(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException;
+    Perfil updateUser(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
     Perfil updateUserFoto(String perfil, MultipartFile foto) throws UsernameExistException, EmailExistException, PhoneExistException, IOException, NotAnImageFileException;
 
