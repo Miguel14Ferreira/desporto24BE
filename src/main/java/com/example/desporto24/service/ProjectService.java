@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 import com.example.desporto24.exception.domain.*;
+import com.example.desporto24.model.Ideias;
 import com.example.desporto24.model.Perfil;
 import com.example.desporto24.model.Sessao;
 import com.example.desporto24.service.impl.NotAnImageFileException;
@@ -51,6 +52,8 @@ public interface ProjectService {
     void deleteUser(Long id);
 
     void sendVerificationCode(Perfil perfil);
+
+    Ideias newIdea(Ideias i) throws MessagingException;
 
     Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException;
 

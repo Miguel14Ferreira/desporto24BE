@@ -1,9 +1,8 @@
 package com.example.desporto24.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotEmpty;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.io.Serializable;
@@ -11,6 +10,8 @@ import java.io.Serializable;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 
 @Data
+@Getter
+@Setter
 @Entity
 @SuperBuilder
 @NoArgsConstructor
@@ -19,84 +20,26 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 public class Ideias {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(nullable = false, updatable = false)
     private Long id;
-    @Column(name = "name", unique = true)
+    @NotEmpty(message = "O campo nome não pode estar vazio")
     private String name;
-    @Column(name = "age")
     private String age;
-    @Column(name = "city")
     private String city;
-    @Column(name = "gender")
+    @NotEmpty(message = "O campo email não pode estar vazio")
+    private String email;
     private String gender;
-    @Column(name = "phone")
-    private String phone;
-    @Column(name = "subject")
     private String subject;
-    @Column(name = "problem")
     private String problem;
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
+    public Ideias(String name, String age, String city, String email, String gender, String subject, String problem) {
         this.name = name;
-    }
-
-    public String getAge() {
-        return age;
-    }
-
-    public void setAge(String age) {
         this.age = age;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
         this.city = city;
-    }
-
-    public String getGender() {
-        return gender;
-    }
-
-    public void setGender(String gender) {
+        this.email = email;
         this.gender = gender;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public void setSubject(String subject) {
         this.subject = subject;
-    }
-
-    public String getProblem() {
-        return problem;
-    }
-
-    public void setProblem(String problem) {
         this.problem = problem;
     }
 }

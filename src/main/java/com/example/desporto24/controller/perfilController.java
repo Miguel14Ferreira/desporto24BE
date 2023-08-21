@@ -7,10 +7,11 @@ import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.login.LoginRequest;
 import com.example.desporto24.login.LoginService;
 import com.example.desporto24.model.*;
+import com.example.desporto24.newIdea.NewIdeaRequest;
+import com.example.desporto24.newIdea.NewIdeaService;
 import com.example.desporto24.registo.SessaoRegistoService;
 import com.example.desporto24.repository.IdeiasRepository;
 import com.example.desporto24.repository.PerfilRepository;
-import com.example.desporto24.service.ideiasService;
 import com.example.desporto24.service.ProjectService;
 import com.example.desporto24.registo.UserRegistoRequest;
 import com.example.desporto24.registo.UserRegistoService;
@@ -20,14 +21,12 @@ import com.example.desporto24.update.UserUpdateService;
 import com.example.desporto24.utility.JWTokenProvider;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
-import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -45,30 +44,19 @@ import static org.springframework.http.MediaType.*;
 import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping(path ={"/","/api/auth"})
 public class perfilController extends ExceptionHandling {
-    @Autowired
     private final PerfilRepository perfilRepository;
-    @Autowired
-    private final ideiasService ideiasService;
-    @Autowired
+    private final NewIdeaService ideiasService;
     private final IdeiasRepository ideiasRepository;
-    @Autowired
     private final UserRegistoService registoService;
-    @Autowired
     private final AuthenticationManager authenticationManager;
-
     private final ProjectService perfilService;
-
     private final UserUpdateService updateService;
-
     private final UserChangePasswordService changePasswordService;
-
     private final JWTokenProvider jwTokenProvider;
-
     private final SessaoRegistoService sessaoRegistoService;
-
     private final LoginService loginService;
 
     @PostMapping("/login")
@@ -148,6 +136,12 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(updatePerfil, OK);
     }
 
+    @PostMapping("/contact")
+    public ResponseEntity<?> registerNewIdea(@RequestBody NewIdeaRequest ideias) throws MessagingException {
+        Ideias registerIdea = ideiasService.registerNewIdea(ideias);
+        return new ResponseEntity<>(registerIdea, OK);
+    }
+
     @GetMapping("/find/{username}")
     public ResponseEntity<Perfil> getUser(@PathVariable String username){
         Perfil getPerfil = perfilService.findUserByUsername(username);
@@ -166,13 +160,6 @@ public class perfilController extends ExceptionHandling {
         perfilService.deleteUser(id);
         return response(OK, "User deleted successfully");
     }
-/*
-    @PostMapping("/updateProfileImage")
-    public ResponseEntity<?> updateProfileImage(@RequestParam("username") String username,@RequestParam("foto")MultipartFile foto) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAImageFileException {
-        Perfil perfil = perfilService.updateImage(username,foto);
-        return new ResponseEntity<>(perfil,OK);
-    }
- */
 
     private ResponseEntity<HttpResponse> response(HttpStatus httpStatus, String message) {
         HttpResponse body = new HttpResponse(httpStatus.value(),httpStatus,httpStatus.getReasonPhrase().toUpperCase(),message);
@@ -215,13 +202,6 @@ public class perfilController extends ExceptionHandling {
             }
         }
         return byteArrayOutputStream.toByteArray();
-    }
-
-
-    @PostMapping("/contacts")
-    public ResponseEntity<Ideias> saveIdeia(@RequestBody Ideias ideias) {
-        Ideias i = ideiasService.salvarIdeia(ideias);
-        return new ResponseEntity<>(i,OK);
     }
 
     private HttpHeaders getJwtHeader(PerfilPrincipal perfilPrincipal) {
