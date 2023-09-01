@@ -35,20 +35,23 @@ public class SecurityConfiguration{
     private final UserDetailsService userDetailsService;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
+    // Configuração de segurança da aplicação
+
     @Bean
     protected SecurityFilterChain configure(@NotNull HttpSecurity http) throws Exception {
         http.csrf().disable().cors().and()
                 .sessionManagement().sessionCreationPolicy(STATELESS)
-                .and().authorizeRequests().requestMatchers(PUBLIC_URLS).permitAll()
+                .and().authorizeRequests().requestMatchers(PUBLIC_URLS).permitAll()// links que podem ser utilizados sem estar autenticado
                 .anyRequest().authenticated()
                 .and()
-                .exceptionHandling().accessDeniedHandler(jwtAcessDeniedHandler)
-                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                .exceptionHandling().accessDeniedHandler(jwtAcessDeniedHandler)// aparecerá esta exceção se o utilizador tentar aceder a um link sem estar autorizado
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)// aparecerá esta exceção se o utilizador tentar aceder a um link sem estar autenticado
                 .and()
-                .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);//atribuição de token ao utilizar autenticado
         return http.build();
     }
 
+    // Bean para autenticação de utilizadores
     @Bean
     public AuthenticationManager authenticationManager() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();

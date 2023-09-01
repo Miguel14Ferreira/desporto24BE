@@ -18,6 +18,8 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 @Component
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
+    // Criação de novos tokens para os utilizadores autenticados
+
     private JWTokenProvider jwTokenProvider;
 
     public JwtAuthorizationFilter(JWTokenProvider jwTokenProvider) {
@@ -36,9 +38,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
             }
             String token = authorizationHeader.substring(TOKEN_PREFIX.length());
             String username = jwTokenProvider.getSubject(token);
-            if (jwTokenProvider.isTokenValid(username, token) && SecurityContextHolder.getContext().getAuthentication() == null){
-                List<GrantedAuthority> authorities = jwTokenProvider.getAuthorities(token);
-                Authentication authentication = jwTokenProvider.getAuthentication(username, authorities, request);
+            if (jwTokenProvider.isTokenValid(username, token) && SecurityContextHolder.getContext().getAuthentication() == null){ // Verificação se o token é válido
+                List<GrantedAuthority> authorities = jwTokenProvider.getAuthorities(token); // atribuição de token
+                Authentication authentication = jwTokenProvider.getAuthentication(username, authorities, request); // autenticação ao utilizador
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } else {
                 SecurityContextHolder.clearContext();

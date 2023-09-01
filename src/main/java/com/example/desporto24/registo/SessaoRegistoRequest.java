@@ -22,4 +22,5 @@ public class SessaoRegistoRequest {
     private String preco;
     @Nullable
     private String password;
+    private Boolean privado;
 }

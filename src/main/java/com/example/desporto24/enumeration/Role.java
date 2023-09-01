@@ -9,6 +9,7 @@ import lombok.experimental.SuperBuilder;
 import static com.example.desporto24.constant.Authority.*;
 
 public enum Role {
+    // Diferentes tipos de atributos dos utilizadores
     ROLE_USER(USER_AUTHORITIES),
     ROLE_HR(HR_AUTHORITIES),
     ROLE_MANAGER(MANAGER_AUTHORITIES),

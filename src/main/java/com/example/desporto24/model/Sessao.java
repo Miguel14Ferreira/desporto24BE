@@ -30,6 +30,7 @@ public class Sessao {
     private String morada;
     private String preco;
     private String password;
+    private Boolean privado;
     private String foto;
     private Date created_at;
     @ManyToOne
@@ -37,12 +38,13 @@ public class Sessao {
             name = "perfil_id")
     private Perfil perfil;
 
-    public Sessao(String desporto, String username, String jogadores, Date dataDeJogo, String localidade, String morada, String preco, String password) {
-        this.desporto = desporto;
+    public Sessao(String username, String desporto, String jogadores, Date datadejogo, String localidade, Boolean privado, String morada, String preco, String password) {
         this.username = username;
+        this.desporto = desporto;
         this.jogadores = jogadores;
-        this.dataDeJogo = dataDeJogo;
+        this.dataDeJogo = datadejogo;
         this.localidade = localidade;
+        this.privado = privado;
         this.morada = morada;
         this.preco = preco;
         this.password = password;

@@ -15,6 +15,8 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @Component
 public class JwtAuthenticationEntryPoint extends Http403ForbiddenEntryPoint {
 
+    // Resposta que aparece ao utilizador quando tenta aceder um link quando não está autenticado
+
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException {
         HttpResponse httpResponse = new HttpResponse(FORBIDDEN.value(),FORBIDDEN,FORBIDDEN.getReasonPhrase(), FORBIDDEN_MESSAGE);

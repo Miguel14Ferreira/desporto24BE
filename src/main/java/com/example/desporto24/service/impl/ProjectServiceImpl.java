@@ -211,6 +211,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
+    public List<Sessao> getSessoes() {
+        return sessaoRepository.findAll();
+    }
+
+    @Override
     public int deleteSessao(String email) {
         return 0;
     }
@@ -458,9 +463,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfil.setAuthorities(ROLE_USER.getAuthorities());
         perfil.setMFA(false);
         perfil.setLogginAttempts(0);
-        saveProfileImage(perfil,foto);
+        saveProfileImage(perfil, foto);
         perfilRepository.save(perfil);
-        String token = "registrationNewAccountToken"+perfil.getUsername();
+        String token = "registrationNewAccountToken" + perfil.getUsername();
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = "http://localhost:4200/login/registerNewUser/confirmTokenRegistration";
@@ -474,7 +479,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
         } else {
-            String token = "registrationNewAccountToken"+perfil.getUsername();
+            String token = "registrationNewAccountToken" + perfil.getUsername();
             ConfirmationToken confirmationToken = confirmationTokenService
                     .getToken(token)
                     .orElseThrow(() ->
@@ -523,7 +528,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil updateUser(String username,Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
+    public Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
         Perfil p = findUserByUsername(username);
         p.setFullName(perfil.getFullName());
         p.setCountry(perfil.getCountry());
@@ -535,12 +540,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         p.setDateOfBirth(perfil.getDateOfBirth());
         p.setPostalCode(perfil.getPostalCode());
         p.setMFA(perfil.getMFA());
-        if (foto != null){
-            saveProfileImage(p,foto);
+        if (foto != null) {
+            saveProfileImage(p, foto);
         }
-            perfilRepository.save(p);
-            String link = "http://localhost:4200/confirmEmergencyToken";
-            emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        perfilRepository.save(p);
+        String link = "http://localhost:4200/confirmEmergencyToken";
+        emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
         return p;
     }
 
@@ -555,7 +560,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String code = randomAlphabetic(8).toUpperCase();
         MFAVerification mfaVerification = new MFAVerification(code, LocalDateTime.now(), LocalDateTime.now().plusMinutes(5), perfil);
         MFAverificationService.saveConfirmationMFA(mfaVerification);
-        sendSMS(perfil.getIndicativePhone(),perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
+        sendSMS(perfil.getIndicativePhone(), perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
     }
 
     private void saveProfileImage(Perfil perfil, MultipartFile profileImage) throws IOException, NotAnImageFileException {
@@ -579,6 +584,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             }
         }
     }
+
     private String setProfileImageUrl(String username) {
         return ServletUriComponentsBuilder.fromCurrentContextPath().path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
     }
@@ -712,28 +718,30 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             return perfil;
         }
     }
-        public Perfil resetPassword2(Perfil perfil) {
-            Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
-            if (p == null) {
-                LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-                throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-            } else {
-                String encodedPassword = passwordEncoder.encode(perfil.getPassword());
-                p.setPassword(encodedPassword);
-                perfilRepository.save(p);
-                return p;
-            }
+
+    public Perfil resetPassword2(Perfil perfil) {
+        Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
+        if (p == null) {
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+        } else {
+            String encodedPassword = passwordEncoder.encode(perfil.getPassword());
+            p.setPassword(encodedPassword);
+            perfilRepository.save(p);
+            return p;
         }
+    }
 
     public Perfil updatePerfilEmergency(String username) {
         Perfil p = findUserByUsername(username);
-        if (p == null){
+        if (p == null) {
             LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
             throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
         }
         disablePerfil(p.getEmail());
         return p;
     }
+
     private String buildNewIdeaEmail(String name) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -804,8 +812,39 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     public Ideias newIdea(Ideias i) throws MessagingException {
         LOGGER.info(String.valueOf(i));
-        emailService.send(i.getEmail(),buildNewIdeaEmail(i.getName()));
+        emailService.send(i.getEmail(), buildNewIdeaEmail(i.getName()));
         ideiasRepository.save(i);
         return i;
+    }
+
+
+    public Sessao createSessao(Sessao sessao, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, SessionExistException {
+        validateNewSessao(sessao.getUsername(), sessao.getMorada(), sessao.getDataDeJogo());
+        sessao.setCreated_at(new Date());
+        saveSessaoImage(sessao, foto);
+        sessaoRepository.save(sessao);
+        return sessao;
+    }
+
+    private void saveSessaoImage(Sessao sessao, MultipartFile profileImage) throws NotAnImageFileException, IOException {
+        if (profileImage != null) {
+            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
+                throw new NotAnImageFileException(profileImage.getOriginalFilename() + NOT_AN_IMAGE_FILE);
+            }
+            Path userFolder = Paths.get(USER_FOLDER + sessao.getUsername()).toAbsolutePath().normalize();
+            if (!Files.exists(userFolder)) {
+                Files.createDirectories(userFolder);
+                LOGGER.info(DIRECTORY_CREATED + userFolder);
+            }
+            Files.deleteIfExists(Paths.get(userFolder + sessao.getUsername() + DOT + JPG_EXTENSION));
+            Files.copy(profileImage.getInputStream(), userFolder.resolve(sessao.getUsername() + DOT + JPG_EXTENSION), REPLACE_EXISTING);
+            sessao.setFoto(setProfileImageUrl(sessao.getUsername()));
+            sessaoRepository.save(sessao);
+            LOGGER.info(FILE_SAVED_IN_FILE_SYSTEM + profileImage.getOriginalFilename());
+        } else {
+            if (sessao.getFoto() == null) {
+                sessao.setFoto(getTemporaryProfileImageURL(sessao.getUsername()));
+            }
+        }
     }
 }

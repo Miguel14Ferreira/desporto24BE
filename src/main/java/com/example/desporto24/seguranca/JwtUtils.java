@@ -18,6 +18,7 @@ public class JwtUtils {
     @Value("${desporto.app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
+    // Geração de novo token para o utilizador
     public String generateJwtToken(Authentication authentication) {
 
         PerfilPrincipal userPrincipal = (PerfilPrincipal) authentication.getPrincipal();
@@ -30,10 +31,12 @@ public class JwtUtils {
                 .compact();
     }
 
+    // Geração de nome para novo token
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(token).getBody().getSubject();
     }
 
+    // Validação do token
     public boolean validateJwtToken(String authToken) {
         try {
             Jwts.parser().setSigningKey(jwtSecret).parseClaimsJws(authToken);

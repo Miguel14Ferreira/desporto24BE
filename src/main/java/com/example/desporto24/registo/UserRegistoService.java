@@ -33,6 +33,7 @@ public class UserRegistoService {
     private final PerfilRepository pr;
     private final BCryptPasswordEncoder passwordEncoder;
 
+    // Obtenção de dados do novo utilizador
     public Perfil register(UserRegistoRequest request, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
         Perfil perfil = pService.signUpPerfil(
                 new Perfil(

@@ -1,6 +1,7 @@
 package com.example.desporto24.seguranca;
 
 public class JwtResponse {
+    // Criação de uma nova classe JWTResponse que produz tokens
     private String token;
     private String type = "Bearer";
     private Long id;

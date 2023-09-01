@@ -17,6 +17,7 @@ import java.io.IOException;
 public class LoginService {
     private final ProjectServiceImpl pService;
 
+    // Obtenção de dados do utilizador para ser efetuado o login
     public Perfil login(LoginRequest request) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, EmailNotVerifiedException, AccountDisabledException {
         Perfil perfil = pService.login(
                 new Perfil(

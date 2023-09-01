@@ -12,6 +12,8 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 @SuperBuilder
 @JsonInclude(NON_DEFAULT)
 public class HttpResponse {
+
+    // Personalização da resposta ao utilizador na tentiva de execução de uma ação
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy hh:mm:ss", timezone = "Portugal/Lisbon")
     private Date timestamp;
     private int httpStatusCode;

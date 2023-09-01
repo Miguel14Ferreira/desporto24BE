@@ -12,11 +12,11 @@ public class NewIdeaService {
 
     private final ProjectServiceImpl projectService;
 
+    // Obtenção de dados para a nova sugestão/ideia do utilizador
     public Ideias registerNewIdea(NewIdeaRequest newIdeaRequest) throws MessagingException {
         Ideias ideia = projectService.newIdea( new Ideias(
                 newIdeaRequest.getName(),
                 newIdeaRequest.getEmail(),
-                newIdeaRequest.getAge(),
                 newIdeaRequest.getCity(),
                 newIdeaRequest.getGender(),
                 newIdeaRequest.getSubject(),

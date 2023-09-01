@@ -38,6 +38,8 @@ public interface ProjectService {
 
     Sessao findSessaoByUsername(String username);
 
+    List<Sessao> getSessoes();
+
     @Transactional
     @Modifying
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")

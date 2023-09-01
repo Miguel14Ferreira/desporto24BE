@@ -25,7 +25,6 @@ public class Ideias {
     private Long id;
     @NotEmpty(message = "O campo nome não pode estar vazio")
     private String name;
-    private String age;
     private String city;
     @NotEmpty(message = "O campo email não pode estar vazio")
     private String email;
@@ -33,11 +32,11 @@ public class Ideias {
     private String subject;
     private String problem;
 
-    public Ideias(String name, String age, String city, String email, String gender, String subject, String problem) {
+
+    public Ideias(String name, String email, String city, String gender, String subject, String problem) {
         this.name = name;
-        this.age = age;
-        this.city = city;
         this.email = email;
+        this.city = city;
         this.gender = gender;
         this.subject = subject;
         this.problem = problem;
