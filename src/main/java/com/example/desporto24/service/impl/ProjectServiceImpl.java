@@ -59,7 +59,6 @@ import static org.springframework.http.MediaType.*;
 @Transactional
 @RequiredArgsConstructor
 @Slf4j
-@Qualifier("UserDetailsService")
 public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
 
@@ -90,14 +89,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.ideiasRepository = ideiasRepository;
     }
 
-
-    @Override
-    public Perfil updateUserFoto(String utilizador, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException {
-        Perfil perfil = validateNewUsernameEmailAndPhone(utilizador, null, null, null);
-        saveProfileImage(perfil, foto);
-        return perfil;
-    }
-
     /*
     public String createSessao(Sessao sessao) throws SessionExistException, jakarta.mail.MessagingException {
         Perfil perfil = perfilService.findSessaoByUsername(sessao.getUsername());
@@ -113,83 +104,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         emailService.send(perfil.getEmail(), buildSessionCancelationEmail(sessao.getUsername(), link, sessao.getDesporto(), sessao.getDataDeJogo(), sessao.getJogadores(), sessao.getLocalidade(), sessao.getMorada(), sessao.getPreco(), sessao.getPassword()));
         return token;
     }
+     */
 
-    private String buildSessionCancelationEmail(String Username, String link, String desporto, Date dataDeJogo, String jogadores, String localidade, String morada, String preco, String password) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + Username + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Acabou de ser criada uma sessão da tua parte com os seguintes atributos: </p> " +
-                        "            Sessão criada por " + Username + ":<p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> </p>" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Desporto: " + desporto +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Data de Jogo: " + dataDeJogo +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Número de jogadores: " + jogadores +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Localidade: " + localidade +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Morada: " + morada +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Preço: " + preco +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Password do jogo: " + password +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Se não foste que criaste esta sessão, este link irá servir para eliminar a sessão: </p><p><a href=\"" + link + "\">Apagar sessão</a> </p>\n Este link vai expirar em 15 minutos. <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
-    }
-    */
-
-
+    // Validação de criação de uma nova sessão, verifica que se a sessão nova pode ser criada
     private Sessao validateNewSessao(String currentUsername, String morada, Date dataDeJogo) throws SessionExistException {
         Sessao findSessaoByNewMorada = findSessaoByMorada(morada);
         Sessao findSessaoByNewDataDeJogo = findSessaoByDatadejogo(dataDeJogo);
@@ -205,11 +122,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return currentSession;
     }
 
+    // Encontra uma sessão/sessões pelo utilizador
     @Override
     public Sessao findSessaoByUsername(String username) {
         return sessaoRepository.findSessaoByUsername(username);
     }
 
+    // Encontra todas as sessões disponíveis
     @Override
     public List<Sessao> getSessoes() {
         return sessaoRepository.findAll();
@@ -220,6 +139,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return 0;
     }
 
+    // Login do utilizador
     public Perfil login(Perfil perfil) throws UsernameNotFoundException, EmailNotVerifiedException, AccountDisabledException {
         Perfil p = findUserByUsername(perfil.getUsername());
         if (perfil.getUsername() == null) {
@@ -238,7 +158,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
-
+    // Verifica se a conta do utilizador está bloqueada e conta nº de vezes que falha a password, se falhar mais do 6 vezes a conta fica bloqueada
     private void validateLoginAttempt(Perfil perfil) throws AccountDisabledException {
         if (perfil.isNotLocked()) {
             int attempts = 0;
@@ -258,6 +178,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
+    // Verifica se o utilizador tem a opção de receber SMS para o seu telemóvel
     private Perfil validateLoginAttempt3(Perfil perfil) {
         if (perfil.getMFA().equals(true)) {
             sendVerificationCode(perfil);
@@ -266,6 +187,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return perfil;
     }
 
+    // Verifica se a conta do utilizador está ativa
     private Perfil validateLoginAttempt2(Perfil perfil) throws EmailNotVerifiedException {
         if (perfil.getEnabled().equals(false)) {
             throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
@@ -283,7 +205,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return perfilRepository.disablePerfil(email);
     }
 
-
+    // Verificação para que um novo utilizador não tenha o mesmo nome, telemóvel ou email de outro utilizador
     public Perfil validateNewUsernameEmailAndPhone(String currentUsername, String newUsername, String email, String phone) throws UsernameExistException, EmailExistException, PhoneExistException {
         Perfil userByNewUsername = findUserByUsername(newUsername);
         Perfil userByNewEmail = findUserByEmail(email);
@@ -317,6 +239,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
+    // envio do email para ser efetuado o reset à password
     private String buildResetPasswordEmail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -382,10 +305,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
+    // gerador de UserID
     private String generateUserId() {
         return RandomStringUtils.randomNumeric(10);
     }
 
+    // envio do email de registo para o utilizador conseguir ativar a sua conta
     private String buildRegistrationEmail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -451,6 +376,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
+    // novo registo pelo utilizador e definição de alguns parametros para a classe perfil
     public Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
         validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
         String encodedPassword = passwordEncoder.encode(perfil.getPassword());
@@ -473,6 +399,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return perfil;
     }
 
+    // ativação da conta do utilizador acabado de efetuar o seu registo
     public Perfil signUpPerfil2(Perfil perfil) {
         Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
         if (p == null) {
@@ -527,6 +454,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return sessaoRepository.findSessaoByDataDeJogo(dataDeJogo);
     }
 
+    // Alteração de dados pelo utilizador
     @Override
     public Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
         Perfil p = findUserByUsername(username);
@@ -555,6 +483,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfilRepository.deleteById(id);
     }
 
+    // envio do SMS para o utilizador
     @Override
     public void sendVerificationCode(Perfil perfil) {
         String code = randomAlphabetic(8).toUpperCase();
@@ -563,6 +492,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         sendSMS(perfil.getIndicativePhone(), perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
     }
 
+    // Guardar fotografia no perfil
     private void saveProfileImage(Perfil perfil, MultipartFile profileImage) throws IOException, NotAnImageFileException {
         if (profileImage != null) {
             if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
@@ -584,15 +514,17 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             }
         }
     }
-
+    // Criação de URL para a fotografia escolhida pelo utilizador no registo ou na alteração de dados
     private String setProfileImageUrl(String username) {
         return ServletUriComponentsBuilder.fromCurrentContextPath().path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
     }
 
+    // Criação de URL quando o utilizador não escolhe qualquer fotografia pelo utilizador no registo ou na alteração de dados
     private String getTemporaryProfileImageURL(String username) {
         return ServletUriComponentsBuilder.fromCurrentContextPath().path(DEFAULT_USER_IMAGE_PATH + username).toUriString();
     }
 
+    // Alteração do nome e da password
     @Override
     public Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
         Perfil p = validateNewUsernameEmailAndPhone(perfil.getUsername(), perfil.getNewUsername(), null, null);
@@ -609,6 +541,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
+    // Confirmação do código enviado por SMS (MFA autenticação)
     public String confirmCode(String code) {
         MFAVerification mfaVerification = MFAverificationService
                 .getCode(code)
@@ -624,6 +557,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return code;
     }
 
+    // Email enviado ao utilizador ao alterar os seus dados pessoais
     private String buildChangePerfilEmail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -689,24 +623,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
-    @Override
-    @SneakyThrows
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Perfil perfil = perfilRepository.findUserByUsername(username);
-        if (perfil == null) {
-            LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
-            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
-        } else {
-            validateLoginAttempt(perfil);
-            validateLoginAttempt2(perfil);
-            perfil.setLastLoginDateDisplay(perfil.getLastLoginDate());
-            perfil.setLastLoginDate(new Date());
-            perfilRepository.save(perfil);
-            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + perfil.getUsername());
-            return new PerfilPrincipal(perfil);
-        }
-    }
-
+    // Envia um email para o utilizador conseguir efetuar o reset da password
     public Perfil resetPassword1(Perfil perfil) throws MessagingException, EmailNotVerifiedException {
         perfil = perfilRepository.findUserByEmail(perfil.getEmail());
         if (perfil == null) {
@@ -719,6 +636,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
+    // Guarda a nova password no perfil, através do email
     public Perfil resetPassword2(Perfil perfil) {
         Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
         if (p == null) {
@@ -732,6 +650,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
+    // Desativa o perfil
     public Perfil updatePerfilEmergency(String username) {
         Perfil p = findUserByUsername(username);
         if (p == null) {
@@ -742,6 +661,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return p;
     }
 
+    // Email enviado quando um utilizador coloca uma nova ideia para a aplicação
     private String buildNewIdeaEmail(String name) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -807,9 +727,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
+    // Login usado para testes
     public void signUpPerfil3(Perfil perfil) {
     }
 
+
+    // Nova ideia/sugestão recebida
     public Ideias newIdea(Ideias i) throws MessagingException {
         LOGGER.info(String.valueOf(i));
         emailService.send(i.getEmail(), buildNewIdeaEmail(i.getName()));
@@ -817,7 +740,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return i;
     }
 
-
+    // Nova sessão a ser criada
     public Sessao createSessao(Sessao sessao, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, SessionExistException {
         validateNewSessao(sessao.getUsername(), sessao.getMorada(), sessao.getDataDeJogo());
         sessao.setCreated_at(new Date());
@@ -826,6 +749,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return sessao;
     }
 
+    // Cria uma nova pasta que guarda a fotografia da sessão desportiva e que também guarda a fotografia na sessão
     private void saveSessaoImage(Sessao sessao, MultipartFile profileImage) throws NotAnImageFileException, IOException {
         if (profileImage != null) {
             if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(profileImage.getContentType())) {
@@ -846,5 +770,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 sessao.setFoto(getTemporaryProfileImageURL(sessao.getUsername()));
             }
         }
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return null;
     }
 }

@@ -24,8 +24,6 @@ public interface ProjectService {
 
     Perfil login(Perfil perfil) throws EmailNotVerifiedException, AccountDisabledException;
 
-    //UserDetails loadUserByUsername(String username);
-
     Perfil findUserByUsername(String username);
 
     Perfil findUserByEmail(String email);
@@ -48,8 +46,6 @@ public interface ProjectService {
     Perfil updatePerfilEmergency(String username);
 
     Perfil updateUser(String username,Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
-
-    Perfil updateUserFoto(String perfil, MultipartFile foto) throws UsernameExistException, EmailExistException, PhoneExistException, IOException, NotAnImageFileException;
 
     void deleteUser(Long id);
 
