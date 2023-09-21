@@ -13,6 +13,7 @@ public interface PerfilRepository extends JpaRepository<Perfil, Long> {
      Perfil findUserByEmail(String email);
      Perfil findUserByUsername(String username);
      Perfil findUserByPhone(String phone);
+     Perfil findUserByToken(String token);
      @Transactional
      @Modifying
      @Query("UPDATE Perfil a " +

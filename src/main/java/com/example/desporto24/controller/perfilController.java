@@ -2,7 +2,6 @@ package com.example.desporto24.controller;
 import com.example.desporto24.changePassword.UserChangePasswordRequest;
 import com.example.desporto24.changePassword.UserChangePasswordService;
 import com.example.desporto24.domain.HttpResponse;
-import com.example.desporto24.exception.ResourceNotFoundException;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.login.LoginRequest;
 import com.example.desporto24.login.LoginService;
@@ -11,8 +10,11 @@ import com.example.desporto24.newIdea.NewIdeaRequest;
 import com.example.desporto24.newIdea.NewIdeaService;
 import com.example.desporto24.registo.SessaoRegistoRequest;
 import com.example.desporto24.registo.SessaoRegistoService;
+import com.example.desporto24.registo.token.ConfirmationToken;
+import com.example.desporto24.registo.token.ConfirmationTokenService;
 import com.example.desporto24.repository.IdeiasRepository;
 import com.example.desporto24.repository.PerfilRepository;
+import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.ProjectService;
 import com.example.desporto24.registo.UserRegistoRequest;
 import com.example.desporto24.registo.UserRegistoService;
@@ -20,6 +22,7 @@ import com.example.desporto24.service.impl.NotAnImageFileException;
 import com.example.desporto24.update.UserUpdateRequest;
 import com.example.desporto24.update.UserUpdateService;
 import com.example.desporto24.utility.JWTokenProvider;
+import com.twilio.exception.ApiException;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,18 +31,26 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SecurityConstant.JWT_TOKEN_HEADER;
+import static com.example.desporto24.utility.PerfilUtils.getLoggedInUser;
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.*;
 import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
@@ -58,17 +69,51 @@ public class perfilController extends ExceptionHandling {
     private final UserChangePasswordService changePasswordService;
     private final JWTokenProvider jwTokenProvider;
     private final SessaoRegistoService sessaoRegistoService;
+    private final LoginAttemptService loginAttemptService;
     private final LoginService loginService;
-
+    private final ConfirmationTokenService confirmationTokenService;
 
     // Autenticação de utilizador
+    /*
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException {
-        autenticate(loginRequest.getUsername(), loginRequest.getPassword());
-        Perfil loginUser = loginService.login(loginRequest);
-        PerfilPrincipal perfilPrincipal = new PerfilPrincipal(loginUser);
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException, IllegalBlockSizeException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, EqualUsernameAndPasswordException {
+        autenticate(loginRequest.getUsername(),loginRequest.getPassword());
+        Perfil p = loginService.login(loginRequest);
+        PerfilPrincipal perfilPrincipal = new PerfilPrincipal(p);
         HttpHeaders jwtHeader = getJwtHeader(perfilPrincipal);
-        return new ResponseEntity<>(loginUser, jwtHeader, OK);
+        return new ResponseEntity<>(p, jwtHeader, OK);
+    }
+     */
+        // Autenticação de utilizador
+        @PostMapping("/login")
+        public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException, IllegalBlockSizeException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
+            Perfil p = authenticate(loginRequest.getUsername(), loginRequest.getPassword());
+            PerfilPrincipal perfilPrincipal = new PerfilPrincipal(p);
+            HttpHeaders jwtHeader = getJwtHeader(perfilPrincipal);
+            return new ResponseEntity<>(p, jwtHeader, OK);
+            }
+
+    private Perfil authenticate(String username, String password) {
+        Perfil p = perfilRepository.findUserByUsername(username);
+        try{
+            if (null != p){
+                loginAttemptService.hasExceededMaxAttempts(p);
+            }
+            Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
+            Perfil logged = getLoggedInUser(authentication);
+            if(!logged.getMFA()) {
+                loginAttemptService.evictUserFromLoginAttemptCache(p);
+            } else {
+                perfilService.sendVerificationCode(p);
+                loginAttemptService.evictUserFromLoginAttemptCache(p);
+            }
+            return logged;
+        } catch (Exception exception) {
+            if(null != p) {
+                loginAttemptService.addUserToLoginAttemptCache(p);
+            }
+            throw new ApiException(exception.getMessage());
+        }
     }
 
 
@@ -87,10 +132,9 @@ public class perfilController extends ExceptionHandling {
 
 
     // Ativação da conta do utilizador
-    @PutMapping(path = "/login/registerNewUser/confirmTokenRegistration")
-    public ResponseEntity<?> confirmRegistrationToken(@RequestBody UserRegistoRequest request) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
-        Perfil registerperfil2 = registoService.register2(request);
-        return new ResponseEntity<>(registerperfil2, OK);
+    @GetMapping(path = "/login/registerNewUser/confirmTokenRegistration/{token}")
+    public String confirmRegistrationToken2(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
+        return perfilService.confirmToken(Token);
     }
 
     // Desativação da conta do utilizador
@@ -108,9 +152,10 @@ public class perfilController extends ExceptionHandling {
     }
 
     // Definição de nova password por email, este passo recebe o username e nova password
-    @PutMapping("/resetPassword/newPassword")
-    public ResponseEntity<?> resetPassword2(@RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
-        Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest);
+    @PutMapping("/login/resetPassword/{token}/{username}")
+    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
+            userChangePasswordRequest.setUsername(username);
+            Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
         return new ResponseEntity<>(alterarPassword, OK);
     }
 
@@ -126,6 +171,15 @@ public class perfilController extends ExceptionHandling {
     public ResponseEntity<?> createSessao(@ModelAttribute @Valid SessaoRegistoRequest request, MultipartFile foto) throws SessionExistException, MessagingException, EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
         Sessao sessao = sessaoRegistoService.createSessao(request,foto);
         return new ResponseEntity<>(sessao,OK);
+    }
+
+    private Authentication autenticate(String username, String password){
+        try {
+            Authentication login = authenticationManager.authenticate(unauthenticated(username,password));
+            return login;
+        } catch (BadCredentialsException e){
+            throw new BadCredentialsException(e.getMessage());
+        }
     }
 
     // Obtenção de todas as sessões existentes de momento
@@ -202,11 +256,6 @@ public class perfilController extends ExceptionHandling {
         HttpHeaders headers = new HttpHeaders();
         headers.add(JWT_TOKEN_HEADER, jwTokenProvider.generateJwtToken(perfilPrincipal));
         return headers;
-    }
-
-    // Autenticação do utilizador
-    private void autenticate(String username, String password) {
-        authenticationManager.authenticate(unauthenticated(username,password));
     }
 }
 

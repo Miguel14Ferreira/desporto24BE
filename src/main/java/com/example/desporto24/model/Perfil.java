@@ -54,6 +54,7 @@ public class Perfil implements Serializable {
     private Date lastLoginDate;
     private Date lastLoginDateDisplay;
     private Date joinDate;
+    private String token;
 
     public Perfil(String username, String password) {
         this.username = username;

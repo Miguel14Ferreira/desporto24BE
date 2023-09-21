@@ -33,6 +33,7 @@ public class ExceptionHandling {
     private static final String ACCOUNT_DISABLED = "Your account has been disabled. If this is an error, please contact administration";
     private static final String ERROR_PROCESSING_FILE = "Error ocurred while processing file";
     private static final String NOT_ENOUGH_PERMISSION = "You don't have enough permission";
+    private static final String TOKEN_NOT_VERIFIED = "Your email isn't verified, please verify it and try again";
     private static final String ERROR_PATH = "/error";
 
     @ExceptionHandler(DisabledException.class)
@@ -58,6 +59,11 @@ public class ExceptionHandling {
     @ExceptionHandler(TokenExpiredException.class)
     public ResponseEntity<HttpResponse> tokenExpiredException(TokenExpiredException exception){
         return createHttpResponse(UNAUTHORIZED, exception.getMessage());
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<HttpResponse> emailNotVerified(){
+        return createHttpResponse(UNAUTHORIZED, TOKEN_NOT_VERIFIED);
     }
 
     @ExceptionHandler(EmailExistException.class)
@@ -116,9 +122,5 @@ public class ExceptionHandling {
     @RequestMapping(ERROR_PATH)
     public ResponseEntity<HttpResponse> notFound404(NotFoundException exception){
         return createHttpResponse(NOT_FOUND, exception.getMessage());
-    }
-
-    public String getErrorPath() {
-        return ERROR_PATH;
     }
 }

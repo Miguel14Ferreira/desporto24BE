@@ -27,6 +27,7 @@ class PerfilRepositoryTest {
         Perfil userByUsername = pj.findUserByUsername("Miguel141");
         assertThat(userByUsername).isNotEqualTo(perfil);
     }
+
     @Test
     void enablePerfil(){
         String email = "tmfftw@gmail.com";

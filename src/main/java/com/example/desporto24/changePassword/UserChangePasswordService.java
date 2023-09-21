@@ -39,10 +39,10 @@ public class UserChangePasswordService {
 
     /* Obtenção de dados para a definição da nova password para o Utilizador */
 
-    public Perfil alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+    public Perfil alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword,String token) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
         Perfil p = perfilService.resetPassword2(new Perfil(
-                changePassword.getUsername(),
-                changePassword.getPassword()));
+                changePassword.getEmail(),
+                changePassword.getPassword()),token);
         return p;
     }
 }

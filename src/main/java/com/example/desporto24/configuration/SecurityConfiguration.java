@@ -4,8 +4,11 @@ import com.example.desporto24.constant.SecurityConstant;
 import com.example.desporto24.filter.JwtAcessDeniedHandler;
 import com.example.desporto24.filter.JwtAuthenticationEntryPoint;
 import com.example.desporto24.filter.JwtAuthorizationFilter;
+import com.example.desporto24.model.Perfil;
+import com.example.desporto24.model.PerfilPrincipal;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,8 +29,7 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
-public class SecurityConfiguration{
+public class SecurityConfiguration {
 
     private final JwtAuthorizationFilter jwtAuthorizationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
@@ -35,8 +37,15 @@ public class SecurityConfiguration{
     private final UserDetailsService userDetailsService;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    // Configuração de segurança da aplicação
+    public SecurityConfiguration(JwtAuthorizationFilter jwtAuthorizationFilter, JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint, JwtAcessDeniedHandler jwtAcessDeniedHandler, @Qualifier("userDetailsService") UserDetailsService userDetailsService, BCryptPasswordEncoder bCryptPasswordEncoder) {
+        this.jwtAuthorizationFilter = jwtAuthorizationFilter;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtAcessDeniedHandler = jwtAcessDeniedHandler;
+        this.userDetailsService = userDetailsService;
+        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    }
 
+    // Configuração de segurança da aplicação
     @Bean
     protected SecurityFilterChain configure(@NotNull HttpSecurity http) throws Exception {
         http.csrf().disable().cors().and()

@@ -15,8 +15,9 @@ import static com.example.desporto24.constant.FileConstant.USER_FOLDER;
 @SpringBootApplication
 public class Desporto24Application {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         SpringApplication.run(Desporto24Application.class, args);
+        Thread.sleep(3);
         new File(USER_FOLDER).mkdirs();
     }
 

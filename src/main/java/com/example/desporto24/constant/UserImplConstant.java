@@ -11,4 +11,5 @@ public class UserImplConstant {
     public static final String TOKEN_NOT_VERIFIED = "Your email isn't verified, please verify it and try again";
     public static final String EQUAL_USERNAME_PASSWORD = "Your username and password are the same as the previous!";
     public static final String ACCOUNT_DISABLED = "Your account has been disabled. If this is an error, please contact administration";
+    public static final String INCORRECT_CREDENTIALS = "Username / password incorrect. Please try again";
 }

@@ -38,4 +38,8 @@ public class ConfirmationToken {
         this.expiredAt = expiredAt;
         this.perfil = perfil;
     }
+
+    public ConfirmationToken(String token) {
+        this.token = token;
+    }
 }

@@ -14,15 +14,13 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 
-public interface ProjectService {
+public interface ProjectService{
 
     Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
 
-    Perfil signUpPerfil2(Perfil perfil);
+    Perfil signUpPerfil2(Perfil email);
 
     List<Perfil> getPerfis();
-
-    Perfil login(Perfil perfil) throws EmailNotVerifiedException, AccountDisabledException;
 
     Perfil findUserByUsername(String username);
 
@@ -59,5 +57,7 @@ public interface ProjectService {
 
     Perfil resetPassword1(Perfil perfil) throws MessagingException, EmailNotVerifiedException;
 
-    Perfil resetPassword2(Perfil perfil);
+    Perfil resetPassword2(Perfil perfil, String token);
+
+    String confirmToken(String token);
 }
