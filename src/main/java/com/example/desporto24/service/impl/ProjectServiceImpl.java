@@ -319,7 +319,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfil.setLogginAttempts(0);
         saveProfileImage(perfil, foto);
         perfilRepository.save(perfil);
-        String token = randomNumeric(16).replaceAll("0","1");
+        String token = randomNumeric(20).toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
@@ -641,10 +641,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
             throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
         } else {
-            String token = randomNumeric(16).replaceAll("0","1");
+            String token = randomNumeric(20).toString();
             ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
             confirmationTokenService.saveConfirmationToken(confirmationToken);
-            String link = fromCurrentContextPath().path("/login/resetPassword/"+token).toUriString();
+            String link = fromCurrentContextPath().path("/login/resetPassword/"+token+"/"+perfil.getUsername()).toUriString();
             emailService.send(perfil.getEmail(), buildResetPasswordEmail(perfil.getUsername(), link));
             return perfil;
         }
@@ -663,10 +663,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new IllegalStateException("Token expirado");
         }
         confirmationTokenService.setConfirmedAt(token);
-        Perfil p = perfilRepository.findUserByUsername(confirmToken.getPerfil().getUsername());
+        Perfil p = perfilRepository.findUserByEmail(perfil.getEmail());
         if (p == null) {
-            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + confirmToken.getPerfil().getEmail());
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + confirmToken.getPerfil().getEmail());
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
         } else {
             String encodedPassword = passwordEncoder.encode(perfil.getPassword());
             p.setPassword(encodedPassword);
@@ -749,9 +749,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "    </tr>\n" +
                         "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
                         "\n" +
-                        "</div></div>a";
+                        "</div></div>";
     }
-    private String buildNewIdeaEmailFromUser(String name, String subject, String mensagem) {
+    private String buildNewIdeaEmail(String name, String assunto, String mensagem) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
                         "\n" +
@@ -803,7 +803,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi enviado uma nova sugestão vindo de: " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Assunto: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n "+ subject +" <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Mensagem: </p> \n "+ mensagem +"</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi enviada uma nova sugestão por: " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Assunto: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n "+ assunto + " <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Mensagem: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n"+ mensagem +"</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -825,7 +825,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public Ideias newIdea(Ideias i) throws MessagingException {
         LOGGER.info(String.valueOf(i));
         emailService.send(i.getEmail(), buildNewIdeaEmail(i.getName()));
-        emailService.send("desporto24app@gmail.com",buildNewIdeaEmailFromUser(i.getName(),i.getSubject(),i.getProblem()));
+        emailService.send("desporto24app@gmail.com",buildNewIdeaEmail(i.getEmail(),i.getSubject(),i.getProblem()));
         ideiasRepository.save(i);
         return i;
     }

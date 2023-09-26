@@ -133,13 +133,13 @@ public class perfilController extends ExceptionHandling {
 
     // Ativação da conta do utilizador
     @GetMapping(path = "/login/registerNewUser/confirmTokenRegistration/{token}")
-    public String confirmRegistrationToken(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
+    public String confirmRegistrationToken2(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
         return perfilService.confirmToken(Token);
     }
 
     // Desativação da conta do utilizador
     @PutMapping(path = "/confirmEmergencyToken")
-    public ResponseEntity<?> confirmEmergencyToken(@RequestParam String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+    public ResponseEntity<?> confirmRegistrationToken(@RequestParam String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
         Perfil updateUser = perfilService.updatePerfilEmergency(username);
         return new ResponseEntity<>(updateUser, OK);
     }
@@ -147,15 +147,16 @@ public class perfilController extends ExceptionHandling {
     // Definição de nova password por email, este passo recebe o email
     @PostMapping("/login/resetPassword")
     public ResponseEntity<?> resetPassword(@RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotVerifiedException {
-        Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep(userChangePasswordRequest);
+        Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep1(userChangePasswordRequest);
         return new ResponseEntity<>(alterarPassword, OK);
     }
 
     // Definição de nova password por email, este passo recebe o username e nova password
-    @PutMapping("/login/resetPassword/{token}")
-    public ResponseEntity<?> resetPassword2(@RequestBody UserChangePasswordRequest userChangePasswordRequest,@PathVariable("token") String token) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotVerifiedException {
-        Perfil a = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
-        return new ResponseEntity<>(a,OK);
+    @PutMapping("/login/resetPassword/{token}/{username}")
+    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
+            userChangePasswordRequest.setUsername(username);
+            Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
+        return new ResponseEntity<>(alterarPassword, OK);
     }
 
     // Obtenção de todos os utilizadores registados na aplicação
