@@ -124,6 +124,12 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(registerperfil, OK);
     }
 
+    @GetMapping("/menu/{username}")
+    public ResponseEntity<?> menu(@PathVariable("username")String username){
+            Perfil a = perfilService.findUserByUsername(username);
+            return new ResponseEntity<>(a, OK);
+    }
+
     // MFA autenticação
     @GetMapping(path = "/login/{code}")
     public String confirmCode(@PathVariable("code") String code) {
@@ -171,15 +177,6 @@ public class perfilController extends ExceptionHandling {
     public ResponseEntity<?> createSessao(@ModelAttribute @Valid SessaoRegistoRequest request, MultipartFile foto) throws SessionExistException, MessagingException, EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
         Sessao sessao = sessaoRegistoService.createSessao(request,foto);
         return new ResponseEntity<>(sessao,OK);
-    }
-
-    private Authentication autenticate(String username, String password){
-        try {
-            Authentication login = authenticationManager.authenticate(unauthenticated(username,password));
-            return login;
-        } catch (BadCredentialsException e){
-            throw new BadCredentialsException(e.getMessage());
-        }
     }
 
     // Obtenção de todas as sessões existentes de momento
