@@ -749,7 +749,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "    </tr>\n" +
                         "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
                         "\n" +
-                        "</div></div>";
+                        "</div></div>a";
     }
     private String buildNewIdeaEmailFromUser(String name, String subject, String mensagem) {
         return
