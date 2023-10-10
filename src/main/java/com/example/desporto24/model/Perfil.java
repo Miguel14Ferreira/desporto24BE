@@ -1,4 +1,5 @@
 package com.example.desporto24.model;
+import com.example.desporto24.registo.token.ConfirmationToken;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -54,7 +55,6 @@ public class Perfil implements Serializable {
     private Date lastLoginDate;
     private Date lastLoginDateDisplay;
     private Date joinDate;
-    private String token;
 
     public Perfil(String username, String password) {
         this.username = username;

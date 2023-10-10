@@ -131,23 +131,31 @@ public class perfilController extends ExceptionHandling {
     }
 
     // MFA autenticação
-    @GetMapping(path = "/login/{code}")
-    public String confirmCode(@PathVariable("code") String code) {
-        return perfilService.confirmCode(code);
+    @PostMapping(path = "/login/MFAauthentication/{username}")
+    public ResponseEntity<?> confirmMFAToken(String mfaCode) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+        String MFA = perfilService.confirmCode(mfaCode);
+        return new ResponseEntity<>(MFA, OK);
+    }
+    @GetMapping(path = "/login/MFAauthentication/{username}")
+    public ResponseEntity<?> resendToken(@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+        Perfil perfil = perfilRepository.findUserByUsername(username);
+        String sendSMSMFA = perfilService.sendVerificationCode(perfil);
+        return new ResponseEntity<>(sendSMSMFA, OK);
     }
 
 
     // Ativação da conta do utilizador
     @GetMapping(path = "/login/registerNewUser/confirmTokenRegistration/{token}")
-    public String confirmRegistrationToken2(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
-        return perfilService.confirmToken(Token);
-    }
+    public ResponseEntity<?> confirmRegistrationToken(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, EmailNotFoundException {
+        String activate = perfilService.confirmToken(Token);
+        return new ResponseEntity<>(activate,OK);
+        }
 
     // Desativação da conta do utilizador
-    @PutMapping(path = "/confirmEmergencyToken")
-    public ResponseEntity<?> confirmRegistrationToken(@RequestParam String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
-        Perfil updateUser = perfilService.updatePerfilEmergency(username);
-        return new ResponseEntity<>(updateUser, OK);
+    @GetMapping(path = "/confirmEmergencyToken/{token}")
+    public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException {
+        String deactivate = perfilService.confirmEmergencyToken(token);
+        return new ResponseEntity<>(deactivate, OK);
     }
 
     // Definição de nova password por email, este passo recebe o email

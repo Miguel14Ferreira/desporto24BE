@@ -13,17 +13,7 @@ public interface PerfilRepository extends JpaRepository<Perfil, Long> {
      Perfil findUserByEmail(String email);
      Perfil findUserByUsername(String username);
      Perfil findUserByPhone(String phone);
-     Perfil findUserByToken(String token);
-     @Transactional
-     @Modifying
-     @Query("UPDATE Perfil a " +
-             "SET a.enabled = TRUE WHERE a.email = ?1")
-     int enablePerfil(String email);
 
-     @Transactional
-     @Modifying
-     @Query("UPDATE Perfil a " +
-             "SET a.enabled = FALSE WHERE a.email = ?1")
-     int disablePerfil(String email);
+
      //Perfil signUpPerfil3(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 }
