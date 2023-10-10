@@ -26,5 +26,5 @@ public class UserUpdateRequest {
     @NotEmpty(message = "O email não pode estar vazio")
     private String email;
     private String postalCode;
-    private Boolean MFA;
+    private Boolean mfa;
 }
