@@ -400,7 +400,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             saveProfileImage(p, foto);
         }
         perfilRepository.save(p);
-        String link = "http://localhost:4200/confirmEmergencyToken";
+        String token = randomNumeric(20).toString();
+        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), perfil);
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
         emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
         return p;
     }
@@ -413,11 +416,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // envio do SMS para o utilizador
     @Override
-    public void sendVerificationCode(Perfil perfil) {
+    public String sendVerificationCode(Perfil perfil) {
         String code = randomAlphabetic(8).toUpperCase();
         MFAVerification mfaVerification = new MFAVerification(code, LocalDateTime.now(), LocalDateTime.now().plusMinutes(5), perfil);
         MFAverificationService.saveConfirmationMFA(mfaVerification);
         sendSMS(perfil.getIndicativePhone(), perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
+        return code;
     }
 
     // Guardar fotografia no perfil
@@ -663,10 +667,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new IllegalStateException("Token expirado");
         }
         confirmationTokenService.setConfirmedAt(token);
-        Perfil p = perfilRepository.findUserByEmail(perfil.getEmail());
+        Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
         if (p == null) {
-            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+            LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
+            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
         } else {
             String encodedPassword = passwordEncoder.encode(perfil.getPassword());
             p.setPassword(encodedPassword);
@@ -676,14 +680,27 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Desativa o perfil
-    public Perfil updatePerfilEmergency(String username) {
-        Perfil p = findUserByUsername(username);
+    public Perfil updatePerfilEmergency(String token, String username) {
+        ConfirmationToken confirmToken = confirmationTokenService
+                .getToken(token)
+                .orElseThrow(() ->
+                        new IllegalStateException("Token não encontrado."));
+        if (confirmToken.getConfirmedAt() != null) {
+            throw new IllegalStateException("Token já foi confirmado.");
+        }
+        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Token expirado");
+        }
+        confirmationTokenService.setConfirmedAt(token);
+        Perfil p = perfilRepository.findUserByUsername(username);
         if (p == null) {
             LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
             throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
+        } else {
+            disablePerfil(p.getEmail());
+            perfilRepository.save(p);
+            return p;
         }
-        disablePerfil(p.getEmail());
-        return p;
     }
 
     // Email enviado quando um utilizador coloca uma nova ideia para a aplicação

@@ -20,10 +20,6 @@ public class UserUpdateService {
     private final ProjectServiceImpl pService;
 
     public Perfil update(String username,UserUpdateRequest request,MultipartFile file) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
-        System.out.println(request);
-        if (request.getMFA() == null){
-            request.setMFA(false);
-        }
         Perfil perfil = pService.updateUser(username,
                 new Perfil(
                         request.getFullName(),
@@ -37,8 +33,9 @@ public class UserUpdateService {
                         request.getGender(),
                         request.getEmail(),
                         request.getDesportosFavoritos(),
-                        request.getMFA()),
+                        request.getMfa()),
                         file);
+        System.out.println(perfil);
         return perfil;
     }
 }

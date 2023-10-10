@@ -41,13 +41,13 @@ public interface ProjectService{
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    Perfil updatePerfilEmergency(String username);
+    Perfil updatePerfilEmergency(String username, String token);
 
     Perfil updateUser(String username,Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
     void deleteUser(Long id);
 
-    void sendVerificationCode(Perfil perfil);
+    String sendVerificationCode(Perfil perfil);
 
     Ideias newIdea(Ideias i) throws MessagingException;
 
