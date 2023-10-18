@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Cascade;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -28,8 +30,7 @@ public class ConfirmationToken {
 
     private LocalDateTime confirmedAt;
     @ManyToOne
-    @JoinColumn(nullable = false,
-               name = "perfil_id")
+    @JoinColumn(nullable = false,name = "perfil_id")
     private Perfil perfil;
 
     public ConfirmationToken(String token, LocalDateTime createdAt, LocalDateTime expiredAt, Perfil perfil) {

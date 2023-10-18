@@ -124,7 +124,6 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(registerperfil, OK);
     }
 
-    // Obter info do perfil
     @GetMapping("/menu/{username}")
     public ResponseEntity<?> menu(@PathVariable("username")String username){
             Perfil a = perfilService.findUserByUsername(username);
@@ -137,26 +136,26 @@ public class perfilController extends ExceptionHandling {
         String MFA = perfilService.confirmCode(mfaCode);
         return new ResponseEntity<>(MFA, OK);
     }
-
-    // Reenviar SMS MFA
     @GetMapping(path = "/login/MFAauthentication/{username}")
     public ResponseEntity<?> resendToken(@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
-            Perfil perfil = perfilRepository.findUserByUsername(username);
-            String sendSMSMFA = perfilService.sendVerificationCode(perfil);
+        Perfil perfil = perfilRepository.findUserByUsername(username);
+        String sendSMSMFA = perfilService.sendVerificationCode(perfil);
         return new ResponseEntity<>(sendSMSMFA, OK);
     }
 
+
     // Ativação da conta do utilizador
     @GetMapping(path = "/login/registerNewUser/confirmTokenRegistration/{token}")
-    public String confirmRegistrationToken2(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
-        return perfilService.confirmToken(Token);
-    }
+    public ResponseEntity<?> confirmRegistrationToken(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, EmailNotFoundException {
+        String activate = perfilService.confirmToken(Token);
+        return new ResponseEntity<>(activate,OK);
+        }
 
     // Desativação da conta do utilizador
-    @PutMapping(path = "/confirmEmergencyToken/{token}/{username}")
-    public ResponseEntity<?> confirmRegistrationToken(@PathVariable("token") String token,@PathVariable("username") String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
-        Perfil updateUser = perfilService.updatePerfilEmergency(username,token);
-        return new ResponseEntity<>(updateUser, OK);
+    @GetMapping(path = "/confirmEmergencyToken/{token}")
+    public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException {
+        String deactivate = perfilService.confirmEmergencyToken(token);
+        return new ResponseEntity<>(deactivate, OK);
     }
 
     // Definição de nova password por email, este passo recebe o email
@@ -167,9 +166,9 @@ public class perfilController extends ExceptionHandling {
     }
 
     // Definição de nova password por email, este passo recebe o username e nova password
-    @PutMapping("/login/resetPassword/{token}")
-    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@RequestParam String email, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
-            userChangePasswordRequest.setUsername(email);
+    @PutMapping("/login/resetPassword/{token}/{username}")
+    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
+            userChangePasswordRequest.setUsername(username);
             Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
         return new ResponseEntity<>(alterarPassword, OK);
     }

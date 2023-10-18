@@ -7,7 +7,6 @@ import com.example.desporto24.service.impl.NotAnImageFileException;
 import jakarta.mail.MessagingException;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
@@ -15,6 +14,10 @@ import java.util.Date;
 import java.util.List;
 
 public interface ProjectService{
+
+    Perfil disablePerfil(String email) throws EmailNotFoundException;
+
+    Perfil enablePerfil(String email) throws EmailNotFoundException;
 
     Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
 
@@ -41,9 +44,9 @@ public interface ProjectService{
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    Perfil updatePerfilEmergency(String username, String token);
+    String confirmEmergencyToken(String token) throws EmailNotFoundException;
 
-    Perfil updateUser(String username,Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
+    Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
     void deleteUser(Long id);
 
@@ -59,5 +62,5 @@ public interface ProjectService{
 
     Perfil resetPassword2(Perfil perfil, String token);
 
-    String confirmToken(String token);
+    String confirmToken(String token) throws EmailNotFoundException;
 }

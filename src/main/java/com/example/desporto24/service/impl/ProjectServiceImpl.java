@@ -1,14 +1,12 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.exception.domain.*;
-import com.example.desporto24.model.Ideias;
-import com.example.desporto24.model.Perfil;
-import com.example.desporto24.model.PerfilPrincipal;
-import com.example.desporto24.model.Sessao;
+import com.example.desporto24.model.*;
 import com.example.desporto24.registo.MFA.MFAVerification;
 import com.example.desporto24.registo.MFA.MFAVerificationService;
 import com.example.desporto24.registo.UserRegistoService;
 import com.example.desporto24.registo.token.ConfirmationToken;
+import com.example.desporto24.registo.token.ConfirmationTokenRepository;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
 import com.example.desporto24.repository.IdeiasRepository;
 import com.example.desporto24.repository.PerfilRepository;
@@ -16,7 +14,6 @@ import com.example.desporto24.repository.SessaoRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.ProjectService;
-import com.example.desporto24.update.token.UpdateTokenService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -26,10 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -37,23 +30,15 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
@@ -66,7 +51,6 @@ import static org.apache.commons.lang3.RandomStringUtils.randomNumeric;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.http.MediaType.*;
-import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath;
 
 @Service
@@ -88,14 +72,14 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private SessaoRepository sessaoRepository;
     private final MFAVerificationService MFAverificationService;
     private final ExceptionHandling exceptionHandling;
-    private final UpdateTokenService updateTokenService;
     private final IdeiasRepository ideiasRepository;
     private final LoginAttemptService loginAttemptService;
+    private final ConfirmationTokenRepository confirmationTokenRepository;
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
 
     @Autowired
-    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, UpdateTokenService updateTokenService, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService) {
+    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository) {
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -103,9 +87,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.sessaoRepository = sessaoRepository;
         this.MFAverificationService = mfaVerificationService;
         this.exceptionHandling = exceptionHandling;
-        this.updateTokenService = updateTokenService;
         this.ideiasRepository = ideiasRepository;
         this.loginAttemptService = loginAttemptService;
+        this.confirmationTokenRepository = confirmationTokenRepository;
     }
 
     /*
@@ -188,15 +172,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         } else {
             return perfil;
         }
-    }
-
-
-    public int enablePerfil(String email) {
-        return perfilRepository.enablePerfil(email);
-    }
-
-    public int disablePerfil(String email) {
-        return perfilRepository.disablePerfil(email);
     }
 
     // Verificação para que um novo utilizador não tenha o mesmo nome, telemóvel ou email de outro utilizador
@@ -346,7 +321,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 throw new IllegalStateException("Código expirado");
             }
             confirmationTokenService.setConfirmedAt(token);
-            enablePerfil(confirmationToken.getPerfil().getEmail());
             perfilRepository.save(p);
             return p;
         }
@@ -401,9 +375,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
         perfilRepository.save(p);
         String token = randomNumeric(20).toString();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), perfil);
-        confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
+        ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
+        confirmationTokenService.saveConfirmationToken(emergencyToken);
+        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
         emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
         return p;
     }
@@ -470,12 +444,40 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String encodedPassword = passwordEncoder.encode(perfil.getPassword());
             p.setUsername(perfil.getNewUsername());
             p.setPassword(encodedPassword);
+            String token = randomNumeric(20).toString();
+            ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
+            confirmationTokenService.saveConfirmationToken(emergencyToken);
+            String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
+            emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
             return p;
         }
     }
 
-    @Transactional
-    public String confirmToken(String token) {
+    public Perfil enablePerfil(String email) throws EmailNotFoundException {
+        Perfil p = findUserByEmail(email);
+        if (p == null) {
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + email);
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
+        } else {
+            p.setEnabled(true);
+            perfilRepository.save(p);
+        }
+        return p;
+    }
+    public Perfil disablePerfil(String email) throws EmailNotFoundException {
+        Perfil p = findUserByEmail(email);
+        if (p == null) {
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + email);
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
+        } else {
+            p.setNotLocked(false);
+            perfilRepository.save(p);
+        }
+        return p;
+    }
+
+    // Activa o perfil
+    public String confirmToken(String token) throws EmailNotFoundException {
         ConfirmationToken confirmToken = confirmationTokenService
                 .getToken(token)
                 .orElseThrow(() ->
@@ -487,7 +489,26 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new IllegalStateException("Token expirado");
         }
         confirmationTokenService.setConfirmedAt(token);
-        perfilRepository.enablePerfil(confirmToken.getPerfil().getEmail());
+        enablePerfil(confirmToken.getPerfil().getEmail());
+        confirmationTokenService.saveConfirmationToken(confirmToken);
+        return token;
+    }
+
+    // Desativa o perfil
+    public String confirmEmergencyToken(String token) throws EmailNotFoundException {
+        ConfirmationToken confirmToken = confirmationTokenService
+                .getToken(token)
+                .orElseThrow(() ->
+                        new IllegalStateException("Token não encontrado."));
+        if (confirmToken.getConfirmedAt() != null) {
+            throw new IllegalStateException("Token já foi confirmado.");
+        }
+        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Token expirado");
+        }
+        confirmationTokenService.setConfirmedAt(token);
+        disablePerfil(confirmToken.getPerfil().getEmail());
+        confirmationTokenService.saveConfirmationToken(confirmToken);
         return token;
     }
 
@@ -625,7 +646,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Dados foram alterados na tua conta. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Se não foste tu quem fez esta alteração, \n por favor clica neste link para bloquearmos temporareamente a tua conta: \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Bloquear</a> </p>\n Este link vai expirar numa hora. \n <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Dados foram alterados na tua conta. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Se não foste tu quem fez esta alteração, \n por favor clica neste link para bloquearmos temporareamente a tua conta: \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " + link + " </p>\n Este link vai expirar numa hora. \n <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -667,10 +688,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new IllegalStateException("Token expirado");
         }
         confirmationTokenService.setConfirmedAt(token);
-        Perfil p = perfilRepository.findUserByUsername(perfil.getUsername());
+        Perfil p = perfilRepository.findUserByEmail(perfil.getEmail());
         if (p == null) {
-            LOGGER.error(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
-            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
+            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
         } else {
             String encodedPassword = passwordEncoder.encode(perfil.getPassword());
             p.setPassword(encodedPassword);
@@ -679,29 +700,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
-    // Desativa o perfil
-    public Perfil updatePerfilEmergency(String token, String username) {
-        ConfirmationToken confirmToken = confirmationTokenService
-                .getToken(token)
-                .orElseThrow(() ->
-                        new IllegalStateException("Token não encontrado."));
-        if (confirmToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Token já foi confirmado.");
-        }
-        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Token expirado");
-        }
-        confirmationTokenService.setConfirmedAt(token);
-        Perfil p = perfilRepository.findUserByUsername(username);
-        if (p == null) {
-            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + p.getEmail());
-        } else {
-            disablePerfil(p.getEmail());
-            perfilRepository.save(p);
-            return p;
-        }
-    }
 
     // Email enviado quando um utilizador coloca uma nova ideia para a aplicação
     private String buildNewIdeaEmail(String name) {
