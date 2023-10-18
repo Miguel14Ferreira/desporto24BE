@@ -831,10 +831,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
-    // Login usado para testes
-    public void signUpPerfil3(Perfil perfil) {
-    }
-
 
     // Nova ideia/sugestão recebida
     public Ideias newIdea(Ideias i) throws MessagingException {

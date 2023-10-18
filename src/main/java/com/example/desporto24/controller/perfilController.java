@@ -136,6 +136,8 @@ public class perfilController extends ExceptionHandling {
         String MFA = perfilService.confirmCode(mfaCode);
         return new ResponseEntity<>(MFA, OK);
     }
+
+    //Reenvio do SMS para o utilizador
     @GetMapping(path = "/login/MFAauthentication/{username}")
     public ResponseEntity<?> resendToken(@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
         Perfil perfil = perfilRepository.findUserByUsername(username);
