@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
@@ -294,7 +295,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfil.setLogginAttempts(0);
         saveProfileImage(perfil, foto);
         perfilRepository.save(perfil);
-        String token = randomNumeric(20).toString();
+        String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();

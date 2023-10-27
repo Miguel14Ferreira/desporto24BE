@@ -132,9 +132,9 @@ public class perfilController extends ExceptionHandling {
 
     // MFA autenticação
     @PostMapping(path = "/login/MFAauthentication/{username}")
-    public ResponseEntity<?> confirmMFAToken(String mfaCode) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
-        String MFA = perfilService.confirmCode(mfaCode);
-        return new ResponseEntity<>(MFA, OK);
+    public ResponseEntity<?> confirmMFAToken(@RequestBody String mfaCode) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+        perfilService.confirmCode(mfaCode);
+        return new ResponseEntity<>(OK);
     }
 
     //Reenvio do SMS para o utilizador
@@ -149,8 +149,8 @@ public class perfilController extends ExceptionHandling {
     // Ativação da conta do utilizador
     @GetMapping(path = "/login/registerNewUser/confirmTokenRegistration/{token}")
     public ResponseEntity<?> confirmRegistrationToken(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, EmailNotFoundException {
-        String activate = perfilService.confirmToken(Token);
-        return new ResponseEntity<>(activate,OK);
+        perfilService.confirmToken(Token);
+        return new ResponseEntity<>(OK);
         }
 
     // Desativação da conta do utilizador

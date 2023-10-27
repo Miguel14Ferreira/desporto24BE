@@ -10,6 +10,7 @@ import java.util.Optional;
 @AllArgsConstructor
 public class MFAVerificationService {
     private final MFAVerificationRepository MFAverificationRepository;
+
     public void saveConfirmationMFA(MFAVerification code) {
         MFAverificationRepository.save(code);
     }
