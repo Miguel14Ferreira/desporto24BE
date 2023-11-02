@@ -156,8 +156,8 @@ public class perfilController extends ExceptionHandling {
     // Desativação da conta do utilizador
     @GetMapping(path = "/confirmEmergencyToken/{token}")
     public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException {
-        String deactivate = perfilService.confirmEmergencyToken(token);
-        return new ResponseEntity<>(deactivate, OK);
+        perfilService.confirmEmergencyToken(token);
+        return new ResponseEntity<>(OK);
     }
 
     // Definição de nova password por email, este passo recebe o email
