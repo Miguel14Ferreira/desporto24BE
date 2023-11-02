@@ -8,6 +8,7 @@ import com.example.desporto24.registo.UserRegistoService;
 import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.registo.token.ConfirmationTokenRepository;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
+import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.IdeiasRepository;
 import com.example.desporto24.repository.PerfilRepository;
 import com.example.desporto24.repository.SessaoRepository;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
@@ -76,11 +75,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private final IdeiasRepository ideiasRepository;
     private final LoginAttemptService loginAttemptService;
     private final ConfirmationTokenRepository confirmationTokenRepository;
+    private final FriendRepository friendRepository;
+    private ModelMapper modelMapper;
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
 
     @Autowired
-    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository) {
+    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository) {
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -91,6 +92,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.ideiasRepository = ideiasRepository;
         this.loginAttemptService = loginAttemptService;
         this.confirmationTokenRepository = confirmationTokenRepository;
+        this.friendRepository = friendRepository;
     }
 
     /*
@@ -830,6 +832,42 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
                         "\n" +
                         "</div></div>";
+    }
+    public void novoAmigo(String username){
+        Perfil perfil1 = findUserByUsername(username);
+        Perfil perfil2 = modelMapper.map(perfil1,Perfil.class);
+
+        Friend friend = new Friend();
+        perfil2 = findUserByUsername(perfil2.getUsername());
+        Perfil user1 = perfil1;
+        Perfil user2 = perfil2;
+        if (perfil1.getId() > perfil2.getId()){
+            perfil1 = user2;
+            perfil2 = user1;
+        }
+        if (! (friendRepository.existsByPerfil1AndPerfil2(perfil1,perfil2))){
+            friend.setCreatedAt(new Date());
+            friend.setPerfil1(perfil1);
+            friend.setPerfil2(perfil2);
+            friendRepository.save(friend);
+        }
+    }
+
+    // Listar amigos
+
+    public List<Perfil> getFriends(String username){
+        Perfil p = findUserByUsername(username);
+        List<Friend> friendsByFirstPerfil = friendRepository.findByPerfil1(p);
+        List<Friend> friendsBySecondPerfil = friendRepository.findByPerfil2(p);
+        List<Perfil> friendsPerfis = new ArrayList<>();
+
+        for (Friend friend : friendsByFirstPerfil){
+            friendsPerfis.add(findUserByUsername(friend.getPerfil2().getUsername()));
+        }
+        for (Friend friend : friendsBySecondPerfil){
+            friendsPerfis.add(findUserByUsername(friend.getPerfil1().getUsername()));
+        }
+        return friendsPerfis;
     }
 
 
