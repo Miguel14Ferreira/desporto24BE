@@ -36,9 +36,16 @@ public class ExceptionHandling {
     private static final String TOKEN_NOT_VERIFIED = "Your email isn't verified, please verify it and try again";
     private static final String ERROR_PATH = "/error";
 
+    private static final String ALREADY_FRIENDS = "You already have this player in your friend list!";
+
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<HttpResponse> accountDisabledException(){
         return createHttpResponse(BAD_REQUEST,ACCOUNT_DISABLED);
+    }
+
+    @ExceptionHandler(RequestFriendException.class)
+    public ResponseEntity<HttpResponse> alreadyFriends(){
+        return createHttpResponse(FORBIDDEN,ALREADY_FRIENDS);
     }
 
     @ExceptionHandler(BadCredentialsException.class)

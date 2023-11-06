@@ -15,6 +15,10 @@ import java.util.List;
 
 public interface ProjectService{
 
+    List<Perfil> getFriends(String username);
+
+    Perfil sendFriendRequest(String usernamep1,String usernamep2) throws RequestFriendException;
+
     Perfil disablePerfil(String email) throws EmailNotFoundException;
 
     Perfil enablePerfil(String email) throws EmailNotFoundException;

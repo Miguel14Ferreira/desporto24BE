@@ -195,6 +195,17 @@ public class perfilController extends ExceptionHandling {
         List<Sessao> sessoes = perfilService.getSessoes();
         return new ResponseEntity<>(sessoes,OK);
     }
+    @GetMapping("/menu/{username}/")
+    public ResponseEntity<List<Perfil>> getFriendList(@PathVariable("username") String username){
+        List<Perfil> perfis = perfilService.getFriends(username);
+        return new ResponseEntity<>(perfis,OK);
+    }
+
+    @PostMapping("/menu/{username}/perfis")
+    public ResponseEntity<?> addFriend(@PathVariable("username")@RequestParam String usernamep1,@RequestParam String usernamep2) throws RequestFriendException {
+            perfilService.sendFriendRequest(usernamep1,usernamep2);
+            return new ResponseEntity<>(OK);
+    }
 
     // Alteração de dados do utilizador
     @PutMapping("/menu/alterardados")
@@ -216,6 +227,7 @@ public class perfilController extends ExceptionHandling {
         Perfil changePassword = changePasswordService.alterarPassword(changeRequest);
         return new ResponseEntity<>(changePassword, OK);
     }
+    @PostMapping("login/registerNewUser")
 
     // Eliminação do utilizador sendo administrador
     @DeleteMapping("/delete/{id}")

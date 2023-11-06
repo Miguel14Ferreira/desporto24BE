@@ -2,6 +2,8 @@ package com.example.desporto24.service.impl;
 
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.*;
+import com.example.desporto24.registo.FriendRequest.FriendRequest;
+import com.example.desporto24.registo.FriendRequest.FriendRequestService;
 import com.example.desporto24.registo.MFA.MFAVerification;
 import com.example.desporto24.registo.MFA.MFAVerificationService;
 import com.example.desporto24.registo.UserRegistoService;
@@ -20,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,12 +77,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private final LoginAttemptService loginAttemptService;
     private final ConfirmationTokenRepository confirmationTokenRepository;
     private final FriendRepository friendRepository;
-    private ModelMapper modelMapper;
+    private final FriendRequestService friendRequestService;
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
 
     @Autowired
-    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository) {
+    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository, FriendRequestService friendRequestService) {
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -93,6 +94,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.loginAttemptService = loginAttemptService;
         this.confirmationTokenRepository = confirmationTokenRepository;
         this.friendRepository = friendRepository;
+        this.friendRequestService = friendRequestService;
     }
 
     /*
@@ -833,19 +835,91 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "\n" +
                         "</div></div>";
     }
-    public void novoAmigo(String username){
-        Perfil perfil1 = findUserByUsername(username);
-        Perfil perfil2 = modelMapper.map(perfil1,Perfil.class);
 
+    private String buildNewFriendRequestEmail(String name, String assunto, String mensagem) {
+        return
+                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
+                        "    <tbody><tr>\n" +
+                        "        \n" +
+                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
+                        "          <tbody><tr>\n" +
+                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                    <td style=\"padding-left:10px\">\n" +
+                        "                  \n" +
+                        "                    </td>\n" +
+                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Nova sugestão</span>\n" +
+                        "                    </td>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "              </a>\n" +
+                        "            </td>\n" +
+                        "          </tr>\n" +
+                        "        </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
+                        "      <td>\n" +
+                        "        \n" +
+                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "\n" +
+                        "\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
+                        "        \n" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por: " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Assunto: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta clicares no link abaixo ou podes simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Mensagem: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n"+ mensagem +"</p>" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
+                        "\n" +
+                        "</div></div>";
+    }
+    public void acceptFriendRequest(String token){
+        FriendRequest confirmToken = friendRequestService
+                .getToken(token)
+                .orElseThrow(() ->
+                        new IllegalStateException("Token não encontrado."));
+        if (confirmToken.getConfirmedAt() != null) {
+            throw new IllegalStateException("Token já foi confirmado.");
+        }
+        friendRequestService.setConfirmedAt(token);
+        friendRequestService.saveFriendRequest(confirmToken);
+        Perfil perfil1 = findUserByUsername(confirmToken.getPerfil1().getUsername());
+        Perfil perfil2 = findUserByUsername(confirmToken.getPerfil2().getUsername());
         Friend friend = new Friend();
-        perfil2 = findUserByUsername(perfil2.getUsername());
         Perfil user1 = perfil1;
         Perfil user2 = perfil2;
         if (perfil1.getId() > perfil2.getId()){
             perfil1 = user2;
             perfil2 = user1;
         }
-        if (! (friendRepository.existsByPerfil1AndPerfil2(perfil1,perfil2))){
+        if (!(friendRepository.existsByPerfil1AndPerfil2(perfil1,perfil2))){
             friend.setCreatedAt(new Date());
             friend.setPerfil1(perfil1);
             friend.setPerfil2(perfil2);
@@ -868,6 +942,22 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             friendsPerfis.add(findUserByUsername(friend.getPerfil1().getUsername()));
         }
         return friendsPerfis;
+    }
+
+    @Override
+    public Perfil sendFriendRequest(String usernamep1, String usernamep2) throws RequestFriendException {
+        Perfil p1 = findUserByUsername(usernamep1);
+        Perfil p2 = findUserByUsername(usernamep2);
+        if(!(friendRepository.existsByPerfil1AndPerfil2(p1,p2))){
+            String token = UUID.randomUUID().toString();
+            FriendRequest confirmationToken = new FriendRequest(token, LocalDateTime.now(), p1, p2);
+            friendRequestService.saveFriendRequest(confirmationToken);
+            String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
+            emailService.send(p2.getEmail(), buildRegistrationEmail(p2.getUsername(),link));
+        } else {
+            throw new RequestFriendException("Vocês já são amigos!");
+        }
+        return p1;
     }
 
 

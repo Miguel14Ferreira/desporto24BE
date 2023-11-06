@@ -1,13 +1,10 @@
 package com.example.desporto24.model;
-import com.example.desporto24.registo.token.ConfirmationToken;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.checkerframework.common.aliasing.qual.Unique;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.Serializable;
 import java.util.*;
@@ -55,6 +52,7 @@ public class Perfil implements Serializable {
     private Date lastLoginDate;
     private Date lastLoginDateDisplay;
     private Date joinDate;
+    private String[] messages;
 
     public Perfil(String username, String password) {
         this.username = username;
@@ -104,5 +102,13 @@ public class Perfil implements Serializable {
 
     public boolean isNotLocked() {
         return NotLocked;
+    }
+
+    public String[] getMessages() {
+        return messages;
+    }
+
+    public void setMessages(String messages) {
+        this.messages = new String[]{messages};
     }
 }
