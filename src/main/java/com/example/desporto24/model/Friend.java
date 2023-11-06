@@ -24,8 +24,10 @@ public class Friend {
     private Long id;
 
     private Date createdAt;
-
+    @ManyToOne
+    @JoinColumn(nullable = false,name = "perfil1")
     private Perfil perfil1;
-
+    @ManyToOne
+    @JoinColumn(nullable = false,name = "perfil2")
     private Perfil perfil2;
 }

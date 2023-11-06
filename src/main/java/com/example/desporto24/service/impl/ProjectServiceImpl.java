@@ -10,10 +10,7 @@ import com.example.desporto24.registo.UserRegistoService;
 import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.registo.token.ConfirmationTokenRepository;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
-import com.example.desporto24.repository.FriendRepository;
-import com.example.desporto24.repository.IdeiasRepository;
-import com.example.desporto24.repository.PerfilRepository;
-import com.example.desporto24.repository.SessaoRepository;
+import com.example.desporto24.repository.*;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.ProjectService;
@@ -836,7 +833,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
-    private String buildNewFriendRequestEmail(String name, String assunto, String mensagem) {
+    private String buildNewFriendRequestEmail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
                         "\n" +
@@ -851,7 +848,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "                  \n" +
                         "                    </td>\n" +
                         "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Nova sugestão</span>\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Recebeste um novo pedido de amizade</span>\n" +
                         "                    </td>\n" +
                         "                  </tr>\n" +
                         "                </tbody></table>\n" +
@@ -888,7 +885,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por: " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Assunto: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta clicares no link abaixo ou podes simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Mensagem: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n"+ mensagem +"</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por: " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta clicares no link abaixo ou podes simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p style=\\\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\\\"> " + link + " </p><p>Cumprimentos,</p><p>DESPORTO24APP</p>\"" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -953,7 +950,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             FriendRequest confirmationToken = new FriendRequest(token, LocalDateTime.now(), p1, p2);
             friendRequestService.saveFriendRequest(confirmationToken);
             String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
-            emailService.send(p2.getEmail(), buildRegistrationEmail(p2.getUsername(),link));
+            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
         } else {
             throw new RequestFriendException("Vocês já são amigos!");
         }

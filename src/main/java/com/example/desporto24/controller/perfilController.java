@@ -201,7 +201,7 @@ public class perfilController extends ExceptionHandling {
         List<Sessao> sessoes = perfilService.getSessoes();
         return new ResponseEntity<>(sessoes,OK);
     }
-    @GetMapping("/menu/{username}/")
+    @GetMapping("/menu/{username}/friendList")
     public ResponseEntity<List<Perfil>> getFriendList(@PathVariable("username") String username){
         List<Perfil> perfis = perfilService.getFriends(username);
         return new ResponseEntity<>(perfis,OK);
@@ -210,7 +210,6 @@ public class perfilController extends ExceptionHandling {
     @PostMapping("/menu/{username}/perfis")
     public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {
         sendFriendService.sendFriendRequest(friendRequestR);
-        System.out.println(friendRequestR);
             return new ResponseEntity<>(OK);
     }
 

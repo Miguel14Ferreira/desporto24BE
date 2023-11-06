@@ -26,10 +26,12 @@ public class FriendRequest {
     private LocalDateTime createdAt;
 
     private LocalDateTime confirmedAt;
-    @JoinColumn(nullable = false,name = "perfil_id")
+    @ManyToOne
+    @JoinColumn(nullable = false)
     private Perfil perfil1;
 
-    @JoinColumn(nullable = false,name = "perfil_id")
+    @ManyToOne
+    @JoinColumn(nullable = false)
     private Perfil perfil2;
 
     public FriendRequest(String token, LocalDateTime createdAt, Perfil perfil1, Perfil perfil2) {

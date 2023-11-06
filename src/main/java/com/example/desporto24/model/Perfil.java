@@ -52,7 +52,6 @@ public class Perfil implements Serializable {
     private Date lastLoginDate;
     private Date lastLoginDateDisplay;
     private Date joinDate;
-    private String[] messages;
 
     public Perfil(String username, String password) {
         this.username = username;
@@ -102,13 +101,5 @@ public class Perfil implements Serializable {
 
     public boolean isNotLocked() {
         return NotLocked;
-    }
-
-    public String[] getMessages() {
-        return messages;
-    }
-
-    public void setMessages(String messages) {
-        this.messages = new String[]{messages};
     }
 }

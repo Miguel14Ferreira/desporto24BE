@@ -1,9 +1,6 @@
 package com.example.desporto24.service;
 import com.example.desporto24.exception.domain.*;
-import com.example.desporto24.model.Ideias;
-import com.example.desporto24.model.Perfil;
-import com.example.desporto24.model.SendFriendRequest;
-import com.example.desporto24.model.Sessao;
+import com.example.desporto24.model.*;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import jakarta.mail.MessagingException;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 public interface ProjectService{
 
@@ -43,7 +41,7 @@ public interface ProjectService{
     Sessao findSessaoByDatadejogo(Date dataDeJogo);
 
     Sessao findSessaoByUsername(String username);
-
+    
     List<Sessao> getSessoes();
 
     @Transactional
