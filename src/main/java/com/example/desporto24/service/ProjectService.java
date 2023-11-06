@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.Ideias;
 import com.example.desporto24.model.Perfil;
+import com.example.desporto24.model.SendFriendRequest;
 import com.example.desporto24.model.Sessao;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import jakarta.mail.MessagingException;
@@ -17,7 +18,9 @@ public interface ProjectService{
 
     List<Perfil> getFriends(String username);
 
-    Perfil sendFriendRequest(String usernamep1,String usernamep2) throws RequestFriendException;
+    SendFriendRequest sendFriendRequest(SendFriendRequest sendFriendRequest) throws RequestFriendException, MessagingException;
+
+    void acceptFriendRequest(String token);
 
     Perfil disablePerfil(String email) throws EmailNotFoundException;
 

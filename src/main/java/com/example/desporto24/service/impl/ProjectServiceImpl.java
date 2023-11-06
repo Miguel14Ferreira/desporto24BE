@@ -945,9 +945,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil sendFriendRequest(String usernamep1, String usernamep2) throws RequestFriendException {
-        Perfil p1 = findUserByUsername(usernamep1);
-        Perfil p2 = findUserByUsername(usernamep2);
+    public SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws RequestFriendException, MessagingException {
+        Perfil p1 = findUserByUsername(friendRequest.getUsername1());
+        Perfil p2 = findUserByUsername(friendRequest.getUsername2());
         if(!(friendRepository.existsByPerfil1AndPerfil2(p1,p2))){
             String token = UUID.randomUUID().toString();
             FriendRequest confirmationToken = new FriendRequest(token, LocalDateTime.now(), p1, p2);
@@ -957,7 +957,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         } else {
             throw new RequestFriendException("Vocês já são amigos!");
         }
-        return p1;
+        return friendRequest;
     }
 
 

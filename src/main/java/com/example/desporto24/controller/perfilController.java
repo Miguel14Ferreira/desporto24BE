@@ -1,4 +1,6 @@
 package com.example.desporto24.controller;
+import com.example.desporto24.Friend.SendFriendRequest;
+import com.example.desporto24.Friend.SendFriendService;
 import com.example.desporto24.changePassword.UserChangePasswordRequest;
 import com.example.desporto24.changePassword.UserChangePasswordService;
 import com.example.desporto24.domain.HttpResponse;
@@ -10,7 +12,6 @@ import com.example.desporto24.newIdea.NewIdeaRequest;
 import com.example.desporto24.newIdea.NewIdeaService;
 import com.example.desporto24.registo.SessaoRegistoRequest;
 import com.example.desporto24.registo.SessaoRegistoService;
-import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
 import com.example.desporto24.repository.IdeiasRepository;
 import com.example.desporto24.repository.PerfilRepository;
@@ -31,7 +32,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,6 +72,7 @@ public class perfilController extends ExceptionHandling {
     private final LoginAttemptService loginAttemptService;
     private final LoginService loginService;
     private final ConfirmationTokenService confirmationTokenService;
+    private final SendFriendService sendFriendService;
 
     // Autenticação de utilizador
     /*
@@ -181,6 +182,11 @@ public class perfilController extends ExceptionHandling {
         List<Perfil> perfil = perfilService.getPerfis();
         return new ResponseEntity<>(perfil, OK);
     }
+    @GetMapping("/login/confirmNewFriend/{token}")
+    ResponseEntity<?> acceptFriendRequest(@PathVariable("token")String token){
+            perfilService.acceptFriendRequest(token);
+            return new ResponseEntity<>(OK);
+    }
 
     // Criação de nova sessão pelo utilizador
     @PostMapping("/menu/createEvent")
@@ -202,8 +208,9 @@ public class perfilController extends ExceptionHandling {
     }
 
     @PostMapping("/menu/{username}/perfis")
-    public ResponseEntity<?> addFriend(@PathVariable("username")@RequestParam String usernamep1,@RequestParam String usernamep2) throws RequestFriendException {
-            perfilService.sendFriendRequest(usernamep1,usernamep2);
+    public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {
+        sendFriendService.sendFriendRequest(friendRequestR);
+        System.out.println(friendRequestR);
             return new ResponseEntity<>(OK);
     }
 
@@ -227,7 +234,6 @@ public class perfilController extends ExceptionHandling {
         Perfil changePassword = changePasswordService.alterarPassword(changeRequest);
         return new ResponseEntity<>(changePassword, OK);
     }
-    @PostMapping("login/registerNewUser")
 
     // Eliminação do utilizador sendo administrador
     @DeleteMapping("/delete/{id}")
