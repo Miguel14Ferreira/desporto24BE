@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.*;
+import com.example.desporto24.registo.Notifications.Notifications;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import jakarta.mail.MessagingException;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,6 +16,8 @@ import java.util.Optional;
 public interface ProjectService{
 
     List<Perfil> getFriends(String username);
+
+    List<Notifications> getNotificationsFromPerfil(String username);
 
     SendFriendRequest sendFriendRequest(SendFriendRequest sendFriendRequest) throws RequestFriendException, MessagingException;
 

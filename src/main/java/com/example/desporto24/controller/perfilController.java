@@ -10,6 +10,7 @@ import com.example.desporto24.login.LoginService;
 import com.example.desporto24.model.*;
 import com.example.desporto24.newIdea.NewIdeaRequest;
 import com.example.desporto24.newIdea.NewIdeaService;
+import com.example.desporto24.registo.Notifications.Notifications;
 import com.example.desporto24.registo.SessaoRegistoRequest;
 import com.example.desporto24.registo.SessaoRegistoService;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
@@ -74,17 +75,7 @@ public class perfilController extends ExceptionHandling {
     private final ConfirmationTokenService confirmationTokenService;
     private final SendFriendService sendFriendService;
 
-    // Autenticação de utilizador
-    /*
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException, IllegalBlockSizeException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, EqualUsernameAndPasswordException {
-        autenticate(loginRequest.getUsername(),loginRequest.getPassword());
-        Perfil p = loginService.login(loginRequest);
-        PerfilPrincipal perfilPrincipal = new PerfilPrincipal(p);
-        HttpHeaders jwtHeader = getJwtHeader(perfilPrincipal);
-        return new ResponseEntity<>(p, jwtHeader, OK);
-    }
-     */
+
         // Autenticação de utilizador
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException, IllegalBlockSizeException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
@@ -125,6 +116,7 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(registerperfil, OK);
     }
 
+    // Obter todos os dados do utilizador
     @GetMapping("/menu/{username}")
     public ResponseEntity<?> menu(@PathVariable("username")String username){
             Perfil a = perfilService.findUserByUsername(username);
@@ -182,6 +174,7 @@ public class perfilController extends ExceptionHandling {
         List<Perfil> perfil = perfilService.getPerfis();
         return new ResponseEntity<>(perfil, OK);
     }
+    // Confirmação de adição de novo utilizador à lista de amigos
     @GetMapping("/login/confirmNewFriend/{token}")
     ResponseEntity<?> acceptFriendRequest(@PathVariable("token")String token){
             perfilService.acceptFriendRequest(token);
@@ -201,12 +194,21 @@ public class perfilController extends ExceptionHandling {
         List<Sessao> sessoes = perfilService.getSessoes();
         return new ResponseEntity<>(sessoes,OK);
     }
+    // Obtenção de lista de amigos do utilizador
     @GetMapping("/menu/{username}/friendList")
     public ResponseEntity<List<Perfil>> getFriendList(@PathVariable("username") String username){
         List<Perfil> perfis = perfilService.getFriends(username);
         return new ResponseEntity<>(perfis,OK);
     }
 
+
+    @GetMapping("/menu/{username}/notifications")
+    public ResponseEntity<List<Notifications>> getNotifications(@PathVariable("username") String username){
+        List<Notifications> notifications = perfilService.getNotificationsFromPerfil(username);
+        return new ResponseEntity<>(notifications,OK);
+    }
+
+    // Envio de pedido de amizade para um novo utilizador
     @PostMapping("/menu/{username}/perfis")
     public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {
         sendFriendService.sendFriendRequest(friendRequestR);

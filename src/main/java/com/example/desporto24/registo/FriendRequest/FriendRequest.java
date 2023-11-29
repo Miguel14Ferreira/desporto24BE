@@ -44,5 +44,4 @@ public class FriendRequest {
     public FriendRequest(String token) {
         this.token = token;
     }
-
 }

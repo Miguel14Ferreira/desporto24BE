@@ -6,6 +6,8 @@ import com.example.desporto24.registo.FriendRequest.FriendRequest;
 import com.example.desporto24.registo.FriendRequest.FriendRequestService;
 import com.example.desporto24.registo.MFA.MFAVerification;
 import com.example.desporto24.registo.MFA.MFAVerificationService;
+import com.example.desporto24.registo.Notifications.Notifications;
+import com.example.desporto24.registo.Notifications.NotificationsRepository;
 import com.example.desporto24.registo.UserRegistoService;
 import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.registo.token.ConfirmationTokenRepository;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.management.Notification;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,11 +78,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private final ConfirmationTokenRepository confirmationTokenRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestService friendRequestService;
+    private final NotificationsRepository notificationsRepository;
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
 
     @Autowired
-    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository, FriendRequestService friendRequestService) {
+    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository, FriendRequestService friendRequestService, NotificationsRepository notificationsRepository) {
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -92,6 +96,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.confirmationTokenRepository = confirmationTokenRepository;
         this.friendRepository = friendRepository;
         this.friendRequestService = friendRequestService;
+        this.notificationsRepository = notificationsRepository;
     }
 
     /*
@@ -301,10 +306,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
         emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
+        String notificaçãoBoasVindas = "Sê bem-vindo ao nosso site, "+perfil.getUsername()+"! Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes! Bons jogos.";
+        Notifications notification = new Notifications(notificaçãoBoasVindas,LocalDateTime.now(),false,perfil);
+        notificationsRepository.save(notification);
         return perfil;
     }
 
-    // ativação da conta do utilizador acabado de efetuar o seu registo
+    // ativação da conta do utilizador acabado de efetuar o seu registo através de token
     public Perfil signUpPerfil2(Perfil email) {
         Perfil p = perfilRepository.findUserByEmail(email.getEmail());
         if (p == null) {
@@ -951,10 +959,19 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             friendRequestService.saveFriendRequest(confirmationToken);
             String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
             emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
+            String friendRequestNotification = "Recebeste um novo pedido de amizade de: " + p1.getUsername() + ", clica nesta mensagem para aceitar.";
+            Notifications n = new Notifications(friendRequestNotification,LocalDateTime.now(),true,p2);
+            notificationsRepository.save(n);
         } else {
             throw new RequestFriendException("Vocês já são amigos!");
         }
         return friendRequest;
+    }
+    @Override
+    public List<Notifications> getNotificationsFromPerfil(String username) {
+        Perfil p = findUserByUsername(username);
+        List<Notifications> notificationsFromPerfil = notificationsRepository.findByPerfil(p);
+        return notificationsFromPerfil;
     }
 
 
