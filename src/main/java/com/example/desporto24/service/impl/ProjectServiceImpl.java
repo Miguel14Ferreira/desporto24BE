@@ -305,10 +305,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
-        emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
+        //emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
         String notificaçãoBoasVindas = "Sê bem-vindo ao nosso site, "+perfil.getUsername()+"! Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes! Bons jogos.";
-        Notifications notification = new Notifications(notificaçãoBoasVindas,LocalDateTime.now(),false,perfil);
+        Notifications notification = new Notifications(notificaçãoBoasVindas,LocalDateTime.now(),false,perfil.getUsername());
         notificationsRepository.save(notification);
+        System.out.println(link);
         return perfil;
     }
 
@@ -388,7 +389,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
         confirmationTokenService.saveConfirmationToken(emergencyToken);
         String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
-        emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        //emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
+        Notifications notification = new Notifications(notificacaoAlteracaoDados,LocalDateTime.now(),false,username);
+        notificationsRepository.save(notification);
         return p;
     }
 
@@ -958,10 +962,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             FriendRequest confirmationToken = new FriendRequest(token, LocalDateTime.now(), p1, p2);
             friendRequestService.saveFriendRequest(confirmationToken);
             String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
-            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
-            String friendRequestNotification = "Recebeste um novo pedido de amizade de: " + p1.getUsername() + ", clica nesta mensagem para aceitar.";
-            Notifications n = new Notifications(friendRequestNotification,LocalDateTime.now(),true,p2);
+            //emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
+            String friendRequestNotification = "Recebeste um novo pedido de amizade de " + p1.getUsername() + ", clica nesta mensagem para aceitar.";
+            Notifications n = new Notifications(friendRequestNotification,LocalDateTime.now(),true,p2.getUsername());
             notificationsRepository.save(n);
+            System.out.println(link);
         } else {
             throw new RequestFriendException("Vocês já são amigos!");
         }
@@ -969,8 +974,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
     @Override
     public List<Notifications> getNotificationsFromPerfil(String username) {
-        Perfil p = findUserByUsername(username);
-        List<Notifications> notificationsFromPerfil = notificationsRepository.findByPerfil(p);
+        List<Notifications> notificationsFromPerfil = notificationsRepository.findByPerfil(username);
         return notificationsFromPerfil;
     }
 

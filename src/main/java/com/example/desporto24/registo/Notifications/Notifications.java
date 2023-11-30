@@ -26,11 +26,10 @@ public class Notifications {
     private LocalDateTime createdAt;
     @Column(nullable = false)
     private boolean isFriendRequest;
-    @ManyToOne
     @JoinColumn(nullable = false)
-    private Perfil perfil;
+    private String perfil;
 
-    public Notifications(String mensagem, LocalDateTime createdAt,Boolean isFriendRequest, Perfil perfil) {
+    public Notifications(String mensagem, LocalDateTime createdAt,Boolean isFriendRequest, String perfil) {
         this.mensagem = mensagem;
         this.createdAt = createdAt;
         this.isFriendRequest = isFriendRequest;

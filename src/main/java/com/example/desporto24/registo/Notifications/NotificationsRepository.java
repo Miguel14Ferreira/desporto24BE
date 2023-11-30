@@ -14,7 +14,7 @@ import java.util.Optional;
 @Repository
 public interface NotificationsRepository extends JpaRepository<Notifications, Long> {
 
-    List<Notifications> findByPerfil(Perfil perfil);
+    List<Notifications> findByPerfil(String perfil);
     @Transactional
     @Modifying
     @Query("UPDATE ConfirmationToken c " +
