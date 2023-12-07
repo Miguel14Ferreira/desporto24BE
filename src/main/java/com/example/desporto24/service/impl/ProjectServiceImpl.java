@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -49,8 +50,7 @@ import static com.example.desporto24.utility.SmsUtils.sendSMS;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.RandomStringUtils.randomNumeric;
-import static org.apache.commons.lang3.StringUtils.EMPTY;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.*;
 import static org.springframework.http.MediaType.*;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath;
 
@@ -293,6 +293,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfil.setPassword(encodedPassword);
         perfil.setUserId(generateUserId());
         perfil.setJoinDate(new Date());
+        Date date = new Date();
+        String data = substring(String.valueOf(date),3,10);
+        String data2 = substring(String.valueOf(date),24,29);
+        String data3 = data2+data;
+        perfil.setJoinDateDisplay(data3);
         perfil.setEnabled(false);
         perfil.setNotLocked(true);
         perfil.setRole(ROLE_USER.name());
@@ -305,9 +310,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
-        //emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
-        String notificaçãoBoasVindas = "Sê bem-vindo ao nosso site, "+perfil.getUsername()+"! Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes! Bons jogos.";
-        Notifications notification = new Notifications(notificaçãoBoasVindas,LocalDateTime.now(),false,perfil.getUsername());
+        emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
+        String assuntoNotificaçãoBoasVindas = "Sê bem-vindo ao nosso site, "+perfil.getUsername()+"!";
+        String notificacaoBoasVindas = "Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes!";
+        String cumprimentoNotificacaoBoasVindas = "Bons jogos,";
+        String assinatura = "DESPORTO24";
+        Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,perfil.getUsername());
         notificationsRepository.save(notification);
         System.out.println(link);
         return perfil;
@@ -389,9 +397,14 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
         confirmationTokenService.saveConfirmationToken(emergencyToken);
         String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
-        //emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        String assuntoNotificacaoAlteracaoDados = "Alteração de Dados de perfil";
         String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
-        Notifications notification = new Notifications(notificacaoAlteracaoDados,LocalDateTime.now(),false,username);
+        String cumprimentosNotificacao = "Cumprimentos,";
+        String assinatura = "DESPORTO24";
+        Date date = new Date();
+        String data = substring(String.valueOf(date),0,19);
+        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data,false,username);
         notificationsRepository.save(notification);
         return p;
     }
@@ -401,6 +414,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public void deleteUser(Long id) {
         perfilRepository.deleteById(id);
     }
+
 
     // envio do SMS para o utilizador
     @Override
@@ -959,12 +973,17 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         Perfil p2 = findUserByUsername(friendRequest.getUsername2());
         if(!(friendRepository.existsByPerfil1AndPerfil2(p1,p2))){
             String token = UUID.randomUUID().toString();
-            FriendRequest confirmationToken = new FriendRequest(token, LocalDateTime.now(), p1, p2);
-            friendRequestService.saveFriendRequest(confirmationToken);
+            Date date = new Date();
+            String data = substring(String.valueOf(date),0,19);
+            FriendRequest newFriendRequest = new FriendRequest(token, data, p1, p2);
+            friendRequestService.saveFriendRequest(newFriendRequest);
             String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
-            //emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
+            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
+            String assuntoFriendRequestNotification = "Recebeste um novo pedido de amizade!";
             String friendRequestNotification = "Recebeste um novo pedido de amizade de " + p1.getUsername() + ", clica nesta mensagem para aceitar.";
-            Notifications n = new Notifications(friendRequestNotification,LocalDateTime.now(),true,p2.getUsername());
+            String cumprimentosFriendRequestNotification = "Cumprimentos,";
+            String assinatura = "DESPORTO24";
+            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data,true,p2.getUsername());
             notificationsRepository.save(n);
             System.out.println(link);
         } else {
@@ -1030,8 +1049,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
         } else {
             validateLoginAttempt(p);
-            p.setLastLoginDateDisplay(p.getLastLoginDate());
             p.setLastLoginDate(new Date());
+            Date date = new Date();
+            String data = substring(String.valueOf(date),3,10);
+            String data2 = substring(String.valueOf(date),24,29);
+            String data3 = data2+data;
+            p.setLastLoginDateDisplay(data3);
             perfilRepository.save(p);
             LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
             PerfilPrincipal perfilPrincipal = new PerfilPrincipal(p);
@@ -1062,7 +1085,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             validateLoginAttempt(p);
             validateLoginAttempt2(p);
             validateLoginAttempt3(p);
-            p.setLastLoginDateDisplay(p.getLastLoginDate());
             p.setLastLoginDate(new Date());
             perfilRepository.save(p);
             LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());

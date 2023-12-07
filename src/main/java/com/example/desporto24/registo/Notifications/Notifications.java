@@ -20,17 +20,26 @@ public class Notifications {
     @GeneratedValue(strategy = GenerationType.SEQUENCE,
                     generator = "notification_sequence")
     private Long id;
+    @Column(nullable = false)
+    private String assunto;
     @Column(nullable = false,columnDefinition = "longtext")
     private String mensagem;
     @Column(nullable = false)
-    private LocalDateTime createdAt;
+    private String cumprimentos;
+    @Column(nullable = false)
+    private String assinatura;
+    @Column(nullable = false)
+    private String createdAt;
     @Column(nullable = false)
     private boolean isFriendRequest;
     @JoinColumn(nullable = false)
     private String perfil;
 
-    public Notifications(String mensagem, LocalDateTime createdAt,Boolean isFriendRequest, String perfil) {
+    public Notifications(String assunto, String mensagem, String cumprimentos, String assinatura, String createdAt, boolean isFriendRequest, String perfil) {
+        this.assunto = assunto;
         this.mensagem = mensagem;
+        this.cumprimentos = cumprimentos;
+        this.assinatura = assinatura;
         this.createdAt = createdAt;
         this.isFriendRequest = isFriendRequest;
         this.perfil = perfil;

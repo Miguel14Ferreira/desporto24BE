@@ -49,8 +49,9 @@ public class Perfil implements Serializable {
     private Boolean MFA;
     private String role;
     private String[] authorities;
+    private String lastLoginDateDisplay;
+    private String joinDateDisplay;
     private Date lastLoginDate;
-    private Date lastLoginDateDisplay;
     private Date joinDate;
 
     public Perfil(String username, String password) {

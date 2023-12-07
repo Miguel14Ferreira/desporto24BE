@@ -208,6 +208,14 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(notifications,OK);
     }
 
+    /*
+    @DeleteMapping("/menu/{username}/notifications")
+    public ResponseEntity<?> DeleteNotification(){
+        Notifications notifications = perfilService.deleteNotification(1);
+        return new ResponseEntity<>(notifications,OK);
+    }
+     */
+
     // Envio de pedido de amizade para um novo utilizador
     @PostMapping("/menu/{username}/perfis")
     public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {

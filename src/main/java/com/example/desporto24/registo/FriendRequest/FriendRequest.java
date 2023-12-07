@@ -23,9 +23,9 @@ public class FriendRequest {
     @Column(nullable = false)
     private String token;
     @Column(nullable = false)
-    private LocalDateTime createdAt;
+    private String createdAt;
 
-    private LocalDateTime confirmedAt;
+    private String confirmedAt;
     @ManyToOne
     @JoinColumn(nullable = false)
     private Perfil perfil1;
@@ -34,7 +34,7 @@ public class FriendRequest {
     @JoinColumn(nullable = false)
     private Perfil perfil2;
 
-    public FriendRequest(String token, LocalDateTime createdAt, Perfil perfil1, Perfil perfil2) {
+    public FriendRequest(String token, String createdAt, Perfil perfil1, Perfil perfil2) {
         this.token = token;
         this.createdAt = createdAt;
         this.perfil1 = perfil1;
