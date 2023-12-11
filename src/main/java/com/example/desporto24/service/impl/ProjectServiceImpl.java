@@ -311,7 +311,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
         emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
-        String assuntoNotificaçãoBoasVindas = "Sê bem-vindo ao nosso site, "+perfil.getUsername()+"!";
+        String assuntoNotificaçãoBoasVindas = " Sê bem-vindo ao nosso site, "+perfil.getUsername()+"!";
         String notificacaoBoasVindas = "Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes!";
         String cumprimentoNotificacaoBoasVindas = "Bons jogos,";
         String assinatura = "DESPORTO24";
@@ -398,7 +398,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         confirmationTokenService.saveConfirmationToken(emergencyToken);
         String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
         emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
-        String assuntoNotificacaoAlteracaoDados = "Alteração de Dados de perfil";
+        String assuntoNotificacaoAlteracaoDados = " Alteração de Dados de perfil";
         String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
         String cumprimentosNotificacao = "Cumprimentos,";
         String assinatura = "DESPORTO24";
@@ -951,7 +951,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Listar amigos
-
     public List<Perfil> getFriends(String username){
         Perfil p = findUserByUsername(username);
         List<Friend> friendsByFirstPerfil = friendRepository.findByPerfil1(p);
@@ -974,16 +973,18 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         if(!(friendRepository.existsByPerfil1AndPerfil2(p1,p2))){
             String token = UUID.randomUUID().toString();
             Date date = new Date();
-            String data = substring(String.valueOf(date),0,19);
-            FriendRequest newFriendRequest = new FriendRequest(token, data, p1, p2);
+            String data = substring(String.valueOf(date),3,10);
+            String data2 = substring(String.valueOf(date),24,29);
+            String data3 = data2+data;
+            FriendRequest newFriendRequest = new FriendRequest(token, data3, p1, p2);
             friendRequestService.saveFriendRequest(newFriendRequest);
             String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
             emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
-            String assuntoFriendRequestNotification = "Recebeste um novo pedido de amizade!";
+            String assuntoFriendRequestNotification = " Recebeste um novo pedido de amizade!";
             String friendRequestNotification = "Recebeste um novo pedido de amizade de " + p1.getUsername() + ", clica nesta mensagem para aceitar.";
             String cumprimentosFriendRequestNotification = "Cumprimentos,";
             String assinatura = "DESPORTO24";
-            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data,true,p2.getUsername());
+            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,p2.getUsername());
             notificationsRepository.save(n);
             System.out.println(link);
         } else {
@@ -995,6 +996,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public List<Notifications> getNotificationsFromPerfil(String username) {
         List<Notifications> notificationsFromPerfil = notificationsRepository.findByPerfil(username);
         return notificationsFromPerfil;
+    }
+
+    public void deleteNotification(Long id){
+        notificationsRepository.deleteById(id);
     }
 
 

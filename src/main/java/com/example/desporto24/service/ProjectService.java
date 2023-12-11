@@ -58,6 +58,8 @@ public interface ProjectService{
 
     void deleteUser(Long id);
 
+    void deleteNotification(Long id);
+
     String sendVerificationCode(Perfil perfil);
 
     Ideias newIdea(Ideias i) throws MessagingException;

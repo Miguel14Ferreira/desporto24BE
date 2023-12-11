@@ -208,14 +208,6 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(notifications,OK);
     }
 
-    /*
-    @DeleteMapping("/menu/{username}/notifications")
-    public ResponseEntity<?> DeleteNotification(){
-        Notifications notifications = perfilService.deleteNotification(1);
-        return new ResponseEntity<>(notifications,OK);
-    }
-     */
-
     // Envio de pedido de amizade para um novo utilizador
     @PostMapping("/menu/{username}/perfis")
     public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {
@@ -244,12 +236,18 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(changePassword, OK);
     }
 
+    @DeleteMapping("/menu/{username}/notifications/{id}")
+    public ResponseEntity<?> deleteNotification(@PathVariable("id") long id){
+            perfilService.deleteNotification(id);
+        return new ResponseEntity<>(OK);
+    }
+
     // Eliminação do utilizador sendo administrador
     @DeleteMapping("/delete/{id}")
     @PreAuthorize("hasAnyAuthority('user:delete')")
     public ResponseEntity<HttpResponse> deleteId(@PathVariable("id") long id){
         perfilService.deleteUser(id);
-        return response(OK, "User deleted successfully");
+        return new ResponseEntity<>(OK);
     }
 
     // Personalização de resposta ao utilizador na tentativa de execução de uma ação
