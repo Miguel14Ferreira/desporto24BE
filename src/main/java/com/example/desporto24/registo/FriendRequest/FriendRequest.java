@@ -25,7 +25,7 @@ public class FriendRequest {
     @Column(nullable = false)
     private String createdAt;
 
-    private String confirmedAt;
+    private LocalDateTime confirmedAt;
     @ManyToOne
     @JoinColumn(nullable = false)
     private Perfil perfil1;

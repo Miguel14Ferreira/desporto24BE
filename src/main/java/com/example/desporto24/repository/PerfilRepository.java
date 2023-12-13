@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Repository
 @Transactional(readOnly = true)
 public interface PerfilRepository extends JpaRepository<Perfil, Long> {
@@ -14,6 +16,7 @@ public interface PerfilRepository extends JpaRepository<Perfil, Long> {
      Perfil findUserByUsername(String username);
      Perfil findUserByPhone(String phone);
 
-
+     @Query("SELECT p FROM Perfil p WHERE p.username LIKE %?1%")
+     List<Perfil> buscaPerfis(String keyword);
      //Perfil signUpPerfil3(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 }

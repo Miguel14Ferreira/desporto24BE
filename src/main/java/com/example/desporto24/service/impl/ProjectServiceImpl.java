@@ -315,7 +315,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String notificacaoBoasVindas = "Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes!";
         String cumprimentoNotificacaoBoasVindas = "Bons jogos,";
         String assinatura = "DESPORTO24";
-        Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,perfil.getUsername());
+        Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,token,perfil.getUsername());
         notificationsRepository.save(notification);
         System.out.println(link);
         return perfil;
@@ -403,8 +403,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String cumprimentosNotificacao = "Cumprimentos,";
         String assinatura = "DESPORTO24";
         Date date = new Date();
-        String data = substring(String.valueOf(date),0,19);
-        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data,false,username);
+        String data = substring(String.valueOf(date),3,10);
+        String data2 = substring(String.valueOf(date),24,29);
+        String data3 = data2+data;
+        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,link,username);
         notificationsRepository.save(notification);
         return p;
     }
@@ -859,7 +861,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
-    private String buildNewFriendRequestEmail(String name, String link) {
+    private String buildNewFriendRequestEmail(String name) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
                         "\n" +
@@ -911,7 +913,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por: " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta clicares no link abaixo ou podes simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p style=\\\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\\\"> " + link + " </p><p>Cumprimentos,</p><p>DESPORTO24APP</p>\"" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por " + name + ".</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -923,7 +925,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "\n" +
                         "</div></div>";
     }
-    public void acceptFriendRequest(String token){
+    public void acceptFriendRequest(Long id,String token){
         FriendRequest confirmToken = friendRequestService
                 .getToken(token)
                 .orElseThrow(() ->
@@ -931,6 +933,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         if (confirmToken.getConfirmedAt() != null) {
             throw new IllegalStateException("Token já foi confirmado.");
         }
+        notificationsRepository.deleteById(id);
         friendRequestService.setConfirmedAt(token);
         friendRequestService.saveFriendRequest(confirmToken);
         Perfil perfil1 = findUserByUsername(confirmToken.getPerfil1().getUsername());
@@ -978,15 +981,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String data3 = data2+data;
             FriendRequest newFriendRequest = new FriendRequest(token, data3, p1, p2);
             friendRequestService.saveFriendRequest(newFriendRequest);
-            String link = fromCurrentContextPath().path("/login/confirmNewFriend/"+token).toUriString();
-            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername(),link));
+            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername()));
             String assuntoFriendRequestNotification = " Recebeste um novo pedido de amizade!";
-            String friendRequestNotification = "Recebeste um novo pedido de amizade de " + p1.getUsername() + ", clica nesta mensagem para aceitar.";
+            String friendRequestNotification = "Recebeste um novo pedido de amizade vindo de " + p1.getUsername() + ", podes aceitar ou rejeitar este pedido.";
             String cumprimentosFriendRequestNotification = "Cumprimentos,";
             String assinatura = "DESPORTO24";
-            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,p2.getUsername());
+            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,token,p2.getUsername());
             notificationsRepository.save(n);
-            System.out.println(link);
         } else {
             throw new RequestFriendException("Vocês já são amigos!");
         }

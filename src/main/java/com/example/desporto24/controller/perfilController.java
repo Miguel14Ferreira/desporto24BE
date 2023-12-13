@@ -174,12 +174,7 @@ public class perfilController extends ExceptionHandling {
         List<Perfil> perfil = perfilService.getPerfis();
         return new ResponseEntity<>(perfil, OK);
     }
-    // Confirmação de adição de novo utilizador à lista de amigos
-    @GetMapping("/login/confirmNewFriend/{token}")
-    ResponseEntity<?> acceptFriendRequest(@PathVariable("token")String token){
-            perfilService.acceptFriendRequest(token);
-            return new ResponseEntity<>(OK);
-    }
+
 
     // Criação de nova sessão pelo utilizador
     @PostMapping("/menu/createEvent")
@@ -239,6 +234,12 @@ public class perfilController extends ExceptionHandling {
     @DeleteMapping("/menu/{username}/notifications/{id}")
     public ResponseEntity<?> deleteNotification(@PathVariable("id") long id){
             perfilService.deleteNotification(id);
+        return new ResponseEntity<>(OK);
+    }
+    // Confirmação de adição de novo utilizador à lista de amigos
+    @GetMapping("/menu/{username}/notifications/{id}/{token}")
+    public ResponseEntity<?> acceptFriendRequest(@PathVariable("id") Long id,@PathVariable("token") String token){
+            perfilService.acceptFriendRequest(id,token);
         return new ResponseEntity<>(OK);
     }
 

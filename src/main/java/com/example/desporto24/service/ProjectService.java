@@ -21,7 +21,7 @@ public interface ProjectService{
 
     SendFriendRequest sendFriendRequest(SendFriendRequest sendFriendRequest) throws RequestFriendException, MessagingException;
 
-    void acceptFriendRequest(String token);
+    void acceptFriendRequest(Long id,String token);
 
     Perfil disablePerfil(String email) throws EmailNotFoundException;
 
