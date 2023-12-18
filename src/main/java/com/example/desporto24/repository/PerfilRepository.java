@@ -17,6 +17,6 @@ public interface PerfilRepository extends JpaRepository<Perfil, Long> {
      Perfil findUserByPhone(String phone);
 
      @Query("SELECT p FROM Perfil p WHERE p.username LIKE %?1%")
-     List<Perfil> buscaPerfis(String keyword);
+     List<Perfil> pesquisaPerfil(String keyword);
      //Perfil signUpPerfil3(Perfil perfil) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 }

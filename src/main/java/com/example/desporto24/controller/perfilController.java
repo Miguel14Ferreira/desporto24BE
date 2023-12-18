@@ -169,9 +169,9 @@ public class perfilController extends ExceptionHandling {
     }
 
     // Obtenção de todos os utilizadores registados na aplicação
-    @GetMapping("/menu/perfis")
-    public ResponseEntity<List<Perfil>> getAllPerfis() {
-        List<Perfil> perfil = perfilService.getPerfis();
+    @GetMapping("/menu/{username}/perfis/{perfil}")
+    public ResponseEntity<List<Perfil>> pesquisaPerfil(@PathVariable("perfil")String username) {
+        List<Perfil> perfil = perfilService.procurarPerfil(username);
         return new ResponseEntity<>(perfil, OK);
     }
 

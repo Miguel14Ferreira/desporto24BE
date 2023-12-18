@@ -31,7 +31,9 @@ public interface ProjectService{
 
     Perfil signUpPerfil2(Perfil email);
 
-    List<Perfil> getPerfis();
+    List<Perfil> procurarPerfil(String username);
+
+    void EnviarMensagem(String username1, String username2, String fraseUsername1, String fraseUsername2);
 
     Perfil findUserByUsername(String username);
 

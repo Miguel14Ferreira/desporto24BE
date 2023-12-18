@@ -79,11 +79,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private final FriendRepository friendRepository;
     private final FriendRequestService friendRequestService;
     private final NotificationsRepository notificationsRepository;
+    private final ChatRepository chatRepository;
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
 
     @Autowired
-    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository, FriendRequestService friendRequestService, NotificationsRepository notificationsRepository) {
+    public ProjectServiceImpl(PerfilRepository perfilRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, SessaoRepository sessaoRepository, MFAVerificationService mfaVerificationService, ExceptionHandling exceptionHandling, IdeiasRepository ideiasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository, FriendRequestService friendRequestService, NotificationsRepository notificationsRepository, ChatRepository chatRepository) {
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -97,6 +98,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.friendRepository = friendRepository;
         this.friendRequestService = friendRequestService;
         this.notificationsRepository = notificationsRepository;
+        this.chatRepository = chatRepository;
     }
 
     /*
@@ -346,11 +348,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public List<Perfil> getPerfis() {
-        return perfilRepository.findAll();
-    }
-
-    @Override
     public Perfil findUserByUsername(String username) {
         return perfilRepository.findUserByUsername(username);
     }
@@ -373,6 +370,17 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     @Override
     public Sessao findSessaoByDatadejogo(Date dataDeJogo) {
         return sessaoRepository.findSessaoByDataDeJogo(dataDeJogo);
+    }
+
+    public List<Perfil> procurarPerfil(String username){
+        return perfilRepository.pesquisaPerfil(username);
+    }
+
+    @Override
+    public void EnviarMensagem(String username1, String username2, String fraseUsername1, String fraseUsername2) {
+        String nomeDoChat = username1+username2;
+        Chat a = new Chat(username1,username2,nomeDoChat,fraseUsername1,fraseUsername2);
+        chatRepository.save(a);
     }
 
     // Alteração de dados pelo utilizador
