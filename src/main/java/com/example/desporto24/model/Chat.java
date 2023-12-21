@@ -1,10 +1,13 @@
 package com.example.desporto24.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import jakarta.persistence.Entity;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
+import java.lang.annotation.Documented;
+import java.util.Date;
+import java.util.function.Function;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 
@@ -13,19 +16,34 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(NON_DEFAULT)
+@Getter
+@Setter
+@Builder
 public class Chat {
+    @SequenceGenerator( name = "chat_sequence",
+            sequenceName = "chat_sequence",
+            allocationSize = 1
+    )
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,
+            generator = "chat_sequence")
     private Long id;
+    private String chatId;
     private String username1;
     private String username2;
-    private String nomeDoChat;
-    private String chatUsername1;
-    private String chatUsername2;
+    private String texto;
+    private Date timeStamp;
 
-    public Chat(String username1, String username2, String nomeDoChat, String fraseUsername1, String fraseUsername2) {
+    public Chat(String chatId,String username1, String username2, String texto) {
+        this.chatId = chatId;
         this.username1 = username1;
         this.username2 = username2;
-        this.nomeDoChat = nomeDoChat;
-        this.chatUsername1 = fraseUsername1;
-        this.chatUsername2 = fraseUsername2;
+        this.texto = texto;
+    }
+
+    public Chat(String username1, String username2, String texto) {
+        this.username1 = username1;
+        this.username2 = username2;
+        this.texto = texto;
     }
 }

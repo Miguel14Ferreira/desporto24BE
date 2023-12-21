@@ -1,4 +1,6 @@
 package com.example.desporto24.controller;
+import com.example.desporto24.Chat.ChatRequest;
+import com.example.desporto24.Chat.ChatService;
 import com.example.desporto24.Friend.SendFriendRequest;
 import com.example.desporto24.Friend.SendFriendService;
 import com.example.desporto24.changePassword.UserChangePasswordRequest;
@@ -31,6 +33,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -74,6 +79,7 @@ public class perfilController extends ExceptionHandling {
     private final LoginService loginService;
     private final ConfirmationTokenService confirmationTokenService;
     private final SendFriendService sendFriendService;
+    private final ChatService chatService;
 
 
         // Autenticação de utilizador
@@ -108,6 +114,11 @@ public class perfilController extends ExceptionHandling {
         }
     }
 
+    @PostMapping("menu/{username}/terminarSessao")
+    public ResponseEntity<?> terminarSessao(@RequestBody Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, MessagingException, PhoneExistException, UsernameExistException, EmailNotVerifiedException {
+            Perfil p = perfilService.terminarSessao(perfil);
+            return new ResponseEntity<>(p, OK);
+    }
 
     // Registo de utilizador
     @PostMapping("/login/registerNewUser")
@@ -188,6 +199,17 @@ public class perfilController extends ExceptionHandling {
     public ResponseEntity<List<Sessao>> getAllSessoes(){
         List<Sessao> sessoes = perfilService.getSessoes();
         return new ResponseEntity<>(sessoes,OK);
+    }
+
+    @GetMapping("/menu/{username}/friendList/chat/{senderId}/{recipientId}")
+    public ResponseEntity<List<Chat>> getChat(@PathVariable("senderId") String sender,@PathVariable("recipientId") String recipient){
+        List<Chat> chat = perfilService.findChatMessages(sender,recipient);
+        return new ResponseEntity<>(chat,OK);
+    }
+    @PostMapping("/menu/{username}/friendList/chat/{senderId}/{recipientId}")
+    public ResponseEntity<?> sendChatMessage(@RequestBody ChatRequest chatRequest) throws Exception {
+        Chat c = chatService.sendMsg(chatRequest);
+            return new ResponseEntity<>(c,OK);
     }
     // Obtenção de lista de amigos do utilizador
     @GetMapping("/menu/{username}/friendList")

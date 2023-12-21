@@ -33,7 +33,11 @@ public interface ProjectService{
 
     List<Perfil> procurarPerfil(String username);
 
-    void EnviarMensagem(String username1, String username2, String fraseUsername1, String fraseUsername2);
+    Chat EnviarMensagem(Chat chat) throws Exception;
+
+    Perfil terminarSessao(Perfil perfil);
+
+    List<Chat> findChatMessages(String senderId,String recipientId);
 
     Perfil findUserByUsername(String username);
 

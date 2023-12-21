@@ -1,14 +1,14 @@
-version: '3.8'
+version: '1.0'
 
 services:
   mysql-standalone:
     image: mysql:latest
     container_name: mysql-standalone
     environment:
-      - MYSQL_ROOT_PASSWORD=miguel14ferreira
+      - MYSQL_ROOT_PASSWORD=Hojehafutebol14!
       - MYSQL_DATABASE=desporto24
       - MYSQL_USER=root
-      - MYSQL_PASSWORD=miguel14ferreira
+      - MYSQL_PASSWORD=Hojehafutebol14!
   springboot-docker-container:
     image: springboot-docker-container
     container_name: springboot-docker-container

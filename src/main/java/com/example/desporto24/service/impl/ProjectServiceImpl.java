@@ -1,5 +1,6 @@
 package com.example.desporto24.service.impl;
 
+import com.example.desporto24.Chat.ChatRepository;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.*;
 import com.example.desporto24.registo.FriendRequest.FriendRequest;
@@ -33,12 +34,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.management.Notification;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -46,6 +45,8 @@ import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
 import static com.example.desporto24.constant.UserImplConstant.*;
 import static com.example.desporto24.enumeration.Role.ROLE_USER;
+import static com.example.desporto24.model.Status.OFFLINE;
+import static com.example.desporto24.model.Status.ONLINE;
 import static com.example.desporto24.utility.SmsUtils.sendSMS;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
@@ -60,7 +61,6 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 @Slf4j
 @Qualifier("userDetailsService")
 public class ProjectServiceImpl implements ProjectService,UserDetailsService {
-
 
     private static final String DATE_FORMAT = "yyyy-MM-dd hh:mm:ss";
     private Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
@@ -100,6 +100,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.notificationsRepository = notificationsRepository;
         this.chatRepository = chatRepository;
     }
+
+
 
     /*
     public String createSessao(Sessao sessao) throws SessionExistException, jakarta.mail.MessagingException {
@@ -319,7 +321,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String assinatura = "DESPORTO24";
         Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,token,perfil.getUsername());
         notificationsRepository.save(notification);
-        System.out.println(link);
         return perfil;
     }
 
@@ -377,11 +378,39 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public void EnviarMensagem(String username1, String username2, String fraseUsername1, String fraseUsername2) {
-        String nomeDoChat = username1+username2;
-        Chat a = new Chat(username1,username2,nomeDoChat,fraseUsername1,fraseUsername2);
-        chatRepository.save(a);
+    public Chat EnviarMensagem(Chat chat) throws Exception {
+        chat = chatRepository.findByUsername1AndUsername2(chat.getUsername1(),chat.getUsername2());
+        if (chat.getChatId() == null) {
+            chat.setTimeStamp(new Date());
+            chatRepository.save(chat);
+        } else {
+            String chatId = generateUserId();
+            Chat novoChat = new Chat(chatId,chat.getUsername1(),chat.getUsername2(),chat.getTexto());
+            chatRepository.save(novoChat);
+        }
+        return chat;
     }
+
+    @Override
+    public Perfil terminarSessao(Perfil perfil) {
+        Perfil p = findUserByEmail(perfil.getEmail());
+        p.setStatus(OFFLINE);
+        return p;
+    }
+
+    public List<Chat> findChatMessages(String sender,String recipient){
+        Chat chat = chatRepository.findByUsername1AndUsername2(sender,recipient);
+        if (chat == null){
+            String chatId = generateUserId();
+            Chat novoChat = new Chat(chatId,sender,recipient,null);
+            chatRepository.save(novoChat);
+            return null;
+        } else {
+            List<Chat> chats = chatRepository.findByChatId(chat.getChatId());
+            return chats;
+        }
+    }
+
 
     // Alteração de dados pelo utilizador
     @Override
@@ -1069,6 +1098,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String data2 = substring(String.valueOf(date),24,29);
             String data3 = data2+data;
             p.setLastLoginDateDisplay(data3);
+            p.setStatus(ONLINE);
             perfilRepository.save(p);
             LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
             PerfilPrincipal perfilPrincipal = new PerfilPrincipal(p);

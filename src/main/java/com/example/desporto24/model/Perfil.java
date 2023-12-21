@@ -53,6 +53,7 @@ public class Perfil implements Serializable {
     private String joinDateDisplay;
     private Date lastLoginDate;
     private Date joinDate;
+    private Status status;
 
     public Perfil(String username, String password) {
         this.username = username;
