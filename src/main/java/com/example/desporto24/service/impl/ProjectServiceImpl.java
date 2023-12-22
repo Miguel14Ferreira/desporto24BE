@@ -379,15 +379,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     @Override
     public Chat EnviarMensagem(Chat chat) throws Exception {
-        chat = chatRepository.findByUsername1AndUsername2(chat.getUsername1(),chat.getUsername2());
-        if (chat.getChatId() == null) {
-            chat.setTimeStamp(new Date());
-            chatRepository.save(chat);
-        } else {
-            String chatId = generateUserId();
-            Chat novoChat = new Chat(chatId,chat.getUsername1(),chat.getUsername2(),chat.getTexto());
-            chatRepository.save(novoChat);
-        }
+        Date date = new Date();
+        String data = substring(String.valueOf(date),3,10);
+        String data2 = substring(String.valueOf(date),24,29);
+        String data3 = data2+data;
+        chat = new Chat(chat.getUsername1(),chat.getUsername2(),chat.getTexto(),data3,date);
+        chatRepository.save(chat);
         return chat;
     }
 
@@ -399,18 +396,18 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     public List<Chat> findChatMessages(String sender,String recipient){
-        Chat chat = chatRepository.findByUsername1AndUsername2(sender,recipient);
-        if (chat == null){
-            String chatId = generateUserId();
-            Chat novoChat = new Chat(chatId,sender,recipient,null);
-            chatRepository.save(novoChat);
+        List<Chat> chat1 = chatRepository.findByUsername1AndUsername2(sender,recipient);
+        List<Chat> chat2 = chatRepository.findByUsername1AndUsername2(recipient,sender);
+        List<Chat> chats = new ArrayList<>();
+        chats.addAll(chat1);
+        chats.addAll(chat2);
+        Collections.sort(chats,Comparator.comparing(Chat::getDate));
+        if (chats == null){
             return null;
         } else {
-            List<Chat> chats = chatRepository.findByChatId(chat.getChatId());
             return chats;
         }
     }
-
 
     // Alteração de dados pelo utilizador
     @Override
@@ -430,7 +427,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             saveProfileImage(p, foto);
         }
         perfilRepository.save(p);
-        String token = randomNumeric(20).toString();
+        String token = UUID.randomUUID().toString();
         ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
         confirmationTokenService.saveConfirmationToken(emergencyToken);
         String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
