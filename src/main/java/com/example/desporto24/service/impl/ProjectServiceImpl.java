@@ -308,6 +308,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         perfil.setAuthorities(ROLE_USER.getAuthorities());
         perfil.setMFA(false);
         perfil.setLogginAttempts(0);
+        perfil.setStatus(OFFLINE);
         saveProfileImage(perfil, foto);
         perfilRepository.save(perfil);
         String token = UUID.randomUUID().toString();
@@ -319,7 +320,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String notificacaoBoasVindas = "Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes!";
         String cumprimentoNotificacaoBoasVindas = "Bons jogos,";
         String assinatura = "DESPORTO24";
-        Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,token,perfil.getUsername());
+        Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,false,false,token,perfil.getUsername());
         notificationsRepository.save(notification);
         return perfil;
     }
@@ -440,7 +441,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String data = substring(String.valueOf(date),3,10);
         String data2 = substring(String.valueOf(date),24,29);
         String data3 = data2+data;
-        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,link,username);
+        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,true,false,link,username);
         notificationsRepository.save(notification);
         return p;
     }
@@ -1020,7 +1021,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String friendRequestNotification = "Recebeste um novo pedido de amizade vindo de " + p1.getUsername() + ", podes aceitar ou rejeitar este pedido.";
             String cumprimentosFriendRequestNotification = "Cumprimentos,";
             String assinatura = "DESPORTO24";
-            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,token,p2.getUsername());
+            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,false,false,token,p2.getUsername());
             notificationsRepository.save(n);
         } else {
             throw new RequestFriendException("Vocês já são amigos!");
@@ -1127,6 +1128,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             validateLoginAttempt2(p);
             validateLoginAttempt3(p);
             p.setLastLoginDate(new Date());
+            p.setStatus(ONLINE);
             perfilRepository.save(p);
             LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
             return p;

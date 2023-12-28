@@ -32,17 +32,21 @@ public class Notifications {
     private String createdAt;
     @Column(nullable = false)
     private boolean isFriendRequest;
+    private boolean isUpdateUser;
+    private boolean isSessionInvite;
     private String token;
     @JoinColumn(nullable = false)
     private String perfil;
 
-    public Notifications(String assunto, String mensagem, String cumprimentos, String assinatura, String createdAt, boolean isFriendRequest,String token, String perfil) {
+    public Notifications(String assunto, String mensagem, String cumprimentos, String assinatura, String createdAt, boolean isFriendRequest, boolean isUpdateUser, boolean isSessionInvite, String token, String perfil) {
         this.assunto = assunto;
         this.mensagem = mensagem;
         this.cumprimentos = cumprimentos;
         this.assinatura = assinatura;
         this.createdAt = createdAt;
         this.isFriendRequest = isFriendRequest;
+        this.isUpdateUser = isUpdateUser;
+        this.isSessionInvite = isSessionInvite;
         this.token = token;
         this.perfil = perfil;
     }
