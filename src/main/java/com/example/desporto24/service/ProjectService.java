@@ -58,7 +58,9 @@ public interface ProjectService{
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    String confirmEmergencyToken(String token) throws EmailNotFoundException;
+    String confirmEmergencyToken(String token,String username) throws EmailNotFoundException, MessagingException;
+
+    String EmergencyResetPassword(String token, String username, String password) throws EmailNotFoundException, MessagingException;
 
     Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 

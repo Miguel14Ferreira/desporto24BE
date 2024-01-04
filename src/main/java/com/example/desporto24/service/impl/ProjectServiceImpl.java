@@ -219,6 +219,71 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
+    private String buildEmergencyResetPasswordMail(String name, String link) {
+        return
+                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
+                        "    <tbody><tr>\n" +
+                        "        \n" +
+                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
+                        "          <tbody><tr>\n" +
+                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                    <td style=\"padding-left:10px\">\n" +
+                        "                  \n" +
+                        "                    </td>\n" +
+                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
+                        "                    </td>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "              </a>\n" +
+                        "            </td>\n" +
+                        "          </tr>\n" +
+                        "        </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
+                        "      <td>\n" +
+                        "        \n" +
+                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "\n" +
+                        "\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
+                        "        \n" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + " (se não reconheces este username, é porque provavelmente foi alterado),</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Pedimos-te agora para definires uma nova palavra-passe através deste link: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a> </p> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
+                        "\n" +
+                        "</div></div>";
+    }
+
     // envio do email para ser efetuado o reset à password
     private String buildResetPasswordEmail(String name, String link) {
         return
@@ -272,7 +337,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Pediste da nossa parte para efetuares um reset à tua password. Clica neste link para fazemos isso: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " + link + " </p><p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Face ao teu pedido para definir uma palavra-passe, aqui tens o link para defini-la </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -294,6 +359,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
         validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
         String encodedPassword = passwordEncoder.encode(perfil.getPassword());
+        perfil.setOldEmail(perfil.getEmail());
         perfil.setPassword(encodedPassword);
         perfil.setUserId(generateUserId());
         perfil.setJoinDate(new Date());
@@ -317,7 +383,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
         emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
         String assuntoNotificaçãoBoasVindas = " Sê bem-vindo ao nosso site, "+perfil.getUsername()+"!";
-        String notificacaoBoasVindas = "Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, clica na tua fotografia no canto direito e um menu aparecerá para selecionares o que prentendes!";
+        String notificacaoBoasVindas = "Aqui poderás consultar as sessões a acontecer de momento, se quiseres criar uma sessão ou alterar algo no teu perfil, basta passares o rato na tua fotografia no canto superior direito e um menu aparecerá para selecionares o que prentendes e também como é te já apercebeste, também podes ler as tuas notificações no canto superior esquerdo.";
         String cumprimentoNotificacaoBoasVindas = "Bons jogos,";
         String assinatura = "DESPORTO24";
         Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,false,false,token,perfil.getUsername());
@@ -414,6 +480,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     @Override
     public Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
         Perfil p = findUserByUsername(username);
+        p.setOldEmail(p.getEmail());
         p.setFullName(perfil.getFullName());
         p.setCountry(perfil.getCountry());
         p.setLocation(perfil.getLocation());
@@ -431,8 +498,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String token = UUID.randomUUID().toString();
         ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
         confirmationTokenService.saveConfirmationToken(emergencyToken);
-        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token).toUriString();
+        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
         emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        System.out.println(link);
         String assuntoNotificacaoAlteracaoDados = " Alteração de Dados de perfil";
         String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
         String cumprimentosNotificacao = "Cumprimentos,";
@@ -529,6 +597,18 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
         return p;
     }
+
+    public Perfil enablePerfil2(String email) throws EmailNotFoundException {
+        Perfil p = findUserByEmail(email);
+        if (p == null) {
+            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + email);
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
+        } else {
+            p.setNotLocked(true);
+            perfilRepository.save(p);
+        }
+        return p;
+    }
     public Perfil disablePerfil(String email) throws EmailNotFoundException {
         Perfil p = findUserByEmail(email);
         if (p == null) {
@@ -559,8 +639,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return token;
     }
 
-    // Desativa o perfil
-    public String confirmEmergencyToken(String token) throws EmailNotFoundException {
+    // Desativa o perfil e envia um mail para o utilizador para a definição da nova palavra-passe para a conta
+    public String confirmEmergencyToken(String token,String username) throws EmailNotFoundException, MessagingException {
+        Perfil p = findUserByUsername(username);
+        p.setStatus(OFFLINE);
+        perfilRepository.save(p);
         ConfirmationToken confirmToken = confirmationTokenService
                 .getToken(token)
                 .orElseThrow(() ->
@@ -574,6 +657,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         confirmationTokenService.setConfirmedAt(token);
         disablePerfil(confirmToken.getPerfil().getEmail());
         confirmationTokenService.saveConfirmationToken(confirmToken);
+        String token2 = UUID.randomUUID().toString();
+        ConfirmationToken confirmationToken = new ConfirmationToken(token2, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), confirmToken.getPerfil());
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        String link = fromCurrentContextPath().path("/confirmEmergencyToken/resetPassword/"+token2+"/"+confirmationToken.getPerfil().getUsername()).toUriString();
+        System.out.println(link);
+        emailService.send(confirmationToken.getPerfil().getOldEmail(), buildEmergencyResetPasswordMail(confirmationToken.getPerfil().getUsername(),link));
         return token;
     }
 
@@ -645,7 +734,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Obrigado por te registares na nossa aplicação. Clica neste link para ativar a tua conta: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " + link + " </p><p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Obrigado por te registares na nossa aplicação. Clica neste link para ativar a tua conta: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para finalizar o teu registo</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -674,7 +763,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "                  \n" +
                         "                    </td>\n" +
                         "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Alteração de dados</span>\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Alteração de dados pessoais</span>\n" +
                         "                    </td>\n" +
                         "                  </tr>\n" +
                         "                </tbody></table>\n" +
@@ -711,7 +800,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Dados foram alterados na tua conta. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Se não foste tu quem fez esta alteração, \n por favor clica neste link para bloquearmos temporareamente a tua conta: \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " + link + " </p>\n Este link vai expirar numa hora. \n <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Dados pessoais foram alterados no teu perfil. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Se não foste tu quem fez esta alteração, \n por favor clica neste link para bloquearmos temporareamente a tua conta: \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para bloquearmos a tua conta</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Após bloqueares a tua conta irás receber um novo mail para definires a tua nova palavra-passe e proceder ao desbloqueio da conta.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Este link vai expirar numa hora. </p> \n<p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -722,6 +811,31 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
                         "\n" +
                         "</div></div>";
+    }
+
+    public String EmergencyResetPassword(String token, String username,String password) throws EmailNotFoundException {
+        ConfirmationToken confirmToken = confirmationTokenService
+                .getToken(token)
+                .orElseThrow(() ->
+                        new IllegalStateException("Token não encontrado."));
+        if (confirmToken.getConfirmedAt() != null) {
+            throw new IllegalStateException("Token já foi confirmado.");
+        }
+        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Token expirado");
+        }
+        confirmationTokenService.setConfirmedAt(token);
+        Perfil p = perfilRepository.findUserByUsername(username);
+        if (p == null) {
+            LOGGER.error(NO_USER_FOUND_BY_USERNAME + username);
+            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
+        } else {
+            String encodedPassword = passwordEncoder.encode(password);
+            p.setPassword(encodedPassword);
+            enablePerfil2(p.getOldEmail());
+            perfilRepository.save(p);
+            return token;
+        }
     }
 
     // Envia um email para o utilizador conseguir efetuar o reset da password
@@ -819,7 +933,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Queremos agradecer-te pela tua sugestão e responderemos o mais rápidamente possível. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Poderemos demorar entre uma semana a duas a responder \n por isso não fiques surpreso se demorarmos algum tempo a responder de volta \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Queremos agradecer-te pela tua sugestão e responderemos o mais rápidamente possível. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Poderemos demorar entre uma semana a duas a responder \n por isso não fiques surpreso se demorarmos algum tempo a responder de volta \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Cumprimentos,</p> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -948,7 +1062,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por " + name + ".</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <p>Cumprimentos,</p><p>DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Foi te enviado um novo pedido de amizade por " + name + ".</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Para aceitar basta simplesmente dirigires-te à app. <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +

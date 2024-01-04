@@ -157,10 +157,10 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(OK);
         }
 
-    // Desativação da conta do utilizador
-    @GetMapping(path = "/confirmEmergencyToken/{token}")
-    public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException {
-        perfilService.confirmEmergencyToken(token);
+    // Desativação da conta do utilizador e envio de novo mail para efetuar reset à password
+    @GetMapping(path = "/confirmEmergencyToken/{token}/{username}")
+    public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token,@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException {
+        perfilService.confirmEmergencyToken(token,username);
         return new ResponseEntity<>(OK);
     }
 
@@ -172,11 +172,17 @@ public class perfilController extends ExceptionHandling {
     }
 
     // Definição de nova password por email, este passo recebe o username e nova password
-    @PutMapping("/login/resetPassword/{token}/{username}")
-    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException {
+    @GetMapping("/login/resetPassword/{token}/{username}")
+    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException {
             userChangePasswordRequest.setUsername(username);
             Perfil alterarPassword = changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
         return new ResponseEntity<>(alterarPassword, OK);
+    }
+
+    @PutMapping("/confirmEmergencyToken/resetPassword/{token}/{username}")
+    public ResponseEntity<?> emergencyTokenResetPassword(@PathVariable("token") String token,@PathVariable("username") String username,@RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException {
+        String alterarPassword = perfilService.EmergencyResetPassword(token,username,password);
+        return new ResponseEntity<>(OK);
     }
 
     // Obtenção de todos os utilizadores registados na aplicação
