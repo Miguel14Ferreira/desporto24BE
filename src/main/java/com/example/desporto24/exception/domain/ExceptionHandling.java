@@ -1,9 +1,7 @@
 package com.example.desporto24.exception.domain;
-import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.example.desporto24.domain.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,23 +18,23 @@ import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.util.Objects;
 
+import static com.example.desporto24.constant.UserImplConstant.*;
 import static org.springframework.http.HttpStatus.*;
 
 @RestControllerAdvice
 public class ExceptionHandling {
 
-    private final Logger LOGGER = LoggerFactory.getLogger(getClass());
-    private static final String ACCOUNT_LOCKED = "Your account has been locked. Please contact administration";
-    private static final String METHOD_IS_NOT_ALLOWED = "This request method is not allowed on this endpoint. Please send a '%s' request";
-    private static final String INTERNAL_SERVER_ERROR_MSG = "An error ocurred while processing the request";
-    private static final String INCORRECT_CREDENTIALS = "Username / password incorrect. Please try again";
-    private static final String ACCOUNT_DISABLED = "Your account has been disabled. If this is an error, please contact administration";
-    private static final String ERROR_PROCESSING_FILE = "Error ocurred while processing file";
-    private static final String NOT_ENOUGH_PERMISSION = "You don't have enough permission";
-    private static final String TOKEN_NOT_VERIFIED = "Your email isn't verified, please verify it and try again";
-    private static final String ERROR_PATH = "/error";
-
-    private static final String ALREADY_FRIENDS = "You already have this player in your friend list!";
+    protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
+    protected static final String ACCOUNT_LOCKED = "A tua conta foi bloqueada. Por favor contacta a administração pelo email: desporto24app@gmail.com";
+    protected static final String METHOD_IS_NOT_ALLOWED = "This request method is not allowed on this endpoint. Please send a '%s' request";
+    protected static final String INTERNAL_SERVER_ERROR_MSG = "An error ocurred while processing the request";
+    protected static final String INCORRECT_CREDENTIALS = "Nome de utilizador ou password incorretos, por favor tenta novamente.";
+    protected static final String ACCOUNT_DISABLED = "A tua conta foi desativada. Se isto é um erro,por favor contacta a administração pelo email: desporto24app@gmail.com";
+    protected static final String ERROR_PROCESSING_FILE = "Um erro ocorreu a processar o ficheiro";
+    protected static final String NOT_ENOUGH_PERMISSION = "Não tens permissões suficientes.";
+    protected static final String TOKEN_NOT_VERIFIED = "O teu email ainda não está verificado, por favor verifica o teu email";
+    protected static final String ERROR_PATH = "/error";
+    protected static final String ALREADY_FRIENDS = "Tu já tens este perfil na tua lista de amigos!";
 
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<HttpResponse> accountDisabledException(){
@@ -45,7 +43,7 @@ public class ExceptionHandling {
 
     @ExceptionHandler(RequestFriendException.class)
     public ResponseEntity<HttpResponse> alreadyFriends(){
-        return createHttpResponse(FORBIDDEN,ALREADY_FRIENDS);
+        return createHttpResponse(BAD_REQUEST,ALREADY_FRIENDS);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -64,13 +62,23 @@ public class ExceptionHandling {
     }
 
     @ExceptionHandler(TokenExpiredException.class)
-    public ResponseEntity<HttpResponse> tokenExpiredException(TokenExpiredException exception){
-        return createHttpResponse(UNAUTHORIZED, exception.getMessage());
+    public ResponseEntity<HttpResponse> tokenExpiredException(){
+        return createHttpResponse(BAD_REQUEST, TOKEN_EXPIRED);
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<HttpResponse> tokenNotFoundException(){
+        return createHttpResponse(BAD_REQUEST, TOKEN_NOT_FOUND);
     }
 
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<HttpResponse> emailNotVerified(){
         return createHttpResponse(UNAUTHORIZED, TOKEN_NOT_VERIFIED);
+    }
+
+    @ExceptionHandler(AlreadyConfirmedTokenException.class)
+    public ResponseEntity<HttpResponse> tokenNotFound(){
+        return createHttpResponse(BAD_REQUEST,TOKEN_ALREADY_CONFIRMED);
     }
 
     @ExceptionHandler(EmailExistException.class)

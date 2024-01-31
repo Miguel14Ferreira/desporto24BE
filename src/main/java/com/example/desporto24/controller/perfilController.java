@@ -30,6 +30,8 @@ import com.twilio.exception.ApiException;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -80,9 +83,10 @@ public class perfilController extends ExceptionHandling {
     private final ConfirmationTokenService confirmationTokenService;
     private final SendFriendService sendFriendService;
     private final ChatService chatService;
+    private Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
 
 
-        // Autenticação de utilizador
+    // Autenticação de utilizador
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException, IllegalBlockSizeException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
             Perfil p = authenticate(loginRequest.getUsername(), loginRequest.getPassword());
@@ -91,30 +95,24 @@ public class perfilController extends ExceptionHandling {
             return new ResponseEntity<>(p, jwtHeader, OK);
             }
 
-    private Perfil authenticate(String username, String password) {
-        Perfil p = perfilRepository.findUserByUsername(username);
-        try{
-            if (null != p){
+    private Perfil authenticate(String username, String password) throws EmailNotVerifiedException, AccountDisabledException {
+            Perfil p = perfilRepository.findUserByUsername(username);
+            if (null != p) {
                 loginAttemptService.hasExceededMaxAttempts(p);
+                loginAttemptService.addUserToLoginAttemptCache(p);
             }
             Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
             Perfil logged = getLoggedInUser(authentication);
-            if(!logged.getMFA()) {
+            if (!logged.getMFA()) {
                 loginAttemptService.evictUserFromLoginAttemptCache(p);
             } else {
                 perfilService.sendVerificationCode(p);
                 loginAttemptService.evictUserFromLoginAttemptCache(p);
             }
             return logged;
-        } catch (Exception exception) {
-            if(null != p) {
-                loginAttemptService.addUserToLoginAttemptCache(p);
-            }
-            throw new ApiException(exception.getMessage());
-        }
     }
 
-    @PostMapping("menu/{username}/terminarSessao")
+    @PostMapping("menu/terminarSessao")
     public ResponseEntity<?> terminarSessao(@RequestBody Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, MessagingException, PhoneExistException, UsernameExistException, EmailNotVerifiedException {
             Perfil p = perfilService.terminarSessao(perfil);
             return new ResponseEntity<>(p, OK);
@@ -136,7 +134,7 @@ public class perfilController extends ExceptionHandling {
 
     // MFA autenticação
     @PostMapping(path = "/login/MFAauthentication/{username}")
-    public ResponseEntity<?> confirmMFAToken(@RequestBody String mfaCode) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+    public ResponseEntity<?> confirmMFAToken(@RequestBody String mfaCode) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, NotFoundException {
         perfilService.confirmCode(mfaCode);
         return new ResponseEntity<>(OK);
     }
@@ -152,14 +150,14 @@ public class perfilController extends ExceptionHandling {
 
     // Ativação da conta do utilizador
     @GetMapping(path = "/login/registerNewUser/confirmTokenRegistration/{token}")
-    public ResponseEntity<?> confirmRegistrationToken(@PathVariable("token") String Token) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, EmailNotFoundException {
+    public ResponseEntity<?> confirmRegistrationToken(@PathVariable("token") String Token) throws EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
         perfilService.confirmToken(Token);
         return new ResponseEntity<>(OK);
         }
 
     // Desativação da conta do utilizador e envio de novo mail para efetuar reset à password
     @GetMapping(path = "/confirmEmergencyToken/{token}/{username}")
-    public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token,@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException {
+    public ResponseEntity<?> confirmEmergencyToken(@PathVariable("token")String token,@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
         perfilService.confirmEmergencyToken(token,username);
         return new ResponseEntity<>(OK);
     }
@@ -179,14 +177,14 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(alterarPassword, OK);
     }
 
-    @PutMapping("/confirmEmergencyToken/resetPassword/{token}/{username}")
-    public ResponseEntity<?> emergencyTokenResetPassword(@PathVariable("token") String token,@PathVariable("username") String username,@RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException {
-        String alterarPassword = perfilService.EmergencyResetPassword(token,username,password);
+    @PutMapping("/confirmEmergencyToken/resetPassword/{token}/{email}")
+    public ResponseEntity<?> emergencyTokenResetPassword(@PathVariable("token") String token,@PathVariable("email") String email,@RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException {
+        perfilService.EmergencyResetPassword(token,email,password);
         return new ResponseEntity<>(OK);
     }
 
     // Obtenção de todos os utilizadores registados na aplicação
-    @GetMapping("/menu/{username}/perfis/{perfil}")
+    @GetMapping("/menu/perfis/{perfil}")
     public ResponseEntity<List<Perfil>> pesquisaPerfil(@PathVariable("perfil")String username) {
         List<Perfil> perfil = perfilService.procurarPerfil(username);
         return new ResponseEntity<>(perfil, OK);
@@ -207,32 +205,32 @@ public class perfilController extends ExceptionHandling {
         return new ResponseEntity<>(sessoes,OK);
     }
 
-    @GetMapping("/menu/{username}/friendList/chat/{senderId}/{recipientId}")
+    @GetMapping("/menu/friendList/chat/{senderId}/{recipientId}")
     public ResponseEntity<List<Chat>> getChat(@PathVariable("senderId") String sender,@PathVariable("recipientId") String recipient){
         List<Chat> chat = perfilService.findChatMessages(sender,recipient);
         return new ResponseEntity<>(chat,OK);
     }
-    @PostMapping("/menu/{username}/friendList/chat/{senderId}/{recipientId}")
+    @PostMapping("/menu/friendList/chat/{senderId}/{recipientId}")
     public ResponseEntity<?> sendChatMessage(@RequestBody ChatRequest chatRequest) throws Exception {
         Chat c = chatService.sendMsg(chatRequest);
             return new ResponseEntity<>(c,OK);
     }
     // Obtenção de lista de amigos do utilizador
-    @GetMapping("/menu/{username}/friendList")
-    public ResponseEntity<List<Perfil>> getFriendList(@PathVariable("username") String username){
+    @GetMapping("/menu/friendList/{username}")
+    public ResponseEntity<List<Perfil>> getFriendList(@PathVariable("username")String username){
         List<Perfil> perfis = perfilService.getFriends(username);
         return new ResponseEntity<>(perfis,OK);
     }
 
 
-    @GetMapping("/menu/{username}/notifications")
-    public ResponseEntity<List<Notifications>> getNotifications(@PathVariable("username") String username){
+    @GetMapping("/menu/notifications/{username}")
+    public ResponseEntity<List<Notifications>> getNotifications(@PathVariable("username")String username){
         List<Notifications> notifications = perfilService.getNotificationsFromPerfil(username);
         return new ResponseEntity<>(notifications,OK);
     }
 
     // Envio de pedido de amizade para um novo utilizador
-    @PostMapping("/menu/{username}/perfis")
+    @PostMapping("/menu/perfis")
     public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {
         sendFriendService.sendFriendRequest(friendRequestR);
             return new ResponseEntity<>(OK);
@@ -242,7 +240,7 @@ public class perfilController extends ExceptionHandling {
     @PutMapping("/menu/alterardados")
     public ResponseEntity<?> updateUser(@RequestParam String username,@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam(required = false) MultipartFile foto) throws EmailExistException, MessagingException, PhoneExistException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
         Perfil updatePerfil = updateService.update(username,updateRequest, foto);
-        return new ResponseEntity<>(updatePerfil, OK);
+        return new ResponseEntity<>(OK);
     }
 
     // Recebe novas sugestões/ideias de qualquer utilizador
@@ -254,18 +252,24 @@ public class perfilController extends ExceptionHandling {
 
     // Alteração da password do utilizador ou do nome do utilizador ou ambos
     @PutMapping("/menu/alterarPassword")
-    public ResponseEntity<?> updateUserPassword(@RequestBody UserChangePasswordRequest changeRequest) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, EqualUsernameAndPasswordException, jakarta.mail.MessagingException {
-        Perfil changePassword = changePasswordService.alterarPassword(changeRequest);
-        return new ResponseEntity<>(changePassword, OK);
+    public ResponseEntity<?> updateUserPassword(@ModelAttribute @Valid UserChangePasswordRequest changeRequest) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, EqualUsernameAndPasswordException, jakarta.mail.MessagingException {
+        changePasswordService.alterarPassword(changeRequest);
+        return new ResponseEntity<>(OK);
     }
 
-    @DeleteMapping("/menu/{username}/notifications/{id}")
+    @PostMapping("/menu/notifications/{id}")
+    public ResponseEntity<?> blockAcc(String username) throws MessagingException {
+        perfilService.disablePerfilByBlock(username);
+        return new ResponseEntity<>(OK);
+    }
+
+    @DeleteMapping("/menu/notifications/{id}")
     public ResponseEntity<?> deleteNotification(@PathVariable("id") long id){
             perfilService.deleteNotification(id);
         return new ResponseEntity<>(OK);
     }
     // Confirmação de adição de novo utilizador à lista de amigos
-    @GetMapping("/menu/{username}/notifications/{id}/{token}")
+    @GetMapping("/menu/notifications/{id}/{token}")
     public ResponseEntity<?> acceptFriendRequest(@PathVariable("id") Long id,@PathVariable("token") String token){
             perfilService.acceptFriendRequest(id,token);
         return new ResponseEntity<>(OK);

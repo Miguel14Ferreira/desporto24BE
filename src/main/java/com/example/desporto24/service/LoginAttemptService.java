@@ -40,7 +40,7 @@ public class LoginAttemptService {
         int attempts;
         try {
             attempts = ATTEMPT_INCREMENT + username.getLogginAttempts();
-        } catch (Exception e) {
+        } catch (BadCredentialsException e) {
             throw new BadCredentialsException(INCORRECT_CREDENTIALS);
         }
         username.setLogginAttempts(attempts);
@@ -48,12 +48,19 @@ public class LoginAttemptService {
     }
 
     public boolean hasExceededMaxAttempts(Perfil username) throws AccountDisabledException, EmailNotVerifiedException {
-        if (username.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
-            username.setNotLocked(false);
-            throw new AccountDisabledException(ACCOUNT_DISABLED);
-        } else if (!username.getEnabled()) {
+        try {
+            if (username.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
+                username.setNotLocked(false);
+                throw new AccountDisabledException(ACCOUNT_DISABLED);
+            } else if (!username.getEnabled()) {
+                throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
+            }
+        } catch (EmailNotVerifiedException exception) {
             throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
+        } catch (AccountDisabledException exception) {
+            throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
         return false;
     }
+
 }

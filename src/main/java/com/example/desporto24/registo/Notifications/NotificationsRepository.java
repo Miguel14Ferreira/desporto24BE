@@ -15,10 +15,9 @@ import java.util.Optional;
 public interface NotificationsRepository extends JpaRepository<Notifications, Long> {
 
     List<Notifications> findByPerfil(String perfil);
+
     @Transactional
     @Modifying
-    @Query("UPDATE ConfirmationToken c " +
-            "SET c.confirmedAt = ?2 " +
-            "WHERE c.token = ?1")
-    int updateConfirmedAt(String token, LocalDateTime confirmedAt);
+    @Query("DELETE FROM Notifications n WHERE n.perfil = ?1")
+    void deleteByPerfil(String perfil);
 }

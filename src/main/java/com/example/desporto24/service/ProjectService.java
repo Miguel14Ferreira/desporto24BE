@@ -11,7 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 public interface ProjectService{
 
@@ -29,13 +28,13 @@ public interface ProjectService{
 
     Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
 
-    Perfil signUpPerfil2(Perfil email);
-
     List<Perfil> procurarPerfil(String username);
 
     Chat EnviarMensagem(Chat chat) throws Exception;
 
     Perfil terminarSessao(Perfil perfil);
+
+    Perfil findUserByUserId(String userId);
 
     List<Chat> findChatMessages(String senderId,String recipientId);
 
@@ -58,13 +57,15 @@ public interface ProjectService{
     @Query("DELETE FROM Sessao a WHERE a.username = ?1")
     int deleteSessao(String email);
 
-    String confirmEmergencyToken(String token,String username) throws EmailNotFoundException, MessagingException;
+    String confirmEmergencyToken(String token,String username) throws EmailNotFoundException, MessagingException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 
     String EmergencyResetPassword(String token, String username, String password) throws EmailNotFoundException, MessagingException;
 
     Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
 
     void deleteUser(Long id);
+
+    Perfil disablePerfilByBlock(String username) throws MessagingException;
 
     void deleteNotification(Long id);
 
@@ -74,11 +75,11 @@ public interface ProjectService{
 
     Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException;
 
-    String confirmCode(String code);
+    String confirmCode(String code) throws NotFoundException;
 
     Perfil resetPassword1(Perfil perfil) throws MessagingException, EmailNotVerifiedException;
 
     Perfil resetPassword2(Perfil perfil, String token);
 
-    String confirmToken(String token) throws EmailNotFoundException;
+    String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 }

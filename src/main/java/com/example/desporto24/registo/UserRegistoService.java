@@ -53,10 +53,4 @@ public class UserRegistoService {
                         foto);
         return perfil;
     }
-    public Perfil register2(UserRegistoRequest request) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
-        Perfil perfil = pService.signUpPerfil2(
-                new Perfil(
-                        request.getEmail()));
-        return perfil;
-    }
 }

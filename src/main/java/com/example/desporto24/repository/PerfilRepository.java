@@ -15,6 +15,9 @@ public interface PerfilRepository extends JpaRepository<Perfil, Long> {
      Perfil findUserByEmail(String email);
      Perfil findUserByUsername(String username);
      Perfil findUserByPhone(String phone);
+     Perfil findUserByOldEmail(String email);
+
+     Perfil findUserByUserId(String userId);
 
      @Query("SELECT p FROM Perfil p WHERE p.username LIKE %?1%")
      List<Perfil> pesquisaPerfil(String keyword);

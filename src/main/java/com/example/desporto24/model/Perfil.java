@@ -22,10 +22,8 @@ public class Perfil implements Serializable {
     @Column(nullable = false, updatable = false)
     private Long id;
     private String userId;
-    @NotEmpty(message = "Nome de utilizador não pode estar vazio!")
     private String username;
     private String newUsername;
-    @NotEmpty(message = "Password não pode estar vazio!")
     private String password;
     private String fullName;
     private String dateOfBirth;
@@ -35,11 +33,8 @@ public class Perfil implements Serializable {
     private String postalCode;
     private String indicativePhone;
     private String phone;
-    @NotEmpty(message = "Género não pode estar vazio!")
     private String gender;
     @Unique
-    @Email(message = "Email inválido, por favor coloca um email válido!")
-    @NotEmpty(message = "Email não pode estar vazio!")
     private String email;
     private String desportosFavoritos;
     private String foto;

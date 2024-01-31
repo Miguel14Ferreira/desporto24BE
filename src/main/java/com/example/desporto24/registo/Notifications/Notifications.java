@@ -1,16 +1,15 @@
 package com.example.desporto24.registo.Notifications;
-import com.example.desporto24.model.Perfil;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Notifications {
     @SequenceGenerator( name = "notification_sequence",
             sequenceName = "notification_sequence",
@@ -32,26 +31,25 @@ public class Notifications {
     private String createdAt;
     @Column(nullable = false)
     private boolean isFriendRequest;
-    private boolean isUpdateUser;
+    private boolean isUpdatePerfil;
     private boolean isSessionInvite;
+    private boolean isNormalMessage;
     private String token;
     @JoinColumn(nullable = false)
     private String perfil;
 
-    public Notifications(String assunto, String mensagem, String cumprimentos, String assinatura, String createdAt, boolean isFriendRequest, boolean isUpdateUser, boolean isSessionInvite, String token, String perfil) {
-        this.assunto = assunto;
-        this.mensagem = mensagem;
-        this.cumprimentos = cumprimentos;
-        this.assinatura = assinatura;
-        this.createdAt = createdAt;
-        this.isFriendRequest = isFriendRequest;
-        this.isUpdateUser = isUpdateUser;
-        this.isSessionInvite = isSessionInvite;
-        this.token = token;
-        this.perfil = perfil;
-    }
 
-    public Notifications(String token) {
-        this.mensagem = mensagem;
+    public Notifications(String assuntoNotificaçãoBoasVindas, String notificacaoBoasVindas, String cumprimentoNotificacaoBoasVindas, String assinatura, String data3, boolean b, boolean b1, boolean b2, boolean b3, String token, String username) {
+        this.assunto = assuntoNotificaçãoBoasVindas;
+        this.mensagem = notificacaoBoasVindas;
+        this.cumprimentos = cumprimentoNotificacaoBoasVindas;
+        this.assinatura = assinatura;
+        this.createdAt = data3;
+        this.isFriendRequest = b;
+        this.isUpdatePerfil = b1;
+        this.isSessionInvite = b2;
+        this.isNormalMessage = b3;
+        this.token = token;
+        this.perfil = username;
     }
 }
