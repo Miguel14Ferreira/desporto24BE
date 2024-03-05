@@ -27,16 +27,16 @@ public class ExceptionHandling {
     protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
     protected static final String ACCOUNT_LOCKED = "A tua conta foi bloqueada. Por favor contacta a administração pelo email: desporto24app@gmail.com";
     protected static final String METHOD_IS_NOT_ALLOWED = "This request method is not allowed on this endpoint. Please send a '%s' request";
-    protected static final String INTERNAL_SERVER_ERROR_MSG = "An error ocurred while processing the request";
+    protected static final String INTERNAL_SERVER_ERROR_MSG = "Ocorreu um erro ao processar o pedido";
     protected static final String INCORRECT_CREDENTIALS = "Nome de utilizador ou password incorretos, por favor tenta novamente.";
-    protected static final String ACCOUNT_DISABLED = "A tua conta foi desativada. Se isto é um erro,por favor contacta a administração pelo email: desporto24app@gmail.com";
+    protected static final String ACCOUNT_DISABLED = "A tua conta foi desativada. Se isto é um erro, por favor contacta a administração pelo email: desporto24app@gmail.com";
     protected static final String ERROR_PROCESSING_FILE = "Um erro ocorreu a processar o ficheiro";
     protected static final String NOT_ENOUGH_PERMISSION = "Não tens permissões suficientes.";
     protected static final String TOKEN_NOT_VERIFIED = "O teu email ainda não está verificado, por favor verifica o teu email";
     protected static final String ERROR_PATH = "/error";
     protected static final String ALREADY_FRIENDS = "Tu já tens este perfil na tua lista de amigos!";
 
-    @ExceptionHandler(DisabledException.class)
+    @ExceptionHandler(AccountDisabledException.class)
     public ResponseEntity<HttpResponse> accountDisabledException(){
         return createHttpResponse(BAD_REQUEST,ACCOUNT_DISABLED);
     }
@@ -71,6 +71,21 @@ public class ExceptionHandling {
         return createHttpResponse(BAD_REQUEST, TOKEN_NOT_FOUND);
     }
 
+    @ExceptionHandler(SMSNotFoundException.class)
+    public ResponseEntity<HttpResponse> smsNotFoundException(){
+        return createHttpResponse(BAD_REQUEST, SMS_FAIL);
+    }
+
+    @ExceptionHandler(SMSAlreadyConfirmedException.class)
+    public ResponseEntity<HttpResponse> smsAlreadyConfirmedException(){
+        return createHttpResponse(BAD_REQUEST, SMS_ALREADY_CONFIRMED);
+    }
+
+    @ExceptionHandler(SMSExpiredException.class)
+    public ResponseEntity<HttpResponse> smsExpiredException(){
+        return createHttpResponse(BAD_REQUEST, SMS_EXPIRED);
+    }
+
     @ExceptionHandler(EmailNotVerifiedException.class)
     public ResponseEntity<HttpResponse> emailNotVerified(){
         return createHttpResponse(UNAUTHORIZED, TOKEN_NOT_VERIFIED);
@@ -82,23 +97,31 @@ public class ExceptionHandling {
     }
 
     @ExceptionHandler(EmailExistException.class)
-    public ResponseEntity<HttpResponse> emailExistException(EmailExistException exception){
-        return createHttpResponse(BAD_REQUEST, exception.getMessage());
+    public ResponseEntity<HttpResponse> emailExistException(){
+        return createHttpResponse(BAD_REQUEST, EMAIL_ALREADY_EXIST);
     }
 
     @ExceptionHandler(UsernameExistException.class)
-    public ResponseEntity<HttpResponse> usernameExistException(UsernameExistException exception){
-        return createHttpResponse(BAD_REQUEST, exception.getMessage());
+    public ResponseEntity<HttpResponse> usernameExistException(){
+        return createHttpResponse(BAD_REQUEST, USERNAME_ALREADY_EXIST);
+    }
+    @ExceptionHandler(PhoneExistException.class)
+    public ResponseEntity<HttpResponse> phoneExistException(){
+        return createHttpResponse(BAD_REQUEST, PHONE_ALREADY_REGISTRED);
     }
 
     @ExceptionHandler(EmailNotFoundException.class)
-    public ResponseEntity<HttpResponse> emailNotFoundException(EmailNotFoundException exception){
-        return createHttpResponse(BAD_REQUEST, exception.getMessage());
+    public ResponseEntity<HttpResponse> emailNotFoundException(){
+        return createHttpResponse(BAD_REQUEST, NO_EMAIL_FOUND_BY_EMAIL);
+    }
+    @ExceptionHandler(PhoneNotFoundException.class)
+    public ResponseEntity<HttpResponse> phoneNotFoundException(){
+        return createHttpResponse(BAD_REQUEST, NO_PHONE_FOUND_BY_PHONE);
     }
 
     @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<HttpResponse> userNotFoundException(UserNotFoundException exception){
-        return createHttpResponse(BAD_REQUEST, exception.getMessage());
+    public ResponseEntity<HttpResponse> userNotFoundException(){
+        return createHttpResponse(BAD_REQUEST, NO_USER_FOUND_BY_USERNAME);
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
@@ -121,7 +144,7 @@ public class ExceptionHandling {
     @ExceptionHandler(NoResultException.class)
     public ResponseEntity<HttpResponse> notFoundException(NoResultException exception){
         LOGGER.error(exception.getMessage());
-        return createHttpResponse(INTERNAL_SERVER_ERROR, exception.getMessage());
+        return createHttpResponse(INTERNAL_SERVER_ERROR, NULL_RESULTS);
     }
 
     @ExceptionHandler(IOException.class)
@@ -131,11 +154,11 @@ public class ExceptionHandling {
     }
 
     private ResponseEntity<HttpResponse> createHttpResponse(HttpStatus httpStatus,String message){
-        return new ResponseEntity<> (new HttpResponse(httpStatus.value(),httpStatus,httpStatus.getReasonPhrase().toUpperCase(),message.toUpperCase()),httpStatus);
+        return new ResponseEntity<> (new HttpResponse(httpStatus.value(),httpStatus,httpStatus.getReasonPhrase().toUpperCase(),message),httpStatus);
     }
 
     @RequestMapping(ERROR_PATH)
     public ResponseEntity<HttpResponse> notFound404(NotFoundException exception){
-        return createHttpResponse(NOT_FOUND, exception.getMessage());
+        return createHttpResponse(NOT_FOUND, INVALID_URL);
     }
 }

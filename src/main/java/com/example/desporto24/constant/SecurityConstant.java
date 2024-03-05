@@ -1,7 +1,7 @@
 package com.example.desporto24.constant;
 
 public class SecurityConstant {
-    public static final long EXPIRATION_TIME = 86400000; //1 dia millisegundos
+    public static final long EXPIRATION_TIME = 3600000; //1 hora millisegundos
     public static final String TOKEN_PREFIX = "Bearer ";
     public static final String JWT_TOKEN_HEADER = "Jwt-Token";
     public static final String TOKEN_CANNOT_BE_VERIFIED = "Token cannot be verified";

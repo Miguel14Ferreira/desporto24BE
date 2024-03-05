@@ -185,40 +185,50 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
         // Verificação para que um novo utilizador não tenha o mesmo nome, telemóvel ou email de outro utilizador
-    public Perfil validateNewUsernameEmailAndPhone(String currentUsername, String newUsername, String email, String phone) throws UsernameExistException, EmailExistException, PhoneExistException {
-        Perfil userByNewUsername = findUserByUsername(newUsername);
-        Perfil userByNewEmail = findUserByEmail(email);
-        Perfil userByNewPhone = findUserByPhone(phone);
-        if (isNotBlank(currentUsername)) {
-            Perfil currentUser = findUserByUsername(currentUsername);
-            if (currentUser == null) {
-                throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + " " + currentUsername);
+    public Perfil validateNewUsernameEmailAndPhone(String currentUsername, String newUsername, String email, String phone) throws UsernameExistException, EmailExistException, PhoneExistException, EmailNotFoundException, UserNotFoundException {
+        try {
+            Perfil userByNewUsername = findUserByUsername(newUsername);
+            Perfil userByNewEmail = findUserByEmail(email);
+            Perfil userByNewPhone = findUserByPhone(phone);
+            if (isNotBlank(currentUsername)) {
+                Perfil currentUser = findUserByUsername(currentUsername);
+                if (currentUser == null) {
+                    throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + " " + currentUsername);
+                }
+                if (userByNewUsername != null && !currentUser.getId().equals(userByNewUsername.getId())) {
+                    throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+                }
+                if (userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
+                    throw new EmailExistException(EMAIL_ALREADY_EXIST);
+                }
+                if (userByNewPhone != null && !currentUser.getId().equals(userByNewPhone.getId())) {
+                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+                }
+                return currentUser;
+            } else {
+                if (userByNewUsername != null) {
+                    throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+                }
+                if (userByNewEmail != null) {
+                    throw new EmailExistException(EMAIL_ALREADY_EXIST);
+                }
+                if (userByNewPhone != null) {
+                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+                }
+                return null;
             }
-            if (userByNewUsername != null && !currentUser.getId().equals(userByNewUsername.getId())) {
-                throw new UsernameExistException(USERNAME_ALREADY_EXIST);
-            }
-            if (userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
-                throw new EmailExistException(EMAIL_ALREADY_EXIST);
-            }
-            if (userByNewPhone != null && !currentUser.getId().equals(userByNewPhone.getId())) {
-                throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-            }
-            return currentUser;
-        } else {
-            if (userByNewUsername != null) {
-                throw new UsernameNotFoundException(USERNAME_ALREADY_EXIST);
-            }
-            if (userByNewEmail != null) {
-                throw new EmailExistException(EMAIL_ALREADY_EXIST);
-            }
-            if (userByNewPhone != null) {
-                throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-            }
-            return null;
+        } catch (UserNotFoundException e){
+            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
+        } catch (UsernameExistException e){
+        throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+    }catch (EmailExistException e){
+            throw new EmailExistException(EMAIL_ALREADY_EXIST);
+        }catch (PhoneExistException e){
+            throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
         }
     }
 
-    private String buildEmergencyResetPasswordMail(String name, String link) {
+        private String buildEmergencyResetPasswordMail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
                         "\n" +
@@ -355,7 +365,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // novo registo pelo utilizador e definição de alguns parametros para a classe perfil
-    public Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
+    public Perfil signUpPerfil(Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, EmailNotFoundException, UserNotFoundException {
         validateNewUsernameEmailAndPhone(EMPTY, perfil.getUsername(), perfil.getEmail(), perfil.getPhone());
         String encodedPassword = passwordEncoder.encode(perfil.getPassword());
         perfil.setOldEmail(perfil.getEmail());
@@ -377,7 +387,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         saveProfileImage(perfil, foto);
         perfilRepository.save(perfil);
         String token = UUID.randomUUID().toString();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
+        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil.getUsername());
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/"+token).toUriString();
         emailService.send(perfil.getEmail(), buildRegistrationEmail(perfil.getUsername(),link));
@@ -396,8 +406,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil findUserByEmail(String email) {
-        return perfilRepository.findUserByEmail(email);
+    public Perfil findUserByEmail(String email) throws EmailNotFoundException {
+            Perfil p =  perfilRepository.findUserByEmail(email);
+                return p;
     }
 
     @Override
@@ -431,7 +442,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Perfil terminarSessao(Perfil perfil) {
+    public Perfil terminarSessao(Perfil perfil) throws EmailNotFoundException {
         Perfil p = findUserByEmail(perfil.getEmail());
         p.setStatus(OFFLINE);
         return p;
@@ -458,8 +469,15 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // Alteração de dados pelo utilizador
     @Override
-    public Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException {
+    public Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException {
         Perfil p = findUserByUsername(username);
+        if (p.getEmail().equals(perfil.getEmail())) {
+            validateNewUsernameEmailAndPhone(username, null, null, perfil.getPhone());
+        } if (p.getPhone().equals(perfil.getPhone())){
+            validateNewUsernameEmailAndPhone(username,null,perfil.getEmail(),null);
+        } else {
+            validateNewUsernameEmailAndPhone(username,null,perfil.getEmail(),perfil.getPhone());
+        }
         p.setOldEmail(p.getEmail());
         p.setFullName(perfil.getFullName());
         p.setCountry(perfil.getCountry());
@@ -476,7 +494,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
         perfilRepository.save(p);
         String token = UUID.randomUUID().toString();
-        ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
+        ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p.getUsername());
         confirmationTokenService.saveConfirmationToken(emergencyToken);
         String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
         emailService.send(p.getOldEmail(), buildChangePerfilEmail(p.getUsername(), link));
@@ -504,7 +522,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     @Override
     public String sendVerificationCode(Perfil perfil) {
         String code = randomAlphabetic(8).toUpperCase();
-        MFAVerification mfaVerification = new MFAVerification(code, LocalDateTime.now(), LocalDateTime.now().plusMinutes(5), perfil);
+        MFAVerification mfaVerification = new MFAVerification(code, LocalDateTime.now(), LocalDateTime.now().plusMinutes(1), perfil.getUsername());
         MFAverificationService.saveConfirmationMFA(mfaVerification);
         sendSMS(perfil.getIndicativePhone(), perfil.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
         return code;
@@ -545,7 +563,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // Alteração do nome e da password
     @Override
-    public Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+    public Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, EmailNotFoundException, UserNotFoundException {
         Perfil p = validateNewUsernameEmailAndPhone(perfil.getUsername(), perfil.getNewUsername(), null, null);
         if (p == null) {
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + perfil.getUsername());
@@ -557,7 +575,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             p.setUsername(perfil.getNewUsername());
             p.setPassword(encodedPassword);
             String token = UUID.randomUUID().toString();
-            ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p);
+            ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p.getUsername());
             confirmationTokenService.saveConfirmationToken(emergencyToken);
             String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
             emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
@@ -614,24 +632,23 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
-    public Perfil disablePerfilByBlock(String email) throws MessagingException {
+    public Perfil disablePerfilByBlock(String email) throws MessagingException, EmailNotFoundException {
         try {
             Perfil p = findUserByEmail(email);
             if (p == null) {
-                LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + email);
-                throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
+                throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
             } else {
                 p.setNotLocked(false);
                 perfilRepository.save(p);
                 String token2 = UUID.randomUUID().toString();
-                ConfirmationToken confirmationToken = new ConfirmationToken(token2, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), p);
+                ConfirmationToken confirmationToken = new ConfirmationToken(token2, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), p.getUsername());
                 confirmationTokenService.saveConfirmationToken(confirmationToken);
-                String link = fromCurrentContextPath().path("/confirmEmergencyToken/resetPassword/" + token2 + "/" + confirmationToken.getPerfil().getOldEmail()).toUriString();
-                emailService.send(confirmationToken.getPerfil().getOldEmail(), buildEmergencyResetPasswordMail(confirmationToken.getPerfil().getUsername(), link));
+                String link = fromCurrentContextPath().path("/confirmEmergencyToken/resetPassword/" + token2 + "/" + p.getOldEmail()).toUriString();
+                emailService.send(p.getOldEmail(), buildEmergencyResetPasswordMail(p.getUsername(), link));
             }
             return p;
-        } catch (UsernameNotFoundException e){
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
+        } catch (EmailNotFoundException e) {
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + email);
         }
     }
 
@@ -647,14 +664,15 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
             }
             if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-                Perfil p = findUserByUsername(confirmToken.getPerfil().getUsername());
-                confirmationTokenRepository.deleteByPerfilId(p);
+                Perfil p = findUserByUsername(confirmToken.getPerfil());
+                confirmationTokenRepository.deleteByPerfil(p.getUsername());
                 notificationsRepository.deleteByPerfil(p.getUsername());
                 perfilRepository.deleteById(p.getId());
                 throw new TokenExpiredException(TOKEN_EXPIRED);
             } else {
                 confirmationTokenService.setConfirmedAt(token);
-                enablePerfil(confirmToken.getPerfil().getEmail());
+                Perfil p = findUserByUsername(confirmToken.getPerfil());
+                enablePerfil(p.getEmail());
                 confirmationTokenService.saveConfirmationToken(confirmToken);
                 return token;
             }
@@ -684,13 +702,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new TokenExpiredException(TOKEN_EXPIRED);
         }
         confirmationTokenService.setConfirmedAt(token);
-        disablePerfil(confirmToken.getPerfil().getEmail());
+        disablePerfil(p.getEmail());
         confirmationTokenService.saveConfirmationToken(confirmToken);
         String token2 = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(token2, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), confirmToken.getPerfil());
         confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = fromCurrentContextPath().path("/confirmEmergencyToken/resetPassword/"+token2+"/"+confirmationToken.getPerfil().getOldEmail()).toUriString();
-        emailService.send(confirmationToken.getPerfil().getOldEmail(), buildEmergencyResetPasswordMail(confirmationToken.getPerfil().getUsername(),link));
+        String link = fromCurrentContextPath().path("/confirmEmergencyToken/resetPassword/"+token2+"/"+p.getOldEmail()).toUriString();
+        emailService.send(p.getOldEmail(), buildEmergencyResetPasswordMail(p.getUsername(),link));
         return token;
         } catch (NotFoundException e){
             throw new NotFoundException(TOKEN_NOT_FOUND);
@@ -702,19 +720,27 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Confirmação do código enviado por SMS (MFA autenticação)
-    public String confirmCode(String code) throws NotFoundException {
-        MFAVerification mfaVerification = MFAverificationService
-                .getCode(code)
-                .orElseThrow(() ->
-                        new NotFoundException("codigo não encontrado."));
-        if (mfaVerification.getConfirmedAt() != null) {
-            throw new IllegalStateException("Código já foi confirmado.");
+    public String confirmCode(String code) throws SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException {
+        try {
+            MFAVerification mfaVerification = MFAverificationService
+                    .getCode(code)
+                    .orElseThrow(() ->
+                            new SMSNotFoundException(SMS_FAIL));
+            if (mfaVerification.getConfirmedAt() != null) {
+                throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
+            }
+            if (mfaVerification.getExpiredAt().isBefore(LocalDateTime.now())) {
+                throw new SMSExpiredException(SMS_EXPIRED);
+            }
+            MFAverificationService.setConfirmedAt(code);
+            return code;
+        } catch (SMSNotFoundException e) {
+            throw new SMSNotFoundException(SMS_FAIL);
+        } catch (SMSAlreadyConfirmedException e) {
+            throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
+        } catch (SMSExpiredException e) {
+            throw new SMSExpiredException(SMS_EXPIRED);
         }
-        if (mfaVerification.getExpiredAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Código expirado");
-        }
-        MFAverificationService.setConfirmedAt(code);
-        return code;
     }
     // envio do email de registo para o utilizador conseguir ativar a sua conta
     private String buildRegistrationEmail(String name, String link) {
@@ -874,48 +900,61 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Envia um email para o utilizador conseguir efetuar o reset da password
-    public Perfil resetPassword1(Perfil perfil) throws MessagingException, EmailNotVerifiedException {
-        perfil = perfilRepository.findUserByEmail(perfil.getEmail());
-        if (perfil == null) {
-            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-        } else {
+    public Perfil resetPassword1(Perfil perfil) throws EmailNotFoundException, EmailSendingException {
+        try {
+            Perfil p = findUserByEmail(perfil.getEmail());
+            if (p == null){
+                throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+            }
             String token = UUID.randomUUID().toString();
-            ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil);
+            ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), p.getUsername());
             confirmationTokenService.saveConfirmationToken(confirmationToken);
-            String link = fromCurrentContextPath().path("/login/resetPassword/"+token+"/"+perfil.getUsername()).toUriString();
-            emailService.send(perfil.getEmail(), buildResetPasswordEmail(perfil.getUsername(), link));
+            String link = fromCurrentContextPath().path("/login/resetPassword/" + token + "/" + p.getUsername()).toUriString();
+            emailService.send(p.getEmail(), buildResetPasswordEmail(p.getUsername(), link));
             return perfil;
+        } catch (EmailNotFoundException e) {
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+        } catch (MessagingException e) {
+            throw new EmailSendingException(EMAIL_ERROR);
         }
     }
 
-    // Guarda a nova password no perfil, através do email
-    public Perfil resetPassword2(Perfil perfil, String token) {
-        ConfirmationToken confirmToken = confirmationTokenService
-                .getToken(token)
-                .orElseThrow(() ->
-                        new IllegalStateException("Token não encontrado."));
-        if (confirmToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Token já foi confirmado.");
-        }
-        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Token expirado");
-        }
-        confirmationTokenService.setConfirmedAt(token);
-        Perfil p = perfilRepository.findUserByEmail(perfil.getEmail());
-        if (p == null) {
-            LOGGER.error(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-            throw new UsernameNotFoundException(NO_EMAIL_FOUND_BY_EMAIL + perfil.getEmail());
-        } else {
-            String encodedPassword = passwordEncoder.encode(perfil.getPassword());
-            p.setPassword(encodedPassword);
-            perfilRepository.save(p);
-            return p;
+        // Guarda a nova password no perfil, através do email
+    public Perfil resetPassword2(Perfil perfil, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException {
+        try {
+            ConfirmationToken confirmToken = confirmationTokenService
+                    .getToken(token)
+                    .orElseThrow(() ->
+                            new NotFoundException(TOKEN_NOT_FOUND));
+            if (confirmToken.getConfirmedAt() != null) {
+                throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
+            }
+            if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+                throw new TokenExpiredException(TOKEN_EXPIRED);
+            }
+            confirmationTokenService.setConfirmedAt(token);
+            Perfil p = perfilRepository.findUserByEmail(perfil.getEmail());
+            if (p == null) {
+                throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+            } else {
+                String encodedPassword = passwordEncoder.encode(perfil.getPassword());
+                p.setPassword(encodedPassword);
+                perfilRepository.save(p);
+                return p;
+            }
+        } catch (NotFoundException e) {
+            throw new NotFoundException(TOKEN_NOT_FOUND);
+        } catch (AlreadyConfirmedTokenException e) {
+            throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
+        } catch (TokenExpiredException e) {
+            throw new TokenExpiredException(TOKEN_EXPIRED);
+        } catch (EmailNotFoundException e) {
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
         }
     }
 
 
-    // Email enviado quando um utilizador coloca uma nova ideia para a aplicação
+        // Email enviado quando um utilizador coloca uma nova ideia para a aplicação
     private String buildNewIdeaEmail(String name) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -1120,8 +1159,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         notificationsRepository.deleteById(id);
         friendRequestService.setConfirmedAt(token);
         friendRequestService.saveFriendRequest(confirmToken);
-        Perfil perfil1 = findUserByUsername(confirmToken.getPerfil1().getUsername());
-        Perfil perfil2 = findUserByUsername(confirmToken.getPerfil2().getUsername());
+        Perfil perfil1 = findUserByUsername(confirmToken.getPerfil1());
+        Perfil perfil2 = findUserByUsername(confirmToken.getPerfil2());
         Friend friend = new Friend();
         Perfil user1 = perfil1;
         Perfil user2 = perfil2;
@@ -1163,7 +1202,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String data = substring(String.valueOf(date),3,10);
             String data2 = substring(String.valueOf(date),24,29);
             String data3 = data2+data;
-            FriendRequest newFriendRequest = new FriendRequest(token, data3, p1, p2);
+            FriendRequest newFriendRequest = new FriendRequest(token, data3, p1.getUsername(), p2.getUsername());
             friendRequestService.saveFriendRequest(newFriendRequest);
             emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername()));
             String assuntoFriendRequestNotification = " Recebeste um novo pedido de amizade!";

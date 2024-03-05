@@ -21,7 +21,7 @@ public class UserChangePasswordService {
 
     /* Obtenção de dados para a alteração de username e password ou apenas de username/password */
 
-    public Perfil alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+    public Perfil alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
         Perfil p = perfilService.changeUsernameAndPassword(new Perfil(
                 changePassword.getUsername(),
                 changePassword.getNewUsername(),
@@ -31,7 +31,7 @@ public class UserChangePasswordService {
 
     /* Obtenção de dados para a alteração de password por email, é pedido ao utilizador para colocar o email */
 
-    public Perfil alterarPasswordPorTokenStep1(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, EmailNotVerifiedException {
+    public Perfil alterarPasswordPorTokenStep1(UserChangePasswordRequest changePassword) throws EmailNotFoundException, EmailSendingException {
         Perfil p = perfilService.resetPassword1(new Perfil(
                 changePassword.getEmail()));
         return p;
@@ -39,7 +39,7 @@ public class UserChangePasswordService {
 
     /* Obtenção de dados para a definição da nova password para o Utilizador */
 
-    public Perfil alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword,String token) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException {
+    public Perfil alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword,String token) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
         Perfil p = perfilService.resetPassword2(new Perfil(
                 changePassword.getEmail(),
                 changePassword.getPassword()),token);

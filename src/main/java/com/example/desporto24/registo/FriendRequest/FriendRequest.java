@@ -26,15 +26,13 @@ public class FriendRequest {
     private String createdAt;
 
     private LocalDateTime confirmedAt;
-    @ManyToOne
     @JoinColumn(nullable = false)
-    private Perfil perfil1;
+    private String perfil1;
 
-    @ManyToOne
     @JoinColumn(nullable = false)
-    private Perfil perfil2;
+    private String perfil2;
 
-    public FriendRequest(String token, String createdAt, Perfil perfil1, Perfil perfil2) {
+    public FriendRequest(String token, String createdAt, String perfil1, String perfil2) {
         this.token = token;
         this.createdAt = createdAt;
         this.perfil1 = perfil1;

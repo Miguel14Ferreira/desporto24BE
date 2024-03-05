@@ -1,9 +1,6 @@
 package com.example.desporto24.update;
 
-import com.example.desporto24.exception.domain.EmailExistException;
-import com.example.desporto24.exception.domain.NotAImageFileException;
-import com.example.desporto24.exception.domain.PhoneExistException;
-import com.example.desporto24.exception.domain.UsernameExistException;
+import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.Perfil;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import com.example.desporto24.service.impl.ProjectServiceImpl;
@@ -19,7 +16,7 @@ import java.io.IOException;
 public class UserUpdateService {
     private final ProjectServiceImpl pService;
 
-    public Perfil update(String username, UserUpdateRequest request, MultipartFile file) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException {
+    public Perfil update(String username, UserUpdateRequest request, MultipartFile file) throws EmailExistException, PhoneExistException, MessagingException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException {
         Perfil perfil = pService.updateUser(username,
                 new Perfil(
                         request.getFullName(),

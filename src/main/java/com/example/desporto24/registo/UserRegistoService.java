@@ -1,7 +1,5 @@
 package com.example.desporto24.registo;
-import com.example.desporto24.exception.domain.EmailExistException;
-import com.example.desporto24.exception.domain.PhoneExistException;
-import com.example.desporto24.exception.domain.UsernameExistException;
+import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.Perfil;
 import com.example.desporto24.registo.token.ConfirmationToken;
 import com.example.desporto24.registo.token.ConfirmationTokenService;
@@ -34,7 +32,7 @@ public class UserRegistoService {
     private final BCryptPasswordEncoder passwordEncoder;
 
     // Obtenção de dados do novo utilizador
-    public Perfil register(UserRegistoRequest request, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException {
+    public Perfil register(UserRegistoRequest request, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
         Perfil perfil = pService.signUpPerfil(
                 new Perfil(
                         request.getUsername(),

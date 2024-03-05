@@ -34,12 +34,11 @@ public class MFAVerification {
     private LocalDateTime expiredAt;
 
     private LocalDateTime confirmedAt;
-    @ManyToOne
     @JoinColumn(nullable = false,
             name = "perfil_id")
-    private Perfil perfil;
+    private String perfil;
 
-    public MFAVerification(String code, LocalDateTime createdAt, LocalDateTime expiredAt, Perfil perfil) {
+    public MFAVerification(String code, LocalDateTime createdAt, LocalDateTime expiredAt, String perfil) {
         this.code = code;
         this.createdAt = createdAt;
         this.expiredAt = expiredAt;

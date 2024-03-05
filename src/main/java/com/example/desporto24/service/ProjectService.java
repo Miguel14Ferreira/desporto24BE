@@ -26,13 +26,13 @@ public interface ProjectService{
 
     Perfil enablePerfil(String email) throws EmailNotFoundException;
 
-    Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException;
+    Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
 
     List<Perfil> procurarPerfil(String username);
 
     Chat EnviarMensagem(Chat chat) throws Exception;
 
-    Perfil terminarSessao(Perfil perfil);
+    Perfil terminarSessao(Perfil perfil) throws EmailNotFoundException;
 
     Perfil findUserByUserId(String userId);
 
@@ -40,7 +40,7 @@ public interface ProjectService{
 
     Perfil findUserByUsername(String username);
 
-    Perfil findUserByEmail(String email);
+    Perfil findUserByEmail(String email) throws EmailNotFoundException;
 
     Perfil findUserByPhone(String phone);
 
@@ -61,11 +61,11 @@ public interface ProjectService{
 
     String EmergencyResetPassword(String token, String username, String password) throws EmailNotFoundException, MessagingException;
 
-    Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException;
+    Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException;
 
     void deleteUser(Long id);
 
-    Perfil disablePerfilByBlock(String username) throws MessagingException;
+    Perfil disablePerfilByBlock(String username) throws MessagingException, EmailNotFoundException;
 
     void deleteNotification(Long id);
 
@@ -73,13 +73,13 @@ public interface ProjectService{
 
     Ideias newIdea(Ideias i) throws MessagingException;
 
-    Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException;
+    Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
 
-    String confirmCode(String code) throws NotFoundException;
+    String confirmCode(String code) throws NotFoundException, SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException;
 
-    Perfil resetPassword1(Perfil perfil) throws MessagingException, EmailNotVerifiedException;
+    Perfil resetPassword1(Perfil perfil) throws Exception;
 
-    Perfil resetPassword2(Perfil perfil, String token);
+    Perfil resetPassword2(Perfil perfil, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException;
 
     String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 }
