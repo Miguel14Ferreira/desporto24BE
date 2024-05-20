@@ -3,9 +3,7 @@ package com.example.desporto24.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.Date;
 
@@ -15,6 +13,8 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 @JsonInclude(NON_DEFAULT)
 public class Friend {
 
@@ -26,8 +26,8 @@ public class Friend {
     private Date createdAt;
     @ManyToOne
     @JoinColumn(nullable = false,name = "perfil1")
-    private Perfil perfil1;
+    private Profile profile1;
     @ManyToOne
     @JoinColumn(nullable = false,name = "perfil2")
-    private Perfil perfil2;
+    private Profile profile2;
 }

@@ -1,8 +1,7 @@
 package com.example.desporto24.login;
 
-import com.example.desporto24.changePassword.UserChangePasswordRequest;
 import com.example.desporto24.exception.domain.*;
-import com.example.desporto24.model.Perfil;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.service.impl.ProjectServiceImpl;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,8 +13,8 @@ public class LoginService {
 
     /* Obtenção de dados para a alteração de username e password ou apenas de username/password */
 
-    public Perfil login(LoginRequest loginRequest) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, EmailNotVerifiedException {
-        Perfil p = perfilService.login(new Perfil(
+    public Profile login(LoginRequest loginRequest) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, EmailNotVerifiedException {
+        Profile p = perfilService.login(new Profile(
                 loginRequest.getUsername(),
                 loginRequest.getPassword()));
         return p;

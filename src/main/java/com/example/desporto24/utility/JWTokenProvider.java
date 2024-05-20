@@ -6,7 +6,7 @@ import static java.util.Arrays.stream;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.example.desporto24.model.PerfilPrincipal;
+import com.example.desporto24.model.ProfilePrincipal;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,10 +27,10 @@ public class JWTokenProvider {
     @Value("${desporto.app.jwtSecret}")
     private String secret;
 
-    public String generateJwtToken(PerfilPrincipal perfilPrincipal){
-        String [] claims = getClaimsFromPerfil(perfilPrincipal);
+    public String generateJwtToken(ProfilePrincipal profilePrincipal){
+        String [] claims = getClaimsFromPerfil(profilePrincipal);
         return JWT.create().withIssuer(DESPORTO_24).withAudience(DESPORTO_24_ADMINISTRATION)
-                .withIssuedAt(new Date()).withSubject(perfilPrincipal.getUsername())
+                .withIssuedAt(new Date()).withSubject(profilePrincipal.getUsername())
                 .withArrayClaim(AUTHORITIES, claims).withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .sign(HMAC512(secret.getBytes()));
     }
@@ -78,7 +78,7 @@ public class JWTokenProvider {
     }
 
 
-    private String[] getClaimsFromPerfil(PerfilPrincipal perfil) {
+    private String[] getClaimsFromPerfil(ProfilePrincipal perfil) {
         List<String> authorithies = new ArrayList<>();
         for (GrantedAuthority grantedAuthority : perfil.getAuthorities()){
             authorithies.add(grantedAuthority.getAuthority());

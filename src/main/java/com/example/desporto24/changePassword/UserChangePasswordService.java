@@ -1,15 +1,9 @@
 package com.example.desporto24.changePassword;
 
 import com.example.desporto24.exception.domain.*;
-import com.example.desporto24.model.Perfil;
-import com.example.desporto24.registo.token.ConfirmationToken;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.service.impl.ProjectServiceImpl;
-import jakarta.mail.MessagingException;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
@@ -21,8 +15,8 @@ public class UserChangePasswordService {
 
     /* Obtenção de dados para a alteração de username e password ou apenas de username/password */
 
-    public Perfil alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
-        Perfil p = perfilService.changeUsernameAndPassword(new Perfil(
+    public Profile alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
+        Profile p = perfilService.changeUsernameAndPassword(new Profile(
                 changePassword.getUsername(),
                 changePassword.getNewUsername(),
                 changePassword.getPassword()));
@@ -31,16 +25,16 @@ public class UserChangePasswordService {
 
     /* Obtenção de dados para a alteração de password por email, é pedido ao utilizador para colocar o email */
 
-    public Perfil alterarPasswordPorTokenStep1(UserChangePasswordRequest changePassword) throws EmailNotFoundException, EmailSendingException {
-        Perfil p = perfilService.resetPassword1(new Perfil(
+    public Profile alterarPasswordPorTokenStep1(UserChangePasswordRequest changePassword) throws EmailNotFoundException, EmailSendingException {
+        Profile p = perfilService.resetPassword1(new Profile(
                 changePassword.getEmail()));
         return p;
     }
 
     /* Obtenção de dados para a definição da nova password para o Utilizador */
 
-    public Perfil alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword,String token) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
-        Perfil p = perfilService.resetPassword2(new Perfil(
+    public Profile alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword, String token) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
+        Profile p = perfilService.resetPassword2(new Profile(
                 changePassword.getEmail(),
                 changePassword.getPassword()),token);
         return p;

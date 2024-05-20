@@ -1,7 +1,7 @@
 package com.example.desporto24.service;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.*;
-import com.example.desporto24.registo.Notifications.Notifications;
+import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import jakarta.mail.MessagingException;
 import org.springframework.data.jpa.repository.Modifying;
@@ -14,7 +14,7 @@ import java.util.List;
 
 public interface ProjectService{
 
-    List<Perfil> getFriends(String username);
+    List<Profile> getFriends(String username);
 
     List<Notifications> getNotificationsFromPerfil(String username);
 
@@ -22,35 +22,35 @@ public interface ProjectService{
 
     void acceptFriendRequest(Long id,String token);
 
-    Perfil disablePerfil(String email) throws EmailNotFoundException;
+    Profile disablePerfil(String email) throws EmailNotFoundException;
 
-    Perfil enablePerfil(String email) throws EmailNotFoundException;
+    Profile enablePerfil(String email) throws EmailNotFoundException;
 
-    Perfil signUpPerfil(Perfil perfil,MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
+    Profile signUpPerfil(Profile profile, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
 
-    List<Perfil> procurarPerfil(String username);
+    List<Profile> procurarPerfil(String username);
 
     Chat EnviarMensagem(Chat chat) throws Exception;
 
-    Perfil terminarSessao(Perfil perfil) throws EmailNotFoundException;
+    Profile terminarSessao(Profile profile) throws EmailNotFoundException;
 
-    Perfil findUserByUserId(String userId);
+    Profile findUserByUserId(String userId);
 
     List<Chat> findChatMessages(String senderId,String recipientId);
 
-    Perfil findUserByUsername(String username);
+    Profile findUserByUsername(String username);
 
-    Perfil findUserByEmail(String email) throws EmailNotFoundException;
+    Profile findUserByEmail(String email) throws EmailNotFoundException;
 
-    Perfil findUserByPhone(String phone);
+    Profile findUserByPhone(String phone);
 
-    Sessao findSessaoByMorada(String morada);
+    Session findSessaoByMorada(String morada);
 
-    Sessao findSessaoByDatadejogo(Date dataDeJogo);
+    Session findSessaoByDatadejogo(Date dataDeJogo);
 
-    Sessao findSessaoByUsername(String username);
+    Session findSessaoByUsername(String username);
     
-    List<Sessao> getSessoes();
+    List<Session> getSessoes();
 
     @Transactional
     @Modifying
@@ -61,25 +61,27 @@ public interface ProjectService{
 
     String EmergencyResetPassword(String token, String username, String password) throws EmailNotFoundException, MessagingException;
 
-    Perfil updateUser(String username, Perfil perfil, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException;
+    Profile updateUser(String username, Profile profile, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException;
 
     void deleteUser(Long id);
 
-    Perfil disablePerfilByBlock(String username) throws MessagingException, EmailNotFoundException;
+    Profile disablePerfilByBlock(String username) throws MessagingException, EmailNotFoundException;
 
     void deleteNotification(Long id);
 
-    String sendVerificationCode(Perfil perfil);
+    String sendVerificationCode(Profile profile);
 
-    Ideias newIdea(Ideias i) throws MessagingException;
+    Ideas newIdea(Ideas i) throws MessagingException;
 
-    Perfil changeUsernameAndPassword(Perfil perfil) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
+    Profile changeUsernameAndPassword(Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
 
     String confirmCode(String code) throws NotFoundException, SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException;
 
-    Perfil resetPassword1(Perfil perfil) throws Exception;
+    Profile resetPassword1(Profile profile) throws Exception;
 
-    Perfil resetPassword2(Perfil perfil, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException;
+    Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException;
 
     String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
+
+    String confirmSession(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 }

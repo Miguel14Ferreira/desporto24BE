@@ -3,11 +3,8 @@ package com.example.desporto24.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
-import java.lang.annotation.Documented;
 import java.util.Date;
-import java.util.function.Function;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 
@@ -30,21 +27,21 @@ public class Chat {
     private Long id;
     private String username1;
     private String username2;
-    private String texto;
+    private String text;
     private String dataDisplay;
     private Date date;
 
-    public Chat(String username1, String username2, String texto, String dataDisplay,Date date) {
+    public Chat(String username1, String username2, String text, String dataDisplay,Date date) {
         this.username1 = username1;
         this.username2 = username2;
-        this.texto = texto;
+        this.text = text;
         this.dataDisplay = dataDisplay;
         this.date = date;
     }
 
-    public Chat(String username1, String username2, String texto) {
+    public Chat(String username1, String username2, String text) {
         this.username1 = username1;
         this.username2 = username2;
-        this.texto = texto;
+        this.text = text;
     }
 }

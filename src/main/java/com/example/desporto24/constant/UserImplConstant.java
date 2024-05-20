@@ -32,5 +32,6 @@ public class UserImplConstant {
     public static final String NULL_RESULTS = "Não há resultados nesta pesquisa";
     public static final String INVALID_URL = "Este path é invalido, por favor tenta novamente";
     public static final String CONFIRMED_TOKEN = "A confirmação de email foi efetuada com sucesso, podes agora aceder à tua conta clicando no botão abaixo";
+    public static final String SESSION_CONFIRMED_TOKEN = "A confirmação de email foi efetuada com sucesso, a tua sessão está agora ativada";
     public static final String EMAIL_ERROR = "Ocorreu um erro no envio do email, por favor tenta novamente";
 }

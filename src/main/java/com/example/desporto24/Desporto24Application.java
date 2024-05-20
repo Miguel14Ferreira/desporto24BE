@@ -2,7 +2,6 @@ package com.example.desporto24;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -17,8 +16,6 @@ public class Desporto24Application {
 
     public static void main(String[] args) throws InterruptedException {
         SpringApplication.run(Desporto24Application.class, args);
-        Thread.sleep(3);
-        new File(USER_FOLDER).mkdirs();
     }
 
     @Bean

@@ -2,8 +2,8 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.exception.domain.AccountDisabledException;
 import com.example.desporto24.exception.domain.EmailNotVerifiedException;
-import com.example.desporto24.model.Perfil;
-import com.example.desporto24.repository.PerfilRepository;
+import com.example.desporto24.model.Profile;
+import com.example.desporto24.repository.ProfileRepository;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -18,11 +18,11 @@ public class LoginAttemptService {
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
     private LoadingCache<String, Integer> loginAttemptCache;
-    private final PerfilRepository perfilRepository;
+    private final ProfileRepository profileRepository;
 
-    public LoginAttemptService(PerfilRepository perfilRepository) {
+    public LoginAttemptService(ProfileRepository profileRepository) {
         super();
-        this.perfilRepository = perfilRepository;
+        this.profileRepository = profileRepository;
         loginAttemptCache = CacheBuilder.newBuilder().expireAfterWrite(15, MINUTES)
                 .maximumSize(100).build(new CacheLoader<String, Integer>() {
                     public Integer load(String key) {
@@ -31,12 +31,12 @@ public class LoginAttemptService {
                 });
     }
 
-    public void evictUserFromLoginAttemptCache(Perfil username) {
+    public void evictUserFromLoginAttemptCache(Profile username) {
         username.setLogginAttempts(0);
-        perfilRepository.save(username);
+        profileRepository.save(username);
     }
 
-    public void addUserToLoginAttemptCache(Perfil username) {
+    public void addUserToLoginAttemptCache(Profile username) {
         int attempts;
         try {
             attempts = ATTEMPT_INCREMENT + username.getLogginAttempts();
@@ -44,10 +44,10 @@ public class LoginAttemptService {
             throw new BadCredentialsException(INCORRECT_CREDENTIALS);
         }
         username.setLogginAttempts(attempts);
-        perfilRepository.save(username);
+        profileRepository.save(username);
     }
 
-    public boolean hasExceededMaxAttempts(Perfil username) throws AccountDisabledException, EmailNotVerifiedException {
+    public boolean hasExceededMaxAttempts(Profile username) throws AccountDisabledException, EmailNotVerifiedException {
         try {
             if (username.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
                 username.setNotLocked(false);
