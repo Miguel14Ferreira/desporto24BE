@@ -1,21 +1,15 @@
-version: '1.0'
-
 services:
-  mysql-standalone:
-    image: mysql:latest
-    container_name: mysql-standalone
-    environment:
-      - MYSQL_ROOT_PASSWORD=Hojehafutebol14!
-      - MYSQL_DATABASE=desporto24
-      - MYSQL_USER=root
-      - MYSQL_PASSWORD=Hojehafutebol14!
-  springboot-docker-container:
-    image: springboot-docker-container
-    container_name: springboot-docker-container
-    ports:
-      - 8080:8080
+  desporto24app:
+    container_name: desporto24container
     build:
-      context: ./
-      dockerfile: node.dockerfile
-    depends_on:
-      - mysql-standalone
+      context: .
+      args:
+        CONTAINER_PORT: ${CONTAINER_PORT}
+    image: desporto24:v1
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE}
+    expose:
+      - ${CONTAINER_PORT}
+    ports:
+      - ${CONTAINER_PORT}:${HOST_PORT}

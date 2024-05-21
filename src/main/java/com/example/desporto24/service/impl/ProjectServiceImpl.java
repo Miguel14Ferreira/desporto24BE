@@ -441,12 +441,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         List<Chat> chats = new ArrayList<>();
         chats.addAll(chat1);
         chats.addAll(chat2);
-        Collections.sort(chats,Comparator.comparing(Chat::getDate));
-        if (chats == null){
-            return null;
-        } else {
-            return chats;
-        }
+        chats.sort(Comparator.comparing(Chat::getDate));
+        return chats;
     }
 
     // Alteração de dados pelo utilizador

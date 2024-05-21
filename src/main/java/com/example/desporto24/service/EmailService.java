@@ -50,19 +50,5 @@ public class EmailService implements EmailSender {
         smtpTransport.close();
         return mimeMessage;
     }
-
-    /*
-    public void send(String to, String email) {
-        try{
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(email);
-            message.setTo(to);
-            emailSender.send(message);
-            log.info("Email enviado para {}", to);
-        } catch (Exception exception) {
-            log.error(exception.getMessage());
-        }
-    }
-     */
 }
 

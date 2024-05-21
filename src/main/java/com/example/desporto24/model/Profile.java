@@ -92,4 +92,8 @@ public class Profile implements Serializable {
         this.favoriteSports = favoriteSports;
         this.MFA = MFA;
     }
+
+    public Profile(String email) {
+        this.email = email;
+    }
 }
