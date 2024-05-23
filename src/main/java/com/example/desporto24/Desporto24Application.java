@@ -16,6 +16,7 @@ public class Desporto24Application {
 
     public static void main(String[] args) throws InterruptedException {
         SpringApplication.run(Desporto24Application.class, args);
+        new File(USER_FOLDER);
     }
 
     @Bean
