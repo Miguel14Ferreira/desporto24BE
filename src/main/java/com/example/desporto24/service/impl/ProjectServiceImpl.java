@@ -961,6 +961,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             Profile p = profileRepository.findUserByUsername(profile.getUsername());
             if (p == null) {
                 throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME);
+            } else if (!p.getNotLocked()) {
+                throw new AccountDisabledException(ACCOUNT_DISABLED);
             } else {
                 String encodedPassword = passwordEncoder.encode(profile.getPassword());
                 p.setPassword(encodedPassword);
@@ -973,6 +975,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
         } catch (TokenExpiredException e) {
             throw new TokenExpiredException(TOKEN_EXPIRED);
+        } catch (AccountDisabledException e) {
+            throw new RuntimeException(e);
         }
     }
 
