@@ -14,19 +14,19 @@ import java.util.List;
 
 public interface ProjectService{
 
-    List<Profile> getFriends(String username);
+    List<Profile> getFriends(String username) throws Exception;
 
     List<Notifications> getNotificationsFromPerfil(String username);
 
-    SendFriendRequest sendFriendRequest(SendFriendRequest sendFriendRequest) throws RequestFriendException, MessagingException;
+    SendFriendRequest sendFriendRequest(SendFriendRequest sendFriendRequest) throws Exception;
 
-    void acceptFriendRequest(Long id,String token);
+    void acceptFriendRequest(Long id,String token) throws Exception;
 
     Profile disablePerfil(String email) throws EmailNotFoundException;
 
     Profile enablePerfil(String email) throws EmailNotFoundException;
 
-    Profile signUpPerfil(Profile profile, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
+    Profile signUpPerfil(Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException;
 
     List<Profile> procurarPerfil(String username);
 
@@ -38,7 +38,7 @@ public interface ProjectService{
 
     List<Chat> findChatMessages(String senderId,String recipientId);
 
-    Profile findUserByUsername(String username);
+    Profile findUserByUsername(String username) throws Exception;
 
     Profile findUserByEmail(String email) throws EmailNotFoundException;
 
@@ -61,7 +61,7 @@ public interface ProjectService{
 
     String EmergencyResetPassword(String token, String username, String password) throws EmailNotFoundException, MessagingException;
 
-    Profile updateUser(String username, Profile profile, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException;
+    Profile updateUser(String username, Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException;
 
     void deleteUser(Long id);
 

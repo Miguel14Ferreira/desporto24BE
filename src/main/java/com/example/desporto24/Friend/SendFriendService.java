@@ -12,7 +12,7 @@ public class SendFriendService {
 
     private final ProjectServiceImpl perfilService;
 
-    public com.example.desporto24.model.SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws RequestFriendException, MessagingException {
+    public com.example.desporto24.model.SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws Exception {
         com.example.desporto24.model.SendFriendRequest f = perfilService.sendFriendRequest(new com.example.desporto24.model.SendFriendRequest(
                 friendRequest.getUsername1(),
                 friendRequest.getUsername2()));

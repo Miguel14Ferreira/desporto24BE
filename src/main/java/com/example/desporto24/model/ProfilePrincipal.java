@@ -43,7 +43,7 @@ public class ProfilePrincipal implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return this.user.isNotLocked();
+        return this.user.getNotLocked();
     }
 
     @Override

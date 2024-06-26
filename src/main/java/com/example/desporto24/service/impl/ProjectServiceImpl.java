@@ -1,5 +1,6 @@
 package com.example.desporto24.service.impl;
 import com.example.desporto24.Chat.ChatRepository;
+import com.example.desporto24.encryption.AES;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.*;
 import com.example.desporto24.register.FriendRequest.FriendRequest;
@@ -44,6 +45,7 @@ import java.util.*;
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
 import static com.example.desporto24.constant.UserImplConstant.*;
+import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.enumeration.Role.ROLE_USER;
 import static com.example.desporto24.model.Status.OFFLINE;
 import static com.example.desporto24.model.Status.ONLINE;
@@ -134,7 +136,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         profile.setLogginAttempts(0);
     }
 
-    public void addUserToLoginAttemptCache(Profile profile) {
+    public void addUserToLoginAttemptCache(Profile profile) throws Exception {
         Profile p = findUserByUsername(profile.getUsername());
         int attempts = profile.getLogginAttempts();
         do {
@@ -143,7 +145,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         while (profile.getPassword() != p.getPassword());
     }
 
-    public boolean hasExceededMaxAttempts(Profile profile) {
+    public boolean hasExceededMaxAttempts(Profile profile) throws Exception {
         addUserToLoginAttemptCache(profile);
         try {
             return profile.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS;
@@ -207,6 +209,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new EmailExistException(EMAIL_ALREADY_EXIST);
         }catch (PhoneExistException e){
             throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+} catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -347,12 +351,23 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // novo registo pelo utilizador e definição de alguns parametros para a classe perfil
-    public Profile signUpPerfil(Profile profile, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, EmailNotFoundException, UserNotFoundException {
+    public Profile signUpPerfil(Profile profile, MultipartFile foto) throws NotAnImageFileException, Exception {
         validateNewUsernameEmailAndPhone(EMPTY, profile.getUsername(), profile.getEmail(), profile.getPhone());
         String encodedPassword = passwordEncoder.encode(profile.getPassword());
-        profile.setOldEmail(profile.getEmail());
         profile.setPassword(encodedPassword);
+
+        //myEncoder(profile.getPhone(), profile.getUserId());
         profile.setUserId(generateUserId());
+
+        String encodedPhone = AES.encryptString(profile.getPhone(), profile.getUserId());
+        profile.setPhone(encodedPhone);
+
+        String encodedAddress  = AES.encryptString(profile.getAddress(), profile.getUserId());
+        profile.setAddress(encodedAddress);
+
+        profile.setOldEmail(profile.getEmail());
+
+
         profile.setJoinDate(new Date());
         Date date = new Date();
         String data = substring(String.valueOf(date),3,10);
@@ -383,8 +398,18 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Profile findUserByUsername(String username) {
-        return profileRepository.findUserByUsername(username);
+    public Profile findUserByUsername(String username) throws Exception {
+        Profile p = profileRepository.findUserByUsername(username);
+
+
+//        if (p != null && p.getEnabled()){
+//            System.out.println(p.getPhone());
+//            p.setPhone(decryptString(p.getPhone(), p.getUserId()));
+//            System.out.println(p.getPhone());
+//            p.setAddress(decryptString(p.getAddress(), p.getUserId()));
+//        }
+
+        return p;
     }
 
     @Override
@@ -441,17 +466,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         List<Chat> chats = new ArrayList<>();
         chats.addAll(chat1);
         chats.addAll(chat2);
-        Collections.sort(chats,Comparator.comparing(Chat::getDate));
-        if (chats == null){
-            return null;
-        } else {
-            return chats;
-        }
+        chats.sort(Comparator.comparing(Chat::getDate));
+        return chats;
     }
 
     // Alteração de dados pelo utilizador
     @Override
-    public Profile updateUser(String username, Profile profile, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, MessagingException, jakarta.mail.MessagingException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException {
+    public Profile updateUser(String username, Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException {
         Profile p = findUserByUsername(username);
         if (p.getEmail().equals(profile.getEmail())) {
             validateNewUsernameEmailAndPhone(username, null, null, profile.getPhone());
@@ -464,8 +485,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         p.setFullName(profile.getFullName());
         p.setCountry(profile.getCountry());
         p.setLocation(profile.getLocation());
-        p.setPhone(profile.getPhone());
-        p.setAddress(profile.getAddress());
+        String encodedPhone = AES.encryptString(profile.getPhone(), p.getUserId());
+        p.setPhone(encodedPhone);
+        String encodedAddress  = AES.encryptString(profile.getAddress(), p.getUserId());
+        p.setAddress(encodedAddress);
         p.setGender(profile.getGender());
         p.setEmail(profile.getEmail());
         p.setDateOfBirth(profile.getDateOfBirth());
@@ -682,6 +705,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
         } catch (TokenExpiredException e){
             throw new TokenExpiredException(TOKEN_EXPIRED);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -711,6 +736,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
         } catch (TokenExpiredException e){
             throw new TokenExpiredException(TOKEN_EXPIRED);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -745,6 +772,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
         } catch (TokenExpiredException e){
             throw new TokenExpiredException(TOKEN_EXPIRED);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -962,9 +991,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 throw new TokenExpiredException(TOKEN_EXPIRED);
             }
             confirmationTokenService.setConfirmedAt(token);
-            Profile p = profileRepository.findUserByEmail(profile.getEmail());
+            Profile p = profileRepository.findUserByUsername(profile.getUsername());
             if (p == null) {
-                throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+                throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME);
+            } else if (!p.getNotLocked()) {
+                throw new AccountDisabledException(ACCOUNT_DISABLED);
             } else {
                 String encodedPassword = passwordEncoder.encode(profile.getPassword());
                 p.setPassword(encodedPassword);
@@ -977,8 +1008,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
         } catch (TokenExpiredException e) {
             throw new TokenExpiredException(TOKEN_EXPIRED);
-        } catch (EmailNotFoundException e) {
-            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+        } catch (AccountDisabledException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -1177,7 +1208,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "\n" +
                         "</div></div>";
     }
-    public void acceptFriendRequest(Long id,String token){
+    public void acceptFriendRequest(Long id,String token) throws Exception {
         FriendRequest confirmToken = friendRequestService
                 .getToken(token)
                 .orElseThrow(() ->
@@ -1206,7 +1237,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Listar amigos
-    public List<Profile> getFriends(String username){
+    public List<Profile> getFriends(String username) throws Exception {
         Profile p = findUserByUsername(username);
         List<Friend> friendsByFirstPerfil = friendRepository.findByProfile1(p);
         List<Friend> friendsBySecondPerfil = friendRepository.findByProfile2(p);
@@ -1222,7 +1253,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws RequestFriendException, MessagingException {
+    public SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws Exception {
         Profile p1 = findUserByUsername(friendRequest.getUsername1());
         Profile p2 = findUserByUsername(friendRequest.getUsername2());
         if(!(friendRepository.existsByProfile1AndProfile2(p1,p2))){
@@ -1266,7 +1297,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Nova sessão a ser criada
-    public Session createSessao(Session sessao, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, SessionExistException {
+    public Session createSessao(Session sessao, MultipartFile foto) throws Exception, NotAnImageFileException {
         Profile perfil = findUserByUsername(sessao.getUsername());
         validateNewSessao(sessao.getUsername(), sessao.getAddress(), sessao.getGameDate());
         String encodedPassword = passwordEncoder.encode(sessao.getPassword());
@@ -1388,7 +1419,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         }
     }
 
-    public Profile login(@NotNull Profile profile) throws EmailNotVerifiedException {
+    public Profile login(@NotNull Profile profile) throws Exception {
         Profile p = findUserByUsername(profile.getUsername());
         if (profile.getUsername() == null) {
             LOGGER.error(NO_USER_FOUND_BY_USERNAME + profile.getUsername());

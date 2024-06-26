@@ -53,6 +53,7 @@ import java.util.List;
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SecurityConstant.JWT_TOKEN_HEADER;
 import static com.example.desporto24.constant.UserImplConstant.*;
+import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.utility.ProfileUtils.getLoggedInUser;
 import static org.springframework.http.HttpStatus.*;
 import static org.springframework.http.MediaType.*;
@@ -74,7 +75,7 @@ public class profileController extends ExceptionHandling {
     private final LoginAttemptService loginAttemptService;
     private final SendFriendService sendFriendService;
     private final ChatService chatService;
-    private Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
+    private final Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
 
 
     // Autenticação de utilizador
@@ -117,15 +118,17 @@ public class profileController extends ExceptionHandling {
 
     // Registo de utilizador
     @PostMapping("/login/registerNewUser")
-    public ResponseEntity<?> registerUser(@ModelAttribute @Valid UserRegisterRequest signUpRequest, @RequestParam(value = "foto", required = false) MultipartFile foto) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
+    public ResponseEntity<?> registerUser(@ModelAttribute @Valid UserRegisterRequest signUpRequest, @RequestParam(value = "foto", required = false) MultipartFile foto) throws Exception, NotAnImageFileException {
         registoService.register(signUpRequest, foto);
         return response(OK,NEW_USER_REGISTER);
     }
 
     // Obter todos os dados do utilizador
     @GetMapping("/menu/{username}")
-    public ResponseEntity<?> menu(@PathVariable("username")String username){
+    public ResponseEntity<?> menu(@PathVariable("username")String username) throws Exception {
             Profile a = perfilService.findUserByUsername(username);
+            a.setPhone(decryptString(a.getPhone(), a.getUserId()));
+            a.setAddress(decryptString(a.getAddress(), a.getUserId()));
             return new ResponseEntity<>(a, OK);
     }
 
@@ -152,7 +155,7 @@ public class profileController extends ExceptionHandling {
         return response(OK,CONFIRMED_TOKEN);
         }
 
-    @GetMapping(path = "/createNewSession?token={token}")
+    @GetMapping(path = "/createNewSession/token?={token}")
     public ResponseEntity<?> confirmCreateNewSessionToken(@PathVariable("token") String Token) throws EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
         perfilService.confirmSession(Token);
         return response(OK,SESSION_CONFIRMED_TOKEN);
@@ -174,10 +177,10 @@ public class profileController extends ExceptionHandling {
 
     // Definição de nova password por email, este passo recebe o username e nova password
     @PutMapping("/login/resetPassword/{token}/{username}")
-    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException, UserNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
-        userChangePasswordRequest.setUsername(username);
+    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException, UserNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
+        UserChangePasswordRequest userChangePasswordRequest = new UserChangePasswordRequest(username,password);
         changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
-        return new ResponseEntity<>(OK);
+        return response(OK,FORGET_PASSWORD2);
     }
 
     @PutMapping("/confirmEmergencyToken/resetPassword/{token}/{email}")
@@ -196,7 +199,7 @@ public class profileController extends ExceptionHandling {
 
     // Criação de nova sessão pelo utilizador
     @PostMapping("/menu/createEvent")
-    public ResponseEntity<?> createSessao(@ModelAttribute @Valid SessionRegisterRequest request, MultipartFile foto) throws SessionExistException, MessagingException, EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
+    public ResponseEntity<?> createSessao(@ModelAttribute @Valid SessionRegisterRequest request, MultipartFile foto) throws Exception, NotAnImageFileException {
         sessionRegisterService.createSessao(request,foto);
         return response(OK,NEW_SESSION);
     }
@@ -220,7 +223,7 @@ public class profileController extends ExceptionHandling {
     }
     // Obtenção de lista de amigos do utilizador
     @GetMapping("/menu/friendList/{username}")
-    public ResponseEntity<List<Profile>> getFriendList(@PathVariable("username")String username){
+    public ResponseEntity<List<Profile>> getFriendList(@PathVariable("username")String username) throws Exception {
         List<Profile> perfis = perfilService.getFriends(username);
         return new ResponseEntity<>(perfis,OK);
     }
@@ -233,14 +236,14 @@ public class profileController extends ExceptionHandling {
 
     // Envio de pedido de amizade para um novo utilizador
     @PostMapping("/menu/perfis")
-    public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws RequestFriendException, MessagingException {
+    public ResponseEntity<?> addFriend(@ModelAttribute SendFriendRequest friendRequestR) throws Exception {
         sendFriendService.sendFriendRequest(friendRequestR);
             return response(OK,FRIEND_REQUEST);
     }
 
     // Alteração de dados do utilizador
     @PutMapping("/menu/alterardados")
-    public ResponseEntity<?> updateUser(@RequestParam String username,@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam(required = false) MultipartFile foto) throws EmailExistException, MessagingException, PhoneExistException, UsernameExistException, IOException, NotAImageFileException, NotAnImageFileException, UserNotFoundException, EmailNotFoundException {
+    public ResponseEntity<?> updateUser(@RequestParam String username,@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam(required = false) MultipartFile foto) throws Exception, NotAnImageFileException {
         updateService.update(username,updateRequest, foto);
         return response(OK,UPDATED_PERFIL);
     }
@@ -272,7 +275,7 @@ public class profileController extends ExceptionHandling {
     }
     // Confirmação de adição de novo utilizador à lista de amigos
     @GetMapping("/menu/notifications/{id}/{token}")
-    public ResponseEntity<?> acceptFriendRequest(@PathVariable("id") Long id,@PathVariable("token") String token){
+    public ResponseEntity<?> acceptFriendRequest(@PathVariable("id") Long id,@PathVariable("token") String token) throws Exception {
             perfilService.acceptFriendRequest(id,token);
         return response(OK,ACCEPTED_FRIEND_REQUEST);
     }

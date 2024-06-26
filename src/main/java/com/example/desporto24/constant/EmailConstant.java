@@ -1,6 +1,9 @@
 package com.example.desporto24.constant;
 
+import org.springframework.beans.factory.annotation.Value;
+
 public class EmailConstant {
+
     public static final String SIMPLE_MAIL_TRANSFER_PROTOCOL = "smtps";
     public static final String USERNAME = "desporto24app@gmail.com";
     public static final String PASSWORD = "gzsgsswnprhendpp";

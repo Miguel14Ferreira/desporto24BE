@@ -51,6 +51,7 @@ public class LoginAttemptService {
         try {
             if (username.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
                 username.setNotLocked(false);
+                profileRepository.save(username);
                 throw new AccountDisabledException(ACCOUNT_DISABLED);
             } else if (!username.getEnabled()) {
                 throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);

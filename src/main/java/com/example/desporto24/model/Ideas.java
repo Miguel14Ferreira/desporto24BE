@@ -29,5 +29,14 @@ public class Ideas {
     private String gender;
     private String subject;
     private String problem;
+
+    public Ideas(String name, String email, String city, String gender, String subject, String problem) {
+        this.name = name;
+        this.email = email;
+        this.city = city;
+        this.gender = gender;
+        this.subject = subject;
+        this.problem = problem;
+    }
 }
 

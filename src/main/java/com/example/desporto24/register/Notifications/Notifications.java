@@ -21,7 +21,7 @@ public class Notifications {
     private Long id;
     @Column(nullable = false)
     private String assunto;
-    @Column(nullable = false,columnDefinition = "longtext")
+    @Column(nullable = false,columnDefinition = "text")
     private String mensagem;
     @Column(nullable = false)
     private String cumprimentos;
