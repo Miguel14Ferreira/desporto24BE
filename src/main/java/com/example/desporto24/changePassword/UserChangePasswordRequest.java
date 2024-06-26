@@ -6,6 +6,7 @@ import lombok.*;
 @Setter
 @Getter
 @AllArgsConstructor
+@NoArgsConstructor
 @EqualsAndHashCode
 @ToString
 public class UserChangePasswordRequest {
@@ -13,4 +14,11 @@ public class UserChangePasswordRequest {
     private String newUsername;
     private String email;
     private String password;
+
+    public UserChangePasswordRequest(String username, String password) {
+        this.username = username;
+        this.password = password;
     }
+}
+
+

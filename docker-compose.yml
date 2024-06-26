@@ -1,11 +1,11 @@
 services:
   desporto24app:
-    container_name: desporto24container
+    container_name: desporto24becontainer
     build:
       context: .
       args:
         CONTAINER_PORT: ${CONTAINER_PORT}
-    image: desporto24:v1
+    image: desporto24be:v1
     restart: unless-stopped
     env_file:
       - ${ENV_FILE}

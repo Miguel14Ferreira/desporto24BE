@@ -177,10 +177,10 @@ public class profileController extends ExceptionHandling {
 
     // Definição de nova password por email, este passo recebe o username e nova password
     @PutMapping("/login/resetPassword/{token}/{username}")
-    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody UserChangePasswordRequest userChangePasswordRequest) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException, UserNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
-        userChangePasswordRequest.setUsername(username);
+    public ResponseEntity<?> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException, UserNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
+        UserChangePasswordRequest userChangePasswordRequest = new UserChangePasswordRequest(username,password);
         changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
-        return new ResponseEntity<>(OK);
+        return response(OK,FORGET_PASSWORD2);
     }
 
     @PutMapping("/confirmEmergencyToken/resetPassword/{token}/{email}")
