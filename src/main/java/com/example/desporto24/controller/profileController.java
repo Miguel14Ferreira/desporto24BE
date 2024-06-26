@@ -74,7 +74,7 @@ public class profileController extends ExceptionHandling {
     private final LoginAttemptService loginAttemptService;
     private final SendFriendService sendFriendService;
     private final ChatService chatService;
-    private Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
+    private final Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
 
 
     // Autenticação de utilizador
