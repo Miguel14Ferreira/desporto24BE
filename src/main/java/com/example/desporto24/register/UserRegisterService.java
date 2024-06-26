@@ -21,7 +21,7 @@ public class UserRegisterService {
     private final BCryptPasswordEncoder passwordEncoder;
 
     // Obtenção de dados do novo utilizador
-    public Profile register(UserRegisterRequest request, MultipartFile foto) throws EmailExistException, PhoneExistException, UsernameExistException, IOException, NotAnImageFileException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
+    public Profile register(UserRegisterRequest request, MultipartFile foto) throws Exception, NotAnImageFileException {
         Profile profile = pService.signUpPerfil(
                 new Profile(
                         request.getUsername(),

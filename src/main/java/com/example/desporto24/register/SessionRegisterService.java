@@ -20,7 +20,7 @@ public class SessionRegisterService {
     private final ProjectServiceImpl sessaoService;
 
     // Obtenção dos dados para criação de nova sessão do utilizador
-    public Session createSessao(SessionRegisterRequest request, MultipartFile foto) throws SessionExistException, jakarta.mail.MessagingException, EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException {
+    public Session createSessao(SessionRegisterRequest request, MultipartFile foto) throws Exception, NotAnImageFileException {
         Session session = sessaoService.createSessao(
                 new Session(
                         request.getUsername(),

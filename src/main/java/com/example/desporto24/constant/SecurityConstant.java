@@ -13,5 +13,6 @@ public class SecurityConstant {
     public static final String OPTIONS_HTTP_METHOD = "OPTIONS";
     //public static final String[] PUBLIC_URLS = { "/login", "/login/resetPassword/**" , "/login/registerNewUser","/login/**", "/cancelNewSessionToken/**" ,"/login/registerNewUser/**", "/emergencyToken/**" };
     public static final String[] PUBLIC_URLS = { "/**" };
+    public static final String KEY="4elxod";
 
 }
