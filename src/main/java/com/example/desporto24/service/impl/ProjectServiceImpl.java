@@ -169,11 +169,56 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
         // Verificação para que um novo utilizador não tenha o mesmo nome, telemóvel ou email de outro utilizador
-    public Profile validateNewUsernameEmailAndPhone(String currentUsername, String newUsername, String email, String phone) throws UsernameExistException, EmailExistException, PhoneExistException, EmailNotFoundException, UserNotFoundException {
+//    public Profile validateNewUsernameEmailAndPhone(String currentUsername, String newUsername, String email, String phone) throws UsernameExistException, EmailExistException, PhoneExistException, EmailNotFoundException, UserNotFoundException {
+//        try {
+//            Profile userByNewUsername = findUserByUsername(newUsername);
+//            Profile userByNewEmail = findUserByEmail(email);
+//            Profile userByNewPhone = findUserByPhone(phone);
+//            if (isNotBlank(currentUsername)) {
+//                Profile currentUser = findUserByUsername(currentUsername);
+//                if (currentUser == null) {
+//                    throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + " " + currentUsername);
+//                }
+//                if (userByNewUsername != null && !currentUser.getId().equals(userByNewUsername.getId())) {
+//                    throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+//                }
+//                if (userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
+//                    throw new EmailExistException(EMAIL_ALREADY_EXIST);
+//                }
+//                if (userByNewPhone != null && !currentUser.getId().equals(userByNewPhone.getId())) {
+//                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+//                }
+//                return currentUser;
+//            } else {
+//                if (userByNewUsername != null) {
+//                    throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+//                }
+//                if (userByNewEmail != null) {
+//                    throw new EmailExistException(EMAIL_ALREADY_EXIST);
+//                }
+//                if (userByNewPhone != null) {
+//                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+//                }
+//                return null;
+//            }
+//        } catch (UserNotFoundException e){
+//            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
+//        } catch (UsernameExistException e){
+//        throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+//    }catch (EmailExistException e){
+//            throw new EmailExistException(EMAIL_ALREADY_EXIST);
+//        }catch (PhoneExistException e){
+//            throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+//} catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    // Verificação para que um novo utilizador não tenha o mesmo nome ou email de outro utilizador
+    public Profile validateNewUsernameEmail(String currentUsername, String newUsername, String email) throws UsernameExistException, EmailExistException, UserNotFoundException {
         try {
             Profile userByNewUsername = findUserByUsername(newUsername);
             Profile userByNewEmail = findUserByEmail(email);
-            Profile userByNewPhone = findUserByPhone(phone);
             if (isNotBlank(currentUsername)) {
                 Profile currentUser = findUserByUsername(currentUsername);
                 if (currentUser == null) {
@@ -185,9 +230,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 if (userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
                     throw new EmailExistException(EMAIL_ALREADY_EXIST);
                 }
-                if (userByNewPhone != null && !currentUser.getId().equals(userByNewPhone.getId())) {
-                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                }
                 return currentUser;
             } else {
                 if (userByNewUsername != null) {
@@ -196,24 +238,18 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 if (userByNewEmail != null) {
                     throw new EmailExistException(EMAIL_ALREADY_EXIST);
                 }
-                if (userByNewPhone != null) {
-                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                }
                 return null;
             }
         } catch (UserNotFoundException e){
             throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
         } catch (UsernameExistException e){
-        throw new UsernameExistException(USERNAME_ALREADY_EXIST);
-    }catch (EmailExistException e){
+            throw new UsernameExistException(USERNAME_ALREADY_EXIST);
+        }catch (EmailExistException e){
             throw new EmailExistException(EMAIL_ALREADY_EXIST);
-        }catch (PhoneExistException e){
-            throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-} catch (Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
-
         private String buildEmergencyResetPasswordMail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -352,7 +388,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // novo registo pelo utilizador e definição de alguns parametros para a classe perfil
     public Profile signUpPerfil(Profile profile, MultipartFile foto) throws NotAnImageFileException, Exception {
-        validateNewUsernameEmailAndPhone(EMPTY, profile.getUsername(), profile.getEmail(), profile.getPhone());
+        validateNewUsernameEmail(EMPTY, profile.getUsername(), profile.getEmail());
         String encodedPassword = passwordEncoder.encode(profile.getPassword());
         profile.setPassword(encodedPassword);
 
@@ -475,11 +511,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public Profile updateUser(String username, Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException {
         Profile p = findUserByUsername(username);
         if (p.getEmail().equals(profile.getEmail())) {
-            validateNewUsernameEmailAndPhone(username, null, null, profile.getPhone());
+            validateNewUsernameEmail(username, null, null);
         } if (p.getPhone().equals(profile.getPhone())){
-            validateNewUsernameEmailAndPhone(username,null, profile.getEmail(),null);
+            validateNewUsernameEmail(username,null, profile.getEmail());
         } else {
-            validateNewUsernameEmailAndPhone(username,null, profile.getEmail(), profile.getPhone());
+            validateNewUsernameEmail(username,null, profile.getEmail());
         }
         p.setOldEmail(p.getEmail());
         p.setFullName(profile.getFullName());
@@ -586,8 +622,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // Alteração do nome e da password
     @Override
-    public Profile changeUsernameAndPassword(Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, EmailNotFoundException, UserNotFoundException {
-        Profile p = validateNewUsernameEmailAndPhone(profile.getUsername(), profile.getNewUsername(), null, null);
+    public Profile changeUsernameAndPassword(Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException {
+        Profile p = validateNewUsernameEmail(profile.getUsername(), profile.getNewUsername(), null);
         if (p == null) {
             throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + profile.getUsername());
         }
