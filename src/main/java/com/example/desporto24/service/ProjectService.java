@@ -69,7 +69,7 @@ public interface ProjectService{
 
     void deleteNotification(Long id);
 
-    String sendVerificationCode(Profile profile);
+    String sendVerificationCode(Profile profile) throws Exception;
 
     Ideas newIdea(Ideas i) throws MessagingException;
 

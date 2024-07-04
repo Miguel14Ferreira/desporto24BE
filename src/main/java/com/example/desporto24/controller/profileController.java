@@ -80,35 +80,58 @@ public class profileController extends ExceptionHandling {
 
     // Autenticação de utilizador
         @PostMapping("/login")
-        public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws UserNotFoundException, UsernameExistException, EmailNotVerifiedException, EmailExistException, MessagingException, PhoneExistException, IOException, NotAnImageFileException, AccountDisabledException, IllegalBlockSizeException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
-            Profile p = authenticate(loginRequest.getUsername(), loginRequest.getPassword());
+        public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws Exception, NotAnImageFileException {
+            Profile p = authenticate1(loginRequest.getUsername(), loginRequest.getPassword());
             ProfilePrincipal profilePrincipal = new ProfilePrincipal(p);
             HttpHeaders jwtHeader = getJwtHeader(profilePrincipal);
             return new ResponseEntity<>(p, jwtHeader, OK);
             }
 
-    private Profile authenticate(String username, String password) throws EmailNotVerifiedException, AccountDisabledException, UserNotFoundException {
-        try {
+    //private Profile authenticate(String username, String password) throws EmailNotVerifiedException, AccountDisabledException, UserNotFoundException {
+    //    try {
+    //        Profile p = profileRepository.findUserByUsername(username);
+    //        if (null == p) {
+    //            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
+    //        } else {
+    //            loginAttemptService.hasExceededMaxAttempts(p);
+    //            loginAttemptService.addUserToLoginAttemptCache(p);
+    //            Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
+    //            Profile logged = getLoggedInUser(authentication);
+    //            if (!logged.getMFA()) {
+    //                loginAttemptService.evictUserFromLoginAttemptCache(p);
+    //            } else {
+    //                perfilService.sendVerificationCode(p);
+    //                loginAttemptService.evictUserFromLoginAttemptCache(p);
+    //            }
+    //            return logged;
+    //        }
+    //        }catch(UserNotFoundException e){
+    //        throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
+    //    }
+    //}
+
+    private Profile authenticate1(String username, String password) throws Exception {
             Profile p = profileRepository.findUserByUsername(username);
             if (null == p) {
                 throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
             } else {
-                loginAttemptService.hasExceededMaxAttempts(p);
-                loginAttemptService.addUserToLoginAttemptCache(p);
-                Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
-                Profile logged = getLoggedInUser(authentication);
-                if (!logged.getMFA()) {
-                    loginAttemptService.evictUserFromLoginAttemptCache(p);
-                } else {
-                    perfilService.sendVerificationCode(p);
-                    loginAttemptService.evictUserFromLoginAttemptCache(p);
-                }
+                Authentication authentication = null;
+                Profile logged = null;
+                if (!p.getMFA()) {
+                        loginAttemptService.hasExceededMaxAttempts(p);
+                        loginAttemptService.addUserToLoginAttemptCache(p);
+                        authentication = authenticationManager.authenticate(unauthenticated(username, password));
+                        logged = getLoggedInUser(authentication);
+                        loginAttemptService.evictUserFromLoginAttemptCache(p);
+                    } else {
+                        authentication = authenticationManager.authenticate(unauthenticated(username, password));
+                        logged = getLoggedInUser(authentication);
+                        perfilService.sendVerificationCode(p);
+                    }
                 return logged;
-            }
-            }catch(UserNotFoundException e){
-            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
-        }
+                }
     }
+
 
     @PostMapping("menu/terminarSessao")
     public ResponseEntity<?> terminarSessao(@RequestBody Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, MessagingException, PhoneExistException, UsernameExistException, EmailNotVerifiedException, EmailNotFoundException {
@@ -141,7 +164,7 @@ public class profileController extends ExceptionHandling {
 
     //Reenvio do SMS para o utilizador
     @GetMapping(path = "/login/MFAauthentication/{username}")
-    public ResponseEntity<?> resendToken(@PathVariable("username")String username) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException {
+    public ResponseEntity<?> resendToken(@PathVariable("username")String username) throws Exception, NotAnImageFileException {
         Profile profile = profileRepository.findUserByUsername(username);
         perfilService.sendVerificationCode(profile);
         return response(OK,SMS_MFA);
