@@ -112,22 +112,23 @@ public class profileController extends ExceptionHandling {
 
     private Profile authenticate1(String username, String password) throws Exception {
             Profile p = profileRepository.findUserByUsername(username);
+            //Se o perfil não existe na BD
             if (null == p) {
                 throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + username);
+
+            //Se o perfil existe na BD
             } else {
-                Authentication authentication = null;
-                Profile logged = null;
+                Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
+                Profile logged = getLoggedInUser(authentication);
+                //Se o Utilizador não tem MFA ativo
                 if (!p.getMFA()) {
                         loginAttemptService.hasExceededMaxAttempts(p);
                         loginAttemptService.addUserToLoginAttemptCache(p);
-                        authentication = authenticationManager.authenticate(unauthenticated(username, password));
-                        logged = getLoggedInUser(authentication);
                         loginAttemptService.evictUserFromLoginAttemptCache(p);
-                    } else {
-                        authentication = authenticationManager.authenticate(unauthenticated(username, password));
-                        logged = getLoggedInUser(authentication);
-                        perfilService.sendVerificationCode(p);
-                    }
+                //Se o perfil tem MFA ativo
+                } else {
+                    perfilService.sendVerificationCode(p);
+                }
                 return logged;
                 }
     }
@@ -158,7 +159,7 @@ public class profileController extends ExceptionHandling {
     // MFA autenticação
     @PostMapping(path = "/login/MFAauthentication/{username}")
     public ResponseEntity<?> confirmMFAToken(@RequestBody String mfaCode) throws EmailExistException, MessagingException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, NotAImageFileException, NotFoundException, SMSAlreadyConfirmedException, SMSExpiredException, SMSNotFoundException {
-        perfilService.confirmCode(mfaCode);
+        perfilService.confirmCode(mfaCode.toUpperCase());
         return new ResponseEntity<>(OK);
     }
 
