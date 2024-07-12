@@ -389,15 +389,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     @Override
     public Profile findUserByUsername(String username) throws Exception {
         Profile p = profileRepository.findUserByUsername(username);
-
-
-//        if (p != null && p.getEnabled()){
-//            System.out.println(p.getPhone());
-//            p.setPhone(decryptString(p.getPhone(), p.getUserId()));
-//            System.out.println(p.getPhone());
-//            p.setAddress(decryptString(p.getAddress(), p.getUserId()));
-//        }
-
         return p;
     }
 
@@ -776,7 +767,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public String confirmCode(String code) throws SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException {
         try {
             MFAVerification mfaVerification = MFAverificationService
-                    .getCode(code)
+                    .getCode(code.toUpperCase())
                     .orElseThrow(() ->
                             new SMSNotFoundException(SMS_FAIL));
             if (mfaVerification.getConfirmedAt() != null) {
