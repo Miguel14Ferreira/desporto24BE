@@ -22,6 +22,8 @@ public interface ProjectService{
 
     void acceptFriendRequest(Long id,String token) throws Exception;
 
+    void blockFriend(String firstProfile, String secondPerfil);
+
     Profile disablePerfil(String email) throws EmailNotFoundException;
 
     Profile enablePerfil(String email) throws EmailNotFoundException;

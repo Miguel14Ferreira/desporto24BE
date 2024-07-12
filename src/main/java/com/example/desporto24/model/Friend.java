@@ -30,4 +30,8 @@ public class Friend {
     @ManyToOne
     @JoinColumn(nullable = false,name = "perfil2")
     private Profile profile2;
+
+    private boolean chatBlocked;
+
+    private String whoBlocked;
 }

@@ -27,11 +27,13 @@ public class UserImplConstant {
     public static final String UPDATED_PERFIL = "A tua informação de perfil foi atualizada com sucesso";
     public static final String NEW_IDEA = "Muito obrigado pela tua sugestão, foi-te enviado um mail com mais informação";
     public static final String DISABLED_PERFIL = "A tua conta está agora bloqueada. Foi enviado um novo mail para o teu email, pedimos que sigas atentamente as instruções para os próximos passos";
-    public static final String DELETED_NOTIFICATION = "Esta notificação foi eliminada";
+    public static final String DELETED_NOTIFICATION = "Esta notificação foi eliminada, Podes fechar a janela da notificação";
     public static final String ACCEPTED_FRIEND_REQUEST = "Tens um novo amigo na tua lista de amigos";
     public static final String NULL_RESULTS = "Não há resultados nesta pesquisa";
     public static final String INVALID_URL = "Este path é invalido, por favor tenta novamente";
     public static final String CONFIRMED_TOKEN = "A confirmação de email foi efetuada com sucesso, podes agora aceder à tua conta clicando no botão abaixo";
     public static final String SESSION_CONFIRMED_TOKEN = "A confirmação de email foi efetuada com sucesso, a tua sessão está agora ativada";
     public static final String EMAIL_ERROR = "Ocorreu um erro no envio do email, por favor tenta novamente";
+    public static final String CHAT_BLOCKED = "Este chat está bloqueado";
+    public static final String BLOCKED = "A partir deste momento o chat está bloqueado";
 }

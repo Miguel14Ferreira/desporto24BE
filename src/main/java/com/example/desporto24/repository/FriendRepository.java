@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface FriendRepository extends JpaRepository<Friend, Integer> {
 
-    boolean existsByProfile1AndProfile2(Profile p1, Profile p2);
+    Friend findByProfile1AndProfile2(Profile p1, Profile p2);
     List<Friend> findByProfile1(Profile p);
     List<Friend> findByProfile2(Profile p);
 }

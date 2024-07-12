@@ -45,7 +45,6 @@ import java.util.*;
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
 import static com.example.desporto24.constant.UserImplConstant.*;
-import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.enumeration.Role.ROLE_USER;
 import static com.example.desporto24.model.Status.OFFLINE;
 import static com.example.desporto24.model.Status.ONLINE;
@@ -167,52 +166,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
         }
     }
-
-        // Verificação para que um novo utilizador não tenha o mesmo nome, telemóvel ou email de outro utilizador
-//    public Profile validateNewUsernameEmailAndPhone(String currentUsername, String newUsername, String email, String phone) throws UsernameExistException, EmailExistException, PhoneExistException, EmailNotFoundException, UserNotFoundException {
-//        try {
-//            Profile userByNewUsername = findUserByUsername(newUsername);
-//            Profile userByNewEmail = findUserByEmail(email);
-//            Profile userByNewPhone = findUserByPhone(phone);
-//            if (isNotBlank(currentUsername)) {
-//                Profile currentUser = findUserByUsername(currentUsername);
-//                if (currentUser == null) {
-//                    throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME + " " + currentUsername);
-//                }
-//                if (userByNewUsername != null && !currentUser.getId().equals(userByNewUsername.getId())) {
-//                    throw new UsernameExistException(USERNAME_ALREADY_EXIST);
-//                }
-//                if (userByNewEmail != null && !currentUser.getId().equals(userByNewEmail.getId())) {
-//                    throw new EmailExistException(EMAIL_ALREADY_EXIST);
-//                }
-//                if (userByNewPhone != null && !currentUser.getId().equals(userByNewPhone.getId())) {
-//                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-//                }
-//                return currentUser;
-//            } else {
-//                if (userByNewUsername != null) {
-//                    throw new UsernameExistException(USERNAME_ALREADY_EXIST);
-//                }
-//                if (userByNewEmail != null) {
-//                    throw new EmailExistException(EMAIL_ALREADY_EXIST);
-//                }
-//                if (userByNewPhone != null) {
-//                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-//                }
-//                return null;
-//            }
-//        } catch (UserNotFoundException e){
-//            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
-//        } catch (UsernameExistException e){
-//        throw new UsernameExistException(USERNAME_ALREADY_EXIST);
-//    }catch (EmailExistException e){
-//            throw new EmailExistException(EMAIL_ALREADY_EXIST);
-//        }catch (PhoneExistException e){
-//            throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-//} catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
     // Verificação para que um novo utilizador não tenha o mesmo nome ou email de outro utilizador
     public Profile validateNewUsernameEmail(String currentUsername, String newUsername, String email) throws UsernameExistException, EmailExistException, UserNotFoundException {
@@ -392,7 +345,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String encodedPassword = passwordEncoder.encode(profile.getPassword());
         profile.setPassword(encodedPassword);
 
-        //myEncoder(profile.getPhone(), profile.getUserId());
         profile.setUserId(generateUserId());
 
         String encodedPhone = AES.encryptString(profile.getPhone(), profile.getUserId());
@@ -475,6 +427,12 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     @Override
     public Chat EnviarMensagem(Chat chat) throws Exception {
+        Profile profile1 = profileRepository.findUserByUsername(chat.getUsername1());
+        Profile profile2 = profileRepository.findUserByUsername(chat.getUsername2());
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        if (friend.isChatBlocked()){
+            throw new ChatBlockedException(CHAT_BLOCKED);
+        }
         Date date = new Date();
         String data = substring(String.valueOf(date),3,10);
         String data2 = substring(String.valueOf(date),24,29);
@@ -1257,17 +1215,28 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         friendRequestService.saveFriendRequest(confirmToken);
         Profile profile1 = findUserByUsername(confirmToken.getPerfil1());
         Profile profile2 = findUserByUsername(confirmToken.getPerfil2());
-        Friend friend = new Friend();
         Profile user1 = profile1;
         Profile user2 = profile2;
         if (profile1.getId() > profile2.getId()){
             profile1 = user2;
             profile2 = user1;
         }
-        if (!(friendRepository.existsByProfile1AndProfile2(profile1, profile2))){
+            Friend friend = new Friend();
             friend.setCreatedAt(new Date());
             friend.setProfile1(profile1);
             friend.setProfile2(profile2);
+            friend.setChatBlocked(false);
+            friendRepository.save(friend);
+    }
+
+    @Override
+    public void blockFriend(String firstProfile, String secondPerfil) {
+        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
+        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        if(friend != null){
+            friend.setChatBlocked(true);
+            friend.setWhoBlocked(profile1.getUsername());
             friendRepository.save(friend);
         }
     }
@@ -1292,7 +1261,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws Exception {
         Profile p1 = findUserByUsername(friendRequest.getUsername1());
         Profile p2 = findUserByUsername(friendRequest.getUsername2());
-        if(!(friendRepository.existsByProfile1AndProfile2(p1,p2))){
+        Friend friend = friendRepository.findByProfile1AndProfile2(p1,p2);
+        if(friend == null) {
             String token = UUID.randomUUID().toString();
             Date date = new Date();
             String data = substring(String.valueOf(date),3,10);
