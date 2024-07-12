@@ -24,6 +24,8 @@ public interface ProjectService{
 
     void blockFriend(String firstProfile, String secondPerfil);
 
+    Friend getChatInfo(String firstUsername, String secondUsername);
+
     Profile disablePerfil(String email) throws EmailNotFoundException;
 
     Profile enablePerfil(String email) throws EmailNotFoundException;
@@ -81,7 +83,7 @@ public interface ProjectService{
 
     Profile resetPassword1(Profile profile) throws Exception;
 
-    Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException;
+    Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException;
 
     String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 

@@ -51,6 +51,11 @@ public class ExceptionHandling {
         return createHttpResponse(BAD_REQUEST,INCORRECT_CREDENTIALS);
     }
 
+    @ExceptionHandler(ChatBlockedException.class)
+    public ResponseEntity<HttpResponse> blockedChatException(){
+        return createHttpResponse(UNAUTHORIZED,CHAT_BLOCKED);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<HttpResponse> accessDeniedException(){
         return createHttpResponse(FORBIDDEN,NOT_ENOUGH_PERMISSION);

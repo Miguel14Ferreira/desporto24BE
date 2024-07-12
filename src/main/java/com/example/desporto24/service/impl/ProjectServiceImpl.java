@@ -419,19 +419,23 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     @Override
     public Chat EnviarMensagem(Chat chat) throws Exception {
-        Profile profile1 = profileRepository.findUserByUsername(chat.getUsername1());
-        Profile profile2 = profileRepository.findUserByUsername(chat.getUsername2());
-        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
-        if (friend.isChatBlocked()){
+        try {
+            Profile profile1 = profileRepository.findUserByUsername(chat.getUsername1());
+            Profile profile2 = profileRepository.findUserByUsername(chat.getUsername2());
+            Friend friend = friendRepository.findByProfile1AndProfile2(profile1, profile2);
+            if (friend.isChatBlocked()) {
+                throw new ChatBlockedException(CHAT_BLOCKED);
+            }
+            Date date = new Date();
+            String data = substring(String.valueOf(date), 3, 10);
+            String data2 = substring(String.valueOf(date), 24, 29);
+            String data3 = data2 + data;
+            chat = new Chat(chat.getUsername1(), chat.getUsername2(), chat.getText(), data3, date);
+            chatRepository.save(chat);
+            return chat;
+        } catch (ChatBlockedException e){
             throw new ChatBlockedException(CHAT_BLOCKED);
         }
-        Date date = new Date();
-        String data = substring(String.valueOf(date),3,10);
-        String data2 = substring(String.valueOf(date),24,29);
-        String data3 = data2+data;
-        chat = new Chat(chat.getUsername1(),chat.getUsername2(),chat.getText(),data3,date);
-        chatRepository.save(chat);
-        return chat;
     }
 
     @Override
@@ -964,7 +968,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
         // Guarda a nova password no perfil, através do email
-    public Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException {
+    public Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException {
         try {
             ConfirmationToken confirmToken = confirmationTokenService
                     .getToken(token)
@@ -995,7 +999,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         } catch (TokenExpiredException e) {
             throw new TokenExpiredException(TOKEN_EXPIRED);
         } catch (AccountDisabledException e) {
-            throw new RuntimeException(e);
+            throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
     }
 
@@ -1231,6 +1235,14 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             friend.setWhoBlocked(profile1.getUsername());
             friendRepository.save(friend);
         }
+    }
+
+    @Override
+    public Friend getChatInfo(String firstUsername, String secondUsername) {
+        Profile p1 = profileRepository.findUserByUsername(firstUsername);
+        Profile p2 = profileRepository.findUserByUsername(secondUsername);
+        Friend f = friendRepository.findByProfile1AndProfile2(p1,p2);
+        return f;
     }
 
     // Listar amigos

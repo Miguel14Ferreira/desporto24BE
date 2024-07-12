@@ -69,7 +69,7 @@ public class profileController extends ExceptionHandling {
 
     // Autenticação de utilizador
         @PostMapping("/login")
-        public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) throws Exception, NotAnImageFileException {
+        public ResponseEntity login(@RequestBody LoginRequest loginRequest) throws Exception, NotAnImageFileException {
             Profile p = authenticate(loginRequest.getUsername(), loginRequest.getPassword());
             ProfilePrincipal profilePrincipal = new ProfilePrincipal(p);
             HttpHeaders jwtHeader = getJwtHeader(profilePrincipal);
@@ -100,7 +100,7 @@ public class profileController extends ExceptionHandling {
 
 
     @PostMapping("menu/terminarSessao")
-    public ResponseEntity<HttpResponse> terminarSessao(@RequestBody Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, MessagingException, PhoneExistException, UsernameExistException, EmailNotVerifiedException, EmailNotFoundException {
+    public ResponseEntity<HttpResponse> terminarSessao(@RequestBody Profile profile) throws EmailNotFoundException {
             perfilService.terminarSessao(profile);
             return new ResponseEntity<>(OK);
     }
@@ -164,9 +164,15 @@ public class profileController extends ExceptionHandling {
         return response(OK,FORGET_PASSWORD);
     }
 
+    @GetMapping("menu/getInfoChat/{senderId}/{recipientId}")
+    public ResponseEntity getChatInfo(@PathVariable("senderId") String sender,@PathVariable("recipientId")String recipient){
+            Friend f = perfilService.getChatInfo(sender,recipient);
+            return new ResponseEntity(f,OK);
+    }
+
     // Definição de nova password por email, este passo recebe o username e nova password
     @PutMapping("/login/resetPassword/{token}/{username}")
-    public ResponseEntity<HttpResponse> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException, UserNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException {
+    public ResponseEntity<HttpResponse> resetPassword2(@PathVariable("token") String token,@PathVariable("username") String username, @RequestBody String password) throws EmailExistException, PhoneExistException, IOException, UsernameExistException, NotAnImageFileException, jakarta.mail.MessagingException, EqualUsernameAndPasswordException, EmailNotFoundException, UserNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException, AccountDisabledException {
         UserChangePasswordRequest userChangePasswordRequest = new UserChangePasswordRequest(username,password);
         changePasswordService.alterarPasswordPorTokenStep2(userChangePasswordRequest,token);
         return response(OK,FORGET_PASSWORD2);
@@ -230,9 +236,9 @@ public class profileController extends ExceptionHandling {
         return response(OK,FRIEND_REQUEST);
     }
 
-    @PostMapping("/menu/friendList/blockFriend")
-    public ResponseEntity<HttpResponse> blockFriend(String firstProfile, String secondPerfil) {
-        perfilService.blockFriend(firstProfile,secondPerfil);
+    @PutMapping("/menu/friendList/blockFriend")
+    public ResponseEntity<HttpResponse> blockFriend(@ModelAttribute SendFriendRequest sendFriendRequest) {
+        perfilService.blockFriend(sendFriendRequest.getUsername1(),sendFriendRequest.getUsername2());
         return response(OK,BLOCKED);
     }
 
