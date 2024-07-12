@@ -45,6 +45,7 @@ import java.util.*;
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
 import static com.example.desporto24.constant.UserImplConstant.*;
+import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.enumeration.Role.ROLE_USER;
 import static com.example.desporto24.model.Status.OFFLINE;
 import static com.example.desporto24.model.Status.ONLINE;
@@ -519,11 +520,11 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // envio do SMS para o utilizador
     @Override
-    public String sendVerificationCode(Profile profile) {
+    public String sendVerificationCode(Profile profile) throws Exception {
         String code = randomAlphabetic(8).toUpperCase();
         MFAVerification mfaVerification = new MFAVerification(code, LocalDateTime.now(), LocalDateTime.now().plusMinutes(1), profile.getUsername());
         MFAverificationService.saveConfirmationMFA(mfaVerification);
-        sendSMS(profile.getIndicativePhone(), profile.getPhone(), "Desporto24APP \nCodigo de Verificação:\n" + code);
+        sendSMS(profile.getIndicativePhone(), decryptString(profile.getPhone(), profile.getUserId()), "Desporto24APP \nCodigo de Verificação:\n" + code);
         return code;
     }
 
@@ -1410,7 +1411,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
         }
     }
-    private Profile validateLoginAttempt3(Profile profile) {
+    private Profile validateLoginAttempt3(Profile profile) throws Exception {
         if (profile.getMFA().equals(true)) {
             sendVerificationCode(profile);
         } else {
