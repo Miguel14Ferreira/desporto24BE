@@ -36,4 +36,5 @@ public class UserImplConstant {
     public static final String EMAIL_ERROR = "Ocorreu um erro no envio do email, por favor tenta novamente";
     public static final String CHAT_BLOCKED = "Este chat está bloqueado";
     public static final String BLOCKED = "A partir deste momento o chat está bloqueado";
+    public static final String UNBLOCKED = "A partir deste momento o chat está desbloqueado";
 }

@@ -10,5 +10,5 @@ import lombok.*;
 public class ChatRequest {
     private String username1;
     private String username2;
-    private String texto;
+    private String text;
 }

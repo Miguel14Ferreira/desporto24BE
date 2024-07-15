@@ -23,6 +23,7 @@ public interface ProjectService{
     void acceptFriendRequest(Long id,String token) throws Exception;
 
     void blockFriend(String firstProfile, String secondPerfil);
+    void unblockFriend(String firstProfile, String secondPerfil);
 
     Friend getChatInfo(String firstUsername, String secondUsername);
 

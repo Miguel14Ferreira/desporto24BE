@@ -1238,11 +1238,22 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
+    public void unblockFriend(String firstProfile, String secondPerfil) {
+        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
+        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        if(friend != null){
+            friend.setChatBlocked(false);
+            friend.setWhoBlocked(null);
+            friendRepository.save(friend);
+        }
+    }
+
+    @Override
     public Friend getChatInfo(String firstUsername, String secondUsername) {
         Profile p1 = profileRepository.findUserByUsername(firstUsername);
         Profile p2 = profileRepository.findUserByUsername(secondUsername);
-        Friend f = friendRepository.findByProfile1AndProfile2(p1,p2);
-        return f;
+        return friendRepository.findByProfile1AndProfile2(p1,p2);
     }
 
     // Listar amigos

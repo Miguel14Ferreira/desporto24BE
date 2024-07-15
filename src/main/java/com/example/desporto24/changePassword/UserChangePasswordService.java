@@ -16,27 +16,24 @@ public class UserChangePasswordService {
     /* Obtenção de dados para a alteração de username e password ou apenas de username/password */
 
     public Profile alterarPassword(UserChangePasswordRequest changePassword) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException {
-        Profile p = perfilService.changeUsernameAndPassword(new Profile(
+        return perfilService.changeUsernameAndPassword(new Profile(
                 changePassword.getUsername(),
                 changePassword.getNewUsername(),
                 changePassword.getPassword()));
-        return p;
     }
 
     /* Obtenção de dados para a alteração de password por email, é pedido ao utilizador para colocar o email */
 
     public Profile alterarPasswordPorTokenStep1(UserChangePasswordRequest changePassword) throws EmailNotFoundException, EmailSendingException {
-        Profile p = perfilService.resetPassword1(new Profile(
+        return perfilService.resetPassword1(new Profile(
                 changePassword.getEmail()));
-        return p;
     }
 
     /* Obtenção de dados para a definição da nova password para o Utilizador */
 
     public Profile alterarPasswordPorTokenStep2(UserChangePasswordRequest changePassword, String token) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException, TokenExpiredException, AlreadyConfirmedTokenException, NotFoundException, AccountDisabledException {
-        Profile p = perfilService.resetPassword2(new Profile(
+        return perfilService.resetPassword2(new Profile(
                 changePassword.getUsername(),
                 changePassword.getPassword()),token);
-        return p;
     }
 }

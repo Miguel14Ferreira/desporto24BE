@@ -11,10 +11,9 @@ public class ChatService {
 
     private ProjectService perfilService;
     public Chat sendMsg(ChatRequest chatRequest) throws Exception {
-        Chat p = perfilService.EnviarMensagem(new Chat(
+        return perfilService.EnviarMensagem(new Chat(
                 chatRequest.getUsername1(),
                 chatRequest.getUsername2(),
-                chatRequest.getTexto()));
-        return p;
+                chatRequest.getText()));
     }
 }

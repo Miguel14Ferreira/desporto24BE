@@ -242,6 +242,12 @@ public class profileController extends ExceptionHandling {
         return response(OK,BLOCKED);
     }
 
+    @PutMapping("/menu/friendList/unblockFriend")
+    public ResponseEntity<HttpResponse> unblockFriend(@ModelAttribute SendFriendRequest sendFriendRequest) {
+        perfilService.unblockFriend(sendFriendRequest.getUsername1(),sendFriendRequest.getUsername2());
+        return response(OK,UNBLOCKED);
+    }
+
     // Alteração de dados do utilizador
     @PutMapping("/menu/alterardados")
     public ResponseEntity<HttpResponse> updateUser(@RequestParam String username,@ModelAttribute @Valid UserUpdateRequest updateRequest,@RequestParam(required = false) MultipartFile foto) throws Exception, NotAnImageFileException {
