@@ -23,6 +23,7 @@ public class Session {
     @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(nullable = false, updatable = false)
     private Long id;
+    private String userId;
     private String sport;
     private String username;
     private String players;

@@ -48,7 +48,7 @@ public class Profile implements Serializable {
     private String joinDateDisplay;
     private Date lastLoginDate;
     private Date joinDate;
-    private Status status;
+    private Status statusId;
     private String oldEmail;
 
     public Profile(String username, String password) {

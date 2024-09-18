@@ -2,7 +2,11 @@ package com.example.desporto24.service.impl;
 import com.example.desporto24.Chat.ChatRepository;
 import com.example.desporto24.encryption.AES;
 import com.example.desporto24.exception.domain.*;
+import com.example.desporto24.mapper.ProfileMapper;
+import com.example.desporto24.mapper.SessionMapper;
 import com.example.desporto24.model.*;
+import com.example.desporto24.model.dto.ProfileDTO;
+import com.example.desporto24.model.dto.SessionDTO;
 import com.example.desporto24.register.FriendRequest.FriendRequest;
 import com.example.desporto24.register.FriendRequest.FriendRequestService;
 import com.example.desporto24.register.MFA.MFAVerification;
@@ -46,11 +50,9 @@ import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.SessionImplConstant.SESSION_ALREADY_EXIST;
 import static com.example.desporto24.constant.UserImplConstant.*;
 import static com.example.desporto24.encryption.AES.decryptString;
-import static com.example.desporto24.enumeration.Role.ROLE_USER;
 import static com.example.desporto24.model.Status.OFFLINE;
 import static com.example.desporto24.model.Status.ONLINE;
 import static com.example.desporto24.utility.SmsUtils.sendSMS;
-import static java.lang.Boolean.*;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.StringUtils.*;
@@ -64,7 +66,7 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 @Qualifier("userDetailsService")
 public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
-    private Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
+    private final Logger LOGGER = LoggerFactory.getLogger(UserDetailsService.class);
     private ProfileRepository profileRepository;
     private BCryptPasswordEncoder passwordEncoder;
     private EmailService emailService;
@@ -72,17 +74,18 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     private final ConfirmationTokenRepository confirmationTokenRepository;
     private SessionRepository sessionRepository;
     private final MFAVerificationService MFAverificationService;
-    private final MFAVerificationRepository mfaVerificationRepository;
     private final IdeasRepository ideasRepository;
     private final FriendRepository friendRepository;
     private final FriendRequestService friendRequestService;
     private final NotificationsRepository notificationsRepository;
     private final ChatRepository chatRepository;
+    private final ProfileMapper profileMapper;
+    private final SessionMapper sessionMapper;
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
 
     @Autowired
-    public ProjectServiceImpl(ProfileRepository profileRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, ConfirmationTokenRepository confirmationTokenRepository1, SessionRepository sessionRepository, MFAVerificationService mfaVerificationService, MFAVerificationRepository mfaVerificationRepository, IdeasRepository ideasRepository, LoginAttemptService loginAttemptService, ConfirmationTokenRepository confirmationTokenRepository, FriendRepository friendRepository, FriendRequestService friendRequestService, NotificationsRepository notificationsRepository, ChatRepository chatRepository) {
+    public ProjectServiceImpl(ProfileRepository profileRepository, BCryptPasswordEncoder passwordEncoder, EmailService emailService, ConfirmationTokenService confirmationTokenService, ConfirmationTokenRepository confirmationTokenRepository1, SessionRepository sessionRepository, MFAVerificationService mfaVerificationService, IdeasRepository ideasRepository, FriendRepository friendRepository, FriendRequestService friendRequestService, NotificationsRepository notificationsRepository, ChatRepository chatRepository, ProfileMapper profileMapper, SessionMapper sessionMapper) {
         this.profileRepository = profileRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -90,12 +93,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         this.confirmationTokenRepository = confirmationTokenRepository1;
         this.sessionRepository = sessionRepository;
         this.MFAverificationService = mfaVerificationService;
-        this.mfaVerificationRepository = mfaVerificationRepository;
         this.ideasRepository = ideasRepository;
         this.friendRepository = friendRepository;
         this.friendRequestService = friendRequestService;
         this.notificationsRepository = notificationsRepository;
         this.chatRepository = chatRepository;
+        this.profileMapper = profileMapper;
+        this.sessionMapper = sessionMapper;
     }
 
 
@@ -130,10 +134,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     @Override
     public int deleteSessao(String email) {
         return 0;
-    }
-
-    public void evictUserFromLoginAttemptCache(Profile profile) {
-        profile.setLogginAttempts(0);
     }
 
     public void addUserToLoginAttemptCache(Profile profile) throws Exception {
@@ -336,42 +336,25 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // gerador de UserID
-    private String generateUserId() {
+    public String generateUserId() {
         return RandomStringUtils.randomNumeric(10);
     }
 
     // novo registo pelo utilizador e definição de alguns parametros para a classe perfil
-    public Profile signUpPerfil(Profile profile, MultipartFile foto) throws NotAnImageFileException, Exception {
-        validateNewUsernameEmail(EMPTY, profile.getUsername(), profile.getEmail());
-        String encodedPassword = passwordEncoder.encode(profile.getPassword());
-        profile.setPassword(encodedPassword);
-
-        profile.setUserId(generateUserId());
-
-        String encodedPhone = AES.encryptString(profile.getPhone(), profile.getUserId());
-        profile.setPhone(encodedPhone);
-
-        String encodedAddress  = AES.encryptString(profile.getAddress(), profile.getUserId());
-        profile.setAddress(encodedAddress);
-
-        profile.setOldEmail(profile.getEmail());
-
-
-        profile.setJoinDate(new Date());
-        Date date = new Date();
-        String data = substring(String.valueOf(date),3,10);
-        String data2 = substring(String.valueOf(date),24,29);
-        String data3 = data2+data;
-        profile.setJoinDateDisplay(data3);
-        profile.setEnabled(false);
-        profile.setNotLocked(true);
-        profile.setRole(ROLE_USER.name());
-        profile.setAuthorities(ROLE_USER.getAuthorities());
-        profile.setMFA(false);
-        profile.setLogginAttempts(0);
-        profile.setStatus(OFFLINE);
+    public Profile signUpPerfil(ProfileDTO profileDTO, MultipartFile foto) throws NotAnImageFileException, Exception {
+        validateNewUsernameEmail(EMPTY, profileDTO.getUsername(), profileDTO.getEmail());
+        Profile profile = profileMapper.toEntity(profileDTO);
         saveProfileImage(profile, foto);
         profileRepository.save(profile);
+        sendSignUpEmail(profile);
+        return profile;
+    }
+
+    private void sendSignUpEmail(Profile profile) throws MessagingException {
+        Date date = new Date();
+        String data = substring(String.valueOf(date), 3, 10);
+        String data2 = substring(String.valueOf(date), 24, 29);
+        String data3 = data2 + data;
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), profile.getUsername());
         confirmationTokenService.saveConfirmationToken(confirmationToken);
@@ -383,19 +366,17 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String assinatura = "DESPORTO24";
         Notifications notification = new Notifications(assuntoNotificaçãoBoasVindas,notificacaoBoasVindas,cumprimentoNotificacaoBoasVindas,assinatura,data3,false,false,false,true,token, profile.getUsername());
         notificationsRepository.save(notification);
-        return profile;
     }
 
+
     @Override
-    public Profile findUserByUsername(String username) throws Exception {
-        Profile p = profileRepository.findUserByUsername(username);
-        return p;
+    public Profile findUserByUsername(String username) {
+        return profileRepository.findUserByUsername(username);
     }
 
     @Override
     public Profile findUserByEmail(String email) throws EmailNotFoundException {
-            Profile p =  profileRepository.findUserByEmail(email);
-                return p;
+            return profileRepository.findUserByEmail(email);
     }
 
     @Override
@@ -439,10 +420,10 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Profile terminarSessao(Profile profile) throws EmailNotFoundException {
-        Profile p = findUserByEmail(profile.getEmail());
-        p.setStatus(OFFLINE);
-        return p;
+    public Profile terminarSessao(ProfileDTO profileDTO) throws EmailNotFoundException {
+        Profile profile = findUserByEmail(profileDTO.getEmail());
+        profile.setStatusId(OFFLINE);
+        return profile;
     }
 
     @Override
@@ -462,37 +443,30 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // Alteração de dados pelo utilizador
     @Override
-    public Profile updateUser(String username, Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException {
-        Profile p = findUserByUsername(username);
-        if (p.getEmail().equals(profile.getEmail())) {
+    public Profile updateUser(String username, ProfileDTO profileDTO, MultipartFile foto) throws Exception, NotAnImageFileException {
+        Profile profile = findUserByUsername(username);
+        if (profile.getEmail().equals(profileDTO.getEmail())) {
             validateNewUsernameEmail(username, null, null);
-        } if (p.getPhone().equals(profile.getPhone())){
-            validateNewUsernameEmail(username,null, profile.getEmail());
+        } if (profile.getPhone().equals(profileDTO.getPhone())){
+            validateNewUsernameEmail(username,null, profileDTO.getEmail());
         } else {
-            validateNewUsernameEmail(username,null, profile.getEmail());
+            validateNewUsernameEmail(username,null, profileDTO.getEmail());
         }
-        p.setOldEmail(p.getEmail());
-        p.setFullName(profile.getFullName());
-        p.setCountry(profile.getCountry());
-        p.setLocation(profile.getLocation());
-        String encodedPhone = AES.encryptString(profile.getPhone(), p.getUserId());
-        p.setPhone(encodedPhone);
-        String encodedAddress  = AES.encryptString(profile.getAddress(), p.getUserId());
-        p.setAddress(encodedAddress);
-        p.setGender(profile.getGender());
-        p.setEmail(profile.getEmail());
-        p.setDateOfBirth(profile.getDateOfBirth());
-        p.setPostalCode(profile.getPostalCode());
-        p.setMFA(profile.getMFA());
+        profile = profileMapper.toEntity(profileDTO);
         if (foto != null) {
-            saveProfileImage(p, foto);
+            saveProfileImage(profile, foto);
         }
-        profileRepository.save(p);
+        profileRepository.save(profile);
+        sendUpdateProfileEmail(profile);
+        return profile;
+    }
+
+    private void sendUpdateProfileEmail(Profile profile) throws MessagingException {
         String token = UUID.randomUUID().toString();
-        ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p.getUsername());
-        confirmationTokenService.saveConfirmationToken(emergencyToken);
-        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
-        emailService.send(p.getOldEmail(), buildChangePerfilEmail(p.getUsername(), link));
+        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), profile.getUsername());
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+profile.getUsername()).toUriString();
+        emailService.send(profile.getOldEmail(), buildChangePerfilEmail(profile.getUsername(), link));
         String assuntoNotificacaoAlteracaoDados = " Alteração de Dados de perfil";
         String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
         String cumprimentosNotificacao = "Cumprimentos,";
@@ -501,9 +475,8 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         String data = substring(String.valueOf(date),3,10);
         String data2 = substring(String.valueOf(date),24,29);
         String data3 = data2+data;
-        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,true,false,false,link,username);
+        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,true,false,false,link,profile.getUsername());
         notificationsRepository.save(notification);
-        return p;
     }
 
 
@@ -576,33 +549,19 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
     // Alteração do nome e da password
     @Override
-    public Profile changeUsernameAndPassword(Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException {
-        Profile p = validateNewUsernameEmail(profile.getUsername(), profile.getNewUsername(), null);
-        if (p == null) {
-            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + profile.getUsername());
+    public Profile changeUsernameAndPassword(ProfileDTO profileDTO) throws EqualUsernameAndPasswordException, EmailExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException {
+        Profile profile = validateNewUsernameEmail(profileDTO.getUsername(), profileDTO.getNewUsername(), null);
+        if (profile == null) {
+            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + profileDTO.getUsername());
         }
-        if (profile.getPassword().equals(p.getPassword()) && profile.getNewUsername().equals(p.getUsername())) {
+        if (profileDTO.getPassword().equals(profile.getPassword()) && profile.getNewUsername().equals(profile.getUsername())) {
             throw new EqualUsernameAndPasswordException(EQUAL_USERNAME_PASSWORD);
         } else {
-            String encodedPassword = passwordEncoder.encode(profile.getPassword());
-            p.setUsername(profile.getNewUsername());
-            p.setPassword(encodedPassword);
-            String token = UUID.randomUUID().toString();
-            ConfirmationToken emergencyToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), p.getUsername());
-            confirmationTokenService.saveConfirmationToken(emergencyToken);
-            String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+p.getUsername()).toUriString();
-            emailService.send(p.getEmail(), buildChangePerfilEmail(p.getUsername(), link));
-            String assuntoNotificacaoAlteracaoDados = " Alteração de Dados de perfil";
-            String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
-            String cumprimentosNotificacao = "Cumprimentos,";
-            String assinatura = "DESPORTO24";
-            Date date = new Date();
-            String data = substring(String.valueOf(date),3,10);
-            String data2 = substring(String.valueOf(date),24,29);
-            String data3 = data2+data;
-            Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,true,false,false,link,p.getUsername());
-            notificationsRepository.save(notification);
-            return p;
+            String encodedPassword = passwordEncoder.encode(profileDTO.getPassword());
+            profile.setUsername(profileDTO.getNewUsername());
+            profile.setPassword(encodedPassword);
+            sendUpdateProfileEmail(profile);
+            return profile;
         }
     }
 
@@ -735,7 +694,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     public String confirmEmergencyToken(String token,String username) throws EmailNotFoundException, MessagingException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException {
         try {
         Profile p = findUserByUsername(username);
-        p.setStatus(OFFLINE);
+        p.setStatusId(OFFLINE);
         profileRepository.save(p);
         ConfirmationToken confirmToken = confirmationTokenService
                 .getToken(token)
@@ -948,9 +907,9 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Envia um email para o utilizador conseguir efetuar o reset da password
-    public Profile resetPassword1(Profile profile) throws EmailNotFoundException, EmailSendingException {
+    public Profile resetPassword1(ProfileDTO profileDTO) throws EmailNotFoundException, EmailSendingException {
         try {
-            Profile p = findUserByEmail(profile.getEmail());
+            Profile p = findUserByEmail(profileDTO.getEmail());
             if (p == null){
                 throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
             }
@@ -959,7 +918,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             confirmationTokenService.saveConfirmationToken(confirmationToken);
             String link = fromCurrentContextPath().path("/login/resetPassword/" + token + "/" + p.getUsername()).toUriString();
             emailService.send(p.getEmail(), buildResetPasswordEmail(p.getUsername(), link));
-            return profile;
+            return p;
         } catch (EmailNotFoundException e) {
             throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
         } catch (MessagingException e) {
@@ -968,7 +927,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
         // Guarda a nova password no perfil, através do email
-    public Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException {
+    public Profile resetPassword2(ProfileDTO profileDTO, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException {
         try {
             ConfirmationToken confirmToken = confirmationTokenService
                     .getToken(token)
@@ -981,13 +940,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                 throw new TokenExpiredException(TOKEN_EXPIRED);
             }
             confirmationTokenService.setConfirmedAt(token);
-            Profile p = profileRepository.findUserByUsername(profile.getUsername());
+            Profile p = profileRepository.findUserByUsername(profileDTO.getUsername());
             if (p == null) {
                 throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME);
-            } else if (!p.getNotLocked()) {
+            } else if (Boolean.FALSE.equals(p.getNotLocked())) {
                 throw new AccountDisabledException(ACCOUNT_DISABLED);
             } else {
-                String encodedPassword = passwordEncoder.encode(profile.getPassword());
+                String encodedPassword = passwordEncoder.encode(profileDTO.getPassword());
                 p.setPassword(encodedPassword);
                 profileRepository.save(p);
                 return p;
@@ -1250,6 +1209,14 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
+    public void removeFriend(String firstProfile, String secondPerfil) {
+        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
+        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        friendRepository.delete(friend);
+    }
+
+    @Override
     public Friend getChatInfo(String firstUsername, String secondUsername) {
         Profile p1 = profileRepository.findUserByUsername(firstUsername);
         Profile p2 = profileRepository.findUserByUsername(secondUsername);
@@ -1318,24 +1285,21 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Nova sessão a ser criada
-    public Session createSessao(Session sessao, MultipartFile foto) throws Exception, NotAnImageFileException {
-        Profile perfil = findUserByUsername(sessao.getUsername());
-        validateNewSessao(sessao.getUsername(), sessao.getAddress(), sessao.getGameDate());
-        String encodedPassword = passwordEncoder.encode(sessao.getPassword());
-        sessao.setPassword(encodedPassword);
-        sessao.setCreated_at(new Date());
-        sessao.setEnabled(FALSE);
-        sessionRepository.save(sessao);
-        saveSessionImage(sessao,foto);
+    public Session createSession(SessionDTO sessionDTO, MultipartFile foto) throws Exception, NotAnImageFileException {
+        Profile perfil = findUserByUsername(sessionDTO.getUsername());
+        validateNewSessao(sessionDTO.getUsername(), sessionDTO.getAddress(), sessionDTO.getGameDate());
+        Session session = sessionMapper.toEntity(sessionDTO);
+        sessionRepository.save(session);
+        saveSessionImage(session,foto);
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil.getUsername());
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         String link = "http://localhost:8080/createNewSession?token=" + token;
-        emailService.send(perfil.getEmail(), buildCreateSessionEmail(sessao.getUsername(), link, sessao.getSport(), sessao.getGameDate(), sessao.getPlayers(), sessao.getCity(), sessao.getAddress(), sessao.getPrice(), sessao.getPassword()));
-        return sessao;
+        emailService.send(perfil.getEmail(), buildCreateSessionEmail(session.getUsername(), link, session.getSport(), session.getGameDate(), session.getPlayers(), session.getCity(), session.getAddress(), session.getPrice()));
+        return session;
     }
 
-    private String buildCreateSessionEmail(String username, String link, String sport, Date gameDate, String players, String city, String address, String price, String password) {
+    private String buildCreateSessionEmail(String username, String link, String sport, Date gameDate, String players, String city, String address, String price) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
                         "\n" +
@@ -1416,7 +1380,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             String data2 = substring(String.valueOf(date), 24, 29);
             String data3 = data2 + data;
             p.setLastLoginDateDisplay(data3);
-            p.setStatus(ONLINE);
+            p.setStatusId(ONLINE);
             profileRepository.save(p);
             LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
             ProfilePrincipal profilePrincipal = new ProfilePrincipal(p);
@@ -1449,7 +1413,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
             validateLoginAttempt3(p);
             p.setLastLoginDate(new Date());
-            p.setStatus(ONLINE);
+            p.setStatusId(ONLINE);
             profileRepository.save(p);
             LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
             return p;

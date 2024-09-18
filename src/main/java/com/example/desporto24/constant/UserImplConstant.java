@@ -28,6 +28,7 @@ public class UserImplConstant {
     public static final String NEW_IDEA = "Muito obrigado pela tua sugestão, foi-te enviado um mail com mais informação";
     public static final String DISABLED_PERFIL = "A tua conta está agora bloqueada. Foi enviado um novo mail para o teu email, pedimos que sigas atentamente as instruções para os próximos passos";
     public static final String DELETED_NOTIFICATION = "Esta notificação foi eliminada, Podes fechar a janela da notificação";
+    public static final String REMOVED_FRIEND = " foi removido da tua lista de amigos";
     public static final String ACCEPTED_FRIEND_REQUEST = "Tens um novo amigo na tua lista de amigos";
     public static final String NULL_RESULTS = "Não há resultados nesta pesquisa";
     public static final String INVALID_URL = "Este path é invalido, por favor tenta novamente";
