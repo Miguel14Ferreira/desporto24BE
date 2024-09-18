@@ -17,8 +17,8 @@ public class MFAVerificationService {
     public Optional<MFAVerification> getCode(String code){
         return MFAverificationRepository.findByCode(code);
     }
-    public int setConfirmedAt(String code){
-        return MFAverificationRepository.updateConfirmedAt(
+    public void setConfirmedAt(String code){
+        MFAverificationRepository.updateConfirmedAt(
                 code, LocalDateTime.now());
     }
 }

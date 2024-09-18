@@ -9,7 +9,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-import static com.example.desporto24.model.ProfileMapper.fromUser;
 import static java.util.Arrays.stream;
 
 @RequiredArgsConstructor
@@ -56,8 +55,7 @@ public class ProfilePrincipal implements UserDetails {
         return this.user.getEnabled();
     }
 
-
-    public Profile getPerfil() {
-        return fromUser(this.user);
+    public Profile getProfile() {
+        return this.user;
     }
 }

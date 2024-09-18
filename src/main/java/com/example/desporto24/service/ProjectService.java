@@ -1,6 +1,8 @@
 package com.example.desporto24.service;
 import com.example.desporto24.exception.domain.*;
 import com.example.desporto24.model.*;
+import com.example.desporto24.model.dto.ProfileDTO;
+import com.example.desporto24.model.dto.SessionDTO;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.service.impl.NotAnImageFileException;
 import jakarta.mail.MessagingException;
@@ -25,19 +27,25 @@ public interface ProjectService{
     void blockFriend(String firstProfile, String secondPerfil);
     void unblockFriend(String firstProfile, String secondPerfil);
 
+    void removeFriend(String firstProfile,String secondPerfil);
+
     Friend getChatInfo(String firstUsername, String secondUsername);
 
     Profile disablePerfil(String email) throws EmailNotFoundException;
 
     Profile enablePerfil(String email) throws EmailNotFoundException;
 
-    Profile signUpPerfil(Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException;
+    Profile signUpPerfil(ProfileDTO profile, MultipartFile foto) throws Exception, NotAnImageFileException;
+
+    String generateUserId();
+
+    Session createSession(SessionDTO sessionDTO, MultipartFile file) throws Exception, NotAnImageFileException;
 
     List<Profile> procurarPerfil(String username);
 
     Chat EnviarMensagem(Chat chat) throws Exception;
 
-    Profile terminarSessao(Profile profile) throws EmailNotFoundException;
+    Profile terminarSessao(ProfileDTO profileDTO) throws EmailNotFoundException;
 
     Profile findUserByUserId(String userId);
 
@@ -66,7 +74,7 @@ public interface ProjectService{
 
     String EmergencyResetPassword(String token, String username, String password) throws EmailNotFoundException, MessagingException;
 
-    Profile updateUser(String username, Profile profile, MultipartFile foto) throws Exception, NotAnImageFileException;
+    Profile updateUser(String username, ProfileDTO profileDTO, MultipartFile foto) throws Exception, NotAnImageFileException;
 
     void deleteUser(Long id);
 
@@ -78,13 +86,13 @@ public interface ProjectService{
 
     Ideas newIdea(Ideas i) throws MessagingException;
 
-    Profile changeUsernameAndPassword(Profile profile) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
+    Profile changeUsernameAndPassword(ProfileDTO profileDTO) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
 
     String confirmCode(String code) throws NotFoundException, SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException;
 
-    Profile resetPassword1(Profile profile) throws Exception;
+    Profile resetPassword1(ProfileDTO profileDTO) throws Exception;
 
-    Profile resetPassword2(Profile profile, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException;
+    Profile resetPassword2(ProfileDTO profileDTO, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException;
 
     String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 
