@@ -394,8 +394,13 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
         return sessionRepository.findSessionByGameDate(dataDeJogo);
     }
 
-    public List<Profile> procurarPerfil(String username){
-        return profileRepository.pesquisaProfile(username);
+    public List<Profile> procurarPerfil(String username) throws UserNotFoundException {
+        List<Profile> lista = profileRepository.pesquisaProfile(username);
+        if(lista == null){
+            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
+        } else {
+            return lista;
+        }
     }
 
     @Override

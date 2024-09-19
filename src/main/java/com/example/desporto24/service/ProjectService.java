@@ -41,7 +41,7 @@ public interface ProjectService{
 
     Session createSession(SessionDTO sessionDTO, MultipartFile file) throws Exception, NotAnImageFileException;
 
-    List<Profile> procurarPerfil(String username);
+    List<Profile> procurarPerfil(String username) throws UserNotFoundException;
 
     Chat EnviarMensagem(Chat chat) throws Exception;
 

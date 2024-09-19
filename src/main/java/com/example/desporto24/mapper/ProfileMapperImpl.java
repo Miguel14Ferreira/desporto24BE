@@ -46,6 +46,7 @@ public class ProfileMapperImpl implements ProfileMapper{
             profile.setIndicativePhone(profileDTO.getIndicativePhone());
             profile.setLocation(profileDTO.getLocation());
             profile.setOldEmail(profileDTO.getEmail());
+            profile.setPostalCode(profileDTO.getPostalCode());
             profile.setJoinDate(new Date());
             Date date = new Date();
             String data = substring(String.valueOf(date), 3, 10);
@@ -60,9 +61,9 @@ public class ProfileMapperImpl implements ProfileMapper{
             profile.setLogginAttempts(0);
             profile.setStatusId(OFFLINE);
         } else {
-            String encodedPhone = AES.encryptString(profile.getPhone(), profile.getUserId());
+            String encodedPhone = AES.encryptString(profileDTO.getPhone(), profile.getUserId());
             profile.setPhone(encodedPhone);
-            String encodedAddress = AES.encryptString(profile.getAddress(), profile.getUserId());
+            String encodedAddress = AES.encryptString(profileDTO.getAddress(), profile.getUserId());
             profile.setAddress(encodedAddress);
             profile.setEmail(profileDTO.getEmail());
             profile.setCountry(profileDTO.getCountry());
@@ -73,6 +74,7 @@ public class ProfileMapperImpl implements ProfileMapper{
             profile.setIndicativePhone(profileDTO.getIndicativePhone());
             profile.setLocation(profileDTO.getLocation());
             profile.setOldEmail(profileDTO.getEmail());
+            profile.setPostalCode(profileDTO.getPostalCode());
         }
         return profile;
     }
