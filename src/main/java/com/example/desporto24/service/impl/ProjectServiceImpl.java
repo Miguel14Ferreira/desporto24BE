@@ -204,136 +204,6 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new RuntimeException(e);
         }
     }
-        private String buildEmergencyResetPasswordMail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + " (se não reconheces este username, é porque provavelmente foi alterado),</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Pedimos-te agora para definires uma nova palavra-passe através deste link: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a> </p> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Recomendamos-te que depois de alterares a tua palavra-passe que entres na tua conta e verifica se outros dados foram alterados para que tu possas alterá-los.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
-    }
-
-    // envio do email para ser efetuado o reset à password
-    private String buildResetPasswordEmail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Face ao teu pedido para definir uma palavra-passe, aqui tens o link para defini-la </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
-    }
 
     // gerador de UserID
     public String generateUserId() {
@@ -341,7 +211,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // novo registo pelo utilizador e definição de alguns parametros para a classe perfil
-    public Profile signUpPerfil(ProfileDTO profileDTO, MultipartFile foto) throws NotAnImageFileException, Exception {
+    public Profile signUpProfile(ProfileDTO profileDTO, MultipartFile foto) throws NotAnImageFileException, Exception {
         validateNewUsernameEmail(EMPTY, profileDTO.getUsername(), profileDTO.getEmail());
         Profile profile = profileMapper.toEntity(profileDTO);
         saveProfileImage(profile, foto);
@@ -425,7 +295,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     @Override
-    public Profile terminarSessao(ProfileDTO profileDTO) throws EmailNotFoundException {
+    public Profile terminateSession(ProfileDTO profileDTO) throws EmailNotFoundException {
         Profile profile = findUserByEmail(profileDTO.getEmail());
         profile.setStatusId(OFFLINE);
         return profile;
@@ -631,7 +501,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
 
 
     // Activa o perfil
-    public String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException {
+    public String confirmRegistrationToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException {
         try {
             ConfirmationToken confirmToken = confirmationTokenService
                     .getToken(token)
@@ -732,7 +602,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
     }
 
     // Confirmação do código enviado por SMS (MFA autenticação)
-    public String confirmCode(String code) throws SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException {
+    public String confirmMfaCode(String code) throws SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException {
         try {
             MFAVerification mfaVerification = MFAverificationService
                     .getCode(code.toUpperCase())
@@ -752,6 +622,285 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
             throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
         } catch (SMSExpiredException e) {
             throw new SMSExpiredException(SMS_EXPIRED);
+        }
+    }
+
+    public String EmergencyResetPassword(String token, String email,String password) throws EmailNotFoundException {
+        ConfirmationToken confirmToken = confirmationTokenService
+                .getToken(token)
+                .orElseThrow(() ->
+                        new IllegalStateException("Token não encontrado."));
+        if (confirmToken.getConfirmedAt() != null) {
+            throw new IllegalStateException("Token já foi confirmado.");
+        }
+        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Token expirado");
+        }
+        confirmationTokenService.setConfirmedAt(token);
+        Profile p = profileRepository.findUserByOldEmail(email);
+        if (p == null) {
+            LOGGER.error(NO_USER_FOUND_BY_USERNAME + email);
+            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + email);
+        } else {
+            String encodedPassword = passwordEncoder.encode(password);
+            p.setPassword(encodedPassword);
+            enablePerfil2(p.getOldEmail());
+            profileRepository.save(p);
+            return token;
+        }
+    }
+
+    // Envia um email para o utilizador conseguir efetuar o reset da password
+    public Profile resetPasswordStepOne(ProfileDTO profileDTO) throws EmailNotFoundException, EmailSendingException {
+        try {
+            Profile p = findUserByEmail(profileDTO.getEmail());
+            if (p == null){
+                throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+            }
+            String token = UUID.randomUUID().toString();
+            ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), p.getUsername());
+            confirmationTokenService.saveConfirmationToken(confirmationToken);
+            String link = fromCurrentContextPath().path("/login/resetPassword/" + token + "/" + p.getUsername()).toUriString();
+            emailService.send(p.getEmail(), buildResetPasswordEmail(p.getUsername(), link));
+            return p;
+        } catch (EmailNotFoundException e) {
+            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
+        } catch (MessagingException e) {
+            throw new EmailSendingException(EMAIL_ERROR);
+        }
+    }
+
+        // Guarda a nova password no perfil, através do email
+        public Profile resetPasswordStepTwo(String username, String newPassword, String token)
+                throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException,
+                TokenExpiredException, EmailNotFoundException, AccountDisabledException {
+
+            // Retrieve the confirmation token and perform validation
+            ConfirmationToken confirmToken = confirmationTokenService
+                    .getToken(token)
+                    .orElseThrow(() -> new NotFoundException(TOKEN_NOT_FOUND));
+
+            if (confirmToken.getConfirmedAt() != null) {
+                throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
+            }
+
+            if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+                throw new TokenExpiredException(TOKEN_EXPIRED);
+            }
+
+            // Mark the token as confirmed
+            confirmationTokenService.setConfirmedAt(token);
+
+            // Retrieve the user and perform account checks
+            Profile profile = profileRepository.findUserByUsername(username);
+            if (profile == null) {
+                throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME);
+            }
+
+            if (Boolean.FALSE.equals(profile.getNotLocked())) {
+                throw new AccountDisabledException(ACCOUNT_DISABLED);
+            }
+
+            // Update the user's password and save changes
+            String encodedPassword = passwordEncoder.encode(newPassword);
+            profile.setPassword(encodedPassword);
+            profileRepository.save(profile);
+
+            return profile;
+        }
+
+    public void acceptFriendRequest(Long id,String token) throws Exception {
+        FriendRequest confirmToken = friendRequestService
+                .getToken(token)
+                .orElseThrow(() ->
+                        new IllegalStateException("Token não encontrado."));
+        if (confirmToken.getConfirmedAt() != null) {
+            throw new IllegalStateException("Token já foi confirmado.");
+        }
+        notificationsRepository.deleteById(id);
+        friendRequestService.setConfirmedAt(token);
+        friendRequestService.saveFriendRequest(confirmToken);
+        Profile profile1 = findUserByUsername(confirmToken.getPerfil1());
+        Profile profile2 = findUserByUsername(confirmToken.getPerfil2());
+        Profile user1 = profile1;
+        Profile user2 = profile2;
+        if (profile1.getId() > profile2.getId()){
+            profile1 = user2;
+            profile2 = user1;
+        }
+            Friend friend = new Friend();
+            friend.setCreatedAt(new Date());
+            friend.setProfile1(profile1);
+            friend.setProfile2(profile2);
+            friend.setChatBlocked(false);
+            friendRepository.save(friend);
+    }
+
+    @Override
+    public void blockFriend(String firstProfile, String secondPerfil) {
+        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
+        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        if(friend != null){
+            friend.setChatBlocked(true);
+            friend.setWhoBlocked(profile1.getUsername());
+            friendRepository.save(friend);
+        }
+    }
+
+    @Override
+    public void unblockFriend(String firstProfile, String secondPerfil) {
+        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
+        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        if(friend != null){
+            friend.setChatBlocked(false);
+            friend.setWhoBlocked(null);
+            friendRepository.save(friend);
+        }
+    }
+
+    @Override
+    public void removeFriend(String firstProfile, String secondPerfil) {
+        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
+        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
+        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
+        friendRepository.delete(friend);
+    }
+
+    @Override
+    public Friend getChatInfo(String firstUsername, String secondUsername) {
+        Profile p1 = profileRepository.findUserByUsername(firstUsername);
+        Profile p2 = profileRepository.findUserByUsername(secondUsername);
+        return friendRepository.findByProfile1AndProfile2(p1,p2);
+    }
+
+    // Listar amigos
+    public List<Profile> getFriends(String username) throws Exception {
+        Profile p = findUserByUsername(username);
+        List<Friend> friendsByFirstPerfil = friendRepository.findByProfile1(p);
+        List<Friend> friendsBySecondPerfil = friendRepository.findByProfile2(p);
+        List<Profile> friendsPerfis = new ArrayList<>();
+
+        for (Friend friend : friendsByFirstPerfil){
+            friendsPerfis.add(findUserByUsername(friend.getProfile2().getUsername()));
+        }
+        for (Friend friend : friendsBySecondPerfil){
+            friendsPerfis.add(findUserByUsername(friend.getProfile1().getUsername()));
+        }
+        return friendsPerfis;
+    }
+
+    @Override
+    public SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws Exception {
+        Profile p1 = findUserByUsername(friendRequest.getUsername1());
+        Profile p2 = findUserByUsername(friendRequest.getUsername2());
+        Friend friend = friendRepository.findByProfile1AndProfile2(p1,p2);
+        if(friend == null) {
+            String token = UUID.randomUUID().toString();
+            Date date = new Date();
+            String data = substring(String.valueOf(date),3,10);
+            String data2 = substring(String.valueOf(date),24,29);
+            String data3 = data2+data;
+            FriendRequest newFriendRequest = new FriendRequest(token, data3, p1.getUsername(), p2.getUsername());
+            friendRequestService.saveFriendRequest(newFriendRequest);
+            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername()));
+            String assuntoFriendRequestNotification = " Recebeste um novo pedido de amizade!";
+            String friendRequestNotification = "Recebeste um novo pedido de amizade vindo de " + p1.getUsername() + ", podes aceitar ou rejeitar este pedido.";
+            String cumprimentosFriendRequestNotification = "Cumprimentos,";
+            String assinatura = "DESPORTO24";
+            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,false,false,false,token,p2.getUsername());
+            notificationsRepository.save(n);
+        } else {
+            throw new RequestFriendException("Vocês já são amigos!");
+        }
+        return friendRequest;
+    }
+    @Override
+    public List<Notifications> getNotificationsFromPerfil(String username) {
+        List<Notifications> notificationsFromPerfil = notificationsRepository.findByPerfil(username);
+        return notificationsFromPerfil;
+    }
+
+    public void deleteNotification(Long id){
+        notificationsRepository.deleteById(id);
+    }
+
+
+    // Nova ideia/sugestão recebida
+    public Ideas newIdea(Ideas i) throws MessagingException {
+        LOGGER.info(String.valueOf(i));
+        emailService.send(i.getEmail(), buildNewIdeaEmail(i.getName()));
+        emailService.send("desporto24app@gmail.com",buildNewIdeaEmail(i.getEmail(),i.getSubject(),i.getProblem()));
+        ideasRepository.save(i);
+        return i;
+    }
+
+    // Nova sessão a ser criada
+    public Session createSession(SessionDTO sessionDTO, MultipartFile foto) throws Exception, NotAnImageFileException {
+        Profile perfil = findUserByUsername(sessionDTO.getUsername());
+        validateNewSessao(sessionDTO.getUsername(), sessionDTO.getAddress(), sessionDTO.getGameDate());
+        Session session = sessionMapper.toEntity(sessionDTO);
+        sessionRepository.save(session);
+        saveSessionImage(session,foto);
+        String token = UUID.randomUUID().toString();
+        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil.getUsername());
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        String link = "http://localhost:8080/createNewSession?token=" + token;
+        emailService.send(perfil.getEmail(), buildCreateSessionEmail(session.getUsername(), link, session.getSport(), session.getGameDate(), session.getPlayers(), session.getCity(), session.getAddress(), session.getPrice()));
+        return session;
+    }
+
+    // Login do utilizador
+    @SneakyThrows
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        try {
+            Profile p = findUserByUsername(username);
+            validateLoginAttempt(p);
+            p.setLastLoginDate(new Date());
+            Date date = new Date();
+            String data = substring(String.valueOf(date), 3, 10);
+            String data2 = substring(String.valueOf(date), 24, 29);
+            String data3 = data2 + data;
+            p.setLastLoginDateDisplay(data3);
+            p.setStatusId(ONLINE);
+            profileRepository.save(p);
+            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
+            ProfilePrincipal profilePrincipal = new ProfilePrincipal(p);
+            return profilePrincipal;
+        } catch (EmailNotVerifiedException e){
+            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
+        }
+    }
+    private Profile validateLoginAttempt3(Profile profile) throws Exception {
+        if (profile.getMFA().equals(true)) {
+            sendVerificationCode(profile);
+        } else {
+        }
+        return profile;
+    }
+    private Profile validateLoginAttempt2(Profile profile) throws EmailNotVerifiedException {
+        if (profile.getEnabled().equals(false)) {
+            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
+        } else {
+            return profile;
+        }
+    }
+
+    public Profile login(@NotNull Profile profile) throws Exception {
+        Profile p = findUserByUsername(profile.getUsername());
+        if (profile.getUsername() == null) {
+            LOGGER.error(NO_USER_FOUND_BY_USERNAME + profile.getUsername());
+            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + profile.getUsername());
+        } else {
+
+            validateLoginAttempt3(p);
+            p.setLastLoginDate(new Date());
+            p.setStatusId(ONLINE);
+            profileRepository.save(p);
+            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
+            return p;
         }
     }
     // envio do email de registo para o utilizador conseguir ativar a sua conta
@@ -885,90 +1034,74 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "\n" +
                         "</div></div>";
     }
-
-    public String EmergencyResetPassword(String token, String email,String password) throws EmailNotFoundException {
-        ConfirmationToken confirmToken = confirmationTokenService
-                .getToken(token)
-                .orElseThrow(() ->
-                        new IllegalStateException("Token não encontrado."));
-        if (confirmToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Token já foi confirmado.");
-        }
-        if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Token expirado");
-        }
-        confirmationTokenService.setConfirmedAt(token);
-        Profile p = profileRepository.findUserByOldEmail(email);
-        if (p == null) {
-            LOGGER.error(NO_USER_FOUND_BY_USERNAME + email);
-            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + email);
-        } else {
-            String encodedPassword = passwordEncoder.encode(password);
-            p.setPassword(encodedPassword);
-            enablePerfil2(p.getOldEmail());
-            profileRepository.save(p);
-            return token;
-        }
+    private String buildCreateSessionEmail(String username, String link, String sport, Date gameDate, String players, String city, String address, String price) {
+        return
+                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
+                        "    <tbody><tr>\n" +
+                        "        \n" +
+                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
+                        "          <tbody><tr>\n" +
+                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                    <td style=\"padding-left:10px\">\n" +
+                        "                  \n" +
+                        "                    </td>\n" +
+                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
+                        "                    </td>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "              </a>\n" +
+                        "            </td>\n" +
+                        "          </tr>\n" +
+                        "        </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
+                        "      <td>\n" +
+                        "        \n" +
+                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "\n" +
+                        "\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
+                        "        \n" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + username + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Antes de procederes com a criação da tua sessão, iremos pedir-te para confirmares os dados que introduziste e ver se está tudo correto: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " +
+                        "      Tipo de jogo:" + sport + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Data de jogo:" + gameDate + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Nº de jogadores: "+ players +"</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " +
+                        "       Localidade:" + city + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Morada do campo: "+ address + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Preço: " + price + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">"    +
+                        "       Depois de confirmares os dados, clica no link abaixo para ativar a tua sessão: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Nota, se verificares que algo não corresponde ao que desejavas, iremos pedir para não pressionares no link e que procedas à criação de uma nova sessão<p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
+                        "\n" +
+                        "</div></div>";
     }
-
-    // Envia um email para o utilizador conseguir efetuar o reset da password
-    public Profile resetPassword1(ProfileDTO profileDTO) throws EmailNotFoundException, EmailSendingException {
-        try {
-            Profile p = findUserByEmail(profileDTO.getEmail());
-            if (p == null){
-                throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
-            }
-            String token = UUID.randomUUID().toString();
-            ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), p.getUsername());
-            confirmationTokenService.saveConfirmationToken(confirmationToken);
-            String link = fromCurrentContextPath().path("/login/resetPassword/" + token + "/" + p.getUsername()).toUriString();
-            emailService.send(p.getEmail(), buildResetPasswordEmail(p.getUsername(), link));
-            return p;
-        } catch (EmailNotFoundException e) {
-            throw new EmailNotFoundException(NO_EMAIL_FOUND_BY_EMAIL);
-        } catch (MessagingException e) {
-            throw new EmailSendingException(EMAIL_ERROR);
-        }
-    }
-
-        // Guarda a nova password no perfil, através do email
-    public Profile resetPassword2(ProfileDTO profileDTO, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException {
-        try {
-            ConfirmationToken confirmToken = confirmationTokenService
-                    .getToken(token)
-                    .orElseThrow(() ->
-                            new NotFoundException(TOKEN_NOT_FOUND));
-            if (confirmToken.getConfirmedAt() != null) {
-                throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
-            }
-            if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-                throw new TokenExpiredException(TOKEN_EXPIRED);
-            }
-            confirmationTokenService.setConfirmedAt(token);
-            Profile p = profileRepository.findUserByUsername(profileDTO.getUsername());
-            if (p == null) {
-                throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME);
-            } else if (Boolean.FALSE.equals(p.getNotLocked())) {
-                throw new AccountDisabledException(ACCOUNT_DISABLED);
-            } else {
-                String encodedPassword = passwordEncoder.encode(profileDTO.getPassword());
-                p.setPassword(encodedPassword);
-                profileRepository.save(p);
-                return p;
-            }
-        } catch (NotFoundException e) {
-            throw new NotFoundException(TOKEN_NOT_FOUND);
-        } catch (AlreadyConfirmedTokenException e) {
-            throw new AlreadyConfirmedTokenException(TOKEN_ALREADY_CONFIRMED);
-        } catch (TokenExpiredException e) {
-            throw new TokenExpiredException(TOKEN_EXPIRED);
-        } catch (AccountDisabledException e) {
-            throw new AccountDisabledException(ACCOUNT_DISABLED);
-        }
-    }
-
-
-        // Email enviado quando um utilizador coloca uma nova ideia para a aplicação
+    // Email enviado quando um utilizador coloca uma nova ideia para a aplicação
     private String buildNewIdeaEmail(String name) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
@@ -1162,149 +1295,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "\n" +
                         "</div></div>";
     }
-    public void acceptFriendRequest(Long id,String token) throws Exception {
-        FriendRequest confirmToken = friendRequestService
-                .getToken(token)
-                .orElseThrow(() ->
-                        new IllegalStateException("Token não encontrado."));
-        if (confirmToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Token já foi confirmado.");
-        }
-        notificationsRepository.deleteById(id);
-        friendRequestService.setConfirmedAt(token);
-        friendRequestService.saveFriendRequest(confirmToken);
-        Profile profile1 = findUserByUsername(confirmToken.getPerfil1());
-        Profile profile2 = findUserByUsername(confirmToken.getPerfil2());
-        Profile user1 = profile1;
-        Profile user2 = profile2;
-        if (profile1.getId() > profile2.getId()){
-            profile1 = user2;
-            profile2 = user1;
-        }
-            Friend friend = new Friend();
-            friend.setCreatedAt(new Date());
-            friend.setProfile1(profile1);
-            friend.setProfile2(profile2);
-            friend.setChatBlocked(false);
-            friendRepository.save(friend);
-    }
-
-    @Override
-    public void blockFriend(String firstProfile, String secondPerfil) {
-        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
-        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
-        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
-        if(friend != null){
-            friend.setChatBlocked(true);
-            friend.setWhoBlocked(profile1.getUsername());
-            friendRepository.save(friend);
-        }
-    }
-
-    @Override
-    public void unblockFriend(String firstProfile, String secondPerfil) {
-        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
-        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
-        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
-        if(friend != null){
-            friend.setChatBlocked(false);
-            friend.setWhoBlocked(null);
-            friendRepository.save(friend);
-        }
-    }
-
-    @Override
-    public void removeFriend(String firstProfile, String secondPerfil) {
-        Profile profile1 = profileRepository.findUserByUsername(firstProfile);
-        Profile profile2 = profileRepository.findUserByUsername(secondPerfil);
-        Friend friend = friendRepository.findByProfile1AndProfile2(profile1,profile2);
-        friendRepository.delete(friend);
-    }
-
-    @Override
-    public Friend getChatInfo(String firstUsername, String secondUsername) {
-        Profile p1 = profileRepository.findUserByUsername(firstUsername);
-        Profile p2 = profileRepository.findUserByUsername(secondUsername);
-        return friendRepository.findByProfile1AndProfile2(p1,p2);
-    }
-
-    // Listar amigos
-    public List<Profile> getFriends(String username) throws Exception {
-        Profile p = findUserByUsername(username);
-        List<Friend> friendsByFirstPerfil = friendRepository.findByProfile1(p);
-        List<Friend> friendsBySecondPerfil = friendRepository.findByProfile2(p);
-        List<Profile> friendsPerfis = new ArrayList<>();
-
-        for (Friend friend : friendsByFirstPerfil){
-            friendsPerfis.add(findUserByUsername(friend.getProfile2().getUsername()));
-        }
-        for (Friend friend : friendsBySecondPerfil){
-            friendsPerfis.add(findUserByUsername(friend.getProfile1().getUsername()));
-        }
-        return friendsPerfis;
-    }
-
-    @Override
-    public SendFriendRequest sendFriendRequest(SendFriendRequest friendRequest) throws Exception {
-        Profile p1 = findUserByUsername(friendRequest.getUsername1());
-        Profile p2 = findUserByUsername(friendRequest.getUsername2());
-        Friend friend = friendRepository.findByProfile1AndProfile2(p1,p2);
-        if(friend == null) {
-            String token = UUID.randomUUID().toString();
-            Date date = new Date();
-            String data = substring(String.valueOf(date),3,10);
-            String data2 = substring(String.valueOf(date),24,29);
-            String data3 = data2+data;
-            FriendRequest newFriendRequest = new FriendRequest(token, data3, p1.getUsername(), p2.getUsername());
-            friendRequestService.saveFriendRequest(newFriendRequest);
-            emailService.send(p2.getEmail(), buildNewFriendRequestEmail(p1.getUsername()));
-            String assuntoFriendRequestNotification = " Recebeste um novo pedido de amizade!";
-            String friendRequestNotification = "Recebeste um novo pedido de amizade vindo de " + p1.getUsername() + ", podes aceitar ou rejeitar este pedido.";
-            String cumprimentosFriendRequestNotification = "Cumprimentos,";
-            String assinatura = "DESPORTO24";
-            Notifications n = new Notifications(assuntoFriendRequestNotification,friendRequestNotification,cumprimentosFriendRequestNotification,assinatura,data3,true,false,false,false,token,p2.getUsername());
-            notificationsRepository.save(n);
-        } else {
-            throw new RequestFriendException("Vocês já são amigos!");
-        }
-        return friendRequest;
-    }
-    @Override
-    public List<Notifications> getNotificationsFromPerfil(String username) {
-        List<Notifications> notificationsFromPerfil = notificationsRepository.findByPerfil(username);
-        return notificationsFromPerfil;
-    }
-
-    public void deleteNotification(Long id){
-        notificationsRepository.deleteById(id);
-    }
-
-
-    // Nova ideia/sugestão recebida
-    public Ideas newIdea(Ideas i) throws MessagingException {
-        LOGGER.info(String.valueOf(i));
-        emailService.send(i.getEmail(), buildNewIdeaEmail(i.getName()));
-        emailService.send("desporto24app@gmail.com",buildNewIdeaEmail(i.getEmail(),i.getSubject(),i.getProblem()));
-        ideasRepository.save(i);
-        return i;
-    }
-
-    // Nova sessão a ser criada
-    public Session createSession(SessionDTO sessionDTO, MultipartFile foto) throws Exception, NotAnImageFileException {
-        Profile perfil = findUserByUsername(sessionDTO.getUsername());
-        validateNewSessao(sessionDTO.getUsername(), sessionDTO.getAddress(), sessionDTO.getGameDate());
-        Session session = sessionMapper.toEntity(sessionDTO);
-        sessionRepository.save(session);
-        saveSessionImage(session,foto);
-        String token = UUID.randomUUID().toString();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), perfil.getUsername());
-        confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = "http://localhost:8080/createNewSession?token=" + token;
-        emailService.send(perfil.getEmail(), buildCreateSessionEmail(session.getUsername(), link, session.getSport(), session.getGameDate(), session.getPlayers(), session.getCity(), session.getAddress(), session.getPrice()));
-        return session;
-    }
-
-    private String buildCreateSessionEmail(String username, String link, String sport, Date gameDate, String players, String city, String address, String price) {
+    private String buildEmergencyResetPasswordMail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
                         "\n" +
@@ -1319,7 +1310,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "                  \n" +
                         "                    </td>\n" +
                         "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
                         "                    </td>\n" +
                         "                  </tr>\n" +
                         "                </tbody></table>\n" +
@@ -1356,10 +1347,7 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + username + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Antes de procederes com a criação da tua sessão, iremos pedir-te para confirmares os dados que introduziste e ver se está tudo correto: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " +
-                        "      Tipo de jogo:" + sport + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Data de jogo:" + gameDate + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Nº de jogadores: "+ players +"</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> " +
-                        "       Localidade:" + city + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Morada do campo: "+ address + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Preço: " + price + "</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">"    +
-                        "       Depois de confirmares os dados, clica no link abaixo para ativar a tua sessão: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Nota, se verificares que algo não corresponde ao que desejavas, iremos pedir para não pressionares no link e que procedas à criação de uma nova sessão<p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + " (se não reconheces este username, é porque provavelmente foi alterado),</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Pedimos-te agora para definires uma nova palavra-passe através deste link: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a> </p> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Recomendamos-te que depois de alterares a tua palavra-passe que entres na tua conta e verifica se outros dados foram alterados para que tu possas alterá-los.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
@@ -1372,56 +1360,69 @@ public class ProjectServiceImpl implements ProjectService,UserDetailsService {
                         "</div></div>";
     }
 
-    // Login do utilizador
-    @SneakyThrows
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        try {
-            Profile p = findUserByUsername(username);
-            validateLoginAttempt(p);
-            p.setLastLoginDate(new Date());
-            Date date = new Date();
-            String data = substring(String.valueOf(date), 3, 10);
-            String data2 = substring(String.valueOf(date), 24, 29);
-            String data3 = data2 + data;
-            p.setLastLoginDateDisplay(data3);
-            p.setStatusId(ONLINE);
-            profileRepository.save(p);
-            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
-            ProfilePrincipal profilePrincipal = new ProfilePrincipal(p);
-            return profilePrincipal;
-        } catch (EmailNotVerifiedException e){
-            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
-        }
-    }
-    private Profile validateLoginAttempt3(Profile profile) throws Exception {
-        if (profile.getMFA().equals(true)) {
-            sendVerificationCode(profile);
-        } else {
-        }
-        return profile;
-    }
-    private Profile validateLoginAttempt2(Profile profile) throws EmailNotVerifiedException {
-        if (profile.getEnabled().equals(false)) {
-            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
-        } else {
-            return profile;
-        }
-    }
-
-    public Profile login(@NotNull Profile profile) throws Exception {
-        Profile p = findUserByUsername(profile.getUsername());
-        if (profile.getUsername() == null) {
-            LOGGER.error(NO_USER_FOUND_BY_USERNAME + profile.getUsername());
-            throw new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME + profile.getUsername());
-        } else {
-
-            validateLoginAttempt3(p);
-            p.setLastLoginDate(new Date());
-            p.setStatusId(ONLINE);
-            profileRepository.save(p);
-            LOGGER.info(RETURNING_FOUND_USER_BY_USERNAME + " " + p.getUsername());
-            return p;
-        }
+    // envio do email para ser efetuado o reset à password
+    private String buildResetPasswordEmail(String name, String link) {
+        return
+                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
+                        "    <tbody><tr>\n" +
+                        "        \n" +
+                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
+                        "          <tbody><tr>\n" +
+                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                    <td style=\"padding-left:10px\">\n" +
+                        "                  \n" +
+                        "                    </td>\n" +
+                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
+                        "                    </td>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "              </a>\n" +
+                        "            </td>\n" +
+                        "          </tr>\n" +
+                        "        </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
+                        "      <td>\n" +
+                        "        \n" +
+                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
+                        "                  <tbody><tr>\n" +
+                        "                  </tr>\n" +
+                        "                </tbody></table>\n" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table>\n" +
+                        "\n" +
+                        "\n" +
+                        "\n" +
+                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
+                        "    <tbody><tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
+                        "        \n" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Face ao teu pedido para definir uma palavra-passe, aqui tens o link para defini-la </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
+                        "        \n" +
+                        "      </td>\n" +
+                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "    <tr>\n" +
+                        "      <td height=\"30\"><br></td>\n" +
+                        "    </tr>\n" +
+                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
+                        "\n" +
+                        "</div></div>";
     }
 }

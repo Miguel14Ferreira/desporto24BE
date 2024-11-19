@@ -35,7 +35,7 @@ public interface ProjectService{
 
     Profile enablePerfil(String email) throws EmailNotFoundException;
 
-    Profile signUpPerfil(ProfileDTO profile, MultipartFile foto) throws Exception, NotAnImageFileException;
+    Profile signUpProfile(ProfileDTO profile, MultipartFile foto) throws Exception, NotAnImageFileException;
 
     String generateUserId();
 
@@ -45,7 +45,7 @@ public interface ProjectService{
 
     Chat EnviarMensagem(Chat chat) throws Exception;
 
-    Profile terminarSessao(ProfileDTO profileDTO) throws EmailNotFoundException;
+    Profile terminateSession(ProfileDTO profileDTO) throws EmailNotFoundException;
 
     Profile findUserByUserId(String userId);
 
@@ -88,13 +88,13 @@ public interface ProjectService{
 
     Profile changeUsernameAndPassword(ProfileDTO profileDTO) throws EqualUsernameAndPasswordException, EmailExistException, PhoneExistException, UsernameExistException, jakarta.mail.MessagingException, UserNotFoundException, EmailNotFoundException;
 
-    String confirmCode(String code) throws NotFoundException, SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException;
+    String confirmMfaCode(String code) throws NotFoundException, SMSNotFoundException, SMSAlreadyConfirmedException, SMSExpiredException;
 
-    Profile resetPassword1(ProfileDTO profileDTO) throws Exception;
+    Profile resetPasswordStepOne(ProfileDTO profileDTO) throws Exception;
 
-    Profile resetPassword2(ProfileDTO profileDTO, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException;
+    Profile resetPasswordStepTwo(String username, String newPassword, String token) throws UserNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException, EmailNotFoundException, AccountDisabledException;
 
-    String confirmToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
+    String confirmRegistrationToken(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 
     String confirmSession(String token) throws EmailNotFoundException, NotFoundException, AlreadyConfirmedTokenException, TokenExpiredException;
 }

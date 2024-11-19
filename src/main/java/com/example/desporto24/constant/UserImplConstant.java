@@ -15,13 +15,13 @@ public class UserImplConstant {
     public static final String TOKEN_NOT_FOUND = "Este código de verificação de email parece estar incorreto, por favor tenta novamente";
     public static final String TOKEN_ALREADY_CONFIRMED = "Este código de verificação de email já foi confirmado, podes aceder à tua conta";
     public static final String TOKEN_EXPIRED = "Este código de verificação de email foi expirado, tenta novamente";
-    public static final String NEW_USER_REGISTER = "Foi enviado um mail para o email inserido, após a confirmação do email será possível efetuar o login no site.";
-    public static final String SMS_MFA = "Foi-te enviado um novo código através de SMS";
+    public static final String NEW_USER_REGISTERED = "Foi enviado um mail para o email inserido, após a confirmação do email será possível efetuar o login no site.";
+    public static final String SMS_RESENT = "Foi-te enviado um novo código através de SMS";
     public static final String SMS_FAIL = "O código introduzido está incorreto, por favor tenta novamente";
     public static final String SMS_ALREADY_CONFIRMED = "O código introduzido já foi confirmado, por favor pede um novo";
     public static final String SMS_EXPIRED = "O código introduzido está expirado, por favor pede um novo";
-    public static final String FORGET_PASSWORD = "Foi enviado um mail para o email colocado para efetuar o reset à tua password";
-    public static final String FORGET_PASSWORD2 = "A tua palavra passe foi alterada com sucesso, podes aceder à tua conta com a tua nova palavra-passe";
+    public static final String PASSWORD_RESET_INITIATED = "Foi enviado um mail para o email colocado para efetuar o reset à tua password";
+    public static final String PASSWORD_RESET_SUCCESS = "A tua palavra passe foi alterada com sucesso, podes aceder à tua conta com a tua nova palavra-passe";
     public static final String NEW_SESSION = "Está criada a tua nova sessão";
     public static final String FRIEND_REQUEST = "Foi enviado um novo pedido de amizade a este utilizador";
     public static final String UPDATED_PERFIL = "A tua informação de perfil foi atualizada com sucesso";
@@ -32,7 +32,7 @@ public class UserImplConstant {
     public static final String ACCEPTED_FRIEND_REQUEST = "Tens um novo amigo na tua lista de amigos";
     public static final String NULL_RESULTS = "Não há resultados nesta pesquisa";
     public static final String INVALID_URL = "Este path é invalido, por favor tenta novamente";
-    public static final String CONFIRMED_TOKEN = "A confirmação de email foi efetuada com sucesso, podes agora aceder à tua conta clicando no botão abaixo";
+    public static final String REGISTRATION_CONFIRMED = "A confirmação de email foi efetuada com sucesso, podes agora aceder à tua conta clicando no botão abaixo";
     public static final String SESSION_CONFIRMED_TOKEN = "A confirmação de email foi efetuada com sucesso, a tua sessão está agora ativada";
     public static final String EMAIL_ERROR = "Ocorreu um erro no envio do email, por favor tenta novamente";
     public static final String CHAT_BLOCKED = "Este chat está bloqueado";
