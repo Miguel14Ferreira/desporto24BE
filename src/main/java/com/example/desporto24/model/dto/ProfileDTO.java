@@ -1,14 +1,16 @@
 package com.example.desporto24.model.dto;
 
+import com.example.desporto24.model.Status;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import lombok.*;
 
-@Setter
-@Getter
-@AllArgsConstructor
-@NoArgsConstructor
-@EqualsAndHashCode
-@ToString
+@Entity
+@Data
 public class ProfileDTO {
+
+    @Id
+    private String userId;
     private String username;
     private String newUsername;
     private String password;
@@ -24,4 +26,8 @@ public class ProfileDTO {
     private String email;
     private String postalCode;
     private Boolean MFA;
+    private Boolean notLocked;
+    private String oldEmail;
+    private String profilePic;
+    private Status statusId;
 }

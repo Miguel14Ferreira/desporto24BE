@@ -6,5 +6,5 @@ import org.mapstruct.Mapper;
 
 @Mapper(componentModel = "spring")
 public interface SessionMapper {
-    Session toEntity(SessionDTO sessionDTO) throws Exception;
+    Session toEntity(SessionDTO sessionDTO);
 }

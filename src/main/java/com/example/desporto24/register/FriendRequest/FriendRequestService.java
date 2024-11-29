@@ -1,5 +1,6 @@
 package com.example.desporto24.register.FriendRequest;
 
+import com.example.desporto24.repository.FriendRequestRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +17,8 @@ public class FriendRequestService {
     public Optional<FriendRequest> getToken(String token){
         return friendRequestRepository.findByToken(token);
         }
-    public int setConfirmedAt(String token){
-        return friendRequestRepository.updateConfirmedAt(
+    public void setConfirmedAt(String token){
+        friendRequestRepository.updateConfirmedAt(
                 token, LocalDateTime.now());
     }
 }

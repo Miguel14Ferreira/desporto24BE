@@ -1,15 +1,10 @@
 package com.example.desporto24.register.Notifications;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
+@RequiredArgsConstructor
 public class Notifications {
     @SequenceGenerator( name = "notification_sequence",
             sequenceName = "notification_sequence",
@@ -20,36 +15,35 @@ public class Notifications {
                     generator = "notification_sequence")
     private Long id;
     @Column(nullable = false)
-    private String assunto;
+    private String subject;
     @Column(nullable = false,columnDefinition = "text")
-    private String mensagem;
+    private String message;
     @Column(nullable = false)
-    private String cumprimentos;
+    private String greeting;
     @Column(nullable = false)
-    private String assinatura;
+    private String signature;
     @Column(nullable = false)
     private String createdAt;
     @Column(nullable = false)
     private boolean isFriendRequest;
-    private boolean isUpdatePerfil;
+    private boolean isUpdateProfile;
     private boolean isSessionInvite;
     private boolean isNormalMessage;
     private String token;
     @JoinColumn(nullable = false)
-    private String perfil;
+    private String username;
 
-
-    public Notifications(String assuntoNotificaçãoBoasVindas, String notificacaoBoasVindas, String cumprimentoNotificacaoBoasVindas, String assinatura, String data3, boolean b, boolean b1, boolean b2, boolean b3, String token, String username) {
-        this.assunto = assuntoNotificaçãoBoasVindas;
-        this.mensagem = notificacaoBoasVindas;
-        this.cumprimentos = cumprimentoNotificacaoBoasVindas;
-        this.assinatura = assinatura;
-        this.createdAt = data3;
-        this.isFriendRequest = b;
-        this.isUpdatePerfil = b1;
-        this.isSessionInvite = b2;
-        this.isNormalMessage = b3;
+    public Notifications(String subject, String message, String greeting, String signature, String formattedDate, boolean isFriendRequest, boolean isUpdateProfile, boolean isSessionInvite, boolean isNormalMessage, String token, String username) {
+        this.subject = subject;
+        this.message = message;
+        this.greeting = greeting;
+        this.signature = signature;
+        this.createdAt = formattedDate;
+        this.isFriendRequest = isFriendRequest;
+        this.isUpdateProfile = isUpdateProfile;
+        this.isSessionInvite = isSessionInvite;
+        this.isNormalMessage = isNormalMessage;
         this.token = token;
-        this.perfil = username;
+        this.username = username;
     }
 }

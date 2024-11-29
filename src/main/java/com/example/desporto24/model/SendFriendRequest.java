@@ -1,18 +1,11 @@
 package com.example.desporto24.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
-
+import lombok.RequiredArgsConstructor;
 @Entity
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonInclude(NON_DEFAULT)
+@RequiredArgsConstructor
 public class SendFriendRequest {
 
     @Id
@@ -23,9 +16,4 @@ public class SendFriendRequest {
     private String username1;
 
     private String username2;
-
-    public SendFriendRequest(String username1, String username2) {
-        this.username1 = username1;
-        this.username2 = username2;
-    }
 }

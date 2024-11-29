@@ -1,12 +1,13 @@
 package com.example.desporto24.service;
 
-import com.example.desporto24.exception.domain.AccountDisabledException;
-import com.example.desporto24.exception.domain.EmailNotVerifiedException;
+import com.example.desporto24.exception.AccountDisabledException;
+import com.example.desporto24.exception.EmailNotVerifiedException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
@@ -17,15 +18,14 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 public class LoginAttemptService {
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
     private static final int ATTEMPT_INCREMENT = 1;
-    private LoadingCache<String, Integer> loginAttemptCache;
     private final ProfileRepository profileRepository;
 
     public LoginAttemptService(ProfileRepository profileRepository) {
         super();
         this.profileRepository = profileRepository;
-        loginAttemptCache = CacheBuilder.newBuilder().expireAfterWrite(15, MINUTES)
+        CacheBuilder.newBuilder().expireAfterWrite(15, MINUTES)
                 .maximumSize(100).build(new CacheLoader<String, Integer>() {
-                    public Integer load(String key) {
+                    public Integer load(@NotNull String key) {
                         return 0;
                     }
                 });
@@ -47,7 +47,7 @@ public class LoginAttemptService {
         profileRepository.save(username);
     }
 
-    public boolean hasExceededMaxAttempts(Profile username) throws AccountDisabledException, EmailNotVerifiedException {
+    public void hasExceededMaxAttempts(Profile username) throws AccountDisabledException, EmailNotVerifiedException {
         try {
             if (username.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
                 username.setNotLocked(false);
@@ -61,7 +61,6 @@ public class LoginAttemptService {
         } catch (AccountDisabledException exception) {
             throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
-        return false;
     }
 
 }

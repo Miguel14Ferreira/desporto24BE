@@ -10,12 +10,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
 
 @Entity
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonInclude(NON_DEFAULT)
-@Getter
-@Setter
-@Builder
+@RequiredArgsConstructor
 public class Chat {
     @SequenceGenerator( name = "chat_sequence",
             sequenceName = "chat_sequence",
@@ -37,11 +32,5 @@ public class Chat {
         this.text = text;
         this.dataDisplay = dataDisplay;
         this.date = date;
-    }
-
-    public Chat(String username1, String username2, String text) {
-        this.username1 = username1;
-        this.username2 = username2;
-        this.text = text;
     }
 }

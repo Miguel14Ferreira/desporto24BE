@@ -2,7 +2,10 @@ package com.example.desporto24.service;
 import com.example.desporto24.email.EmailSender;
 import com.sun.mail.smtp.SMTPTransport;
 import jakarta.mail.MessagingException;
+import jakarta.mail.NoSuchProviderException;
+import jakarta.mail.SendFailedException;
 import jakarta.mail.Session;
+import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AllArgsConstructor;
@@ -36,7 +39,8 @@ public class EmailService implements EmailSender {
     }
 
 
-    public MimeMessage send(String to, String email) throws MessagingException {
+    public MimeMessage send(String to, String email) {
+            try{
         MimeMessage mimeMessage = new MimeMessage(getEmailSession());
         MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
         helper.setText(email, true);
@@ -49,6 +53,9 @@ public class EmailService implements EmailSender {
         smtpTransport.sendMessage(mimeMessage,mimeMessage.getAllRecipients());
         smtpTransport.close();
         return mimeMessage;
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
 

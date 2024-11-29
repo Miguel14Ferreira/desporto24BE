@@ -11,7 +11,10 @@ public class SecurityConstant {
     public static final String FORBIDDEN_MESSAGE = "Tu percisas de efetuar o login para aceder a esta página";
     public static final String ACCESS_DENIED_MESSAGE = "Tu não tens permissão para aceder a esta página";
     public static final String OPTIONS_HTTP_METHOD = "OPTIONS";
-    public static final String[] PUBLIC_URLS = { "/image/**","/user/**","/login", "/login/resetPassword/**" ,"/login/**","/menu/**", "/cancelNewSessionToken/**" ,"/login/registerNewUser/**", "/emergencyToken/** ", "/contact" };
+    public static final String[] PUBLIC_URLS = { "/image/**","/user/**","/login",
+            "/login/resetPassword/**" ,"/login/**","/menu/**", "/cancelNewSessionToken/**" ,
+            "/login/registerNewUser/**", "/emergencyToken/** ", "/contact" ,"/v3/api-docs/**",
+            "/swagger-ui/**", "/swagger-ui.html" };
     //public static final String[] PUBLIC_URLS = { "/**" };
     public static final String KEY="4elxod";
 

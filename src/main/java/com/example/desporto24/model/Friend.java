@@ -1,6 +1,7 @@
 package com.example.desporto24.model;
 
 
+import com.example.desporto24.model.dto.ProfileDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
 import lombok.*;
@@ -26,10 +27,10 @@ public class Friend {
     private Date createdAt;
     @ManyToOne
     @JoinColumn(nullable = false,name = "perfil1")
-    private Profile profile1;
+    private ProfileDTO profile1;
     @ManyToOne
     @JoinColumn(nullable = false,name = "perfil2")
-    private Profile profile2;
+    private ProfileDTO profile2;
 
     private boolean chatBlocked;
 

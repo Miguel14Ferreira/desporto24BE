@@ -2,8 +2,9 @@ package com.example.desporto24.constant;
 
 public class UserImplConstant {
     public static final String NO_USER_FOUND_BY_USERNAME = "Não foi encontrado nenhum perfil com este nome de utilizador";
-    public static final String NO_EMAIL_FOUND_BY_EMAIL = "Não foi encontrado nenhum perfil com este email";
-    public static final String NO_PHONE_FOUND_BY_PHONE = "Não foi encontrado nenhum perfil com este nº de telemóvel";
+    public static final String NO_USER_FOUND_BY_EMAIL = "Não foi encontrado nenhum perfil com este email";
+    public static final String NO_USER_FOUND_BY_PHONE = "Não foi encontrado nenhum perfil com este nº de telemóvel";
+    public static final String NO_USERID_FOUND_BY_ID = "Não foi encontrado nenhum perfil com este id";
     public static final String USERNAME_ALREADY_EXIST = "Este nome de utilizador já se encontra registado!";
     public static final String EMAIL_ALREADY_EXIST = "Este email já se encontra registado!";
     public static final String PHONE_ALREADY_REGISTRED = "Este nº de telemóvel já se encontra registado!";
@@ -38,4 +39,5 @@ public class UserImplConstant {
     public static final String CHAT_BLOCKED = "Este chat está bloqueado";
     public static final String BLOCKED = "A partir deste momento o chat está bloqueado";
     public static final String UNBLOCKED = "A partir deste momento o chat está desbloqueado";
+    public static final String ALREADY_FRIENDS = "Tu já tens este perfil na tua lista de amigos!";
 }
