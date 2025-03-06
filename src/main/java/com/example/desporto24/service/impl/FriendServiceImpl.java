@@ -1,13 +1,16 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.exception.RequestFriendException;
+import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Friend;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.SendFriendRequest;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.register.FriendRequest.FriendRequest;
 import com.example.desporto24.register.FriendRequest.FriendRequestService;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.FriendRepository;
+import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.interfaces.FriendService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
@@ -31,6 +34,7 @@ public class FriendServiceImpl implements FriendService {
     private final EmailService emailService;
     private final FriendRepository friendRepository;
     private final NotificationService notificationService;
+    private final ProfileRepository profileRepository;
 
     @Override
     public void sendFriendRequest(SendFriendRequest friendRequest) {
@@ -61,9 +65,9 @@ public class FriendServiceImpl implements FriendService {
     }
 
     private void saveNotification(String username, String date, String senderUsername) {
-        String subject = "You have a new friend request!";
-        String message = "You received a friend request from " + senderUsername + ". You can accept or reject this request.";
-        String signature = "Best Regards, DESPORTO24";
+        String subject = "Tu tens um novo pedido de amizade!";
+        String message = "Olá, tu recebeste um novo pedido de amizade vindo de " + senderUsername + ". Tu podes aceitar ou rejeitar este pedido.";
+        String signature = "Cumprimentos, DESPORTO24";
 
         Notifications notification = new Notifications(subject, message, "Regards,", signature, date, true, false, false, false, UUID.randomUUID().toString(), username);
         notificationService.save(notification);
@@ -115,8 +119,9 @@ public class FriendServiceImpl implements FriendService {
     }
 
     @Override
-    public List<ProfileDTO> getFriends(String username) {
-        return List.of();
+    public List<Profile> getFriends(String username) {
+        Profile profile = profileRepository.findUserByUsername(username).orElseThrow(() -> new UserNotFoundException("Profile not found"));
+        return friendRepository.findByProfile1(profile);
     }
 
     private String buildNewFriendRequestEmail(String name) {

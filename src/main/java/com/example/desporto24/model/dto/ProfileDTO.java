@@ -1,13 +1,12 @@
 package com.example.desporto24.model.dto;
-
 import com.example.desporto24.model.Status;
-import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.*;
 
-@Entity
+import java.io.Serializable;
+
 @Data
-public class ProfileDTO {
+public class ProfileDTO implements Serializable {
 
     @Id
     private String userId;
@@ -27,7 +26,14 @@ public class ProfileDTO {
     private String postalCode;
     private Boolean MFA;
     private Boolean notLocked;
+    private Boolean enabled;
+    private String role;
     private String oldEmail;
-    private String profilePic;
     private Status statusId;
+    private int loginAttempts;
+    private String[] authorities;
+    private String profilePicUrl;
+    private String lastLoginDateDisplay;
+    private String joinDateDisplay;
+    private Boolean isFirstTimeLogin;
 }

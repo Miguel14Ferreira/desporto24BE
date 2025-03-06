@@ -26,11 +26,11 @@ public class Friend {
 
     private Date createdAt;
     @ManyToOne
-    @JoinColumn(nullable = false,name = "perfil1")
-    private ProfileDTO profile1;
+    @JoinColumn(nullable = false,name = "profile1")
+    private Profile profile1;
     @ManyToOne
-    @JoinColumn(nullable = false,name = "perfil2")
-    private ProfileDTO profile2;
+    @JoinColumn(nullable = false,name = "profile2")
+    private Profile profile2;
 
     private boolean chatBlocked;
 

@@ -27,14 +27,14 @@ public class ConfirmationToken {
     private LocalDateTime expiredAt;
 
     private LocalDateTime confirmedAt;
-    @JoinColumn(nullable = false,name = "perfil_id")
-    private String perfil;
+    @JoinColumn(nullable = false,name = "profile_id")
+    private String profile;
 
-    public ConfirmationToken(String token, LocalDateTime createdAt, LocalDateTime expiredAt, String perfil) {
+    public ConfirmationToken(String token, LocalDateTime createdAt, LocalDateTime expiredAt, String profile) {
         this.token = token;
         this.createdAt = createdAt;
         this.expiredAt = expiredAt;
-        this.perfil = perfil;
+        this.profile = profile;
     }
 
     public ConfirmationToken(String token) {

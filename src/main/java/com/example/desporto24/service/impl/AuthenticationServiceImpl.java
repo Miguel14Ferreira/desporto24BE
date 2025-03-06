@@ -1,8 +1,9 @@
 package com.example.desporto24.service.impl;
 
+import com.example.desporto24.encryption.AES;
 import com.example.desporto24.exception.*;
-import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.Status;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.register.MFA.MFAVerification;
 import com.example.desporto24.register.MFA.MFAVerificationService;
@@ -16,11 +17,7 @@ import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,20 +28,19 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.UserImplConstant.*;
 import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.model.Status.OFFLINE;
-import static com.example.desporto24.utility.ProfileUtils.getLoggedInUser;
 import static com.example.desporto24.utility.SmsUtils.sendSMS;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.StringUtils.*;
 import static org.apache.commons.lang3.StringUtils.substring;
 import static org.springframework.http.MediaType.*;
-import static org.springframework.security.authentication.UsernamePasswordAuthenticationToken.unauthenticated;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath;
 
 @Slf4j
@@ -54,78 +50,85 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
-    private final AuthenticationManager authenticationManager;
     private final ProfileRepository profileRepository;
-    private final ProfileMapper profileMapper;
     private final ConfirmationTokenService confirmationTokenService;
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
     private final MFAVerificationService mfaVerificationService;
-
-
 
     @Override
     public Profile authenticate(ProfileDTO profileDTO) {
-        Profile profile = (Profile) profileService.loadUserByUsername(profileDTO.getUsername());
+        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        Authentication authentication = Boolean.FALSE.equals(profile.getMFA())
-                ? handleRegularLogin(profile.getUsername(), profile.getPassword(), profile)
-                : handleMFALogin(profileDTO.getUsername(), profile.getPassword());
+        validateProfileStatus(profile);
 
-        return getLoggedInUser(authentication);
-    }
-    private Authentication handleRegularLogin(String username, String password, Profile profile) {
-        loginAttemptService.hasExceededMaxAttempts(profile);
-        loginAttemptService.addUserToLoginAttemptCache(profile);
-        Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
-        loginAttemptService.evictUserFromLoginAttemptCache(profile);
-        return authentication;
+        if (Boolean.TRUE.equals(profile.getMFA())) {
+            handleMFALogin(profileDTO.getUsername(), profileDTO.getPassword(), profile);
+        } else {
+            handleRegularLogin(profileDTO.getUsername(), profileDTO.getPassword(), profile);
+        }
+        updateProfileLoginDetails(profile);
+        return profileRepository.save(profile);
     }
 
-    private Authentication handleMFALogin(String username, String password) {
-        Authentication authentication = authenticationManager.authenticate(unauthenticated(username, password));
+    private void validateProfileStatus(Profile profile) {
+        if (Boolean.FALSE.equals(profile.getNotLocked())) {
+            throw new AccountDisabledException(ACCOUNT_DISABLED);
+        }
+        if (Boolean.FALSE.equals(profile.getEnabled())) {
+            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
+        }
+    }
+
+    private void updateProfileLoginDetails(Profile profile) {
+        profile.setLoginAttempts(0);
+        profile.setStatusId(Status.ONLINE);
+        profile.setLastLoginDate(new Date());
+        profile.setLastLoginDateDisplay(formatJoinDate(new Date()));
+    }
+
+    private String formatJoinDate(Date date) {
+        return new java.text.SimpleDateFormat("yyyy MMM dd hh:mm").format(date);
+    }
+    private void handleRegularLogin(String username, String password, Profile profile) {
+        loginAttemptService.handleLoginAttempt(username, password, profile);
+    }
+
+    private void handleMFALogin(String username, String password, Profile profile) {
+        loginAttemptService.handleLoginAttempt(username, password, profile);
         sendVerificationCode(username);
-        return authentication;
     }
 
     @Override
-    public void terminateSession(String email) {
-        ProfileDTO profileDTO = profileService.findUserByEmail(email);
-        profileDTO.setStatusId(OFFLINE);
-        profileService.save(profileDTO);
+    public void terminateSession(ProfileDTO profileDTO) {
+        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        profile.setStatusId(OFFLINE);
+        profile.setIsFirstTimeLogin(false);
+        profileRepository.save(profile);
     }
 
     @Override
     public void signUpProfile(ProfileDTO profileDTO, MultipartFile photo) {
-        validateNewUsernameEmail(EMPTY, profileDTO.getUsername(), profileDTO.getEmail());
-        Profile profile = profileMapper.toEntity(profileDTO);
-        saveProfileImage(profile, photo);
-        profileRepository.save(profile);
-        sendSignUpEmail(profile);
+        validateNewUsernameEmail(profileDTO);
+        sendSignUpEmail(profileDTO);
+        saveProfileImage(profileDTO, photo);
+        profileService.save(profileDTO);
     }
 
-    private void saveProfileImage(Profile profile, MultipartFile profileImage) {
+    private void saveProfileImage(ProfileDTO profileDTO, MultipartFile profileImage) {
         if (profileImage != null) {
             validateImageFileType(profileImage.getContentType());
-            Path userFolder = createUserFolder(profile.getUsername());
-            deleteExistingProfileImage(userFolder, profile.getUsername());
-            saveNewProfileImage(userFolder, profile.getUsername(), profileImage);
-            profile.setProfilePic(setProfileImageUrl(profile.getUsername()));
-            profileRepository.save(profile);
+            Path userFolder = createUserFolder(profileDTO.getUsername());
+            deleteExistingProfileImage(userFolder, profileDTO.getUsername());
+            saveNewProfileImage(userFolder, profileDTO.getUsername(), profileImage);
+            profileDTO.setProfilePicUrl(setProfileImageUrl(profileDTO.getUsername()));
         } else {
-            setDefaultProfileImageIfNeeded(profile);
+            setDefaultProfileImageIfNeeded(profileDTO);
         }
     }
 
-    private void setDefaultProfileImageIfNeeded(Profile profile) {
-        if (profile.getProfilePic() == null) {
-            profile.setProfilePic(getTemporaryProfileImageURL(profile.getUsername()));
-        }
-    }
-
-    private String getTemporaryProfileImageURL(String username) {
-        return fromCurrentContextPath().path(DEFAULT_USER_IMAGE_PATH + username).toUriString();
+    private void setDefaultProfileImageIfNeeded(ProfileDTO profileDTO) {
+            profileDTO.setProfilePicUrl(TEMP_PROFILE_IMAGE_BASE_URL);
     }
 
     private String setProfileImageUrl(String username) {
@@ -162,30 +165,31 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
     }
 
-    private void sendSignUpEmail(Profile profile)  {
+    private void sendSignUpEmail(ProfileDTO profileDTO)  {
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(
-                token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), profile.getUsername()
+                token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), profileDTO.getUsername()
         );
         confirmationTokenService.saveConfirmationToken(confirmationToken);
 
-        String link = fromCurrentContextPath().path("/login/registerNewUser/confirmTokenRegistration/" + token).toUriString();
-        emailService.send(profile.getEmail(), buildRegistrationEmail(profile.getUsername(), link));
+        String link = fromCurrentContextPath().path("/api/auth/register/confirm").queryParam("token",token).toUriString();
+        log.info(link);
+        emailService.send(profileDTO.getEmail(), buildRegistrationEmail(profileDTO.getUsername(), link));
 
-        createWelcomeNotification(profile, token);
+        createWelcomeNotification(profileDTO, token);
     }
 
-    private void createWelcomeNotification(Profile profile, String token) {
+    private void createWelcomeNotification(ProfileDTO profileDTO, String token) {
         Date date = new Date();
         String formattedDate = formatDate2(date);
 
-        String subject = "Welcome to our site, " + profile.getUsername() + "!";
-        String message = "Here you can check the sessions happening right now. To create a session or update your profile, hover over your photo in the top right corner.";
-        String greeting = "Best regards,";
+        String subject = "Bem-vindo ao nosso site, " + profileDTO.getUsername() + "!";
+        String message = "Aqui podes explorar todas as sessões desportivas que estão a decorrer neste momento. Para mais detalhes, basta clicar em qualquer uma delas. Além disso, tens a opção de atualizar o teu perfil ou criar a tua própria sessão desportiva.";
+        String greeting = "Bons jogos,";
         String signature = "DESPORTO24";
 
         Notifications notification = new Notifications(
-                subject, message, greeting, signature, formattedDate, false, false, false, true, token, profile.getUsername()
+                subject, message, greeting, signature, formattedDate, false, false, false, true, token, profileDTO.getUsername()
         );
 
         notificationsRepository.save(notification);
@@ -197,36 +201,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return year + dayMonth;
     }
 
-    @SneakyThrows
-    public void validateNewUsernameEmail(String currentUsername, String newUsername, String email) {
-        ProfileDTO userByNewUsername = profileService.findUserByUsername(newUsername);
-        ProfileDTO userByNewEmail = profileService.findUserByEmail(email);
+    public void validateNewUsernameEmail(ProfileDTO profileDTO) {
+        if (isNotBlank(profileDTO.getUsername())) {
+            Optional<Profile> userByNewUsername = profileRepository.findUserByUsername(profileDTO.getUsername());
+            Optional<Profile> userByNewEmail = profileRepository.findUserByEmail(profileDTO.getEmail());
 
-        if (isNotBlank(currentUsername)) {
-            ProfileDTO currentUser = profileService.findUserByUsername(currentUsername);
-            if (currentUser == null) {
-                throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
-            }
-
-            if (userByNewUsername != null && !currentUser.getUserId().equals(userByNewUsername.getUserId())) {
+            if (userByNewUsername.isPresent()) {
                 throw new UsernameExistException(USERNAME_ALREADY_EXIST);
             }
 
-            if (userByNewEmail != null && !currentUser.getUserId().equals(userByNewEmail.getUserId())) {
+            if (userByNewEmail.isPresent()) {
                 throw new EmailExistException(EMAIL_ALREADY_EXIST);
             }
-
-            return;
         }
-
-        if (userByNewUsername != null) {
-            throw new UsernameExistException(USERNAME_ALREADY_EXIST);
-        }
-
-        if (userByNewEmail != null) {
-            throw new EmailExistException(EMAIL_ALREADY_EXIST);
-        }
-
     }
 
     private void validateImageFileType(String contentType) {
@@ -240,7 +227,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         ProfileDTO profileDTO = profileService.findUserByEmail(email);
         String token = createAndSaveConfirmationToken(profileDTO.getUsername());
 
-        String link = fromCurrentContextPath().path("/login/resetPassword/" + token + "/" + profileDTO.getUsername()).toUriString();
+        String link = fromCurrentContextPath().path("api/auth/reset-password/confirm").queryParam("token",token).toUriString();
+        log.info(link);
         emailService.send(profileDTO.getEmail(), buildResetPasswordEmail(profileDTO.getUsername(), link));
     }
 
@@ -257,39 +245,41 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    public void resetPasswordStepTwo(String username, String newPassword, String token) {
+    public void resetPasswordStepTwo(String newPassword, String token) {
 
-        getValidConfirmationToken(token);
+        ConfirmationToken confirmationToken = getValidConfirmationToken(token);
         confirmationTokenService.setConfirmedAt(token);
 
-        ProfileDTO profile = validateProfileForPasswordReset(username);
+        Profile profile = validateProfileForPasswordReset(confirmationToken.getProfile());
         updatePassword(profile, newPassword);
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        profileRepository.save(profile);
     }
 
-    private void updatePassword(ProfileDTO profileDTO, String newPassword) {
-        String encodedPassword = passwordEncoder.encode(newPassword);
-        profileDTO.setPassword(encodedPassword);
-        profileService.save(profileDTO);
+    private void updatePassword(Profile profile, String newPassword) {
+        String encodedPassword = AES.encryptString(newPassword, profile.getUserId());
+        profile.setPassword(encodedPassword);
     }
 
-    private ProfileDTO validateProfileForPasswordReset(String username) throws UserNotFoundException, AccountDisabledException {
-        ProfileDTO profile = profileService.findUserByUsername(username);
+    private Profile validateProfileForPasswordReset(String username) throws UserNotFoundException, AccountDisabledException {
+        Profile profile = profileRepository.findUserByUsername(username).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_EMAIL));
         if (Boolean.FALSE.equals(profile.getNotLocked())) {
             throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
         return profile;
     }
 
-    private void getValidConfirmationToken(String token) {
+    private ConfirmationToken getValidConfirmationToken(String token) {
         ConfirmationToken confirmToken = confirmationTokenService
                 .getToken(token)
-                .orElseThrow(() -> new IllegalStateException("Token not found."));
+                .orElseThrow(() -> new IllegalStateException(TOKEN_NOT_FOUND));
         if (confirmToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Token already confirmed.");
+            throw new IllegalStateException(TOKEN_ALREADY_CONFIRMED);
         }
         if (confirmToken.getExpiredAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Token expired.");
+            throw new IllegalStateException(TOKEN_EXPIRED);
         }
+        return confirmToken;
     }
 
     @Override
@@ -319,6 +309,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String code = generateVerificationCode();
         saveMFAVerification(profileDTO.getUsername(), code);
         sendSMS(profileDTO.getIndicativePhone(), decryptString(profileDTO.getPhone(), profileDTO.getUserId()), "Desporto24APP \nCodigo de Verificação:\n" + code);
+    }
+
+    @Override
+    public void confirmToken(String token) {
+        ConfirmationToken confirmationToken = getValidConfirmationToken(token);
+        confirmationTokenService.setConfirmedAt(token);
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
+        Profile profile = profileRepository.findUserByUsername(confirmationToken.getProfile()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        profile.setEnabled(true);
+        profileRepository.save(profile);
     }
 
     private String generateVerificationCode() {

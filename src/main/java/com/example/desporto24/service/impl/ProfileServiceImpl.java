@@ -1,5 +1,6 @@
 package com.example.desporto24.service.impl;
 
+import com.example.desporto24.encryption.AES;
 import com.example.desporto24.exception.*;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.model.Profile;
@@ -13,10 +14,7 @@ import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,11 +40,9 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 @Service
 @Transactional
 @RequiredArgsConstructor
-@Qualifier("UserDetailsService")
-public class ProfileServiceImpl implements ProfileService, UserDetailsService {
+public class ProfileServiceImpl implements ProfileService {
 
     private final ProfileRepository profileRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
     private final ProfileMapper profileMapper;
     private final ConfirmationTokenService confirmationTokenService;
     private final EmailService emailService;
@@ -77,11 +73,12 @@ public class ProfileServiceImpl implements ProfileService, UserDetailsService {
     }
 
     private void saveProfileImage(ProfileDTO profileDTO, MultipartFile profileImage) {
+            Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
             validateImageFileType(profileImage.getContentType());
             Path userFolder = createProfileFolder(profileDTO.getUsername());
             deleteExistingProfileImage(userFolder, profileDTO.getUsername());
             saveNewProfileImage(userFolder, profileDTO.getUsername(), profileImage);
-            profileDTO.setProfilePic(setProfileImageUrl(profileDTO.getUsername()));
+            profile.setProfilePicUrl(setProfileImageUrl(profileDTO.getUsername()));
             save(profileDTO);
         }
 
@@ -173,7 +170,7 @@ public class ProfileServiceImpl implements ProfileService, UserDetailsService {
         } else {
             validateNewUsernameEmail(username,null, profileDTO.getEmail());
         }
-        
+
         saveProfileImage(profile, photo);
         sendUpdateProfileEmail(profile);
     }
@@ -200,7 +197,7 @@ public class ProfileServiceImpl implements ProfileService, UserDetailsService {
     public void changeUsernameAndPassword(ProfileDTO profileDTO) {
         ProfileDTO profile = findUserByUsername(profileDTO.getUsername());
         profile.setUsername(profileDTO.getNewUsername());
-        profile.setPassword(passwordEncoder.encode(profileDTO.getPassword()));
+        profile.setPassword(AES.encryptString(profileDTO.getPassword(), profile.getUserId()));
         save(profile);
     }
 
@@ -279,11 +276,6 @@ public class ProfileServiceImpl implements ProfileService, UserDetailsService {
                         "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
                         "\n" +
                         "</div></div>";
-    }
-
-    @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return (UserDetails) findUserByUsername(username);
     }
 
     @Override

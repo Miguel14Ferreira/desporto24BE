@@ -33,12 +33,12 @@ public class Notifications {
     @JoinColumn(nullable = false)
     private String username;
 
-    public Notifications(String subject, String message, String greeting, String signature, String formattedDate, boolean isFriendRequest, boolean isUpdateProfile, boolean isSessionInvite, boolean isNormalMessage, String token, String username) {
+    public Notifications(String subject, String message, String greeting, String signature, String createdAt, boolean isFriendRequest, boolean isUpdateProfile, boolean isSessionInvite, boolean isNormalMessage, String token, String username) {
         this.subject = subject;
         this.message = message;
         this.greeting = greeting;
         this.signature = signature;
-        this.createdAt = formattedDate;
+        this.createdAt = createdAt;
         this.isFriendRequest = isFriendRequest;
         this.isUpdateProfile = isUpdateProfile;
         this.isSessionInvite = isSessionInvite;

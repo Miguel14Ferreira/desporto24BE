@@ -28,7 +28,7 @@ public class UserImplConstant {
     public static final String UPDATED_PERFIL = "A tua informação de perfil foi atualizada com sucesso";
     public static final String NEW_IDEA = "Muito obrigado pela tua sugestão, foi-te enviado um mail com mais informação";
     public static final String DISABLED_PERFIL = "A tua conta está agora bloqueada. Foi enviado um novo mail para o teu email, pedimos que sigas atentamente as instruções para os próximos passos";
-    public static final String DELETED_NOTIFICATION = "Esta notificação foi eliminada.";
+    public static final String DELETED_NOTIFICATION = "Esta notificação foi eliminada com sucesso";
     public static final String REMOVED_FRIEND = " foi removido da tua lista de amigos";
     public static final String ACCEPTED_FRIEND_REQUEST = "Tens um novo amigo na tua lista de amigos";
     public static final String NULL_RESULTS = "Não há resultados nesta pesquisa";
@@ -40,4 +40,5 @@ public class UserImplConstant {
     public static final String BLOCKED = "A partir deste momento o chat está bloqueado";
     public static final String UNBLOCKED = "A partir deste momento o chat está desbloqueado";
     public static final String ALREADY_FRIENDS = "Tu já tens este perfil na tua lista de amigos!";
+    public static final String NO_NOTIFICATION_FOUND = "Não foi encontrada nenhuma notificação";
 }

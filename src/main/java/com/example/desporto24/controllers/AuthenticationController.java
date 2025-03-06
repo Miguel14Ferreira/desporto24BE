@@ -5,6 +5,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.service.interfaces.AuthenticationService;
+import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -54,9 +55,8 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "200", description = "User successfully logged out"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<HttpResponse> terminateSession(@RequestBody String email) {
-        authenticateService.terminateSession(email);
-        return buildResponse();
+    public void terminateSession(@RequestBody ProfileDTO profileDTO) {
+        authenticateService.terminateSession(profileDTO);
     }
 
     @PostMapping("/register")
@@ -68,8 +68,21 @@ public class AuthenticationController {
     })
     public ResponseEntity<HttpResponse> registerUser(@ModelAttribute @Valid ProfileDTO profileDTO,
                                                      @RequestParam(value = "photo", required = false) MultipartFile photo) {
+
         authenticateService.signUpProfile(profileDTO, photo);
         return buildResponse(NEW_USER_REGISTERED);
+    }
+
+    @GetMapping("/register/confirm")
+    @Operation(summary = "Confirm Password Reset", description = "Completes the password reset process with a token.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Password successfully reset"),
+            @ApiResponse(responseCode = "400", description = "Invalid token or new password"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<HttpResponse> confirmRegistration(@RequestParam String token) {
+        authenticateService.confirmToken(token);
+        return buildResponse(REGISTRATION_CONFIRMED);
     }
 
     @PostMapping("/reset-password/initiate")
@@ -92,9 +105,8 @@ public class AuthenticationController {
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public ResponseEntity<HttpResponse> resetPassword(@RequestParam String token,
-                                                      @RequestParam String username,
-                                                      @RequestBody String newPassword) {
-        authenticateService.resetPasswordStepTwo(username, newPassword, token);
+                                                      @RequestParam String password) {
+        authenticateService.resetPasswordStepTwo(password, token);
         return buildResponse(PASSWORD_RESET_SUCCESS);
     }
 

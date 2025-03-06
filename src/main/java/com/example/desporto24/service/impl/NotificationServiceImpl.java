@@ -1,9 +1,11 @@
 package com.example.desporto24.service.impl;
 
+import com.example.desporto24.exception.NotificationNotFoundException;
 import com.example.desporto24.exception.TokenExpiredException;
 import com.example.desporto24.exception.TokenNotFoundException;
-import com.example.desporto24.mapper.ProfileMapper;
+import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Friend;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.register.FriendRequest.FriendRequest;
 import com.example.desporto24.register.FriendRequest.FriendRequestService;
@@ -12,6 +14,7 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.register.token.ConfirmationToken;
 import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.FriendRepository;
+import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
@@ -22,10 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
-import static com.example.desporto24.constant.UserImplConstant.TOKEN_EXPIRED;
-import static com.example.desporto24.constant.UserImplConstant.TOKEN_NOT_FOUND;
+import static com.example.desporto24.constant.UserImplConstant.*;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath;
 
 @Service
@@ -39,6 +42,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final ConfirmationTokenService confirmationTokenService;
     private final FriendRequestService friendRequestService;
     private final FriendRepository friendRepository;
+    private final ProfileRepository profileRepository;
 
     @Override
     public List<Notifications> getNotificationsFromProfile(String username) {
@@ -90,9 +94,15 @@ public class NotificationServiceImpl implements NotificationService {
         notificationsRepository.save(notifications);
     }
 
+    @Override
+    public void deleteNotification(Notifications notifications) {
+        Notifications notifications1 = notificationsRepository.findByToken(notifications.getToken()).orElseThrow(() -> new NotificationNotFoundException(NO_NOTIFICATION_FOUND));
+        notificationsRepository.delete(notifications1);
+    }
+
     private void createFriendRelationship(String username1, String username2) {
-        ProfileDTO profile1 = profileService.findUserByUsername(username1);
-        ProfileDTO profile2 = profileService.findUserByUsername(username2);
+        Profile profile1 = profileRepository.findUserByUsername(username1).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        Profile profile2 = profileRepository.findUserByUsername(username2).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         Friend friend = new Friend();
         friend.setCreatedAt(new Date());

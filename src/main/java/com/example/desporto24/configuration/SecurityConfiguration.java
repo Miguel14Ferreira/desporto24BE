@@ -3,8 +3,11 @@ package com.example.desporto24.configuration;
 import com.example.desporto24.filter.JwtAccessDeniedHandler;
 import com.example.desporto24.filter.JwtAuthenticationEntryPoint;
 import com.example.desporto24.filter.JwtAuthorizationFilter;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -36,8 +39,6 @@ public class SecurityConfiguration {
     private final JwtAuthorizationFilter jwtAuthorizationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final UserDetailsService userDetailsService;
-    private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
     /**
      * Security filter chain configuration.
@@ -54,6 +55,7 @@ public class SecurityConfiguration {
                 .and()
                 .authorizeRequests()
                 .requestMatchers(PUBLIC_URLS).permitAll()
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .exceptionHandling()
@@ -64,33 +66,20 @@ public class SecurityConfiguration {
 
         return http.build();
     }
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("Desporto24 API")
+                        .version("1.0")
+                        .description("API documentation for Desporto24 application"));
+    }
 
-    /**
-     * Authentication manager bean.
-     *
-     * @return the {@link AuthenticationManager} instance
-     */
     @Bean
-    public AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(bCryptPasswordEncoder);
-        return new ProviderManager(authProvider);
-    }
-    @Bean
-    public Docket api() {
-        return new Docket(DocumentationType.OAS_30)
-                .select()
-                .apis(RequestHandlerSelectors.basePackage("com.example.desporto24"))
-                .paths(PathSelectors.any())
-                .build()
-                .apiInfo(apiInfo());
-    }
-    private ApiInfo apiInfo() {
-        return new ApiInfoBuilder()
-                .title("Desporto24 API")
-                .description("API documentation for Desporto24 application")
-                .version("1.0.0")
+    public GroupedOpenApi publicApi() {
+        return GroupedOpenApi.builder()
+                .group("public")
+                .pathsToMatch("/**")
                 .build();
     }
 }

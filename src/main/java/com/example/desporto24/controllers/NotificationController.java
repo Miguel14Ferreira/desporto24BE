@@ -16,8 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import static com.example.desporto24.constant.UserImplConstant.ACCEPTED_FRIEND_REQUEST;
-import static com.example.desporto24.constant.UserImplConstant.DISABLED_PERFIL;
+import static com.example.desporto24.constant.UserImplConstant.*;
 import static org.springframework.http.HttpStatus.OK;
 
 @RestController
@@ -42,6 +41,7 @@ public class NotificationController {
         return new ResponseEntity<>(notifications, OK);
     }
 
+
     @PostMapping("/block/{id}")
     @Operation(summary = "Block Account", description = "Disable a user account and send an email notification.")
     @ApiResponses(value = {
@@ -54,6 +54,20 @@ public class NotificationController {
     public ResponseEntity<HttpResponse> blockAcc(@RequestBody String email) {
         notificationService.disableProfileAndSendEmail(email);
         return buildResponse(OK, DISABLED_PERFIL);
+    }
+
+    @PostMapping("/delete")
+    @Operation(summary = "Delete Notification", description = "Delete a notification from the user.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deleted notification successfully",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = HttpResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid notification ID"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<HttpResponse> deleteNotification(@RequestBody Notifications notifications) {
+        notificationService.deleteNotification(notifications);
+        return buildResponse(OK, DELETED_NOTIFICATION);
     }
 
     @GetMapping("/friend-request/accept/{id}/{token}")

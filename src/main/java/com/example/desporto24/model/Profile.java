@@ -37,8 +37,8 @@ public class Profile implements Serializable {
     @Unique
     private String email;
     private String favoriteSports;
-    private String profilePic;
-    private int logginAttempts;
+    private String profilePicUrl;
+    private int loginAttempts;
     private Boolean NotLocked;
     private Boolean enabled;
     private Boolean MFA;
@@ -50,6 +50,7 @@ public class Profile implements Serializable {
     private Date joinDate;
     private Status statusId;
     private String oldEmail;
+    private Boolean isFirstTimeLogin;
 
     public Profile(String username, String password) {
         this.username = username;

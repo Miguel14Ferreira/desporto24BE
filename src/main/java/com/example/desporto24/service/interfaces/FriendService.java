@@ -11,5 +11,5 @@ public interface FriendService {
     void blockFriend(String username1, String username2);
     void unblockFriend(String username1, String username2);
     void removeFriend(String username1, String username2);
-    List<ProfileDTO> getFriends(String username);
+    List<Profile> getFriends(String username);
 }

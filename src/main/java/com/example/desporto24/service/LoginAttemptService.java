@@ -1,14 +1,16 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.encryption.AES;
 import com.example.desporto24.exception.AccountDisabledException;
 import com.example.desporto24.exception.EmailNotVerifiedException;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.repository.ProfileRepository;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import static com.example.desporto24.constant.UserImplConstant.*;
@@ -25,42 +27,37 @@ public class LoginAttemptService {
         this.profileRepository = profileRepository;
         CacheBuilder.newBuilder().expireAfterWrite(15, MINUTES)
                 .maximumSize(100).build(new CacheLoader<String, Integer>() {
-                    public Integer load(@NotNull String key) {
+                    public @NotNull Integer load(@NotNull String key) {
                         return 0;
                     }
                 });
     }
 
-    public void evictUserFromLoginAttemptCache(Profile username) {
-        username.setLogginAttempts(0);
-        profileRepository.save(username);
-    }
+    public void handleLoginAttempt(String username, String password, Profile profile)
+            throws AccountDisabledException, EmailNotVerifiedException, BadCredentialsException {
 
-    public void addUserToLoginAttemptCache(Profile username) {
-        int attempts;
-        try {
-            attempts = ATTEMPT_INCREMENT + username.getLogginAttempts();
-        } catch (BadCredentialsException e) {
-            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
-        }
-        username.setLogginAttempts(attempts);
-        profileRepository.save(username);
-    }
-
-    public void hasExceededMaxAttempts(Profile username) throws AccountDisabledException, EmailNotVerifiedException {
-        try {
-            if (username.getLogginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
-                username.setNotLocked(false);
-                profileRepository.save(username);
-                throw new AccountDisabledException(ACCOUNT_DISABLED);
-            } else if (!username.getEnabled()) {
-                throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
-            }
-        } catch (EmailNotVerifiedException exception) {
-            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
-        } catch (AccountDisabledException exception) {
+        if (profile.getLoginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
+            profile.setNotLocked(false);
+            profileRepository.save(profile);
             throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
+
+        if (!profile.getEnabled()) {
+            throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
+        }
+
+        // Validate login attempt
+        if (!profile.getUsername().equals(username)) {
+            handleInvalidLogin(profile);
+        } else if (!AES.decryptString(profile.getPassword(), profile.getUserId()).equals(password)) {
+            handleInvalidLogin(profile);
+        }
     }
 
+    private void handleInvalidLogin(Profile profile) {
+        int attempts = profile.getLoginAttempts() + ATTEMPT_INCREMENT;
+        profile.setLoginAttempts(attempts);
+        profileRepository.save(profile);
+        throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.domain.HttpResponse;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.SendFriendRequest;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.service.interfaces.FriendService;
@@ -71,7 +72,7 @@ public class FriendController {
         return buildResponse(UNBLOCKED);
     }
 
-    @PutMapping("/remove")
+    @PostMapping("/remove")
     @Operation(summary = "Remove Friend", description = "Remove a friend from your friend list.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Friend removed successfully",
@@ -94,8 +95,8 @@ public class FriendController {
             @ApiResponse(responseCode = "404", description = "User not found"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<List<ProfileDTO>> getFriendList(@PathVariable("username") String username) {
-        List<ProfileDTO> friends = friendService.getFriends(username);
+    public ResponseEntity<List<Profile>> getFriendList(@PathVariable("username") String username) {
+        List<Profile> friends = friendService.getFriends(username);
         return new ResponseEntity<>(friends, OK);
     }
 

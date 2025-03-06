@@ -4,12 +4,12 @@ services:
     build:
       context: .
       args:
-        CONTAINER_PORT: ${CONTAINER_PORT}
+        CONTAINER_PORT: 8080
     image: desporto24be:v1
     restart: unless-stopped
     env_file:
-      - ${ENV_FILE}
+      - .env.dev
     expose:
-      - ${CONTAINER_PORT}
+      - 8080
     ports:
-      - ${CONTAINER_PORT}:${HOST_PORT}
+      - "8080:8080"
