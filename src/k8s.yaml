@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: desporto24
+  labels:
+    app: desporto24
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: desporto24
+  template:
+    metadata:
+      labels:
+        app: desporto24
+    spec:
+      containers:
+        - name: desporto24
+          image: desporto24be:v1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ACTIVE_PROFILE
+              value: "dev"
+            - name: POSTGRES_HOST
+              value: "desporto24db"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DATABASE
+              value: "postgres"
+            - name: POSTGRES_USERNAME
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: desporto24-secrets
+                  key: postgres-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: desporto24-secrets
+                  key: jwt-secret
+            - name: CONTAINER_PORT
+              value: "8080"
+            - name: VERIFY_EMAIL_HOST
+              value: "http://localhost:8080"
+            - name: AES_ENCRYPTION_KEY
+              value: "4elxod"
+          volumeMounts:
+            - name: log-volume
+              mountPath: /var/log/app  # Logs will be written here
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+      volumes:
+        - name: log-volume
+          emptyDir: {}  # This creates a temporary log volume (not persistent)
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: desporto24-service
+spec:
+  selector:
+    app: desporto24
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer

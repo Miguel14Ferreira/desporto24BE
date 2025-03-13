@@ -1,15 +1,105 @@
 services:
   desporto24app:
-    container_name: desporto24becontainer
+    container_name: desporto24be
     build:
       context: .
-      args:
-        CONTAINER_PORT: 8080
-    image: desporto24be:v1
+      dockerfile: Dockerfile
+    image: miguel14ferreira/desporto24
     restart: unless-stopped
     env_file:
       - .env.dev
+    depends_on:
+      - postgres
+      - fluentd
     expose:
       - 8080
     ports:
       - "8080:8080"
+      - "5005:5005"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://desporto24db:5432/desporto24?currentSchema=desporto24
+    networks:
+      - internalnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  postgres:
+    image: postgres:15
+    container_name: desporto24db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: desporto24
+    ports:
+      - "5432:5432"
+    networks:
+      - internalnet
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  fluentd:
+    build:
+      context: ./src/main/resources/fluentd/conf/  # Make sure Fluentd is built with correct config
+      dockerfile: Dockerfile
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:24224"]
+      interval: 5s
+      retries: 3
+      timeout: 5s
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - internalnet
+    volumes:
+      - fluentd-buffer:/fluentd/log
+      - /var/log/containers:/var/log/containers # Ensure logs from containers are available to Fluentd
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: elasticsearch
+    hostname: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - http.cors.enabled=true
+      - http.cors.allow-origin="*"
+      - http.cors.allow-methods=OPTIONS,HEAD,GET,POST,PUT,DELETE
+      - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    ports:
+      - "9200:9200"
+    networks:
+      - internalnet
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "5601:5601"
+    networks:
+      - internalnet
+
+networks:
+  internalnet:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  fluentd-buffer:
+  elasticsearch_data:
