@@ -11,14 +11,18 @@ import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.impl.SessionServiceImpl;
+import com.example.desporto24.storage.MediaStorage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -40,6 +44,7 @@ class SessionCreationServiceTest {
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
+    @Mock private MediaStorage mediaStorage;
 
     @Test
     void relaunchCreationDoesNotWriteLegacySessionFields() {
@@ -81,8 +86,52 @@ class SessionCreationServiceTest {
         assertEquals(AttendanceStatus.PENDING, participantCaptor.getValue().getAttendanceStatus());
     }
 
+    @Test
+    void optionalPhotoIsStoredAndSavedAsSessionImageUrl() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(invocation -> {
+            Session session = invocation.getArgument(0);
+            if (session.getId() == null) {
+                session.setId(99L);
+            }
+            return session;
+        });
+
+        var photo = new MockMultipartFile(
+                "photo", "match.png", "image/png", new byte[]{1, 2, 3});
+        when(mediaStorage.store(startsWith("sessions/99/"), same(photo)))
+                .thenReturn(URI.create("https://media.example/sessions/99/photo.png"));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futebol",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        service().create(request, photo, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository, times(2)).save(captor.capture());
+        assertEquals(
+                "https://media.example/sessions/99/photo.png",
+                captor.getAllValues().getLast().getGamePhoto()
+        );
+    }
+
     private SessionServiceImpl service() {
-        return new SessionServiceImpl(
+        SessionServiceImpl service = new SessionServiceImpl(
                 sessionRepository,
                 profileRepository,
                 participantRepository,
@@ -95,5 +144,7 @@ class SessionCreationServiceTest {
                 reliabilityService,
                 sessionNotificationService
         );
+        ReflectionTestUtils.setField(service, "mediaStorage", mediaStorage);
+        return service;
     }
 }
