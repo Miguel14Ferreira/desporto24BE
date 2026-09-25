@@ -234,3 +234,14 @@ Task 5C verification — last-slot concurrency:
 - Fresh verification: GitHub Actions run 36177844241 → PASS on ./mvnw -q clean test.
 
 Task 5C: complete.
+
+
+Task 5D final verification — secure join, capacity and waitlist:
+- 5A verified public/private join, authenticated identity, wrong-password rejection and idempotent duplicate join.
+- 5B verified OPEN/FULL transitions, waitlist insertion and FIFO positions within the same priority tier.
+- 5C verified pessimistic locking and the concurrent last-slot scenario with exactly one participant and one waitlisted user.
+- POST /api/sessions/{id}/join returns only JoinState and waitlistPosition; neither password nor passwordHash is exposed in the response or exception text.
+- Join is @Transactional and obtains the session through findByIdForUpdate(), which uses PESSIMISTIC_WRITE before capacity is counted.
+- Final fresh verification: GitHub Actions run 36177989611 attempt 2 → PASS on ./mvnw -q clean test.
+
+Task 5: complete.
