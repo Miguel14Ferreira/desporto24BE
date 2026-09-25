@@ -82,7 +82,7 @@ class AuthenticationServiceImplTest {
         );
 
         verifyNoInteractions(jwtTokenProvider);
-        verify(mfaVerificationService, never()).setConfirmedAt(anyString(), any());
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
     }
 
     @Test
@@ -126,10 +126,9 @@ class AuthenticationServiceImplTest {
 
         when(mfaVerificationService.getByChallengeId("challenge-123")).thenReturn(Optional.of(challenge));
         when(passwordEncoder.matches("ABCDEFGH", "$2a$challenge-hash")).thenReturn(true);
-        doAnswer(invocation -> {
-            challenge.setConfirmedAt(invocation.getArgument(1));
-            return null;
-        }).when(mfaVerificationService).setConfirmedAt(eq("challenge-123"), any());
+        when(mfaVerificationService.confirmIfPending(eq("challenge-123"), any()))
+                .thenReturn(true)
+                .thenReturn(false);
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
         when(profileRepository.save(profile)).thenReturn(profile);
         when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("jwt-token");
