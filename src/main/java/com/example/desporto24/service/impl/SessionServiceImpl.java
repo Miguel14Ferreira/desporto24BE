@@ -24,6 +24,7 @@ import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
+import com.example.desporto24.service.SessionNotificationService;
 import com.example.desporto24.service.ReliabilityService;
 import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
@@ -59,6 +60,7 @@ public class SessionServiceImpl implements SessionService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final WaitlistPromotionService waitlistPromotionService;
     private final ReliabilityService reliabilityService;
+    private final SessionNotificationService sessionNotificationService;
 
     @Override
     @Transactional
@@ -326,6 +328,7 @@ public class SessionServiceImpl implements SessionService {
         session.setStatus(SessionStatus.CANCELLED);
         session.setUpdatedAt(Instant.now());
         sessionRepository.save(session);
+        sessionNotificationService.notifySessionCancelled(session);
     }
 
     @Override
@@ -355,6 +358,7 @@ public class SessionServiceImpl implements SessionService {
         membership.setState(ParticipantState.REMOVED);
         membership.setExitedAt(now);
         participantRepository.save(membership);
+        sessionNotificationService.notifyParticipantRemoved(session, membership.getProfile());
 
         waitlistPromotionService.promoteNext(session, now);
     }
