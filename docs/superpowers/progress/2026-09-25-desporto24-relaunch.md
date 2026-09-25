@@ -29,3 +29,17 @@ Task 1 verification:
 - Final clean verification at commit 44483cdd459a1edeaca4ab18d50af7a9d545f47c: CI run 36120887661 PASS using Java 21 and ./mvnw -q clean test.
 
 Task 1: complete (commits bb874bd..44483cd, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36120887661)
+
+
+Task 2: Ruling: MFA challenge consumption must be atomic before JWT issuance, not only sequentially single-use — repository conditional UPDATE closes concurrent replay window — cost if wrong: a race could otherwise issue more than one JWT for the same MFA challenge.
+
+Task 2: Ruling: remove tracked runtime secrets now, but do not rotate AES_ENCRYPTION_KEY blindly before a data re-encryption migration exists — existing encrypted phone/address values depend on the old key — cost if wrong: rotating it directly would make existing encrypted PII unreadable.
+
+Task 2 verification:
+- Existing relaunch security work already present on the feature branch covered BCrypt password migration, MFA challenge DTOs, secret externalization, tracked .env deletion, and legacy JWT removal.
+- CI run 36124184888 passed the complete suite after removing an obsolete Mockito stub.
+- Added an atomic MFA replay regression test at commit 6a2fc4712f9550d4f343f3ad6640b5069fda7dd9; CI run 36124322057 failed at test compilation because confirmIfPending did not yet exist (expected RED).
+- Implemented repository-level conditional MFA confirmation and consumed the challenge before JWT issuance.
+- Final clean verification at commit 73ad84d77c8d2ebc4badccbba8ff3c5089a74227: CI run 36124476936 PASS using Java 21 and ./mvnw -q clean test.
+
+Task 2: complete (commits 5d14bcb..73ad84d, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36124476936)
