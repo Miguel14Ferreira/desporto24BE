@@ -43,3 +43,16 @@ Task 2 verification:
 - Final clean verification at commit 73ad84d77c8d2ebc4badccbba8ff3c5089a74227: CI run 36124476936 PASS using Java 21 and ./mvnw -q clean test.
 
 Task 2: complete (commits 5d14bcb..73ad84d, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36124476936)
+
+
+Task 3: Ruling: use Spring Boot 4's focused spring-boot-data-jpa-test module plus H2 in test scope for repository constraint tests — production remains PostgreSQL — cost if wrong: H2 cannot prove PostgreSQL-specific DDL semantics, which are covered separately by Task 15's real PostgreSQL migration tests.
+
+Task 3: Ruling: H2 constraint tests use LEGACY compatibility mode rather than PostgreSQL mode because the existing legacy Profile.statusId ordinal mapping produces TINYINT, which H2 PostgreSQL mode rejects before the new domain tables can be tested — no production mapping is changed just to satisfy the test database — cost if wrong: a DB-specific mismatch could escape this slice, again covered by Task 15.
+
+Task 3 verification:
+- RED CI run 36124729672 failed because the new session entities/enums/repositories did not exist.
+- Full-domain CI run 36125038459 reached Hibernate schema generation but failed because H2 PostgreSQL mode rejected legacy TINYINT on Profile.statusId; root cause confirmed from generated DDL.
+- Final clean verification at commit 78d80cbf69b537ecb95092156163dd1dac515d11: CI run 36125336867 PASS using Java 21 and ./mvnw -q clean test.
+- SessionParticipant and SessionWaitlist enforce unique (session_id, profile_id) membership; AttendanceDispute and SessionMessage mappings are present; Session keeps legacy columns while adding relaunch fields.
+
+Task 3: complete (commits 18ef188..78d80cb, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36125336867)
