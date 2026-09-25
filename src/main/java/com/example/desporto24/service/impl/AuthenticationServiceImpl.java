@@ -106,10 +106,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         validateProfileStatus(profile);
 
-        mfaVerificationService.setConfirmedAt(
-                challenge.getChallengeId(),
-                LocalDateTime.now(ZoneOffset.UTC)
-        );
+        LocalDateTime confirmedAt = LocalDateTime.now(ZoneOffset.UTC);
+        if (!mfaVerificationService.confirmIfPending(challenge.getChallengeId(), confirmedAt)) {
+            throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
+        }
 
         return completedLogin(profile);
     }
