@@ -96,7 +96,7 @@ class AuthenticationServiceImplTest {
         );
 
         verifyNoInteractions(jwtTokenProvider);
-        verify(mfaVerificationService, never()).setConfirmedAt(anyString(), any());
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
     }
 
     @Test
@@ -115,7 +115,7 @@ class AuthenticationServiceImplTest {
         );
 
         verifyNoInteractions(jwtTokenProvider);
-        verify(mfaVerificationService, never()).setConfirmedAt(anyString(), any());
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
     }
 
     @Test
