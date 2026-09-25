@@ -189,3 +189,16 @@ Task 4C verification — My Sessions:
 - Fresh verification: GitHub Actions run 36176794211 → PASS on ./mvnw -q clean test.
 
 Task 4C: complete.
+
+
+Task 4D final verification — secure session API:
+- 4A creation/detail verified: authenticated creator identity, hashed private password, no plaintext password writes, address hidden unless creator/ACTIVE participant.
+- 4B discovery verified: future OPEN/FULL candidates, filters, 25 km default radius with coordinates, no radius filter without coordinates, sorting by distance/vacancies/price/date.
+- 4C My Sessions verified: authenticated identity only, correct created/joined/waitlisted grouping, no duplicate creator sessions in joined.
+- Final review found one access gap: GET /api/sessions was still authenticated-only, contrary to the approved public discovery flow.
+- RED: SecurityConstantTest at commit d9c28272de348e24d33393dae8bd0f319569da04 failed in GitHub Actions run 36177033312 because PUBLIC_GET_URLS did not exist.
+- GREEN: SecurityConstant now defines only "/api/sessions" as a public GET path and SecurityConfiguration permits it with requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS), leaving POST /api/sessions and /api/sessions/** actions authenticated.
+- Final verification: GitHub Actions run 36177165145 → PASS on ./mvnw -q clean test.
+- Final scan confirms the new controller exposes GET /api/sessions, GET /api/sessions/{id}, POST /api/sessions and GET /api/sessions/mine; SessionDetailResponse contains no password/passwordHash field.
+
+Task 4: complete.
