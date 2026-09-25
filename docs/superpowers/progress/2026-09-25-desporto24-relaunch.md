@@ -56,3 +56,13 @@ Task 3 verification:
 - SessionParticipant and SessionWaitlist enforce unique (session_id, profile_id) membership; AttendanceDispute and SessionMessage mappings are present; Session keeps legacy columns while adding relaunch fields.
 
 Task 3: complete (commits 18ef188..78d80cb, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36125336867)
+
+
+Task 4 verification:
+- RED CI run 36125898287 failed because SessionViewMapper did not yet exist (expected RED from the privacy test).
+- Implemented SessionViewMapper, authenticated creation/detail, proximity discovery, /api/sessions/mine, creator membership, password hashing for private-session creation, and repository queries at commit c7335d2e0ffbef6b6c26f88c75e910b387cfb1c9.
+- CI run 36169896746 exposed a Java generic-inference compile error in the vacancies comparator; root cause was an untyped lambda inferred as Object.
+- Typed the comparator lambda at commit aa5626ebbf7a7f0380d2ecf0b000fda748ed7e3e.
+- Final verification: CI run 36169955621 PASS using Java 21 and ./mvnw -q clean test.
+
+Task 4: complete (commits a205307..aa5626e, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36169955621)
