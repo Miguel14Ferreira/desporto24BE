@@ -54,11 +54,8 @@ class AuthenticationServiceImplTest {
     @Test
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
         Profile profile = activeProfile(true);
-        ProfileDTO safeProfile = safeProfile();
-
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$challenge-hash");
-        when(profileMapper.toDto(profile)).thenReturn(safeProfile);
 
         try (MockedStatic<SmsUtils> sms = mockStatic(SmsUtils.class)) {
             LoginResponse response = service().login(credentials());
