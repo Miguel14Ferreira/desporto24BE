@@ -379,7 +379,7 @@ Delete the tracked `.env*` files listed above from Git.
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add .gitignore .env.example pom.xml src/main src/test
@@ -883,24 +883,7 @@ private void requireCreator(Session session, Profile actor) {
 
 Cancellation sets `SessionStatus.CANCELLED`; it does not delete the session, participants, waitlist or messages.
 
-- [ ] **Step 6: Add the optional photo to the create-session UI**
-
-Send creation as `multipart/form-data` with one JSON part named `session` and an optional file part named `photo`. Update the backend `POST /api/sessions` controller accordingly:
-
-```java
-@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-public ResponseEntity<SessionDetailResponse> create(
-        @RequestPart("session") @Valid CreateSessionRequest request,
-        @RequestPart(value = "photo", required = false) MultipartFile photo,
-        Authentication authentication) {
-    return ResponseEntity.status(HttpStatus.CREATED)
-        .body(sessionService.create(request, photo, authentication.getName()));
-}
-```
-
-The frontend must allow JPEG/PNG/WEBP selection but not require a file.
-
-- [ ] **Step 7: Run tests**
+- [ ] **Step 6: Run tests**
 
 ```bash
 ./mvnw -Dtest=WaitlistPromotionServiceTest,SessionManagementControllerTest test
@@ -1448,7 +1431,7 @@ Add:
 
 After successful login navigate to `/app/discover` instead of the legacy `/menu`.
 
-- [ ] **Step 8: Run tests/build**
+- [ ] **Step 7: Run tests/build**
 
 ```bash
 npm test -- --watch=false --browsers=ChromeHeadless
@@ -1547,7 +1530,7 @@ Redirect:
 
 Keep the old components temporarily in source until the new flow passes acceptance testing, then remove their routes.
 
-- [ ] **Step 7: Run tests/build**
+- [ ] **Step 8: Run tests/build**
 
 ```bash
 npm test -- --watch=false --browsers=ChromeHeadless
@@ -1556,7 +1539,7 @@ npm run build
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/app
@@ -1719,7 +1702,37 @@ desporto.media.public-base-url=${MEDIA_PUBLIC_BASE_URL:}
 
 Session/profile services call `MediaStorage`; controllers return stored public URI. Session photos remain optional.
 
-- [ ] **Step 6: Run tests**
+- [ ] **Step 6: Add the optional photo to the create-session UI**
+
+Send creation as `multipart/form-data` with one JSON part named `session` and an optional file part named `photo`. Update the backend `POST /api/sessions` controller accordingly:
+
+```java
+@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<SessionDetailResponse> create(
+        @RequestPart("session") @Valid CreateSessionRequest request,
+        @RequestPart(value = "photo", required = false) MultipartFile photo,
+        Authentication authentication) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(sessionService.create(request, photo, authentication.getName()));
+}
+```
+
+Update `SessionApiService.create` to build `FormData`:
+
+```ts
+create(request: CreateSessionRequest, photo: File | null): Observable<SessionDetail> {
+  const form = new FormData();
+  form.append('session', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+  if (photo) {
+    form.append('photo', photo);
+  }
+  return this.http.post<SessionDetail>(`${this.baseUrl}/api/sessions`, form);
+}
+```
+
+The frontend allows JPEG/PNG/WEBP selection but does not require a file.
+
+- [ ] **Step 7: Run tests**
 
 ```bash
 ./mvnw -Dtest=MediaStorageTest test
