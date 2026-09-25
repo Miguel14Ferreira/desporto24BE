@@ -59,7 +59,7 @@ public class S3MediaStorage implements MediaStorage {
     }
 
     private static S3Client buildClient(MediaStorageProperties properties) {
-        S3Client.Builder builder = S3Client.builder()
+        S3ClientBuilder builder = S3Client.builder()
                 .region(Region.of(properties.getS3Region()))
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(properties.getS3Endpoint() != null
