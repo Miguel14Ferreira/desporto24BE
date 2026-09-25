@@ -304,3 +304,17 @@ Task 7B verification — creator attendance:
 - Fresh verification: GitHub Actions run 36179367467 → PASS on ./mvnw -q clean test.
 
 Task 7B: complete.
+
+
+Task 7C verification — attendance disputes:
+- POST /api/attendance-disputes uses Authentication.getName() and only allows a participant to dispute their own attendance record.
+- Only NO_SHOW attendance can be disputed.
+- A second OPEN dispute for the same participant attendance record is rejected.
+- New disputes store participant, reporter, disputing profile, trimmed reason, OPEN status and createdAt.
+- Resolution accepts only ACCEPTED or REJECTED and refuses to resolve an already-resolved dispute again.
+- PUT /api/attendance-disputes/{id} is explicitly protected by @PreAuthorize("hasRole('ADMIN')").
+- Existing reliability scoring behavior remains: OPEN/ACCEPTED disputes exclude the no-show weight; REJECTED restores it.
+- Added ReliabilityDisputeServiceTest plus explicit controller annotation coverage.
+- Fresh verification: GitHub Actions run 36179671955 → PASS on ./mvnw -q clean test.
+
+Task 7C: complete.
