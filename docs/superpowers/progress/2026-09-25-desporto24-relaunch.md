@@ -339,3 +339,18 @@ Task 7E final verification — attendance reliability and disputes:
 - Final fresh verification: GitHub Actions run 36180057998 attempt 2 → PASS on ./mvnw -q clean test.
 
 Task 7: complete.
+
+
+Task 8 final verification — session notifications and participant-only chat:
+- Added NotificationType values WAITLIST_PROMOTED, SESSION_REMOVED and SESSION_CANCELLED while keeping legacy notification fields.
+- Added GET /api/notifications/me using Authentication.getName().
+- Waitlist promotion emits a typed unread notification for the promoted profile.
+- Creator removal emits SESSION_REMOVED for the removed profile.
+- Session cancellation notifies affected ACTIVE participants and waitlisted profiles once, excluding the creator.
+- Added GET/POST /api/sessions/{id}/messages with creator/ACTIVE-participant authorization.
+- Non-participants and removed participants cannot read/write session chat.
+- Message bodies are trimmed, blank values rejected and length capped at 2000.
+- Added dedicated SessionChatServiceTest, SessionNotificationServiceTest and NotificationControllerTest.
+- Final verification: GitHub Actions run 36180833684 → PASS on ./mvnw -q clean test.
+
+Task 8: complete.
