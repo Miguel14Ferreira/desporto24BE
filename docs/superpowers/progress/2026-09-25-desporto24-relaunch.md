@@ -329,3 +329,13 @@ Task 7D verification — reliability summary and join integration:
 - Fresh verification: GitHub Actions run 36179943524 → PASS on ./mvnw -q clean test.
 
 Task 7D: complete.
+
+
+Task 7E final verification — attendance reliability and disputes:
+- 7A scoring/boundaries verified.
+- 7B creator attendance and audit verified.
+- 7C dispute lifecycle/admin resolution verified.
+- 7D summary endpoint plus join restriction/waitlist priority integration verified.
+- Final fresh verification: GitHub Actions run 36180057998 attempt 2 → PASS on ./mvnw -q clean test.
+
+Task 7: complete.
