@@ -22,6 +22,7 @@ public class WaitlistPromotionService {
     private final SessionParticipantRepository participantRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionRepository sessionRepository;
+    private final SessionNotificationService sessionNotificationService;
 
     @Transactional
     public Optional<SessionParticipant> promoteNext(Session session, Instant now) {
@@ -47,7 +48,10 @@ public class WaitlistPromotionService {
                     participant.setExitedAt(null);
                     participant.setAttendanceReportedBy(null);
                     participant.setAttendanceRecordedAt(null);
-                    return participantRepository.save(participant);
+
+                    SessionParticipant saved = participantRepository.save(participant);
+                    sessionNotificationService.notifyWaitlistPromoted(session, entry.getProfile());
+                    return saved;
                 });
 
         recomputeStatus(session, now);
