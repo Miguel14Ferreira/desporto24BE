@@ -12,8 +12,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 
+import java.lang.reflect.Method;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.*;
 
@@ -54,6 +59,19 @@ class ReliabilityControllerTest {
         controller.resolveDispute(30L, request);
 
         verify(reliabilityService).resolveDispute(30L, DisputeStatus.ACCEPTED);
+    }
+
+    @Test
+    void disputeResolutionEndpointRequiresAdminRole() throws Exception {
+        Method method = ReliabilityController.class.getMethod(
+                "resolveDispute",
+                Long.class,
+                DisputeResolutionRequest.class);
+
+        PreAuthorize preAuthorize = method.getAnnotation(PreAuthorize.class);
+
+        assertNotNull(preAuthorize);
+        assertEquals("hasRole('ADMIN')", preAuthorize.value());
     }
 
     @Test
