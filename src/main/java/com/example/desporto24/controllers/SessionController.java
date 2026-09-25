@@ -12,9 +12,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -87,11 +89,20 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SessionDetailResponse> create(
             @RequestBody @Valid CreateSessionRequest request,
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(sessionService.create(request, authentication.getName()));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<SessionDetailResponse> createWithPhoto(
+            @RequestPart("session") @Valid CreateSessionRequest request,
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(sessionService.create(request, photo, authentication.getName()));
     }
 }
