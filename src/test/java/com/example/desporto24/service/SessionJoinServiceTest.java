@@ -25,6 +25,7 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
@@ -192,6 +193,37 @@ class SessionJoinServiceTest {
     }
 
     @Test
+    void reliabilityScoreAtRestrictionThresholdBlocksJoin() {
+        Session session = createSession(false, null, 3);
+        Profile joiner = createProfile("restricted");
+        recordNoShows(joiner, 4);
+
+        assertThrows(AccessDeniedException.class, () -> sessionService.join(
+                session.getId(), new JoinSessionRequest(null), joiner.getUsername()));
+
+        assertFalse(participantRepository.existsBySessionIdAndProfileIdAndState(
+                session.getId(), joiner.getId(), ParticipantState.ACTIVE));
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), joiner.getId()).isEmpty());
+    }
+
+    @Test
+    void reliabilityScoreAtReducedPriorityThresholdCreatesTierOneWaitlistEntry() {
+        Session session = createSession(false, null, 1);
+        Profile joiner = createProfile("reduced");
+        recordNoShows(joiner, 3);
+
+        JoinSessionResponse response = sessionService.join(
+                session.getId(), new JoinSessionRequest(null), joiner.getUsername());
+
+        assertEquals(JoinState.WAITLISTED, response.state());
+        assertEquals(1,
+                waitlistRepository.findBySessionIdAndProfileId(session.getId(), joiner.getId())
+                        .orElseThrow()
+                        .getPriorityTier());
+    }
+
+    @Test
     void twoConcurrentJoinsForLastSlotProduceOneParticipantAndOneWaitlistedUser() throws Exception {
         Session session = createSession(false, null, 2);
         Profile first = createProfile("first");
@@ -226,6 +258,33 @@ class SessionJoinServiceTest {
                     session.getId()).size());
         } finally {
             pool.shutdownNow();
+        }
+    }
+
+    private void recordNoShows(Profile profile, int count) {
+        for (int i = 1; i <= count; i++) {
+            Instant eventAt = Instant.now().minusSeconds(i * 24L * 60L * 60L);
+
+            Session past = new Session();
+            past.setProfile(creator);
+            past.setUserId(creator.getUserId());
+            past.setSport("Futebol");
+            past.setCity("Cacem");
+            past.setAddress("Rua Historial " + i);
+            past.setGameDate(Date.from(eventAt));
+            past.setMaxParticipants(2);
+            past.setPrivateGame(false);
+            past.setStatus(SessionStatus.COMPLETED);
+            past = sessionRepository.saveAndFlush(past);
+
+            participantRepository.saveAndFlush(SessionParticipant.builder()
+                    .session(past)
+                    .profile(profile)
+                    .state(ParticipantState.ACTIVE)
+                    .attendanceStatus(AttendanceStatus.NO_SHOW)
+                    .joinedAt(eventAt.minusSeconds(3600))
+                    .attendanceRecordedAt(eventAt)
+                    .build());
         }
     }
 
