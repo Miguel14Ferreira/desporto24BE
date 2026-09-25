@@ -224,3 +224,13 @@ Task 5B verification — capacity and waitlist:
 - Fresh verification: GitHub Actions run 36177736635 → PASS on ./mvnw -q clean test.
 
 Task 5B: complete.
+
+
+Task 5C verification — last-slot concurrency:
+- SessionServiceImpl.join is transactional and obtains the session through SessionRepository.findByIdForUpdate before counting active participants.
+- SessionRepository.findByIdForUpdate uses @Lock(LockModeType.PESSIMISTIC_WRITE).
+- The integration concurrency test starts two threads simultaneously against one final slot.
+- Expected/verified result: exactly one join returns PARTICIPANT, one returns WAITLISTED, active participant count equals maxParticipants, and exactly one waitlist row is created.
+- Fresh verification: GitHub Actions run 36177844241 → PASS on ./mvnw -q clean test.
+
+Task 5C: complete.
