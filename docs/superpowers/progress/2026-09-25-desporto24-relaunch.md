@@ -66,3 +66,12 @@ Task 4 verification:
 - Final verification: CI run 36169955621 PASS using Java 21 and ./mvnw -q clean test.
 
 Task 4: complete (commits a205307..aa5626e, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36169955621)
+
+
+Task 5 verification:
+- RED commit 65bcf76c8a49adc339fd30d52bc27deb9af38897 added integration coverage for public/private join, wrong password, duplicate join, full-session waitlist and two concurrent joins for one final slot.
+- RED CI run 36170207002 failed because JoinState/JoinSessionRequest/JoinSessionResponse did not exist (expected).
+- Implemented pessimistic session-row locking, idempotent duplicate joins, BCrypt private-session password validation, participant creation, FULL status and FIFO waitlist insertion at commit 755d9b454280ac34e3f326d93e79e16d86e234e5.
+- Final verification: CI run 36170399460 PASS using Java 21 and ./mvnw -q clean test, including the two-thread last-slot integration test.
+
+Task 5: complete (commits 65bcf76..755d9b4, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36170399460)
