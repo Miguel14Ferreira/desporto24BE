@@ -111,3 +111,13 @@ Task 2D verification — runtime secrets:
 - Red phase: CI run 36174539669 failed as expected because application-dev.properties still contained a literal POSTGRES_USERNAME.
 - Fix commit 9b1150b905b03433c0503ca1494b598fe81e20ca removed the literal sensitive values from application-dev/prod/test.properties.
 - Green phase: CI run 36174681275 → PASS.
+
+
+Task 2E final verification — security hardening:
+- 2A Passwords: BCrypt for new/reset/changed passwords; legacy AES passwords upgrade on successful login; stored password is not exposed in ProfileDTO.
+- 2B MFA: MFA-enabled login returns challenge only; wrong/expired/replayed challenges do not issue JWT; confirmation is single-use.
+- 2C JWT: legacy JwtUtils and io.jsonwebtoken:jjwt are absent; JWTokenProvider (Auth0 java-jwt) is the single JWT implementation.
+- 2D Secrets: only .env.example is tracked; DB/JWT/AES/mail/Twilio secrets are runtime-provided; profile property files contain no literal POSTGRES_USERNAME, POSTGRES_PASSWORD or JWT_SECRET values.
+- Final fresh verification: GitHub Actions run 36174878993 attempt 2 → PASS on ./mvnw -q clean test.
+
+Task 2: complete.
