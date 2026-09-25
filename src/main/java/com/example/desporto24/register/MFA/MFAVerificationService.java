@@ -25,10 +25,7 @@ public class MFAVerificationService {
         return repository.findByChallengeId(challengeId);
     }
 
-    public void setConfirmedAt(String challengeId, LocalDateTime confirmedAt) {
-        MFAVerification verification = repository.findByChallengeId(challengeId)
-                .orElseThrow(() -> new IllegalStateException("MFA challenge not found"));
-        verification.setConfirmedAt(confirmedAt);
-        repository.save(verification);
+    public boolean confirmIfPending(String challengeId, LocalDateTime confirmedAt) {
+        return repository.confirmIfPending(challengeId, confirmedAt) == 1;
     }
 }
