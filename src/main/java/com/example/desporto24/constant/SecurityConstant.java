@@ -28,6 +28,7 @@ public final class SecurityConstant {
             "/api/auth/mfa/confirm",
             "/api/auth/mfa/resend",
             "/image/**",
+            "/media/**",
             "/error"
     };
 }
