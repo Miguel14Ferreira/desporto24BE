@@ -57,6 +57,7 @@ import static org.junit.jupiter.api.Assertions.*;
         SessionViewMapper.class,
         SessionDistanceCalculator.class,
         WaitlistPromotionService.class,
+        SessionNotificationService.class,
         ReliabilityService.class,
         ReliabilityPolicyProperties.class,
         PasswordHashService.class,
