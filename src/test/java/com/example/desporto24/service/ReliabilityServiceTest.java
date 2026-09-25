@@ -8,6 +8,8 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.reliability.ReliabilitySummaryResponse;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.session.AttendanceDisputeRepository;
+import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,12 +29,16 @@ class ReliabilityServiceTest {
     private SessionParticipantRepository participantRepository;
     private AttendanceDisputeRepository disputeRepository;
     private ReliabilityService service;
+    private ProfileRepository profileRepository;
+    private SessionRepository sessionRepository;
     private Profile profile;
 
     @BeforeEach
     void setUp() {
         participantRepository = mock(SessionParticipantRepository.class);
         disputeRepository = mock(AttendanceDisputeRepository.class);
+        profileRepository = mock(ProfileRepository.class);
+        sessionRepository = mock(SessionRepository.class);
 
         ReliabilityPolicyProperties properties = new ReliabilityPolicyProperties();
         properties.setFreeCancelHours(2);
@@ -45,7 +51,12 @@ class ReliabilityServiceTest {
         properties.setRestrictionDays(7);
         properties.setAttendanceMarkingDelayMinutes(30);
 
-        service = new ReliabilityService(participantRepository, disputeRepository, properties);
+        service = new ReliabilityService(
+                participantRepository,
+                disputeRepository,
+                properties,
+                profileRepository,
+                sessionRepository);
 
         profile = new Profile();
         profile.setId(7L);
