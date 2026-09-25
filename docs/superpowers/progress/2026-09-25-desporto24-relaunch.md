@@ -132,3 +132,13 @@ Task 3A verification — session domain base:
 - Fresh branch verification: GitHub Actions run 36175251529 → PASS on ./mvnw -q clean test.
 
 Task 3A: complete.
+
+
+Task 3B verification — disputes and session messages:
+- AttendanceDispute contains participant, reporter profile, disputing profile, reason, DisputeStatus, createdAt and resolvedAt.
+- SessionMessage contains session, sender profile, body and createdAt; body is constrained to 2000 characters.
+- AttendanceDisputeRepository and SessionMessageRepository are present.
+- No extra uniqueness constraint was added because the approved Task 3 plan does not require one for disputes or messages.
+- Fresh verification: GitHub Actions run 36175381028 attempt 2 → PASS on the current feature branch.
+
+Task 3B: complete.
