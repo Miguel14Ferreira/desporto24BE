@@ -121,3 +121,14 @@ Task 2E final verification — security hardening:
 - Final fresh verification: GitHub Actions run 36174878993 attempt 2 → PASS on ./mvnw -q clean test.
 
 Task 2: complete.
+
+
+Task 3A verification — session domain base:
+- Session includes additive relaunch fields for maxParticipants, numeric price, passwordHash, latitude/longitude, status and updatedAt while legacy columns remain temporarily for compatibility.
+- SessionParticipant enforces unique (session_id, profile_id), tracks ACTIVE/LEFT/REMOVED state, attendance status and attendance audit fields.
+- SessionWaitlist enforces unique (session_id, profile_id), stores FIFO createdAt and configurable priorityTier.
+- SessionStatus, ParticipantState, AttendanceStatus and DisputeStatus enums match the approved design.
+- Repository tests cover duplicate participant and duplicate waitlist membership constraints.
+- Fresh branch verification: GitHub Actions run 36175251529 → PASS on ./mvnw -q clean test.
+
+Task 3A: complete.
