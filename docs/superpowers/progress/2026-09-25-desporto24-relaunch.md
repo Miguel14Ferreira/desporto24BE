@@ -86,3 +86,11 @@ Task 6 verification:
 - Final verification: CI run 36171025430 PASS using Java 21 and ./mvnw -q clean test.
 
 Task 6: complete (commits ab7156a..a22a210, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36171025430)
+
+
+Task 2B verification — MFA gating:
+- POST /api/auth/login returns HTTP 202 for MFA-enabled accounts with challengeId and no JWT.
+- Wrong MFA code does not issue JWT.
+- Expired MFA challenge does not issue JWT.
+- MFA challenge confirmation is single-use through atomic confirmIfPending.
+- Fresh CI verification: GitHub Actions run 36171714471 attempt 2 → PASS on current feature branch.
