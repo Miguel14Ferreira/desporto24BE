@@ -94,3 +94,10 @@ Task 2B verification — MFA gating:
 - Expired MFA challenge does not issue JWT.
 - MFA challenge confirmation is single-use through atomic confirmIfPending.
 - Fresh CI verification: GitHub Actions run 36171714471 attempt 2 → PASS on current feature branch.
+
+
+Task 2C verification — JWT consolidation:
+- Legacy src/main/java/com/example/desporto24/security/JwtUtils.java is absent from the feature branch.
+- Legacy io.jsonwebtoken:jjwt dependency is absent from pom.xml.
+- Active authentication filter delegates token parsing/validation to utility/JWTokenProvider (Auth0 java-jwt).
+- Fresh CI verification at branch head 6c6aca27e53c83e8280612bc9c842c139ff4f864: GitHub Actions run 36174283569 → PASS.
