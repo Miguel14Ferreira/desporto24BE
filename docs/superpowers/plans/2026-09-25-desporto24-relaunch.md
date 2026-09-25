@@ -46,10 +46,8 @@
 - Modify BE: `pom.xml`
 - Modify BE: `src/main/java/com/example/desporto24/configuration/SecurityConfiguration.java`
 - Modify BE: `Dockerfile`
-- Modify FE: `package.json`
-- Modify FE: `package-lock.json`
 - Test: BE full Maven build
-- Test: FE full Angular test/build
+- Test: FE current Angular test/build (baseline only; no FE dependency changes in this task)
 
 **Interfaces:**
 - Consumes: current applications without behavior changes.
@@ -175,7 +173,7 @@ git add pom.xml Dockerfile src/main/java/com/example/desporto24/configuration/Se
 git commit -m "build: upgrade backend runtime baseline"
 ```
 
-Do not upgrade Angular in this task beyond dependency metadata needed to keep the current FE build reproducible; the sequential Angular migration is Task 9.
+Do not modify frontend dependencies in this task; the sequential Angular migration is Task 9.
 
 ---
 
@@ -194,6 +192,8 @@ Do not upgrade Angular in this task beyond dependency metadata needed to keep th
 - Modify BE: `src/main/java/com/example/desporto24/mapper/ProfileMapperImpl.java`
 - Modify BE: `src/main/java/com/example/desporto24/service/impl/AuthenticationServiceImpl.java`
 - Modify BE: `src/main/java/com/example/desporto24/service/impl/ProfileServiceImpl.java`
+- Delete BE: `src/main/java/com/example/desporto24/security/JwtUtils.java`
+- Modify BE: `pom.xml` (remove legacy `io.jsonwebtoken:jjwt`)
 - Test BE: `src/test/java/com/example/desporto24/security/PasswordHashServiceTest.java`
 - Test BE: `src/test/java/com/example/desporto24/mapper/ProfileMapperImplTest.java`
 
@@ -305,7 +305,35 @@ In `ProfileMapperImpl.toDto`, do not copy the stored password:
 profileDTO.setPassword(null);
 ```
 
-- [ ] **Step 5: Remove secrets from tracked files**
+- [ ] **Step 5: Remove the redundant JWT implementation**
+
+Verify the current branch before deleting it:
+
+```bash
+rg -n "JwtUtils|io\.jsonwebtoken" src/main/java pom.xml
+```
+
+Expected: usages are confined to `src/main/java/com/example/desporto24/security/JwtUtils.java` and the `io.jsonwebtoken:jjwt` dependency. The active authentication flow uses `JWTokenProvider`.
+
+Delete `JwtUtils.java` and remove:
+
+```xml
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt</artifactId>
+    <version>0.9.1</version>
+</dependency>
+```
+
+Run:
+
+```bash
+./mvnw -DskipTests compile
+```
+
+Expected: PASS, proving the deleted JWT path was not used.
+
+- [ ] **Step 6: Remove secrets from tracked files**
 
 Append to `.gitignore`:
 
@@ -342,7 +370,7 @@ Remove the duplicate `jwt.secret` property if no runtime code reads it.
 
 Delete the tracked `.env*` files listed above from Git.
 
-- [ ] **Step 6: Run focused and full backend tests**
+- [ ] **Step 7: Run focused and full backend tests**
 
 ```bash
 ./mvnw -Dtest=PasswordHashServiceTest,ProfileMapperImplTest test
@@ -351,11 +379,11 @@ Delete the tracked `.env*` files listed above from Git.
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add .gitignore .env.example pom.xml src/main src/test
-git rm --cached .env .env.dev .env.prod .env.test
+git rm .env .env.dev .env.prod .env.test
 git commit -m "security: migrate passwords and externalize secrets"
 ```
 
@@ -533,7 +561,8 @@ git commit -m "feat: add session membership domain"
   - `GET /api/sessions`
   - `GET /api/sessions/{id}`
   - `POST /api/sessions`
-  - `SessionSummaryResponse`, `SessionDetailResponse`, `CreateSessionRequest`, `SessionSearchCriteria`
+  - `GET /api/sessions/mine`
+  - `SessionSummaryResponse`, `SessionDetailResponse`, `CreateSessionRequest`, `SessionSearchCriteria`, `MySessionsResponse`
 - Exact address returned only when `canSeeExactAddress=true`.
 
 - [ ] **Step 1: Write distance and privacy tests**
@@ -599,6 +628,16 @@ public record SessionSummaryResponse(
 
 `SessionDetailResponse` contains the summary fields plus creator public identity, optional `address`, `canSeeExactAddress`, `joined`, `waitlisted`, `waitlistPosition`, and image URL. It contains neither `password` nor `passwordHash`.
 
+`MySessionsResponse` groups the authenticated user's sessions without trusting a username query parameter:
+
+```java
+public record MySessionsResponse(
+    List<SessionSummaryResponse> created,
+    List<SessionSummaryResponse> joined,
+    List<SessionSummaryResponse> waitlisted
+) {}
+```
+
 - [ ] **Step 4: Implement creation from authenticated identity**
 
 Controller signature:
@@ -644,7 +683,20 @@ Repository candidate query returns future `OPEN/FULL` sessions ordered by `gameD
 
 Default `radiusKm` is 25 when coordinates are present; no radius filter is applied when coordinates are absent.
 
-- [ ] **Step 7: Run tests**
+- [ ] **Step 7: Implement "My Sessions"**
+
+Add:
+
+```java
+@GetMapping("/mine")
+public MySessionsResponse mine(Authentication authentication) {
+    return sessionService.mine(authentication.getName());
+}
+```
+
+Repository/service queries must group sessions where the authenticated profile is creator, ACTIVE participant, or waitlisted. Add a controller test proving `/api/sessions/mine` ignores any browser-supplied username and uses `Authentication.getName()`.
+
+- [ ] **Step 8: Run tests**
 
 ```bash
 ./mvnw -Dtest=SessionDistanceCalculatorTest,SessionControllerTest test
@@ -652,7 +704,7 @@ Default `radiusKm` is 25 when coordinates are present; no radius filter is appli
 
 Expected: PASS, including hidden address for non-participants.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/main/java/com/example/desporto24/controllers/SessionController.java src/main/java/com/example/desporto24/service src/main/java/com/example/desporto24/model/dto/session src/main/java/com/example/desporto24/repository/SessionRepository.java src/test
@@ -831,7 +883,24 @@ private void requireCreator(Session session, Profile actor) {
 
 Cancellation sets `SessionStatus.CANCELLED`; it does not delete the session, participants, waitlist or messages.
 
-- [ ] **Step 6: Run tests**
+- [ ] **Step 6: Add the optional photo to the create-session UI**
+
+Send creation as `multipart/form-data` with one JSON part named `session` and an optional file part named `photo`. Update the backend `POST /api/sessions` controller accordingly:
+
+```java
+@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<SessionDetailResponse> create(
+        @RequestPart("session") @Valid CreateSessionRequest request,
+        @RequestPart(value = "photo", required = false) MultipartFile photo,
+        Authentication authentication) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(sessionService.create(request, photo, authentication.getName()));
+}
+```
+
+The frontend must allow JPEG/PNG/WEBP selection but not require a file.
+
+- [ ] **Step 7: Run tests**
 
 ```bash
 ./mvnw -Dtest=WaitlistPromotionServiceTest,SessionManagementControllerTest test
@@ -907,7 +976,7 @@ void oneSecondInsideTwoHoursIsLateCancellation() {
 }
 ```
 
-Score test: two no-shows => warning; three => reduced priority; four => restricted.
+Score test: two no-shows => warning; three => reduced priority; four => restricted only while the most recent non-disputed penalizing event is less than 7 days old. After 7 days, the temporary join restriction lifts even though warning/reduced-priority state may remain during the 90-day lookback.
 
 Dispute test: a participant with a `NO_SHOW` and an OPEN dispute contributes zero no-show weight until resolved.
 
@@ -937,6 +1006,8 @@ public ReliabilitySummaryResponse summary(Profile profile, Instant now) {
 ```
 
 `penaltyWeight` returns `1.0` for `NO_SHOW`, `0.5` for `LATE_CANCELLED`, otherwise `0.0`.
+
+`joinRestricted` is true only when the score is at least `restrictionThreshold` **and** the most recent non-disputed `NO_SHOW` or `LATE_CANCELLED` is within `restrictionDays`. This makes the seven-day restriction temporary while preserving the 90-day reputation history.
 
 - [ ] **Step 5: Integrate leave rule and join restriction**
 
@@ -973,6 +1044,21 @@ POST /api/attendance-disputes
 ```
 
 Only the participant may dispute their own `NO_SHOW`. One OPEN dispute per participant attendance record.
+
+Add an administrator resolution endpoint so OPEN disputes do not become permanent:
+
+```http
+PUT /api/attendance-disputes/{id}
+{"status":"ACCEPTED"}
+```
+
+or:
+
+```json
+{"status":"REJECTED"}
+```
+
+Protect this endpoint with `@PreAuthorize("hasRole('ADMIN')")`. ACCEPTED means the disputed no-show remains excluded from the user's reliability score; REJECTED restores its weight.
 
 - [ ] **Step 8: Add reliability summary endpoint**
 
@@ -1362,7 +1448,7 @@ Add:
 
 After successful login navigate to `/app/discover` instead of the legacy `/menu`.
 
-- [ ] **Step 7: Run tests/build**
+- [ ] **Step 8: Run tests/build**
 
 ```bash
 npm test -- --watch=false --browsers=ChromeHeadless
@@ -1439,7 +1525,11 @@ Full: successful join response `WAITLISTED` shows `Lista de espera · posição 
 
 After every join/leave/remove/cancel operation, reload session detail from the server so address visibility and counts are server-authoritative.
 
-- [ ] **Step 5: Implement creator management**
+- [ ] **Step 5: Implement "As minhas sessões"**
+
+Load `GET /api/sessions/mine` and render three sections: `Criadas por mim`, `Vou participar`, and `Lista de espera`. Selecting an item opens the same authoritative session detail used by discovery.
+
+- [ ] **Step 6: Implement creator management**
 
 Creator detail shows:
 - participant list;
@@ -1449,7 +1539,7 @@ Creator detail shows:
 
 Non-creators never see creator-only controls.
 
-- [ ] **Step 6: Replace legacy event entry points**
+- [ ] **Step 7: Replace legacy event entry points**
 
 Redirect:
 - `/menu/events` -> `/app/discover`
@@ -1570,6 +1660,8 @@ git commit -m "feat: add reliability chat notifications and pwa"
 - Modify BE: session/profile image save paths
 - Modify BE: `pom.xml`
 - Modify BE: `application.properties`
+- Modify FE: `src/app/features/sessions/pages/create-session/*`
+- Modify FE: `src/app/features/sessions/services/session-api.service.ts`
 - Test BE: `src/test/java/com/example/desporto24/storage/MediaStorageTest.java`
 
 **Interfaces:**
@@ -1579,7 +1671,16 @@ git commit -m "feat: add reliability chat notifications and pwa"
 
 - [ ] **Step 1: Define and test image validation**
 
-Accept JPEG, PNG, WEBP; maximum 5 MB. Reject empty files and mismatched content types.
+Add Apache Tika core to the backend and validate bytes rather than trusting the browser header:
+
+```xml
+<dependency>
+    <groupId>org.apache.tika</groupId>
+    <artifactId>tika-core</artifactId>
+</dependency>
+```
+
+Accept detected MIME types `image/jpeg`, `image/png`, and `image/webp`; maximum 5 MB. Reject empty files, executable/polyglot payloads that Tika does not identify as one of those image types, and a declared `MultipartFile.getContentType()` that disagrees with detected type. Unit tests must cover oversize, empty, fake `image/png` text content, and a valid PNG fixture.
 
 - [ ] **Step 2: Implement storage interface**
 
@@ -1627,11 +1728,16 @@ Session/profile services call `MediaStorage`; controllers return stored public U
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
+# Backend repository
 git add pom.xml src/main src/test .env.example
 git commit -m "feat: add durable media storage boundary"
+
+# Frontend repository
+git add src/app/features/sessions
+git commit -m "feat: add optional session photos"
 ```
 
 ---
@@ -1642,39 +1748,83 @@ git commit -m "feat: add durable media storage boundary"
 - Modify BE: `pom.xml`
 - Create BE: `src/main/resources/db/changelog/db.changelog-master.yaml`
 - Create BE: `src/main/resources/db/changelog/000-legacy-baseline.sql`
-- Create BE: `src/main/resources/db/changelog/001-relaunch-schema.yaml`
-- Modify BE: application properties
-- Modify BE: docker-compose to keep only development services required by default
-- Test BE: fresh PostgreSQL boot and migration test
+- Create BE: `src/main/resources/db/changelog/001-relaunch-schema.sql`
+- Modify BE: `src/main/resources/application.properties`
+- Modify BE: `src/main/resources/application-prod.properties`
+- Modify BE: `docker-compose.yml`
+- Test BE: fresh PostgreSQL boot and migration validation
 
 **Interfaces:**
 - Produces reproducible schema for a fresh database and safe baseline behavior for an existing legacy schema.
+- The legacy baseline is generated from the feature branch's **merge-base with `develop`**, not from the already-modified relaunch entities.
 
-- [ ] **Step 1: Generate a clean legacy schema snapshot from the pre-relaunch entity baseline**
+- [ ] **Step 1: Generate the legacy schema from the pre-relaunch commit**
 
-Use a temporary PostgreSQL container, not the developer's existing `postgres_data` volume:
+From the backend repository:
 
 ```bash
-docker run --rm --name desporto24-schema-pg   -e POSTGRES_PASSWORD=postgres   -e POSTGRES_DB=desporto24   -p 55432:5432 -d postgres:15
+BASE_SHA=$(git merge-base feature/desporto24-relaunch develop)
+git worktree add --detach ../desporto24BE-schema-baseline "$BASE_SHA"
 
-docker exec desporto24-schema-pg   psql -U postgres -d desporto24 -c 'CREATE SCHEMA IF NOT EXISTS desporto24;'
+docker run --rm --name desporto24-schema-pg \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=desporto24 \
+  -p 55432:5432 -d postgres:15
+
+until docker exec desporto24-schema-pg pg_isready -U postgres -d desporto24; do sleep 1; done
+
+docker exec desporto24-schema-pg \
+  psql -U postgres -d desporto24 \
+  -c 'CREATE SCHEMA IF NOT EXISTS desporto24;'
 ```
 
-Run the application against this temporary database with Hibernate schema creation enabled, then dump only the `desporto24` schema:
+Start the **baseline worktree** against that temporary database with Hibernate schema creation:
 
 ```bash
-docker exec desporto24-schema-pg   pg_dump -U postgres --schema-only --no-owner --no-privileges   --schema=desporto24 desporto24   > src/main/resources/db/changelog/000-legacy-baseline.sql
+cd ../desporto24BE-schema-baseline
+POSTGRES_HOST=localhost \
+POSTGRES_PORT=55432 \
+POSTGRES_DATABASE=desporto24 \
+POSTGRES_USERNAME=postgres \
+POSTGRES_PASSWORD=postgres \
+UI_APP_URL=http://localhost:4200 \
+VERIFY_EMAIL_HOST=http://localhost:4200 \
+SPRING_JPA_HIBERNATE_DDL_AUTO=create \
+./mvnw spring-boot:run &
+BASELINE_PID=$!
+
+sleep 25
+kill "$BASELINE_PID" || true
+cd -
 ```
 
-Stop the temporary container:
+Confirm the baseline created the key tables before dumping:
 
 ```bash
+docker exec desporto24-schema-pg \
+  psql -U postgres -d desporto24 \
+  -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='desporto24' AND table_name='profile';"
+```
+
+Expected: `1`.
+
+Dump only the legacy schema into the feature branch:
+
+```bash
+mkdir -p src/main/resources/db/changelog
+docker exec desporto24-schema-pg \
+  pg_dump -U postgres --schema-only --no-owner --no-privileges \
+  --schema=desporto24 desporto24 \
+  > src/main/resources/db/changelog/000-legacy-baseline.sql
+
 docker stop desporto24-schema-pg
+git worktree remove ../desporto24BE-schema-baseline
 ```
 
-- [ ] **Step 2: Add Liquibase**
+- [ ] **Step 2: Add Liquibase and an explicit relaunch migration**
 
 Add:
+
 ```xml
 <dependency>
     <groupId>org.liquibase</groupId>
@@ -1682,7 +1832,107 @@ Add:
 </dependency>
 ```
 
-Master changelog:
+Create `001-relaunch-schema.sql` as a Liquibase formatted SQL file:
+
+```sql
+--liquibase formatted sql
+
+--changeset desporto24:001-relaunch-session-columns
+ALTER TABLE desporto24.session
+    ADD COLUMN IF NOT EXISTS max_participants INTEGER,
+    ADD COLUMN IF NOT EXISTS price_amount NUMERIC(10,2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'OPEN',
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;
+
+UPDATE desporto24.session
+SET max_participants = CAST(players AS INTEGER)
+WHERE max_participants IS NULL
+  AND players ~ '^[0-9]+$';
+
+UPDATE desporto24.session
+SET price_amount = REPLACE(price, ',', '.')::NUMERIC(10,2)
+WHERE price_amount IS NULL
+  AND price IS NOT NULL
+  AND REPLACE(price, ',', '.') ~ '^[0-9]+([.][0-9]+)?$';
+
+UPDATE desporto24.session
+SET password_hash = password
+WHERE password_hash IS NULL
+  AND password LIKE '$2%';
+
+UPDATE desporto24.session
+SET status = 'OPEN'
+WHERE status IS NULL;
+
+--changeset desporto24:002-session-participant
+CREATE TABLE IF NOT EXISTS desporto24.session_participant (
+    id BIGSERIAL PRIMARY KEY,
+    session_id BIGINT NOT NULL REFERENCES desporto24.session(id),
+    profile_id BIGINT NOT NULL REFERENCES desporto24.profile(id),
+    state VARCHAR(32) NOT NULL,
+    attendance_status VARCHAR(32) NOT NULL,
+    joined_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    exited_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT uk_session_participant_session_profile UNIQUE (session_id, profile_id)
+);
+
+--changeset desporto24:003-session-waitlist
+CREATE TABLE IF NOT EXISTS desporto24.session_waitlist (
+    id BIGSERIAL PRIMARY KEY,
+    session_id BIGINT NOT NULL REFERENCES desporto24.session(id),
+    profile_id BIGINT NOT NULL REFERENCES desporto24.profile(id),
+    priority_tier INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT uk_session_waitlist_session_profile UNIQUE (session_id, profile_id)
+);
+
+--changeset desporto24:004-attendance-dispute
+CREATE TABLE IF NOT EXISTS desporto24.attendance_dispute (
+    id BIGSERIAL PRIMARY KEY,
+    participant_id BIGINT NOT NULL REFERENCES desporto24.session_participant(id),
+    reporter_profile_id BIGINT NOT NULL REFERENCES desporto24.profile(id),
+    disputing_profile_id BIGINT NOT NULL REFERENCES desporto24.profile(id),
+    reason VARCHAR(2000) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    resolved_at TIMESTAMP WITH TIME ZONE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_attendance_dispute_open
+    ON desporto24.attendance_dispute(participant_id)
+    WHERE status = 'OPEN';
+
+--changeset desporto24:005-session-message
+CREATE TABLE IF NOT EXISTS desporto24.session_message (
+    id BIGSERIAL PRIMARY KEY,
+    session_id BIGINT NOT NULL REFERENCES desporto24.session(id),
+    sender_profile_id BIGINT NOT NULL REFERENCES desporto24.profile(id),
+    body VARCHAR(2000) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_session_message_session_created
+    ON desporto24.session_message(session_id, created_at);
+
+--changeset desporto24:006-notification-session-fields
+ALTER TABLE desporto24.notifications
+    ADD COLUMN IF NOT EXISTS type VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS session_id BIGINT REFERENCES desporto24.session(id),
+    ADD COLUMN IF NOT EXISTS read BOOLEAN NOT NULL DEFAULT FALSE;
+
+--changeset desporto24:007-existing-creators
+INSERT INTO desporto24.session_participant
+    (session_id, profile_id, state, attendance_status, joined_at)
+SELECT s.id, s.perfil_id, 'ACTIVE', 'PENDING', COALESCE(s.created_at, CURRENT_TIMESTAMP)
+FROM desporto24.session s
+WHERE s.perfil_id IS NOT NULL
+ON CONFLICT (session_id, profile_id) DO NOTHING;
+```
+
+If the generated baseline uses a different physical table/column name than `session`, `notifications`, `perfil_id`, or `created_at`, stop and align the SQL to the **actual generated baseline before applying it**; do not guess names against production.
+
+- [ ] **Step 3: Create the master changelog**
 
 ```yaml
 databaseChangeLog:
@@ -1699,23 +1949,46 @@ databaseChangeLog:
         - sqlFile:
             path: db/changelog/000-legacy-baseline.sql
   - include:
-      file: db/changelog/001-relaunch-schema.yaml
+      file: db/changelog/001-relaunch-schema.sql
 ```
 
-`001-relaunch-schema.yaml` contains the additive columns/tables introduced in Tasks 3–8 and unique constraints matching the JPA model.
+This behavior means a fresh database receives the legacy baseline first, while an existing legacy database marks that baseline as already present and applies only relaunch changes.
 
-- [ ] **Step 3: Switch production schema mode**
+- [ ] **Step 4: Switch production schema mode**
+
+In common properties:
 
 ```properties
 spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.yaml
+```
+
+In `application-prod.properties`:
+
+```properties
 spring.jpa.hibernate.ddl-auto=validate
 ```
 
-Development may temporarily use `update` only until its local database has been brought under Liquibase; the committed production profile uses `validate`.
+Use Liquibase for schema changes from this task onward. Do not add new production schema changes through `ddl-auto=update`.
 
-- [ ] **Step 4: Add Actuator health**
+- [ ] **Step 5: Add Actuator health**
 
-Add `spring-boot-starter-actuator`, expose only health/info, and verify:
+Add:
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+
+Configure:
+
+```properties
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=never
+```
+
+Verify:
 
 ```bash
 curl -f http://localhost:8080/actuator/health
@@ -1723,11 +1996,35 @@ curl -f http://localhost:8080/actuator/health
 
 Expected HTTP 200 with `"status":"UP"`.
 
-- [ ] **Step 5: Verify clean-database boot**
+- [ ] **Step 6: Verify migration on both database shapes**
 
-Create a fresh PostgreSQL 15 container, start the application with `ddl-auto=validate`, and assert Liquibase applies baseline plus relaunch schema successfully.
+**Fresh database:**
+start PostgreSQL 15 with an empty `desporto24` database and run:
 
-- [ ] **Step 6: Commit**
+```bash
+SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run
+```
+
+Expected: Liquibase executes `000` then `001`; Hibernate validation passes.
+
+**Legacy-shaped database:**
+restore a schema made from `000-legacy-baseline.sql`, then run the same command.
+
+Expected: `000` is marked ran by the `profile` precondition, `001` applies, and Hibernate validation passes.
+
+Run:
+
+```bash
+./mvnw test
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Simplify default local compose**
+
+Keep `desporto24app` and `postgres` in the default path. Move Fluentd/Elasticsearch/Kibana behind an optional Compose profile such as `observability` so local MVP startup does not require them.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add pom.xml src/main/resources docker-compose.yml
