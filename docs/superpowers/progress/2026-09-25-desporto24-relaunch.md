@@ -292,3 +292,15 @@ Task 7A verification — reliability scoring and boundaries:
 - Fresh verification: GitHub Actions run 36179096586 → PASS on ./mvnw -q clean test.
 
 Task 7A: complete.
+
+
+Task 7B verification — creator attendance:
+- PUT /api/sessions/{sessionId}/participants/{participantId}/attendance uses Authentication.getName() as the acting creator identity.
+- Only ATTENDED and NO_SHOW are accepted; PENDING/LATE_CANCELLED are rejected.
+- Only the session creator may record attendance.
+- Attendance cannot be recorded before gameDate + 30 minutes.
+- After the delay, the service stores the selected status, attendanceReportedBy=creator and attendanceRecordedAt=current server time.
+- Added dedicated ReliabilityAttendanceServiceTest covering authorization, delay, allowed statuses and audit fields.
+- Fresh verification: GitHub Actions run 36179367467 → PASS on ./mvnw -q clean test.
+
+Task 7B: complete.
