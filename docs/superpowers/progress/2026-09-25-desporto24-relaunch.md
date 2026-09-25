@@ -15,3 +15,17 @@ Pre-flight shared interfaces:
 - Task 8→13: session chat/notifications are consumed by frontend chat/notification center — compatible.
 - Tasks 9→10→11→12→13: Angular 22 baseline is consumed by all new frontend feature modules/components — compatible.
 - Task 14→15→16: media/storage and schema changes are consumed by Liquibase/production deployment — compatible.
+
+
+Task 1 baseline:
+- Backend baseline CI run 36120438172: PASS on Java 17 with ./mvnw -q test.
+- Frontend baseline CI run 36120439320: FAIL before tests at npm ci because @ngneat/query@2.0.0-beta.8 requires @angular/core >=16 <18 while the repo is Angular 15.2.0. This is pre-existing and is assigned to Task 9; no --legacy-peer-deps bypass will be used.
+
+Task 1: Ruling: Spring Boot 4 removed the old com.sun.mail SMTP implementation from the dependency path; replace the implementation-specific SMTPTransport usage with standard jakarta.mail.Transport — preserves behavior while decoupling from the mail provider — cost if wrong: email transport behavior would fail at runtime and must be covered by later mail integration testing.
+
+Task 1 verification:
+- Upgrade commit b4f091e4c794e1a9ae0a45f40c3e5e3ac00d3b02 initially failed CI run 36120638694 at compilation with missing com.sun.mail.smtp.
+- Fix commit 003dcb3b9bc7a0cc44cde56ca8521a0860389657 passed CI run 36120793781.
+- Final clean verification at commit 44483cdd459a1edeaca4ab18d50af7a9d545f47c: CI run 36120887661 PASS using Java 21 and ./mvnw -q clean test.
+
+Task 1: complete (commits bb874bd..44483cd, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36120887661)
