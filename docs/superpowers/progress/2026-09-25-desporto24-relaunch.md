@@ -75,3 +75,14 @@ Task 5 verification:
 - Final verification: CI run 36170399460 PASS using Java 21 and ./mvnw -q clean test, including the two-thread last-slot integration test.
 
 Task 5: complete (commits 65bcf76..755d9b4, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36170399460)
+
+
+Task 6 verification:
+- RED commit ab7156a1f0143460e857b07965282a31acd20ef5 added lifecycle, authorization, FIFO promotion and rejoin/reactivation tests.
+- RED CI run 36170622884 failed because WaitlistPromotionService did not exist (expected).
+- Implemented WaitlistPromotionService, leave/cancel/remove endpoints, creator authorization, history-preserving cancellation, promotion, and participant-row reactivation at commit cbbd9145d31784cf57e9245f6d1492cc1eb22191.
+- CI run 36170810924 exposed a test-slice wiring failure: SessionJoinServiceTest imported SessionServiceImpl but not the new WaitlistPromotionService dependency. Production code compiled.
+- Test context fixed at commit a22a210d7af660d64bf6b90018a5f1393007bc7a.
+- Final verification: CI run 36171025430 PASS using Java 21 and ./mvnw -q clean test.
+
+Task 6: complete (commits ab7156a..a22a210, tests: ./mvnw -q clean test → PASS in GitHub Actions run 36171025430)
