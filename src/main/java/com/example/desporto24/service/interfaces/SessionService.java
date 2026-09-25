@@ -8,10 +8,13 @@ import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 
 public interface SessionService {
     SessionDetailResponse create(CreateSessionRequest request, String username);
+    SessionDetailResponse create(CreateSessionRequest request, MultipartFile photo, String username);
     SessionDetailResponse getById(Long sessionId, String username);
     List<SessionSummaryResponse> discover(SessionSearchCriteria criteria);
     MySessionsResponse mine(String username);
