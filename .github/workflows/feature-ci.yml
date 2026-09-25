@@ -26,4 +26,4 @@ jobs:
       - name: Run backend tests
         run: |
           chmod +x mvnw
-          ./mvnw -q test
+          ./mvnw -q clean test
