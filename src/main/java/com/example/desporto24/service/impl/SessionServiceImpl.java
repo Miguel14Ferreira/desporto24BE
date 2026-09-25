@@ -24,6 +24,7 @@ import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
+import com.example.desporto24.service.ReliabilityService;
 import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,7 @@ public class SessionServiceImpl implements SessionService {
     private final PasswordHashService passwordHashService;
     private final BCryptPasswordEncoder passwordEncoder;
     private final WaitlistPromotionService waitlistPromotionService;
+    private final ReliabilityService reliabilityService;
 
     @Override
     @Transactional
@@ -190,6 +192,8 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
+        Instant joinAt = Instant.now();
+        reliabilityService.requireJoinAllowed(profile, joinAt);
 
         if (participantRepository.existsBySessionIdAndProfileIdAndState(
                 sessionId, profile.getId(), ParticipantState.ACTIVE)) {
@@ -241,8 +245,8 @@ public class SessionServiceImpl implements SessionService {
         SessionWaitlist waitlistEntry = waitlistRepository.save(SessionWaitlist.builder()
                 .session(session)
                 .profile(profile)
-                .priorityTier(0)
-                .createdAt(Instant.now())
+                .priorityTier(reliabilityService.priorityTier(profile, joinAt))
+                .createdAt(joinAt)
                 .build());
 
         session.setStatus(SessionStatus.FULL);
@@ -295,8 +299,17 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new IllegalStateException("User is not an active participant"));
 
         Instant now = Instant.now();
+        AttendanceStatus leaveAttendance = reliabilityService.leaveAttendanceStatus(
+                now, session.getGameDate().toInstant());
+
         membership.setState(ParticipantState.LEFT);
         membership.setExitedAt(now);
+
+        if (leaveAttendance == AttendanceStatus.LATE_CANCELLED) {
+            membership.setAttendanceStatus(AttendanceStatus.LATE_CANCELLED);
+            membership.setAttendanceRecordedAt(now);
+        }
+
         participantRepository.save(membership);
 
         waitlistPromotionService.promoteNext(session, now);
