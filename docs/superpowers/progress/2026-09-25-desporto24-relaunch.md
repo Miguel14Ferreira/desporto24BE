@@ -245,3 +245,14 @@ Task 5D final verification — secure join, capacity and waitlist:
 - Final fresh verification: GitHub Actions run 36177989611 attempt 2 → PASS on ./mvnw -q clean test.
 
 Task 5: complete.
+
+
+Task 6A verification — session lifecycle authorization:
+- POST /api/sessions/{id}/leave deactivates the authenticated participant by setting ParticipantState.LEFT and exitedAt; the creator cannot use participant leave and must cancel instead.
+- DELETE /api/sessions/{id}/participants/{participantId} requires the session creator; successful removal retains the membership record as ParticipantState.REMOVED.
+- POST /api/sessions/{id}/cancel requires the creator, sets SessionStatus.CANCELLED and retains participants/waitlist/history instead of deleting records.
+- Added explicit coverage proving a non-creator cannot cancel and the session remains OPEN after the rejected attempt.
+- Controller tests verify leave/cancel/remove use Authentication.getName().
+- Fresh verification: GitHub Actions run 36178352966 → PASS on ./mvnw -q clean test.
+
+Task 6A: complete.
