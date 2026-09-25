@@ -101,3 +101,13 @@ Task 2C verification — JWT consolidation:
 - Legacy io.jsonwebtoken:jjwt dependency is absent from pom.xml.
 - Active authentication filter delegates token parsing/validation to utility/JWTokenProvider (Auth0 java-jwt).
 - Fresh CI verification at branch head 6c6aca27e53c83e8280612bc9c842c139ff4f864: GitHub Actions run 36174283569 → PASS.
+
+
+Task 2D verification — runtime secrets:
+- Only .env.example remains tracked; real .env/.env.dev/.env.prod/.env.test files are absent from the feature branch.
+- application.properties uses environment placeholders for database credentials, JWT secret and AES key.
+- SMTP and Twilio credentials are obtained through RuntimeSecrets from environment variables.
+- Added RuntimeConfigurationSecretsTest to reject literal POSTGRES_USERNAME, POSTGRES_PASSWORD and JWT_SECRET values in application-dev/prod/test.properties.
+- Red phase: CI run 36174539669 failed as expected because application-dev.properties still contained a literal POSTGRES_USERNAME.
+- Fix commit 9b1150b905b03433c0503ca1494b598fe81e20ca removed the literal sensitive values from application-dev/prod/test.properties.
+- Green phase: CI run 36174681275 → PASS.
