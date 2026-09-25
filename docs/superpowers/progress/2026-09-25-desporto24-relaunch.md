@@ -269,3 +269,13 @@ Task 6B verification — waitlist promotion:
 - Fresh verification: GitHub Actions run 36178567569 → PASS on ./mvnw -q clean test.
 
 Task 6B: complete.
+
+
+Task 6C final verification — lifecycle and waitlist promotion:
+- 6A verified authenticated leave/cancel/remove flows, creator authorization, retained history and rejection of non-creator cancellation.
+- 6B verified priority-aware FIFO promotion, membership reactivation, attendance reset and OPEN/FULL recomputation.
+- leave() and removeParticipant() both acquire the session through findByIdForUpdate() and invoke WaitlistPromotionService within the same transaction, so promotion executes while the session row remains protected by the pessimistic lock.
+- Cancellation retains the session, participant and waitlist records and prevents future joins or promotions.
+- Final fresh verification: GitHub Actions run 36178676248 attempt 2 → PASS on ./mvnw -q clean test.
+
+Task 6: complete.
