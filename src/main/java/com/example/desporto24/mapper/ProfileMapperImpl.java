@@ -1,17 +1,18 @@
 package com.example.desporto24.mapper;
+
 import com.example.desporto24.encryption.AES;
 import com.example.desporto24.enumeration.Role;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Status;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.security.PasswordHashService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
-import java.util.Optional;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -20,17 +21,16 @@ import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_
 public class ProfileMapperImpl implements ProfileMapper {
 
     private final ProfileRepository profileRepository;
+    private final PasswordHashService passwordHashService;
 
     @Override
     public Profile toEntity(ProfileDTO profileDTO) {
         Profile profile;
-
         if (profileDTO.getUserId() == null || profileDTO.getUserId().isEmpty()) {
             profile = createNewProfile(profileDTO);
         } else {
             profile = updateExistingProfile(profileDTO);
         }
-
         return profile;
     }
 
@@ -48,20 +48,17 @@ public class ProfileMapperImpl implements ProfileMapper {
         profile.setStatusId(Status.OFFLINE);
         profile.setOldEmail(profileDTO.getEmail());
         profile.setUsername(profileDTO.getUsername());
-        profile.setPassword(AES.encryptString(profileDTO.getPassword(), profile.getUserId()));
+        profile.setPassword(passwordHashService.encode(profileDTO.getPassword()));
         profile.setIsFirstTimeLogin(true);
-
         mapCommonFields(profile, profileDTO);
-
         return profile;
     }
 
     private Profile updateExistingProfile(ProfileDTO profileDTO) {
-        Profile existingProfileOpt = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME));
-
-        mapCommonFields(existingProfileOpt, profileDTO);
-
-        return existingProfileOpt;
+        Profile existingProfile = profileRepository.findUserByUsername(profileDTO.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        mapCommonFields(existingProfile, profileDTO);
+        return existingProfile;
     }
 
     private void mapCommonFields(Profile profile, ProfileDTO profileDTO) {
@@ -85,7 +82,7 @@ public class ProfileMapperImpl implements ProfileMapper {
         ProfileDTO profileDTO = new ProfileDTO();
         profileDTO.setUserId(profile.getUserId());
         profileDTO.setUsername(profile.getUsername());
-        profileDTO.setPassword(profile.getPassword()); // Encrypted password
+        profileDTO.setPassword(null);
         profileDTO.setPhone(AES.decryptString(profile.getPhone(), profile.getUserId()));
         profileDTO.setAddress(AES.decryptString(profile.getAddress(), profile.getUserId()));
         profileDTO.setEmail(profile.getEmail());
@@ -106,11 +103,14 @@ public class ProfileMapperImpl implements ProfileMapper {
         profileDTO.setRole(profile.getRole());
         profileDTO.setAuthorities(profile.getAuthorities());
         profileDTO.setIsFirstTimeLogin(profile.getIsFirstTimeLogin());
-
         return profileDTO;
     }
 
     private String generateUserId() {
         return RandomStringUtils.randomNumeric(10);
+    }
+
+    private String formatJoinDate(Date date) {
+        return new java.text.SimpleDateFormat("yyyy MMM dd hh:mm").format(date);
     }
 }
