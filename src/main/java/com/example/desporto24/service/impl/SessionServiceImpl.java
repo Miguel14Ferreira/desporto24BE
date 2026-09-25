@@ -77,7 +77,6 @@ public class SessionServiceImpl implements SessionService {
         Session session = new Session();
         session.setProfile(creator);
         session.setUserId(creator.getUserId());
-        session.setUsername(creator.getUsername());
         session.setSport(request.sport());
         session.setGameDate(Date.from(request.gameDate()));
         session.setCity(request.city());
