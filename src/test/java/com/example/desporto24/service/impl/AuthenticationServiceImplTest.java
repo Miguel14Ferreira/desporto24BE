@@ -76,7 +76,7 @@ class AuthenticationServiceImplTest {
             assertNull(response.token());
             verifyNoInteractions(jwtTokenProvider);
             verify(mfaVerificationService).saveConfirmationMFA(any());
-            sms.verify(() -> SmsUtils.sendSMS("+351", "912345678", anyString()));
+            sms.verify(() -> SmsUtils.sendSMS(eq("+351"), eq("912345678"), anyString()));
         }
     }
 
