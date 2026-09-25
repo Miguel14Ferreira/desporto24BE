@@ -2,6 +2,8 @@ package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
+import com.example.desporto24.model.dto.session.JoinSessionRequest;
+import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
@@ -53,6 +55,15 @@ public class SessionController {
     @GetMapping("/{id}")
     public SessionDetailResponse detail(@PathVariable Long id, Authentication authentication) {
         return sessionService.getById(id, authentication.getName());
+    }
+
+    @PostMapping("/{id}/join")
+    public JoinSessionResponse join(
+            @PathVariable Long id,
+            @RequestBody(required = false) JoinSessionRequest request,
+            Authentication authentication) {
+        JoinSessionRequest effectiveRequest = request == null ? new JoinSessionRequest(null) : request;
+        return sessionService.join(id, effectiveRequest, authentication.getName());
     }
 
     @PostMapping

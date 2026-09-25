@@ -2,6 +2,8 @@ package com.example.desporto24.service.interfaces;
 
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
+import com.example.desporto24.model.dto.session.JoinSessionRequest;
+import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
@@ -13,4 +15,5 @@ public interface SessionService {
     SessionDetailResponse getById(Long sessionId, String username);
     List<SessionSummaryResponse> discover(SessionSearchCriteria criteria);
     MySessionsResponse mine(String username);
+    JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username);
 }

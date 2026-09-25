@@ -2,6 +2,7 @@ package com.example.desporto24.service.impl;
 
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
@@ -9,10 +10,13 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
+import com.example.desporto24.model.dto.session.JoinSessionRequest;
+import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.session.SessionParticipant;
+import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
@@ -23,6 +27,8 @@ import com.example.desporto24.service.SessionViewMapper;
 import com.example.desporto24.service.interfaces.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -47,6 +53,7 @@ public class SessionServiceImpl implements SessionService {
     private final SessionViewMapper sessionViewMapper;
     private final SessionDistanceCalculator distanceCalculator;
     private final PasswordHashService passwordHashService;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -168,6 +175,97 @@ public class SessionServiceImpl implements SessionService {
                     .thenComparing(SessionSummaryResponse::gameDate);
         }
         return Comparator.comparing(SessionSummaryResponse::gameDate);
+    }
+
+
+    @Override
+    @Transactional
+    public JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        assertJoinable(session);
+
+        if (participantRepository.existsBySessionIdAndProfileIdAndState(
+                sessionId, profile.getId(), ParticipantState.ACTIVE)) {
+            return new JoinSessionResponse(JoinState.PARTICIPANT, null);
+        }
+
+        var existingWaitlist = waitlistRepository.findBySessionIdAndProfileId(sessionId, profile.getId());
+        if (existingWaitlist.isPresent()) {
+            return new JoinSessionResponse(
+                    JoinState.WAITLISTED,
+                    waitlistPosition(sessionId, existingWaitlist.get().getId())
+            );
+        }
+
+        if (Boolean.TRUE.equals(session.getPrivateGame())) {
+            String supplied = request == null ? null : request.password();
+            if (supplied == null
+                    || session.getPasswordHash() == null
+                    || !passwordEncoder.matches(supplied, session.getPasswordHash())) {
+                throw new BadCredentialsException("Invalid session password");
+            }
+        }
+
+        int maxParticipants = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
+        long activeParticipants = participantRepository.countBySessionIdAndState(
+                sessionId, ParticipantState.ACTIVE);
+
+        if (activeParticipants < maxParticipants) {
+            participantRepository.save(SessionParticipant.builder()
+                    .session(session)
+                    .profile(profile)
+                    .state(ParticipantState.ACTIVE)
+                    .attendanceStatus(AttendanceStatus.PENDING)
+                    .joinedAt(Instant.now())
+                    .build());
+
+            long newCount = activeParticipants + 1;
+            session.setStatus(newCount >= maxParticipants ? SessionStatus.FULL : SessionStatus.OPEN);
+            session.setUpdatedAt(Instant.now());
+            sessionRepository.save(session);
+            return new JoinSessionResponse(JoinState.PARTICIPANT, null);
+        }
+
+        SessionWaitlist waitlistEntry = waitlistRepository.save(SessionWaitlist.builder()
+                .session(session)
+                .profile(profile)
+                .priorityTier(0)
+                .createdAt(Instant.now())
+                .build());
+
+        session.setStatus(SessionStatus.FULL);
+        session.setUpdatedAt(Instant.now());
+        sessionRepository.save(session);
+
+        return new JoinSessionResponse(
+                JoinState.WAITLISTED,
+                waitlistPosition(sessionId, waitlistEntry.getId())
+        );
+    }
+
+    private void assertJoinable(Session session) {
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Session is not open for joining");
+        }
+        if (session.getGameDate() == null || !session.getGameDate().toInstant().isAfter(Instant.now())) {
+            throw new IllegalStateException("Session has already started");
+        }
+    }
+
+    private int waitlistPosition(Long sessionId, Long entryId) {
+        List<SessionWaitlist> ordered = waitlistRepository
+                .findBySessionIdOrderByPriorityTierAscCreatedAtAsc(sessionId);
+        for (int i = 0; i < ordered.size(); i++) {
+            if (ordered.get(i).getId().equals(entryId)) {
+                return i + 1;
+            }
+        }
+        throw new IllegalStateException("Waitlist entry not found after save");
     }
 
     @Override
