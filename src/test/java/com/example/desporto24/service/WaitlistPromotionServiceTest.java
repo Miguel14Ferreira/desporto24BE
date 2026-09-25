@@ -80,6 +80,35 @@ class WaitlistPromotionServiceTest {
     }
 
     @Test
+    void lowerPriorityTierIsPromotedBeforeEarlierReducedPriorityEntry() {
+        Profile reducedPriority = profile("reduced");
+        Profile normalPriority = profile("normal");
+
+        waitlisted(reducedPriority, 1, Instant.parse("2026-09-25T10:00:00Z"));
+        waitlisted(normalPriority, 0, Instant.parse("2026-09-25T10:05:00Z"));
+
+        SessionParticipant promoted = service.promoteNext(session, Instant.now()).orElseThrow();
+
+        assertEquals(normalPriority.getId(), promoted.getProfile().getId());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), normalPriority.getId()).isEmpty());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), reducedPriority.getId()).isPresent());
+    }
+
+    @Test
+    void noWaitlistedUserLeavesSessionOpenWhenCapacityIsAvailable() {
+        session.setStatus(SessionStatus.FULL);
+        sessionRepository.saveAndFlush(session);
+
+        Optional<SessionParticipant> promoted = service.promoteNext(session, Instant.now());
+
+        assertTrue(promoted.isEmpty());
+        assertEquals(SessionStatus.OPEN,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
     void reactivatesExistingMembershipWhenWaitlistedUserHadPreviouslyLeft() {
         Profile returning = profile("returning");
         SessionParticipant old = activeParticipant(returning);
@@ -140,10 +169,14 @@ class WaitlistPromotionServiceTest {
     }
 
     private SessionWaitlist waitlisted(Profile profile, Instant createdAt) {
+        return waitlisted(profile, 0, createdAt);
+    }
+
+    private SessionWaitlist waitlisted(Profile profile, int priorityTier, Instant createdAt) {
         return waitlistRepository.saveAndFlush(SessionWaitlist.builder()
                 .session(session)
                 .profile(profile)
-                .priorityTier(0)
+                .priorityTier(priorityTier)
                 .createdAt(createdAt)
                 .build());
     }
