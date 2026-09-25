@@ -192,14 +192,23 @@ Do not modify frontend dependencies in this task; the sequential Angular migrati
 - Modify BE: `src/main/java/com/example/desporto24/mapper/ProfileMapperImpl.java`
 - Modify BE: `src/main/java/com/example/desporto24/service/impl/AuthenticationServiceImpl.java`
 - Modify BE: `src/main/java/com/example/desporto24/service/impl/ProfileServiceImpl.java`
+- Modify BE: `src/main/java/com/example/desporto24/controllers/AuthenticationController.java`
+- Modify BE: `src/main/java/com/example/desporto24/service/interfaces/AuthenticationService.java`
+- Modify BE: `src/main/java/com/example/desporto24/register/MFA/MFAVerification.java`
+- Modify BE: `src/main/java/com/example/desporto24/register/MFA/MFAVerificationService.java`
+- Modify BE: `src/main/java/com/example/desporto24/repository/MFAVerificationRepository.java`
+- Create BE: `src/main/java/com/example/desporto24/model/dto/auth/LoginResponse.java`
+- Create BE: `src/main/java/com/example/desporto24/model/dto/auth/MfaConfirmRequest.java`
 - Delete BE: `src/main/java/com/example/desporto24/security/JwtUtils.java`
 - Modify BE: `pom.xml` (remove legacy `io.jsonwebtoken:jjwt`)
 - Test BE: `src/test/java/com/example/desporto24/security/PasswordHashServiceTest.java`
 - Test BE: `src/test/java/com/example/desporto24/mapper/ProfileMapperImplTest.java`
+- Test BE: `src/test/java/com/example/desporto24/controllers/AuthenticationControllerTest.java`
 
 **Interfaces:**
 - Produces: `PasswordHashService.matchesAndUpgrade(Profile, String): boolean`; new registrations and password changes persist BCrypt; legacy AES password is transparently upgraded after a successful login.
 - Existing AES encryption remains only for legacy encrypted PII such as phone/address and its key comes exclusively from `AES_ENCRYPTION_KEY`.
+- MFA-enabled accounts receive **no JWT** until a valid, unexpired, single-use MFA challenge is confirmed.
 
 - [ ] **Step 1: Write password migration tests**
 
@@ -305,7 +314,130 @@ In `ProfileMapperImpl.toDto`, do not copy the stored password:
 profileDTO.setPassword(null);
 ```
 
-- [ ] **Step 5: Remove the redundant JWT implementation**
+- [ ] **Step 5: Write MFA gating tests**
+
+Add controller/service tests for all five cases:
+
+```java
+@Test
+void mfaDisabledLoginReturnsToken() {
+    LoginResponse response = authenticationService.login(new ProfileDTO("miguel", "pw"));
+    assertFalse(response.mfaRequired());
+    assertNotNull(response.token());
+}
+
+@Test
+void mfaEnabledLoginReturnsChallengeWithoutToken() {
+    LoginResponse response = authenticationService.login(new ProfileDTO("miguel", "pw"));
+    assertTrue(response.mfaRequired());
+    assertNotNull(response.challengeId());
+    assertNull(response.token());
+}
+
+@Test
+void wrongMfaCodeNeverReturnsToken() { /* assert BadCredentialsException */ }
+
+@Test
+void expiredMfaChallengeNeverReturnsToken() { /* assert challenge-expired exception */ }
+
+@Test
+void confirmedMfaChallengeIsSingleUse() { /* second confirmation must fail */ }
+```
+
+The controller test must specifically assert that `POST /api/auth/login` for an MFA-enabled profile returns HTTP `202 Accepted` with no JWT/token in body or headers.
+
+- [ ] **Step 6: Implement a challenge-based MFA login**
+
+Extend `MFAVerification` with:
+
+```java
+@Column(name = "challenge_id", unique = true)
+private String challengeId;
+
+@Column(name = "code_hash")
+private String codeHash;
+```
+
+New MFA records use `challengeId = UUID.randomUUID().toString()`, store the SMS code only as BCrypt in `codeHash`, keep the existing `perfil` username field for compatibility, and expire after five minutes.
+
+Define:
+
+```java
+public record LoginResponse(
+    boolean mfaRequired,
+    String challengeId,
+    Instant challengeExpiresAt,
+    String token,
+    ProfileDTO profile
+) {}
+```
+
+and:
+
+```java
+public record MfaConfirmRequest(
+    @NotBlank String challengeId,
+    @NotBlank String code
+) {}
+```
+
+Change the service contract to:
+
+```java
+LoginResponse login(ProfileDTO credentials);
+LoginResponse confirmMfa(MfaConfirmRequest request);
+```
+
+Behavior:
+
+```java
+public LoginResponse login(ProfileDTO credentials) {
+    Profile profile = validatePrimaryCredentials(credentials);
+
+    if (!Boolean.TRUE.equals(profile.getMFA())) {
+        return completedLogin(profile);
+    }
+
+    MfaChallenge challenge = createAndSendMfaChallenge(profile);
+    return new LoginResponse(
+        true,
+        challenge.id(),
+        challenge.expiresAt(),
+        null,
+        profileMapper.toDto(profile)
+    );
+}
+```
+
+`confirmMfa` loads by `challengeId`, rejects expired/confirmed records, verifies `code` with BCrypt against `codeHash`, marks `confirmedAt`, then and only then calls `JWTokenProvider.generateJwtToken`.
+
+Controller behavior:
+
+```java
+@PostMapping("/login")
+public ResponseEntity<LoginResponse> login(@RequestBody @Valid ProfileDTO credentials) {
+    LoginResponse result = authenticationService.login(credentials);
+    return ResponseEntity.status(result.mfaRequired() ? HttpStatus.ACCEPTED : HttpStatus.OK)
+        .body(result);
+}
+
+@PostMapping("/mfa/confirm")
+public ResponseEntity<LoginResponse> confirmMfa(@RequestBody @Valid MfaConfirmRequest request) {
+    return ResponseEntity.ok(authenticationService.confirmMfa(request));
+}
+```
+
+Never return the stored password, MFA code, or MFA code hash.
+
+- [ ] **Step 7: Run MFA tests**
+
+```bash
+./mvnw -Dtest=AuthenticationControllerTest test
+```
+
+Expected: PASS and the MFA-enabled primary-login test proves no JWT is issued before confirmation.
+
+- [ ] **Step 8: Remove the redundant JWT implementation**
 
 Verify the current branch before deleting it:
 
@@ -333,7 +465,7 @@ Run:
 
 Expected: PASS, proving the deleted JWT path was not used.
 
-- [ ] **Step 6: Remove secrets from tracked files**
+- [ ] **Step 9: Remove secrets from tracked files**
 
 Append to `.gitignore`:
 
@@ -370,7 +502,7 @@ Remove the duplicate `jwt.secret` property if no runtime code reads it.
 
 Delete the tracked `.env*` files listed above from Git.
 
-- [ ] **Step 7: Run focused and full backend tests**
+- [ ] **Step 10: Run focused and full backend tests**
 
 ```bash
 ./mvnw -Dtest=PasswordHashServiceTest,ProfileMapperImplTest test
@@ -379,7 +511,7 @@ Delete the tracked `.env*` files listed above from Git.
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add .gitignore .env.example pom.xml src/main src/test
@@ -498,6 +630,12 @@ public class SessionParticipant {
 
     private Instant joinedAt;
     private Instant exitedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attendance_reported_by_profile_id")
+    private Profile attendanceReportedBy;
+
+    private Instant attendanceRecordedAt;
 }
 ```
 
@@ -935,6 +1073,7 @@ desporto.reliability.warning-threshold=2.0
 desporto.reliability.reduced-priority-threshold=3.0
 desporto.reliability.restriction-threshold=4.0
 desporto.reliability.restriction-days=7
+desporto.reliability.attendance-marking-delay-minutes=30
 ```
 
 Map these with `@ConfigurationProperties(prefix = "desporto.reliability")`.
@@ -961,7 +1100,9 @@ void oneSecondInsideTwoHoursIsLateCancellation() {
 
 Score test: two no-shows => warning; three => reduced priority; four => restricted only while the most recent non-disputed penalizing event is less than 7 days old. After 7 days, the temporary join restriction lifts even though warning/reduced-priority state may remain during the 90-day lookback.
 
-Dispute test: a participant with a `NO_SHOW` and an OPEN dispute contributes zero no-show weight until resolved.
+Dispute test: a participant with a `NO_SHOW` and an OPEN or ACCEPTED dispute contributes zero no-show weight; a REJECTED dispute restores its weight.
+
+Also test that a participant cannot leave after the scheduled start time to evade attendance reporting, and that the creator cannot record attendance until 30 minutes after the scheduled start.
 
 - [ ] **Step 3: Run tests**
 
@@ -980,7 +1121,8 @@ public ReliabilitySummaryResponse summary(Profile profile, Instant now) {
         participantRepository.findReliabilityHistory(profile.getId(), from, now);
 
     double score = history.stream()
-        .filter(p -> !disputeRepository.existsOpenByParticipantId(p.getId()))
+        .filter(p -> !disputeRepository.existsByParticipantIdAndStatusIn(
+            p.getId(), Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED)))
         .mapToDouble(this::penaltyWeight)
         .sum();
 
@@ -994,7 +1136,10 @@ public ReliabilitySummaryResponse summary(Profile profile, Instant now) {
 
 - [ ] **Step 5: Integrate leave rule and join restriction**
 
-When leaving, set `LATE_CANCELLED` only when the leave instant is strictly later than `gameDate - 2h`.
+When leaving:
+- reject the leave operation when `leaveAt >= gameDate`; after start, attendance must be resolved by the creator;
+- keep attendance neutral when `leaveAt <= gameDate - 2h`;
+- set `LATE_CANCELLED` only when `gameDate - 2h < leaveAt < gameDate`.
 
 Before joining, call:
 
@@ -1017,7 +1162,7 @@ or:
 {"status":"NO_SHOW"}
 ```
 
-Only the creator may set attendance, and only after the session start time. The service records reporter identity and timestamp.
+Only the creator may set attendance, and only at or after `gameDate + 30 minutes`. The service sets `attendanceReportedBy` to the authenticated creator and `attendanceRecordedAt` to the current server time.
 
 - [ ] **Step 7: Add dispute endpoint**
 
@@ -1362,6 +1507,8 @@ git commit -m "feat: add typed session and location services"
 - Modify FE: `src/app/app-routing.module.ts`
 - Modify FE: `src/app/app.module.ts`
 - Modify FE: `src/app/services/authethication.service.ts`
+- Modify FE: `src/app/pages/login/login.component.ts`
+- Modify FE: `src/app/pages/login-mfa/login-mfa.component.ts`
 - Test FE: component specs beside each component
 
 **Interfaces:**
@@ -1429,7 +1576,21 @@ Add:
 ]}
 ```
 
-After successful login navigate to `/app/discover` instead of the legacy `/menu`.
+Update authentication calls to the current backend endpoints:
+
+```ts
+login(credentials: Perfil) {
+  return this.http.post<LoginResponse>(`${this.host}/api/auth/login`, credentials);
+}
+
+confirmMfa(challengeId: string, code: string) {
+  return this.http.post<LoginResponse>(`${this.host}/api/auth/mfa/confirm`, { challengeId, code });
+}
+```
+
+If login returns `mfaRequired=true`, do **not** save a token; route to the MFA screen carrying only `challengeId`. The MFA screen saves `response.token` only after a successful confirmation. If MFA is not required, save the returned token and navigate to `/app/discover`.
+
+After completed authentication navigate to `/app/discover` instead of the legacy `/menu`.
 
 - [ ] **Step 7: Run tests/build**
 
@@ -1674,7 +1835,7 @@ public interface MediaStorage {
 }
 ```
 
-Use keys such as `sessions/{sessionId}/{uuid}.webp` and `profiles/{profileId}/{uuid}.webp`.
+Map the detected MIME type to its real extension (`image/jpeg -> .jpg`, `image/png -> .png`, `image/webp -> .webp`) and use keys such as `sessions/{sessionId}/{uuid}{extension}` and `profiles/{profileId}/{uuid}{extension}`. Do not label JPEG/PNG bytes with a `.webp` suffix.
 
 - [ ] **Step 3: Implement local storage**
 
@@ -1791,24 +1952,31 @@ docker exec desporto24-schema-pg \
   -c 'CREATE SCHEMA IF NOT EXISTS desporto24;'
 ```
 
-Start the **baseline worktree** against that temporary database with Hibernate schema creation:
+Start the **baseline worktree** with Java 17 in Docker so the old Spring Boot 3.0 code does not depend on the developer's installed JDK:
 
 ```bash
-cd ../desporto24BE-schema-baseline
-POSTGRES_HOST=localhost \
-POSTGRES_PORT=55432 \
-POSTGRES_DATABASE=desporto24 \
-POSTGRES_USERNAME=postgres \
-POSTGRES_PASSWORD=postgres \
-UI_APP_URL=http://localhost:4200 \
-VERIFY_EMAIL_HOST=http://localhost:4200 \
-SPRING_JPA_HIBERNATE_DDL_AUTO=create \
-./mvnw spring-boot:run &
-BASELINE_PID=$!
+docker network create desporto24-schema-net || true
+docker network connect desporto24-schema-net desporto24-schema-pg
 
-sleep 25
-kill "$BASELINE_PID" || true
-cd -
+docker run --rm --name desporto24-baseline-app \
+  --network desporto24-schema-net \
+  -v "$(pwd)/../desporto24BE-schema-baseline:/workspace" \
+  -w /workspace \
+  -e POSTGRES_HOST=desporto24-schema-pg \
+  -e POSTGRES_PORT=5432 \
+  -e POSTGRES_DATABASE=desporto24 \
+  -e POSTGRES_USERNAME=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e UI_APP_URL=http://localhost:4200 \
+  -e VERIFY_EMAIL_HOST=http://localhost:4200 \
+  -e SPRING_JPA_HIBERNATE_DDL_AUTO=create \
+  eclipse-temurin:17-jdk \
+  sh -c './mvnw -q -DskipTests spring-boot:run' &
+BASELINE_CONTAINER_PID=$!
+
+sleep 30
+docker stop desporto24-baseline-app || true
+wait "$BASELINE_CONTAINER_PID" || true
 ```
 
 Confirm the baseline created the key tables before dumping:
@@ -1889,6 +2057,8 @@ CREATE TABLE IF NOT EXISTS desporto24.session_participant (
     attendance_status VARCHAR(32) NOT NULL,
     joined_at TIMESTAMP WITH TIME ZONE NOT NULL,
     exited_at TIMESTAMP WITH TIME ZONE,
+    attendance_reported_by_profile_id BIGINT REFERENCES desporto24.profile(id),
+    attendance_recorded_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT uk_session_participant_session_profile UNIQUE (session_id, profile_id)
 );
 
@@ -1934,7 +2104,15 @@ ALTER TABLE desporto24.notifications
     ADD COLUMN IF NOT EXISTS session_id BIGINT REFERENCES desporto24.session(id),
     ADD COLUMN IF NOT EXISTS read BOOLEAN NOT NULL DEFAULT FALSE;
 
---changeset desporto24:007-existing-creators
+--changeset desporto24:007-mfa-challenge-fields
+ALTER TABLE desporto24.mfaverification
+    ADD COLUMN IF NOT EXISTS challenge_id VARCHAR(36),
+    ADD COLUMN IF NOT EXISTS code_hash VARCHAR(255);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_mfa_challenge_id
+    ON desporto24.mfaverification(challenge_id)
+    WHERE challenge_id IS NOT NULL;
+
+--changeset desporto24:008-existing-creators
 INSERT INTO desporto24.session_participant
     (session_id, profile_id, state, attendance_status, joined_at)
 SELECT s.id, s.perfil_id, 'ACTIVE', 'PENDING', COALESCE(s.created_at, CURRENT_TIMESTAMP)
