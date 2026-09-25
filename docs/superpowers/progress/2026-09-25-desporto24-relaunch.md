@@ -178,3 +178,14 @@ Task 4B verification — discovery:
 - Fresh verification: GitHub Actions run 36176590995 → PASS on ./mvnw -q clean test.
 
 Task 4B: complete.
+
+
+Task 4C verification — My Sessions:
+- GET /api/sessions/mine uses Authentication.getName() and accepts no browser-supplied username.
+- Added SessionMineServiceTest covering created, joined and waitlisted grouping.
+- A session created by the user is excluded from the joined group even though the creator is also an ACTIVE participant.
+- Joined contains ACTIVE participant sessions not created by the user; waitlisted contains sessions from the user's waitlist entries.
+- Characterization test passed against the existing implementation without production-code changes.
+- Fresh verification: GitHub Actions run 36176794211 → PASS on ./mvnw -q clean test.
+
+Task 4C: complete.
