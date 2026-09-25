@@ -1,10 +1,11 @@
 package com.example.desporto24.service.impl;
 
-import com.example.desporto24.encryption.AES;
 import com.example.desporto24.exception.*;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Status;
 import com.example.desporto24.model.dto.ProfileDTO;
+import com.example.desporto24.model.dto.auth.LoginResponse;
+import com.example.desporto24.model.dto.auth.MfaConfirmRequest;
 import com.example.desporto24.register.MFA.MFAVerification;
 import com.example.desporto24.register.MFA.MFAVerificationService;
 import com.example.desporto24.register.Notifications.Notifications;
@@ -12,13 +13,18 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.register.token.ConfirmationToken;
 import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.interfaces.ProfileService;
+import com.example.desporto24.utility.JWTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -26,10 +32,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Locale;
 
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.UserImplConstant.*;
@@ -55,20 +63,82 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
     private final MFAVerificationService mfaVerificationService;
+    private final PasswordHashService passwordHashService;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final JWTokenProvider jwtTokenProvider;
+    private final ProfileMapper profileMapper;
 
     @Override
-    public Profile authenticate(ProfileDTO profileDTO) {
-        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+    public LoginResponse login(ProfileDTO credentials) {
+        Profile profile = profileRepository.findUserByUsername(credentials.getUsername())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         validateProfileStatus(profile);
+        loginAttemptService.handleLoginAttempt(credentials.getUsername(), credentials.getPassword(), profile);
 
         if (Boolean.TRUE.equals(profile.getMFA())) {
-            handleMFALogin(profileDTO.getUsername(), profileDTO.getPassword(), profile);
-        } else {
-            handleRegularLogin(profileDTO.getUsername(), profileDTO.getPassword(), profile);
+            MFAVerification challenge = createAndSendMfaChallenge(profile);
+            return new LoginResponse(
+                    true,
+                    challenge.getChallengeId(),
+                    challenge.getExpiredAt().toInstant(ZoneOffset.UTC),
+                    null,
+                    profileMapper.toDto(profile)
+            );
         }
+
+        return completedLogin(profile);
+    }
+
+    @Override
+    public LoginResponse confirmMfa(MfaConfirmRequest request) {
+        MFAVerification challenge = mfaVerificationService.getByChallengeId(request.challengeId())
+                .orElseThrow(() -> new SMSNotFoundException(SMS_FAIL));
+
+        validateMfaCodeExpiryAndConfirmation(challenge);
+
+        String normalizedCode = request.code().trim().toUpperCase(Locale.ROOT);
+        if (!passwordEncoder.matches(normalizedCode, challenge.getCodeHash())) {
+            throw new BadCredentialsException(SMS_FAIL);
+        }
+
+        mfaVerificationService.setConfirmedAt(
+                challenge.getChallengeId(),
+                LocalDateTime.now(ZoneOffset.UTC)
+        );
+
+        Profile profile = profileRepository.findUserByUsername(challenge.getPerfil())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        return completedLogin(profile);
+    }
+
+    private LoginResponse completedLogin(Profile profile) {
         updateProfileLoginDetails(profile);
-        return profileRepository.save(profile);
+        Profile saved = profileRepository.save(profile);
+        String token = jwtTokenProvider.generateJwtToken(new com.example.desporto24.model.ProfilePrincipal(saved));
+        return new LoginResponse(false, null, null, token, profileMapper.toDto(saved));
+    }
+
+    private MFAVerification createAndSendMfaChallenge(Profile profile) {
+        String challengeId = UUID.randomUUID().toString();
+        String rawCode = generateVerificationCode();
+        LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
+
+        MFAVerification challenge = new MFAVerification(
+                challengeId,
+                passwordEncoder.encode(rawCode),
+                createdAt,
+                createdAt.plusMinutes(5),
+                profile.getUsername()
+        );
+        mfaVerificationService.saveConfirmationMFA(challenge);
+
+        sendSMS(
+                profile.getIndicativePhone(),
+                decryptString(profile.getPhone(), profile.getUserId()),
+                "Desporto24APP \nCodigo de Verificação:\n" + rawCode
+        );
+        return challenge;
     }
 
     private void validateProfileStatus(Profile profile) {
@@ -90,15 +160,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String formatJoinDate(Date date) {
         return new java.text.SimpleDateFormat("yyyy MMM dd hh:mm").format(date);
     }
-    private void handleRegularLogin(String username, String password, Profile profile) {
-        loginAttemptService.handleLoginAttempt(username, password, profile);
-    }
-
-    private void handleMFALogin(String username, String password, Profile profile) {
-        loginAttemptService.handleLoginAttempt(username, password, profile);
-        sendVerificationCode(username);
-    }
-
     @Override
     public void terminateSession(ProfileDTO profileDTO) {
         Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
@@ -257,8 +318,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private void updatePassword(Profile profile, String newPassword) {
-        String encodedPassword = AES.encryptString(newPassword, profile.getUserId());
-        profile.setPassword(encodedPassword);
+        profile.setPassword(passwordHashService.encode(newPassword));
     }
 
     private Profile validateProfileForPasswordReset(String username) throws UserNotFoundException, AccountDisabledException {
@@ -282,33 +342,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return confirmToken;
     }
 
-    @Override
-    public void confirmMfaCode(String code) {
-        MFAVerification mfaVerification = getMFAVerificationOrThrow(code);
-        validateMfaCodeExpiryAndConfirmation(mfaVerification);
-
-        mfaVerificationService.setConfirmedAt(code);
-    }
-
     private void validateMfaCodeExpiryAndConfirmation(MFAVerification mfaVerification) throws SMSAlreadyConfirmedException, SMSExpiredException {
         if (mfaVerification.getConfirmedAt() != null) {
             throw new SMSAlreadyConfirmedException(SMS_FAIL);
         }
-        if (mfaVerification.getExpiredAt().isBefore(LocalDateTime.now())) {
+        if (mfaVerification.getExpiredAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new SMSExpiredException(SMS_ALREADY_CONFIRMED);
         }
     }
 
-    private MFAVerification getMFAVerificationOrThrow(String code) {
-        return mfaVerificationService.getCode(code.toUpperCase()).orElseThrow(() -> new SMSNotFoundException(SMS_FAIL));
-    }
-
     @Override
     public void sendVerificationCode(String username) {
-        ProfileDTO profileDTO = profileService.findUserByUsername(username);
-        String code = generateVerificationCode();
-        saveMFAVerification(profileDTO.getUsername(), code);
-        sendSMS(profileDTO.getIndicativePhone(), decryptString(profileDTO.getPhone(), profileDTO.getUserId()), "Desporto24APP \nCodigo de Verificação:\n" + code);
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        createAndSendMfaChallenge(profile);
     }
 
     @Override
@@ -324,17 +371,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String generateVerificationCode() {
         return randomAlphabetic(8).toUpperCase();
     }
-    private void saveMFAVerification(String username, String code) {
-        MFAVerification mfaVerification = new MFAVerification(
-                code,
-                LocalDateTime.now(),
-                LocalDateTime.now().plusMinutes(1),
-                username
-        );
-        mfaVerificationService.saveConfirmationMFA(mfaVerification);
-    }
-
-
     private String buildResetPasswordEmail(String name, String link) {
         return
                 "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +

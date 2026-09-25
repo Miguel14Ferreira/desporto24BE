@@ -12,6 +12,7 @@ import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.interfaces.ProfileService;
+import com.example.desporto24.security.PasswordHashService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -47,6 +48,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final ConfirmationTokenService confirmationTokenService;
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
+    private final PasswordHashService passwordHashService;
 
     @Override
     public ProfileDTO findUserByUsername(String username) {
@@ -195,10 +197,11 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public void changeUsernameAndPassword(ProfileDTO profileDTO) {
-        ProfileDTO profile = findUserByUsername(profileDTO.getUsername());
+        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         profile.setUsername(profileDTO.getNewUsername());
-        profile.setPassword(AES.encryptString(profileDTO.getPassword(), profile.getUserId()));
-        save(profile);
+        profile.setPassword(passwordHashService.encode(profileDTO.getPassword()));
+        profileRepository.save(profile);
     }
 
     @Override
