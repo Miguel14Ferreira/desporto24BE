@@ -160,6 +160,39 @@ class ReliabilityServiceTest {
     }
 
     @Test
+    void penaltyExactlySevenDaysOldNoLongerRestrictsJoin() {
+        Instant now = Instant.parse("2026-10-20T12:00:00Z");
+        List<SessionParticipant> history = List.of(
+                penalty(1L, AttendanceStatus.NO_SHOW, now.minus(Duration.ofDays(10))),
+                penalty(2L, AttendanceStatus.NO_SHOW, now.minus(Duration.ofDays(9))),
+                penalty(3L, AttendanceStatus.NO_SHOW, now.minus(Duration.ofDays(8))),
+                penalty(4L, AttendanceStatus.NO_SHOW, now.minus(Duration.ofDays(7)))
+        );
+        when(participantRepository.findReliabilityHistory(eq(7L), any(), eq(now))).thenReturn(history);
+        noDisputes(1L, 2L, 3L, 4L);
+
+        ReliabilitySummaryResponse summary = service.summary(profile, now);
+
+        assertEquals(4.0, summary.penaltyScore(), 0.001);
+        assertTrue(summary.warning());
+        assertTrue(summary.reducedPriority());
+        assertFalse(summary.joinRestricted());
+    }
+
+    @Test
+    void summaryUsesExactNinetyDayLookbackWindow() {
+        Instant now = Instant.parse("2026-10-20T12:00:00Z");
+        Instant expectedFrom = now.minus(Duration.ofDays(90));
+        when(participantRepository.findReliabilityHistory(7L, expectedFrom, now))
+                .thenReturn(List.of());
+
+        ReliabilitySummaryResponse summary = service.summary(profile, now);
+
+        assertEquals(0.0, summary.penaltyScore(), 0.001);
+        verify(participantRepository).findReliabilityHistory(7L, expectedFrom, now);
+    }
+
+    @Test
     void openAndAcceptedDisputesExcludeNoShowWeightButRejectedRestoresIt() {
         Instant now = Instant.parse("2026-10-10T12:00:00Z");
         SessionParticipant open = penalty(1L, AttendanceStatus.NO_SHOW, now.minus(Duration.ofDays(1)));
