@@ -154,3 +154,14 @@ Task 3C final verification — relaunch session domain:
 - Final scan of SessionServiceImpl shows no setUsername/setPlayers/setPrice/setPassword legacy writes.
 
 Task 3: complete.
+
+
+Task 4A verification — secure creation and detail:
+- POST /api/sessions uses Authentication.getName() and never accepts a creator username from the browser payload.
+- Private sessions reject blank passwords and store only passwordHash via PasswordHashService.encode; legacy plaintext Session.password remains unwritten.
+- SessionDetailResponse and SessionSummaryResponse expose neither password nor passwordHash.
+- SessionViewMapper hides exact address from non-participants and reveals it only to the creator or an ACTIVE participant.
+- Existing SessionViewMapperPrivacyTest covers hidden address for a non-participant and visible address for the creator.
+- Fresh verification: GitHub Actions run 36176117680 attempt 2 → PASS on ./mvnw -q clean test.
+
+Task 4A: complete.
