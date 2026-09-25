@@ -83,7 +83,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     challenge.getChallengeId(),
                     challenge.getExpiredAt().toInstant(ZoneOffset.UTC),
                     null,
-                    profileMapper.toDto(profile)
+                    null
             );
         }
 
@@ -102,13 +102,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new BadCredentialsException(SMS_FAIL);
         }
 
+        Profile profile = profileRepository.findUserByUsername(challenge.getPerfil())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        validateProfileStatus(profile);
+
         mfaVerificationService.setConfirmedAt(
                 challenge.getChallengeId(),
                 LocalDateTime.now(ZoneOffset.UTC)
         );
 
-        Profile profile = profileRepository.findUserByUsername(challenge.getPerfil())
-                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         return completedLogin(profile);
     }
 
