@@ -318,3 +318,14 @@ Task 7C verification — attendance disputes:
 - Fresh verification: GitHub Actions run 36179671955 → PASS on ./mvnw -q clean test.
 
 Task 7C: complete.
+
+
+Task 7D verification — reliability summary and join integration:
+- GET /api/profiles/{username}/reliability delegates to summaryByUsername and returns the neutral ReliabilitySummaryResponse fields: attendanceRate, completedSessions, noShows, lateCancellations, penaltyScore, warning, reducedPriority and joinRestricted.
+- SessionServiceImpl.join invokes ReliabilityService.requireJoinAllowed before membership/waitlist creation.
+- Integration coverage now proves a recent penalty score of 4.0 blocks joining and creates neither ACTIVE membership nor waitlist entry.
+- Integration coverage also proves a penalty score of 3.0 allows joining a full session but stores the waitlist entry with priorityTier=1.
+- Existing WaitlistPromotionService ordering then places tier 0 ahead of tier 1.
+- Fresh verification: GitHub Actions run 36179943524 → PASS on ./mvnw -q clean test.
+
+Task 7D: complete.
