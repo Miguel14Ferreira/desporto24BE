@@ -279,3 +279,16 @@ Task 6C final verification — lifecycle and waitlist promotion:
 - Final fresh verification: GitHub Actions run 36178676248 attempt 2 → PASS on ./mvnw -q clean test.
 
 Task 6: complete.
+
+
+Task 7A verification — reliability scoring and boundaries:
+- Fixed reliability configuration is present through ReliabilityPolicyProperties/application.properties: 2h free cancellation, 90d lookback, 0.5 late-cancel weight, 1.0 no-show weight, warning 2.0, reduced priority 3.0, restriction 4.0, restriction duration 7d, attendance marking delay 30m.
+- Exactly 2h before start is penalty-free; one second inside the 2h window becomes LATE_CANCELLED; leaving at/after start is rejected.
+- Reliability scoring counts NO_SHOW as 1.0 and LATE_CANCELLED as 0.5.
+- Thresholds are verified: two no-shows warn, three reduce waitlist priority, four can temporarily restrict joins.
+- Restriction is temporary: an event exactly 7 days old no longer keeps joinRestricted=true, while the 90-day score/history remains.
+- Reliability summary queries exactly now-90 days through findReliabilityHistory(profileId, from, now).
+- Existing dispute-aware scoring excludes OPEN/ACCEPTED no-shows and restores REJECTED dispute weight.
+- Fresh verification: GitHub Actions run 36179096586 → PASS on ./mvnw -q clean test.
+
+Task 7A: complete.
