@@ -142,3 +142,15 @@ Task 3B verification — disputes and session messages:
 - Fresh verification: GitHub Actions run 36175381028 attempt 2 → PASS on the current feature branch.
 
 Task 3B: complete.
+
+
+Task 3C final verification — relaunch session domain:
+- 3A domain base verified: additive Session fields, membership/waitlist entities, required enums, repositories and uniqueness constraints.
+- 3B dispute/message domain verified: AttendanceDispute and SessionMessage match the approved fields and repository layer.
+- Creator is inserted as an ACTIVE participant with PENDING attendance during relaunch session creation and therefore counts toward maxParticipants.
+- Final review found one gap: relaunch create() still wrote the legacy Session.username column, contrary to the migration rule that username/players/price/password remain read-only legacy fields.
+- RED: SessionCreationServiceTest at commit 3dd651264afdc522887a109eaac23c1292f976ea failed in GitHub Actions run 36175842660 because username was "miguel" instead of null.
+- GREEN: commit b687236676d44c68c60ee030e0d6110baecf2b44 removed only the legacy username write; GitHub Actions run 36175997853 → PASS on ./mvnw -q clean test.
+- Final scan of SessionServiceImpl shows no setUsername/setPlayers/setPrice/setPassword legacy writes.
+
+Task 3: complete.
