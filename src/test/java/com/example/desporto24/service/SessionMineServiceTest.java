@@ -44,6 +44,7 @@ class SessionMineServiceTest {
     @Mock private BCryptPasswordEncoder passwordEncoder;
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
+    @Mock private SessionNotificationService sessionNotificationService;
 
     private SessionServiceImpl service;
 
@@ -59,7 +60,8 @@ class SessionMineServiceTest {
                 passwordHashService,
                 passwordEncoder,
                 waitlistPromotionService,
-                reliabilityService
+                reliabilityService,
+                sessionNotificationService
         );
     }
 
