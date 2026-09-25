@@ -11,6 +11,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      AES_ENCRYPTION_KEY: abc123
     timeout-minutes: 15
     steps:
       - name: Checkout

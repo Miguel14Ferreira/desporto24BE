@@ -15,6 +15,4 @@ public class SecurityConstant {
     //        "/login/resetPassword/**" ,"/login/**","/menu/**", "/cancelNewSessionToken/**" ,
     //        "/login/registerNewUser/**", "/emergencyToken/** ", "/contact" };
     public static final String[] PUBLIC_URLS = { "/**" };
-    public static final String KEY="4elxod";
-
 }
