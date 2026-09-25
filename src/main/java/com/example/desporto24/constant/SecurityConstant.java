@@ -16,6 +16,10 @@ public final class SecurityConstant {
     public static final String ACCESS_DENIED_MESSAGE = "Tu não tens permissão para aceder a esta página";
     public static final String OPTIONS_HTTP_METHOD = "OPTIONS";
 
+    public static final String[] PUBLIC_GET_URLS = {
+            "/api/sessions"
+    };
+
     public static final String[] PUBLIC_URLS = {
             "/api/auth/login",
             "/api/auth/register",
