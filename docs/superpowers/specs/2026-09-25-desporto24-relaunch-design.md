@@ -370,7 +370,81 @@ The implementation should prefer additive schema changes first, then migrate/dep
 
 Legacy frontend endpoints can temporarily coexist during migration, but the new relaunch UI must use the new coherent API.
 
-## 12. Notifications
+
+## 12. Attendance reliability and no-show penalties
+
+The MVP must discourage users from reserving a place and then failing to attend.
+
+### 12.1 Attendance outcome
+
+After a session has finished, the creator can mark each participant as:
+
+- attended;
+- did not attend.
+
+The system must keep an auditable attendance record per participant/session.
+
+### 12.2 Cancellation window
+
+A participant can leave a session without penalty until **2 hours before the scheduled start time**.
+
+If the participant leaves less than 2 hours before the start time, the departure is recorded as a **late cancellation**.
+
+A participant who remains enrolled and does not attend is recorded as a **no-show**.
+
+A no-show has a stronger negative effect than a late cancellation.
+
+### 12.3 Progressive consequences
+
+The initial policy is intentionally moderate and should be implemented so thresholds can be changed later.
+
+Recent reliability events should drive consequences approximately as follows:
+
+- 0–1 recent no-shows: no restriction;
+- 2 recent no-shows: warning shown to the user;
+- 3 recent no-shows: reduced priority where session demand or waitlists require prioritisation;
+- 4 or more recent no-shows: temporary restriction on joining new sessions.
+
+Late cancellations contribute less than no-shows.
+
+Exact scoring weights, lookback window and restriction duration must be configurable rather than hardcoded into UI logic.
+
+### 12.4 Decay over time
+
+Negative reliability events must lose weight over time so old mistakes do not permanently damage a profile.
+
+The implementation plan must define a simple time-based lookback/decay policy suitable for the MVP.
+
+### 12.5 Abuse protection
+
+A creator must not be able to arbitrarily damage another user's reputation without traceability.
+
+The system must retain who recorded an attendance outcome and when.
+
+A user marked as a no-show must be able to dispute the outcome.
+
+For the MVP, a dispute may be represented as a reviewable status/record rather than requiring a full moderation back office.
+
+Repeated suspicious attendance reporting by the same creator should be detectable from stored history.
+
+### 12.6 Profile presentation
+
+Reliability should be presented neutrally, for example:
+
+- attendance rate;
+- number of completed sessions;
+- recent no-shows.
+
+Avoid demeaning labels.
+
+Example:
+
+> Attendance: 94% · 12 completed sessions · 1 no-show
+
+Positive reliable participation should also be visible rather than exposing only penalties.
+
+
+## 13. Notifications
 
 Reuse the existing notification concept where practical.
 
@@ -382,7 +456,7 @@ The MVP needs notifications for at least:
 
 Additional notification types are optional unless needed by an implemented flow.
 
-## 13. Testing requirements
+## 14. Testing requirements
 
 Backend tests must cover at least:
 
@@ -397,7 +471,14 @@ Backend tests must cover at least:
 - hidden exact address for non-participants;
 - exact address for participants;
 - chat denied to non-participants;
-- chat allowed to participants.
+- chat allowed to participants;
+- penalty-free leave at least 2 hours before start;
+- late-cancellation recording inside the 2-hour window;
+- no-show recording after the session;
+- reliability consequence thresholds;
+- time decay/lookback of negative reliability events;
+- creator identity/audit data for attendance reports;
+- dispute creation for a no-show.
 
 Frontend tests must cover the critical presentation/state transitions for:
 
@@ -409,7 +490,7 @@ Frontend tests must cover the critical presentation/state transitions for:
 
 A build of both repositories must pass before any merge.
 
-## 14. Deployment target
+## 15. Deployment target
 
 The MVP will be publicly accessible.
 
@@ -422,7 +503,7 @@ Target topology:
 
 The exact providers are intentionally not fixed in this design. Provider choice should optimise for low initial cost, straightforward environment-variable management, TLS, deploy-from-Git, and easy rollback.
 
-## 15. Explicitly out of scope for MVP
+## 16. Explicitly out of scope for MVP
 
 - in-app payments;
 - MB Way/Stripe integration;
@@ -436,7 +517,7 @@ The exact providers are intentionally not fixed in this design. Provider choice 
 - creator approval in addition to a private-session password;
 - exposing exact addresses before joining.
 
-## 16. Delivery decomposition
+## 17. Delivery decomposition
 
 Implementation should be performed as vertical, testable slices rather than one large rewrite:
 
