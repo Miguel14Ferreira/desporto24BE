@@ -54,7 +54,7 @@ class AuthenticationControllerTest {
         assertTrue(response.getBody().mfaRequired());
         assertEquals("challenge-123", response.getBody().challengeId());
         assertNull(response.getBody().token());
-        assertFalse(response.getHeaders().containsKey("Jwt-Token"));
+        assertNull(response.getHeaders().getFirst("Jwt-Token"));
     }
 
     private ProfileDTO credentials() {
