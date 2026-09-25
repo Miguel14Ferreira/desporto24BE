@@ -1,0 +1,29 @@
+name: Desporto24 BE Feature CI
+
+on:
+  push:
+    branches:
+      - feature/desporto24-relaunch
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run backend tests
+        run: |
+          chmod +x mvnw
+          ./mvnw -q test
