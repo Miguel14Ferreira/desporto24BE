@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestPropertySource(properties = {
-        "spring.datasource.url=jdbc:h2:mem:session-domain;MODE=PostgreSQL;NON_KEYWORDS=SESSION;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:session-domain;MODE=LEGACY;NON_KEYWORDS=SESSION;DB_CLOSE_DELAY=-1",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
