@@ -165,3 +165,16 @@ Task 4A verification — secure creation and detail:
 - Fresh verification: GitHub Actions run 36176117680 attempt 2 → PASS on ./mvnw -q clean test.
 
 Task 4A: complete.
+
+
+Task 4B verification — discovery:
+- Added SessionDiscoveryServiceTest to characterize the approved discovery behavior.
+- Coordinates with no explicit radius apply the 25 km default; sessions beyond 25 km are excluded and remaining results sort by distance.
+- A radius is not applied when user coordinates are absent.
+- Discovery filters cover sport, partial city match, from/to dates, public/private, free-only and availability.
+- Sorting is verified for distance/default, vacancies and price; unknown/explicit date sorting falls back to gameDate.
+- Existing candidate repository query limits discovery to future OPEN/FULL sessions ordered by gameDate.
+- Characterization tests passed against the existing implementation without production-code changes.
+- Fresh verification: GitHub Actions run 36176590995 → PASS on ./mvnw -q clean test.
+
+Task 4B: complete.
