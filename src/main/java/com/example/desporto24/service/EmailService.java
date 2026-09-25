@@ -1,10 +1,10 @@
 package com.example.desporto24.service;
 import com.example.desporto24.email.EmailSender;
-import com.sun.mail.smtp.SMTPTransport;
 import jakarta.mail.MessagingException;
 import jakarta.mail.NoSuchProviderException;
 import jakarta.mail.SendFailedException;
 import jakarta.mail.Session;
+import jakarta.mail.Transport;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
@@ -48,7 +48,7 @@ public class EmailService implements EmailSender {
         helper.setSubject(EMAIL_SUBJECT);
         helper.setFrom(new InternetAddress(FROM_EMAIL));
         helper.setSentDate(new Date());
-        SMTPTransport smtpTransport = (SMTPTransport) getEmailSession().getTransport(SIMPLE_MAIL_TRANSFER_PROTOCOL);
+        Transport smtpTransport = getEmailSession().getTransport(SIMPLE_MAIL_TRANSFER_PROTOCOL);
         smtpTransport.connect(GMAIL_SMTP_SERVER, USERNAME, PASSWORD);
         smtpTransport.sendMessage(mimeMessage,mimeMessage.getAllRecipients());
         smtpTransport.close();
