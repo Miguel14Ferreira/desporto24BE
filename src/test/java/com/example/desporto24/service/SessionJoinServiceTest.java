@@ -103,6 +103,19 @@ class SessionJoinServiceTest {
         assertNull(response.waitlistPosition());
         assertTrue(participantRepository.existsBySessionIdAndProfileIdAndState(
                 session.getId(), joiner.getId(), ParticipantState.ACTIVE));
+        assertEquals(SessionStatus.FULL, sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void sessionRemainsOpenWhenCapacityStillExists() {
+        Session session = createSession(false, null, 3);
+        Profile joiner = createProfile("joiner");
+
+        JoinSessionResponse response = sessionService.join(
+                session.getId(), new JoinSessionRequest(null), joiner.getUsername());
+
+        assertEquals(JoinState.PARTICIPANT, response.state());
+        assertEquals(SessionStatus.OPEN, sessionRepository.findById(session.getId()).orElseThrow().getStatus());
     }
 
     @Test
@@ -158,6 +171,24 @@ class SessionJoinServiceTest {
         assertEquals(1, response.waitlistPosition());
         assertTrue(waitlistRepository.findBySessionIdAndProfileId(
                 session.getId(), joiner.getId()).isPresent());
+    }
+
+    @Test
+    void waitlistPositionsFollowInsertionOrderWithinSamePriorityTier() {
+        Session session = createSession(false, null, 1);
+        Profile first = createProfile("first");
+        Profile second = createProfile("second");
+
+        JoinSessionResponse firstResult = sessionService.join(
+                session.getId(), new JoinSessionRequest(null), first.getUsername());
+        JoinSessionResponse secondResult = sessionService.join(
+                session.getId(), new JoinSessionRequest(null), second.getUsername());
+
+        assertEquals(JoinState.WAITLISTED, firstResult.state());
+        assertEquals(1, firstResult.waitlistPosition());
+        assertEquals(JoinState.WAITLISTED, secondResult.state());
+        assertEquals(2, secondResult.waitlistPosition());
+        assertEquals(SessionStatus.FULL, sessionRepository.findById(session.getId()).orElseThrow().getStatus());
     }
 
     @Test
