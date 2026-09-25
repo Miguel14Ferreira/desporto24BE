@@ -28,12 +28,15 @@ import com.example.desporto24.service.SessionNotificationService;
 import com.example.desporto24.service.ReliabilityService;
 import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
+import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -43,6 +46,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -62,9 +66,18 @@ public class SessionServiceImpl implements SessionService {
     private final ReliabilityService reliabilityService;
     private final SessionNotificationService sessionNotificationService;
 
+    @Autowired(required = false)
+    private MediaStorage mediaStorage;
+
     @Override
     @Transactional
     public SessionDetailResponse create(CreateSessionRequest request, String username) {
+        return create(request, null, username);
+    }
+
+    @Override
+    @Transactional
+    public SessionDetailResponse create(CreateSessionRequest request, MultipartFile photo, String username) {
         Profile creator = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
@@ -103,6 +116,18 @@ public class SessionServiceImpl implements SessionService {
                 .attendanceStatus(AttendanceStatus.PENDING)
                 .joinedAt(now)
                 .build());
+
+        if (photo != null && !photo.isEmpty()) {
+            if (mediaStorage == null) {
+                throw new IllegalStateException("Media storage is not configured");
+            }
+            var uri = mediaStorage.store(
+                    "sessions/" + saved.getId() + "/" + UUID.randomUUID(),
+                    photo
+            );
+            saved.setGamePhoto(uri.toString());
+            saved = sessionRepository.save(saved);
+        }
 
         return sessionViewMapper.toDetail(saved, creator);
     }
