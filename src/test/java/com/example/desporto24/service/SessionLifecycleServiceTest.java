@@ -14,6 +14,7 @@ import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.configuration.ReliabilityPolicyProperties;
 import com.example.desporto24.service.impl.SessionServiceImpl;
 import com.example.desporto24.service.interfaces.SessionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,8 @@ import static org.junit.jupiter.api.Assertions.*;
         SessionDistanceCalculator.class,
         PasswordHashService.class,
         WaitlistPromotionService.class,
+        ReliabilityService.class,
+        ReliabilityPolicyProperties.class,
         SessionLifecycleServiceTest.PasswordConfig.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
