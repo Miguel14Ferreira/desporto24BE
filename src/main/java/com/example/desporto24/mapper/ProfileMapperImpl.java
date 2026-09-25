@@ -110,7 +110,8 @@ public class ProfileMapperImpl implements ProfileMapper {
         return RandomStringUtils.randomNumeric(10);
     }
 
-    private String formatJoinDate(Date date) {
+    @Override
+    public String formatJoinDate(Date date) {
         return new java.text.SimpleDateFormat("yyyy MMM dd hh:mm").format(date);
     }
 }
