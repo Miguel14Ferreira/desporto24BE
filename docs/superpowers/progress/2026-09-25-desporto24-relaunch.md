@@ -256,3 +256,16 @@ Task 6A verification — session lifecycle authorization:
 - Fresh verification: GitHub Actions run 36178352966 → PASS on ./mvnw -q clean test.
 
 Task 6A: complete.
+
+
+Task 6B verification — waitlist promotion:
+- WaitlistPromotionService promotes the first entry ordered by priorityTier ASC and createdAt ASC.
+- Normal priority tier 0 is promoted before reduced priority tier 1 even when the reduced-priority user entered the queue earlier.
+- Within the same priority tier, createdAt preserves FIFO behavior.
+- Promotion deletes the waitlist entry, activates or reactivates the user's existing SessionParticipant, resets attendance to PENDING and clears exit/attendance audit fields.
+- After promotion the session status is recomputed from active participant count: FULL when capacity is reached, OPEN when capacity remains.
+- When a vacancy exists and the waitlist is empty, no participant is created and the session is recomputed to OPEN.
+- CANCELLED/COMPLETED sessions do not promote waitlist entries.
+- Fresh verification: GitHub Actions run 36178567569 → PASS on ./mvnw -q clean test.
+
+Task 6B: complete.
