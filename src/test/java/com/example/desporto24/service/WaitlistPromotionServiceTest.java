@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.datasource.hikari.schema=PUBLIC"
 })
-@Import(WaitlistPromotionService.class)
+@Import({WaitlistPromotionService.class, SessionNotificationService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class WaitlistPromotionServiceTest {
 
