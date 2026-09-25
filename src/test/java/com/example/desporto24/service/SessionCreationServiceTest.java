@@ -39,6 +39,7 @@ class SessionCreationServiceTest {
     @Mock private BCryptPasswordEncoder passwordEncoder;
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
+    @Mock private SessionNotificationService sessionNotificationService;
 
     @Test
     void relaunchCreationDoesNotWriteLegacySessionFields() {
@@ -91,7 +92,8 @@ class SessionCreationServiceTest {
                 passwordHashService,
                 passwordEncoder,
                 waitlistPromotionService,
-                reliabilityService
+                reliabilityService,
+                sessionNotificationService
         );
     }
 }
