@@ -133,6 +133,18 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
+    void nonCreatorCannotCancelSession() {
+        Profile participant = profile("participant");
+        participant(participant);
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.cancel(session.getId(), participant.getUsername()));
+
+        assertEquals(SessionStatus.OPEN,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
     void creatorCancellationKeepsHistoryAndDisablesJoining() {
         Profile waiting = profile("waiting");
         waitlisted(waiting);
