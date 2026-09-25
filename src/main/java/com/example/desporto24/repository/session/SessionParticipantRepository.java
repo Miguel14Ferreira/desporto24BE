@@ -21,4 +21,7 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
 
     List<SessionParticipant> findBySessionIdAndStateOrderByJoinedAtAsc(
             Long sessionId, ParticipantState state);
+
+    List<SessionParticipant> findByProfileIdAndStateOrderByJoinedAtAsc(
+            Long profileId, ParticipantState state);
 }

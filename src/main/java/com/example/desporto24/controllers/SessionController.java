@@ -1,63 +1,65 @@
 package com.example.desporto24.controllers;
 
-import com.example.desporto24.domain.HttpResponse;
-import com.example.desporto24.exception.NotAnImageFileException;
-import com.example.desporto24.model.Session;
-import com.example.desporto24.model.dto.SessionDTO;
+import com.example.desporto24.model.dto.session.CreateSessionRequest;
+import com.example.desporto24.model.dto.session.MySessionsResponse;
+import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionSearchCriteria;
+import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.interfaces.SessionService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import jakarta.validation.Valid;
+
+import java.time.Instant;
 import java.util.List;
-import static org.springframework.http.HttpStatus.OK;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/sessions")
-@Tag(name = "Sessions", description = "Endpoints for session management")
 public class SessionController {
 
     private final SessionService sessionService;
 
-    // Session Management
-    @PostMapping("/create")
-    @Operation(summary = "Create New Session", description = "Creates a new session with the provided details and an optional image.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Session created successfully",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = HttpResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid session data or image file"),
-            @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<HttpResponse> createSession(@ModelAttribute @Valid SessionDTO sessionDTO,
-                                                      @RequestParam MultipartFile photo) throws Exception, NotAnImageFileException {
-        sessionService.createSession(sessionDTO, photo);
-        return buildResponse();
+    @GetMapping
+    public List<SessionSummaryResponse> discover(
+            @RequestParam(required = false) String sport,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Double radiusKm,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) Boolean privateGame,
+            @RequestParam(required = false) Boolean freeOnly,
+            @RequestParam(required = false) String sort) {
+        return sessionService.discover(new SessionSearchCriteria(
+                sport, city, from, to, latitude, longitude, radiusKm,
+                availability, privateGame, freeOnly, sort
+        ));
     }
 
-    @GetMapping("/")
-    @Operation(summary = "Get All Sessions", description = "Retrieves all available sessions.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Sessions retrieved successfully",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = List.class))),
-            @ApiResponse(responseCode = "500", description = "Internal server error")
-    })
-    public ResponseEntity<List<Session>> getAllSessions() {
-        List<Session> sessions = sessionService.getSessions();
-        return new ResponseEntity<>(sessions, OK);
+    @GetMapping("/mine")
+    public MySessionsResponse mine(Authentication authentication) {
+        return sessionService.mine(authentication.getName());
     }
 
-    private ResponseEntity<HttpResponse> buildResponse() {
-        return new ResponseEntity<>(new HttpResponse(HttpStatus.OK.value(), HttpStatus.OK, HttpStatus.OK.getReasonPhrase().toUpperCase(), com.example.desporto24.constant.UserImplConstant.NEW_SESSION), HttpStatus.OK);
+    @GetMapping("/{id}")
+    public SessionDetailResponse detail(@PathVariable Long id, Authentication authentication) {
+        return sessionService.getById(id, authentication.getName());
+    }
+
+    @PostMapping
+    public ResponseEntity<SessionDetailResponse> create(
+            @RequestBody @Valid CreateSessionRequest request,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(sessionService.create(request, authentication.getName()));
     }
 }
