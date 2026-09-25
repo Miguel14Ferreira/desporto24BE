@@ -12,4 +12,10 @@ class SecurityConstantTest {
     void doesNotPermitEveryEndpointAnonymously() {
         assertFalse(Arrays.asList(SecurityConstant.PUBLIC_URLS).contains("/**"));
     }
+
+    @Test
+    void exposesOnlyTheDiscoveryCollectionAsPublicSessionGet() {
+        assertTrue(Arrays.asList(SecurityConstant.PUBLIC_GET_URLS).contains("/api/sessions"));
+        assertFalse(Arrays.asList(SecurityConstant.PUBLIC_GET_URLS).contains("/api/sessions/**"));
+    }
 }
