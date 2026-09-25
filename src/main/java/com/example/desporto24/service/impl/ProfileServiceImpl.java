@@ -13,8 +13,10 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,9 @@ public class ProfileServiceImpl implements ProfileService {
     private final NotificationsRepository notificationsRepository;
     private final PasswordHashService passwordHashService;
 
+    @Autowired(required = false)
+    private MediaStorage mediaStorage;
+
     @Override
     public ProfileDTO findUserByUsername(String username) {
         Profile profile = profileRepository.findUserByUsername(username).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
@@ -75,57 +80,23 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     private void saveProfileImage(ProfileDTO profileDTO, MultipartFile profileImage) {
-            Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
-            validateImageFileType(profileImage.getContentType());
-            Path userFolder = createProfileFolder(profileDTO.getUsername());
-            deleteExistingProfileImage(userFolder, profileDTO.getUsername());
-            saveNewProfileImage(userFolder, profileDTO.getUsername(), profileImage);
-            profile.setProfilePicUrl(setProfileImageUrl(profileDTO.getUsername()));
-            save(profileDTO);
+        if (profileImage == null || profileImage.isEmpty()) {
+            return;
+        }
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
         }
 
+        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-// Criação de URL para a fotografia escolhida pelo utilizador no registo ou na alteração de dados
-        private String setProfileImageUrl(String username) {
-            return fromCurrentContextPath().path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
-        }
-
-// Helper methods for image operations
-        private void validateImageFileType(String contentType) {
-            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(contentType)) {
-                throw new NotAnImageFileException(NOT_AN_IMAGE_FILE);
-            }
-        }
-
-        private Path createProfileFolder(String username) {
-            try {
-                Path userFolder = Paths.get(USER_FOLDER + username).toAbsolutePath().normalize();
-                if (!Files.exists(userFolder)) {
-                    Files.createDirectories(userFolder);
-                    log.info(DIRECTORY_CREATED + userFolder);
-                }
-                return userFolder;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        private void deleteExistingProfileImage(Path userFolder, String username) {
-            try {
-                Files.deleteIfExists(Paths.get(userFolder + username + DOT + JPG_EXTENSION));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        private void saveNewProfileImage(Path userFolder, String username, MultipartFile profileImage) {
-            try {
-                Files.copy(profileImage.getInputStream(), userFolder.resolve(username + DOT + JPG_EXTENSION), REPLACE_EXISTING);
-                log.info(FILE_SAVED_IN_FILE_SYSTEM + profileImage.getOriginalFilename());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        var uri = mediaStorage.store(
+                "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
+                profileImage
+        );
+        profile.setProfilePicUrl(uri.toString());
+        profileRepository.save(profile);
+    }
 
 
     public void validateNewUsernameEmail(String currentUsername, String newUsername, String email) throws UsernameExistException, EmailExistException, UserNotFoundException {
