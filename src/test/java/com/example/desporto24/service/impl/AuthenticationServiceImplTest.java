@@ -66,6 +66,7 @@ class AuthenticationServiceImplTest {
             assertTrue(response.mfaRequired());
             assertNotNull(response.challengeId());
             assertNull(response.token());
+            assertNull(response.profile());
             verifyNoInteractions(jwtTokenProvider);
             verify(mfaVerificationService).saveConfirmationMFA(any());
             sms.verify(() -> SmsUtils.sendSMS(eq("+351"), eq("912345678"), anyString()));
@@ -95,6 +96,25 @@ class AuthenticationServiceImplTest {
         assertThrows(
                 SMSExpiredException.class,
                 () -> service().confirmMfa(new MfaConfirmRequest("challenge-123", "ABCDEFGH"))
+        );
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService, never()).setConfirmedAt(anyString(), any());
+    }
+
+    @Test
+    void lockedProfileCannotCompleteMfaChallenge() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        profile.setNotLocked(false);
+
+        when(mfaVerificationService.getByChallengeId("challenge-123")).thenReturn(Optional.of(challenge));
+        when(passwordEncoder.matches("ABCDEFGH", "$2a$challenge-hash")).thenReturn(true);
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
+
+        assertThrows(
+                com.example.desporto24.exception.AccountDisabledException.class,
+                () -> service().confirmMfa(new MfaConfirmRequest("challenge-123", "abcdefgh"))
         );
 
         verifyNoInteractions(jwtTokenProvider);
