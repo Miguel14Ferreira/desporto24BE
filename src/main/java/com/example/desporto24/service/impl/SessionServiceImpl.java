@@ -160,7 +160,7 @@ public class SessionServiceImpl implements SessionService {
         }
         if ("vacancies".equalsIgnoreCase(sort)) {
             return Comparator.comparingInt(
-                    s -> s.maxParticipants() - s.participantCount()
+                    (SessionSummaryResponse s) -> s.maxParticipants() - s.participantCount()
             ).reversed().thenComparing(SessionSummaryResponse::gameDate);
         }
         if ("price".equalsIgnoreCase(sort)) {
