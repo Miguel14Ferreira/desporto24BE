@@ -1,10 +1,15 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.encryption.AES;
+import com.example.desporto24.exception.SMSAlreadyConfirmedException;
+import com.example.desporto24.exception.SMSExpiredException;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
+import com.example.desporto24.model.dto.auth.MfaConfirmRequest;
+import com.example.desporto24.register.MFA.MFAVerification;
 import com.example.desporto24.register.MFA.MFAVerificationService;
 import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.NotificationsRepository;
@@ -20,8 +25,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,7 +53,83 @@ class AuthenticationServiceImplTest {
 
     @Test
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
-        AuthenticationServiceImpl service = new AuthenticationServiceImpl(
+        Profile profile = activeProfile(true);
+        ProfileDTO safeProfile = safeProfile();
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$challenge-hash");
+        when(profileMapper.toDto(profile)).thenReturn(safeProfile);
+
+        try (MockedStatic<SmsUtils> sms = mockStatic(SmsUtils.class)) {
+            LoginResponse response = service().login(credentials());
+
+            assertTrue(response.mfaRequired());
+            assertNotNull(response.challengeId());
+            assertNull(response.token());
+            verifyNoInteractions(jwtTokenProvider);
+            verify(mfaVerificationService).saveConfirmationMFA(any());
+            sms.verify(() -> SmsUtils.sendSMS(eq("+351"), eq("912345678"), anyString()));
+        }
+    }
+
+    @Test
+    void wrongMfaCodeNeverGeneratesJwt() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        when(mfaVerificationService.getByChallengeId("challenge-123")).thenReturn(Optional.of(challenge));
+        when(passwordEncoder.matches("WRONG", "$2a$challenge-hash")).thenReturn(false);
+
+        assertThrows(
+                BadCredentialsException.class,
+                () -> service().confirmMfa(new MfaConfirmRequest("challenge-123", "wrong"))
+        );
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService, never()).setConfirmedAt(anyString(), any());
+    }
+
+    @Test
+    void expiredMfaChallengeNeverGeneratesJwt() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1));
+        when(mfaVerificationService.getByChallengeId("challenge-123")).thenReturn(Optional.of(challenge));
+
+        assertThrows(
+                SMSExpiredException.class,
+                () -> service().confirmMfa(new MfaConfirmRequest("challenge-123", "ABCDEFGH"))
+        );
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService, never()).setConfirmedAt(anyString(), any());
+    }
+
+    @Test
+    void confirmedMfaChallengeIsSingleUse() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        ProfileDTO safeProfile = safeProfile();
+
+        when(mfaVerificationService.getByChallengeId("challenge-123")).thenReturn(Optional.of(challenge));
+        when(passwordEncoder.matches("ABCDEFGH", "$2a$challenge-hash")).thenReturn(true);
+        doAnswer(invocation -> {
+            challenge.setConfirmedAt(invocation.getArgument(1));
+            return null;
+        }).when(mfaVerificationService).setConfirmedAt(eq("challenge-123"), any());
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
+        when(profileRepository.save(profile)).thenReturn(profile);
+        when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("jwt-token");
+        when(profileMapper.toDto(profile)).thenReturn(safeProfile);
+
+        LoginResponse first = service().confirmMfa(new MfaConfirmRequest("challenge-123", "abcdefgh"));
+
+        assertEquals("jwt-token", first.token());
+        assertThrows(
+                SMSAlreadyConfirmedException.class,
+                () -> service().confirmMfa(new MfaConfirmRequest("challenge-123", "abcdefgh"))
+        );
+        verify(jwtTokenProvider, times(1)).generateJwtToken(any(ProfilePrincipal.class));
+    }
+
+    private AuthenticationServiceImpl service() {
+        return new AuthenticationServiceImpl(
                 loginAttemptService,
                 profileService,
                 profileRepository,
@@ -58,26 +142,16 @@ class AuthenticationServiceImplTest {
                 jwtTokenProvider,
                 profileMapper
         );
+    }
 
-        Profile profile = activeProfile(true);
-        ProfileDTO credentials = credentials();
-        ProfileDTO safeProfile = new ProfileDTO();
-        safeProfile.setUsername("miguel");
-
-        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
-        when(passwordEncoder.encode(anyString())).thenReturn("$2a$challenge-hash");
-        when(profileMapper.toDto(profile)).thenReturn(safeProfile);
-
-        try (MockedStatic<SmsUtils> sms = mockStatic(SmsUtils.class)) {
-            LoginResponse response = service.login(credentials);
-
-            assertTrue(response.mfaRequired());
-            assertNotNull(response.challengeId());
-            assertNull(response.token());
-            verifyNoInteractions(jwtTokenProvider);
-            verify(mfaVerificationService).saveConfirmationMFA(any());
-            sms.verify(() -> SmsUtils.sendSMS(eq("+351"), eq("912345678"), anyString()));
-        }
+    private MFAVerification challenge(LocalDateTime expiresAt) {
+        return new MFAVerification(
+                "challenge-123",
+                "$2a$challenge-hash",
+                LocalDateTime.now(ZoneOffset.UTC).minusMinutes(1),
+                expiresAt,
+                "miguel"
+        );
     }
 
     private Profile activeProfile(boolean mfa) {
@@ -96,6 +170,12 @@ class AuthenticationServiceImplTest {
         ProfileDTO dto = new ProfileDTO();
         dto.setUsername("miguel");
         dto.setPassword("secret");
+        return dto;
+    }
+
+    private ProfileDTO safeProfile() {
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername("miguel");
         return dto;
     }
 }
