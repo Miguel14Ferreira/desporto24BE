@@ -213,3 +213,14 @@ Task 5A verification — basic and private join:
 - Fresh verification: GitHub Actions run 36177417680 → PASS on ./mvnw -q clean test.
 
 Task 5A: complete.
+
+
+Task 5B verification — capacity and waitlist:
+- Joining the last available slot transitions the session to FULL.
+- Joining while capacity still remains keeps the session OPEN.
+- A full session places the user on the waitlist and returns position 1.
+- Multiple waitlisted users with the same priority tier receive FIFO positions 1, then 2 according to createdAt ordering.
+- Session remains FULL while users are waitlisted.
+- Fresh verification: GitHub Actions run 36177736635 → PASS on ./mvnw -q clean test.
+
+Task 5B: complete.
