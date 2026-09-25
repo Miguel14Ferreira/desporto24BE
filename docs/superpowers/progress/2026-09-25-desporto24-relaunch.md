@@ -202,3 +202,14 @@ Task 4D final verification — secure session API:
 - Final scan confirms the new controller exposes GET /api/sessions, GET /api/sessions/{id}, POST /api/sessions and GET /api/sessions/mine; SessionDetailResponse contains no password/passwordHash field.
 
 Task 4: complete.
+
+
+Task 5A verification — basic and private join:
+- POST /api/sessions/{id}/join uses Authentication.getName() and does not trust a browser-supplied username.
+- Public session with capacity creates an ACTIVE participant.
+- Private session with the correct password creates a participant; wrong password raises BadCredentialsException and creates neither participant nor waitlist entry.
+- Duplicate join is idempotent and never creates a duplicate participant row.
+- Existing integration tests exercise the real repositories/service; added controller coverage for authenticated join identity.
+- Fresh verification: GitHub Actions run 36177417680 → PASS on ./mvnw -q clean test.
+
+Task 5A: complete.
