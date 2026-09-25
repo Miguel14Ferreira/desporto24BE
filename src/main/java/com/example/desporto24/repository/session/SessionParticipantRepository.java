@@ -14,6 +14,8 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     Optional<SessionParticipant> findBySessionIdAndProfileIdAndState(
             Long sessionId, Long profileId, ParticipantState state);
 
+    Optional<SessionParticipant> findBySessionIdAndProfileId(Long sessionId, Long profileId);
+
     long countBySessionIdAndState(Long sessionId, ParticipantState state);
 
     boolean existsBySessionIdAndProfileIdAndState(

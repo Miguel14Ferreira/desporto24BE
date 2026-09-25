@@ -16,4 +16,7 @@ public interface SessionService {
     List<SessionSummaryResponse> discover(SessionSearchCriteria criteria);
     MySessionsResponse mine(String username);
     JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username);
+    void leave(Long sessionId, String username);
+    void cancel(Long sessionId, String username);
+    void removeParticipant(Long sessionId, Long participantId, String username);
 }

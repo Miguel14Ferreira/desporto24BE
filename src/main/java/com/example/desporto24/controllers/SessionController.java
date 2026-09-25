@@ -66,6 +66,27 @@ public class SessionController {
         return sessionService.join(id, effectiveRequest, authentication.getName());
     }
 
+    @PostMapping("/{id}/leave")
+    public ResponseEntity<Void> leave(@PathVariable Long id, Authentication authentication) {
+        sessionService.leave(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancel(@PathVariable Long id, Authentication authentication) {
+        sessionService.cancel(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/participants/{participantId}")
+    public ResponseEntity<Void> removeParticipant(
+            @PathVariable Long id,
+            @PathVariable Long participantId,
+            Authentication authentication) {
+        sessionService.removeParticipant(id, participantId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping
     public ResponseEntity<SessionDetailResponse> create(
             @RequestBody @Valid CreateSessionRequest request,

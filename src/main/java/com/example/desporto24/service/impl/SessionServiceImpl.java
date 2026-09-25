@@ -24,10 +24,12 @@ import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
+import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +56,7 @@ public class SessionServiceImpl implements SessionService {
     private final SessionDistanceCalculator distanceCalculator;
     private final PasswordHashService passwordHashService;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final WaitlistPromotionService waitlistPromotionService;
 
     @Override
     @Transactional
@@ -215,13 +218,18 @@ public class SessionServiceImpl implements SessionService {
                 sessionId, ParticipantState.ACTIVE);
 
         if (activeParticipants < maxParticipants) {
-            participantRepository.save(SessionParticipant.builder()
-                    .session(session)
-                    .profile(profile)
-                    .state(ParticipantState.ACTIVE)
-                    .attendanceStatus(AttendanceStatus.PENDING)
-                    .joinedAt(Instant.now())
-                    .build());
+            SessionParticipant participant = participantRepository
+                    .findBySessionIdAndProfileId(sessionId, profile.getId())
+                    .orElseGet(SessionParticipant::new);
+            participant.setSession(session);
+            participant.setProfile(profile);
+            participant.setState(ParticipantState.ACTIVE);
+            participant.setAttendanceStatus(AttendanceStatus.PENDING);
+            participant.setJoinedAt(Instant.now());
+            participant.setExitedAt(null);
+            participant.setAttendanceReportedBy(null);
+            participant.setAttendanceRecordedAt(null);
+            participantRepository.save(participant);
 
             long newCount = activeParticipants + 1;
             session.setStatus(newCount >= maxParticipants ? SessionStatus.FULL : SessionStatus.OPEN);
@@ -266,6 +274,84 @@ public class SessionServiceImpl implements SessionService {
             }
         }
         throw new IllegalStateException("Waitlist entry not found after save");
+    }
+
+
+    @Override
+    @Transactional
+    public void leave(Long sessionId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (session.getProfile().getId().equals(actor.getId())) {
+            throw new AccessDeniedException("Session creator must cancel the session instead of leaving");
+        }
+
+        SessionParticipant membership = participantRepository
+                .findBySessionIdAndProfileIdAndState(
+                        sessionId, actor.getId(), ParticipantState.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException("User is not an active participant"));
+
+        Instant now = Instant.now();
+        membership.setState(ParticipantState.LEFT);
+        membership.setExitedAt(now);
+        participantRepository.save(membership);
+
+        waitlistPromotionService.promoteNext(session, now);
+    }
+
+    @Override
+    @Transactional
+    public void cancel(Long sessionId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        requireCreator(session, actor);
+        session.setStatus(SessionStatus.CANCELLED);
+        session.setUpdatedAt(Instant.now());
+        sessionRepository.save(session);
+    }
+
+    @Override
+    @Transactional
+    public void removeParticipant(Long sessionId, Long participantId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        requireCreator(session, actor);
+
+        SessionParticipant membership = participantRepository.findById(participantId)
+                .orElseThrow(() -> new IllegalStateException("Participant not found"));
+
+        if (!membership.getSession().getId().equals(sessionId)) {
+            throw new IllegalArgumentException("Participant does not belong to this session");
+        }
+        if (membership.getProfile().getId().equals(session.getProfile().getId())) {
+            throw new AccessDeniedException("Creator cannot remove themselves");
+        }
+        if (membership.getState() != ParticipantState.ACTIVE) {
+            return;
+        }
+
+        Instant now = Instant.now();
+        membership.setState(ParticipantState.REMOVED);
+        membership.setExitedAt(now);
+        participantRepository.save(membership);
+
+        waitlistPromotionService.promoteNext(session, now);
+    }
+
+    private void requireCreator(Session session, Profile actor) {
+        if (session.getProfile() == null
+                || !session.getProfile().getId().equals(actor.getId())) {
+            throw new AccessDeniedException("Only the session creator can perform this action");
+        }
     }
 
     @Override
