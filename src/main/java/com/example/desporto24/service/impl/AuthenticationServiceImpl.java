@@ -43,6 +43,7 @@ import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Locale;
+import java.security.SecureRandom;
 
 import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.UserImplConstant.*;
@@ -50,7 +51,6 @@ import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.model.Status.OFFLINE;
 import static com.example.desporto24.utility.SmsUtils.sendSMS;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.commons.lang3.StringUtils.*;
 import static org.apache.commons.lang3.StringUtils.substring;
 import static org.springframework.http.MediaType.*;
@@ -60,6 +60,9 @@ import static org.springframework.web.servlet.support.ServletUriComponentsBuilde
 @Service
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
+
+    private static final SecureRandom MFA_CODE_RANDOM = new SecureRandom();
+    private static final int MFA_CODE_BOUND = 1_000_000;
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -393,7 +396,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private String generateVerificationCode() {
-        return randomAlphabetic(8).toUpperCase();
+        return String.format(Locale.ROOT, "%06d", MFA_CODE_RANDOM.nextInt(MFA_CODE_BOUND));
     }
     private String buildResetPasswordEmail(String name, String link) {
         return

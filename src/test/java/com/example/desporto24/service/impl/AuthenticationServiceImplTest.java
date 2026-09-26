@@ -41,7 +41,7 @@ import static org.mockito.Mockito.*;
 class AuthenticationServiceImplTest {
 
     private static final String TEST_USERNAME = "fixture-user";
-    private static final String TEST_MFA_CODE = "FIXTURE-CODE";
+    private static final String TEST_MFA_CODE = "123456";
     private static final String TEST_PASSWORD = "not-a-real-password";
     private static final String TEST_CHALLENGE_ID = "challenge-id-fixture";
     private static final String TEST_CHALLENGE_HASH = "$2a$fixture-hash";
@@ -157,7 +157,12 @@ class AuthenticationServiceImplTest {
             assertNull(response.profile());
             verifyNoInteractions(jwtTokenProvider);
             verify(mfaVerificationService).saveConfirmationMFA(any());
-            sms.verify(() -> SmsUtils.sendSMS(eq("+351"), eq("912345678"), anyString()));
+            verify(passwordEncoder).encode(argThat(code -> code.matches("\\d{6}")));
+            sms.verify(() -> SmsUtils.sendSMS(
+                    eq("+351"),
+                    eq("912345678"),
+                    argThat(message -> message.matches("(?s).*\\d{6}.*"))
+            ));
         }
     }
 
