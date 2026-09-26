@@ -64,6 +64,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private static final SecureRandom MFA_CODE_RANDOM = new SecureRandom();
     private static final int MFA_CODE_BOUND = 1_000_000;
+    private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final int USER_ID_LENGTH = 10;
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -216,7 +218,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void signUpProfile(RegistrationRequest request, MultipartFile photo) {
         ProfileDTO profileDTO = new ProfileDTO();
-        profileDTO.setUserId(UUID.randomUUID().toString());
+        profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
         profileDTO.setPassword(passwordHashService.encode(request.password()));
         profileDTO.setFullName(request.fullName());
@@ -422,6 +424,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private String generateVerificationCode() {
         return String.format(Locale.ROOT, "%06d", MFA_CODE_RANDOM.nextInt(MFA_CODE_BOUND));
+    }
+
+    private String generateUserId() {
+        StringBuilder userId = new StringBuilder(USER_ID_LENGTH);
+        for (int i = 0; i < USER_ID_LENGTH; i++) {
+            userId.append(USER_ID_ALPHABET.charAt(MFA_CODE_RANDOM.nextInt(USER_ID_ALPHABET.length())));
+        }
+        return userId.toString();
     }
     private String buildResetPasswordEmail(String name, String link) {
         return
