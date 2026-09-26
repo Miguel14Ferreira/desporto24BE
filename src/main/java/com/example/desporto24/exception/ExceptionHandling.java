@@ -141,7 +141,7 @@ public class ExceptionHandling {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<HttpResponse> internalServerErrorException(Exception exception){
-        log.error(exception.getMessage());
+        log.error("Unhandled request exception", exception);
         return createHttpResponse(INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MSG);
     }
 
