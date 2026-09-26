@@ -243,8 +243,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         validateNewUsernameEmail(profileDTO);
         profileDTO.setProfilePicUrl(null);
-        profileService.save(profileDTO);
-        saveRegistrationProfileImage(profileDTO, photo);
+        Profile savedProfile = profileRepository.saveAndFlush(profileMapper.toEntity(profileDTO));
+        saveRegistrationProfileImage(savedProfile, profileDTO, photo);
         if (previewMode) {
             createWelcomeNotification(profileDTO, null);
         } else {
@@ -261,6 +261,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private void saveRegistrationProfileImage(
+            Profile profile,
             ProfileDTO profileDTO,
             MultipartFile photo) {
         if (photo == null || photo.isEmpty()) {
@@ -269,11 +270,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (mediaStorage == null) {
             throw new IllegalStateException("Media storage is not configured");
         }
-
-        Profile profile = profileRepository
-                .findUserByUsername(profileDTO.getUsername())
-                .orElseThrow(() ->
-                        new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         var uri = mediaStorage.store(
                 "profiles/" + profile.getId() + "/" + UUID.randomUUID(),

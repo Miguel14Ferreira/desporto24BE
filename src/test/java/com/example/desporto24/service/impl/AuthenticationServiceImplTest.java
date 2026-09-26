@@ -29,6 +29,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -147,10 +148,24 @@ class AuthenticationServiceImplTest {
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
         when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
         when(passwordHashService.encode(TEST_PASSWORD)).thenReturn("bcrypt-password");
+        when(profileMapper.toEntity(any(ProfileDTO.class))).thenAnswer(invocation -> {
+            ProfileDTO dto = invocation.getArgument(0);
+            Profile profile = new Profile();
+            profile.setUserId(dto.getUserId());
+            profile.setUsername(dto.getUsername());
+            profile.setPassword(dto.getPassword());
+            profile.setNotLocked(dto.getNotLocked());
+            profile.setEnabled(dto.getEnabled());
+            profile.setMFA(dto.getMFA());
+            profile.setRole(dto.getRole());
+            profile.setAuthorities(dto.getAuthorities());
+            return profile;
+        });
+        when(profileRepository.saveAndFlush(any(Profile.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service().signUpProfile(request, null);
 
-        verify(profileService).save(argThat(profile ->
+        verify(profileRepository).saveAndFlush(argThat(profile ->
                 profile.getUserId() != null
                         && !profile.getUserId().isBlank()
                         && "bcrypt-password".equals(profile.getPassword())
@@ -280,7 +295,7 @@ class AuthenticationServiceImplTest {
     }
 
     private AuthenticationServiceImpl service() {
-        return new AuthenticationServiceImpl(
+        AuthenticationServiceImpl service = new AuthenticationServiceImpl(
                 loginAttemptService,
                 profileService,
                 profileRepository,
@@ -293,6 +308,8 @@ class AuthenticationServiceImplTest {
                 jwtTokenProvider,
                 profileMapper
         );
+        ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test");
+        return service;
     }
 
     private MFAVerification challenge(LocalDateTime expiresAt) {
