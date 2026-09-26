@@ -26,7 +26,9 @@ public class ProfileMapperImpl implements ProfileMapper {
     @Override
     public Profile toEntity(ProfileDTO profileDTO) {
         Profile profile;
-        if (profileDTO.getUserId() == null || profileDTO.getUserId().isEmpty()) {
+        if (profileDTO.getUserId() == null
+                || profileDTO.getUserId().isEmpty()
+                || profileRepository.findUserByUserId(profileDTO.getUserId()).isEmpty()) {
             profile = createNewProfile(profileDTO);
         } else {
             profile = updateExistingProfile(profileDTO);
@@ -36,7 +38,9 @@ public class ProfileMapperImpl implements ProfileMapper {
 
     private Profile createNewProfile(ProfileDTO profileDTO) {
         Profile profile = new Profile();
-        profile.setUserId(generateUserId());
+        profile.setUserId(profileDTO.getUserId() == null || profileDTO.getUserId().isBlank()
+                ? generateUserId()
+                : profileDTO.getUserId());
         profile.setJoinDate(new Date());
         profile.setJoinDateDisplay(formatJoinDate(new Date()));
         profile.setEnabled(false);
