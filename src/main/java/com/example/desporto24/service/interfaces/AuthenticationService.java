@@ -12,6 +12,7 @@ public interface AuthenticationService {
     LoginResponse resendMfa(String challengeId);
     void terminateSession(String username);
     void signUpProfile(RegistrationRequest request, MultipartFile photo);
+    void resendRegistrationConfirmation(String username);
     void resetPasswordStepOne(String email);
     void resetPasswordStepTwo(String newPassword, String token);
     void confirmToken(String token);
