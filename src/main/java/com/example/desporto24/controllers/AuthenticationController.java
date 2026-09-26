@@ -70,6 +70,12 @@ public class AuthenticationController {
         return buildResponse(REGISTRATION_CONFIRMED);
     }
 
+    @PostMapping("/register/resend-confirmation")
+    public ResponseEntity<HttpResponse> resendRegistrationConfirmation(@RequestParam String username) {
+        authenticationService.resendRegistrationConfirmation(username);
+        return buildResponse(CONFIRMATION_EMAIL_RESENT);
+    }
+
     @PostMapping("/reset-password/initiate")
     public ResponseEntity<HttpResponse> initiatePasswordReset(
             @RequestBody @Valid PasswordResetInitiateRequest request) {
