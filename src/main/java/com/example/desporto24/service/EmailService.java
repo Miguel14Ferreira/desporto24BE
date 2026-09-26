@@ -2,61 +2,54 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.email.EmailSender;
 import com.example.desporto24.security.RuntimeSecrets;
-import jakarta.mail.MessagingException;
-import jakarta.mail.Session;
-import jakarta.mail.Transport;
-import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeMessage;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
-import java.util.Date;
-import java.util.Properties;
-
-import static com.example.desporto24.constant.EmailConstant.*;
+import java.util.Map;
 
 @Service
-@AllArgsConstructor
 @Slf4j
 public class EmailService implements EmailSender {
 
-    private Session getEmailSession() {
-        Properties properties = System.getProperties();
-        properties.put(SMTP_HOST, GMAIL_SMTP_SERVER);
-        properties.put(SMTP_AUTH, true);
-        properties.put(SMTP_PORT, DEFAULT_PORT);
-        properties.put(SMTP_STRATTLS_ENABLE, true);
-        properties.put(SMTP_STARTTLS_REQUIRED, true);
-        return Session.getInstance(properties, null);
+    private static final String RESEND_EMAILS_URL = "https://api.resend.com/emails";
+    private static final String DEFAULT_SUBJECT = "Desporto24";
+
+    private final RestClient restClient = RestClient.create();
+
+    @Override
+    public void send(String to, String html) {
+        String apiKey = RuntimeSecrets.require("RESEND_API_KEY");
+        String from = RuntimeSecrets.require("RESEND_FROM_EMAIL");
+
+        Map<String, Object> payload = Map.of(
+                "from", from,
+                "to", new String[]{to},
+                "subject", DEFAULT_SUBJECT,
+                "html", html
+        );
+
+        try {
+            ResendSendResponse response = restClient.post()
+                    .uri(RESEND_EMAILS_URL)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(ResendSendResponse.class);
+
+            if (response == null || response.id() == null || response.id().isBlank()) {
+                throw new IllegalStateException("Resend did not return an email id");
+            }
+
+            log.info("Email accepted by Resend: id={} recipient={}", response.id(), to);
+        } catch (RuntimeException exception) {
+            log.error("Failed to send email through Resend to {}", to, exception);
+            throw exception;
+        }
     }
 
-    public MimeMessage send(String to, String email) {
-        try {
-            if (RuntimeSecrets.isPreviewMode()) {
-                log.info("Preview mode: skipping outbound email to {}", to);
-                return new MimeMessage(getEmailSession());
-            }
-            MimeMessage mimeMessage = new MimeMessage(getEmailSession());
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-            helper.setText(email, true);
-            helper.setTo(to);
-            helper.setSubject(EMAIL_SUBJECT);
-            helper.setFrom(new InternetAddress(RuntimeSecrets.require("SMTP_FROM_EMAIL")));
-            helper.setSentDate(new Date());
-
-            Transport smtpTransport = getEmailSession().getTransport(SIMPLE_MAIL_TRANSFER_PROTOCOL);
-            smtpTransport.connect(
-                    GMAIL_SMTP_SERVER,
-                    RuntimeSecrets.require("SMTP_USERNAME"),
-                    RuntimeSecrets.require("SMTP_PASSWORD")
-            );
-            smtpTransport.sendMessage(mimeMessage, mimeMessage.getAllRecipients());
-            smtpTransport.close();
-            return mimeMessage;
-        } catch (MessagingException e) {
-            throw new RuntimeException(e);
-        }
+    private record ResendSendResponse(String id) {
     }
 }
