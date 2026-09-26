@@ -72,7 +72,11 @@ public class AuthenticationController {
 
     @PostMapping("/register/resend-confirmation")
     public ResponseEntity<HttpResponse> resendRegistrationConfirmation(@RequestParam String username) {
-        authenticationService.resendRegistrationConfirmation(username);
+        try {
+            authenticationService.resendRegistrationConfirmation(username);
+        } catch (UserNotFoundException ignored) {
+            // Keep a generic response to avoid exposing whether an account exists.
+        }
         return buildResponse(CONFIRMATION_EMAIL_RESENT);
     }
 
