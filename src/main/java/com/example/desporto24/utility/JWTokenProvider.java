@@ -31,7 +31,9 @@ public class JWTokenProvider {
         String [] claims = getClaimsFromPerfil(profilePrincipal);
         return JWT.create().withIssuer(DESPORTO_24).withAudience(DESPORTO_24_ADMINISTRATION)
                 .withIssuedAt(new Date()).withSubject(profilePrincipal.getUsername())
-                .withArrayClaim(AUTHORITIES, claims).withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .withArrayClaim(AUTHORITIES, claims)
+                .withClaim(TOKEN_VERSION, profilePrincipal.getProfile().getTokenVersion())
+                .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .sign(HMAC512(secret.getBytes()));
     }
 
@@ -59,6 +61,14 @@ public class JWTokenProvider {
     public String getSubject(String token){
         JWTVerifier verifier = getJWTVerifier();
         return verifier.verify(token).getSubject();
+    }
+
+    public long getTokenVersion(String token) {
+        JWTVerifier verifier = getJWTVerifier();
+        Long version = verifier.verify(token)
+                .getClaim(TOKEN_VERSION)
+                .asLong();
+        return version == null ? 0L : version;
     }
 
     private boolean isTokenExpired(JWTVerifier verifier, String token) {

@@ -1,10 +1,13 @@
 package com.example.desporto24.model;
+import com.example.desporto24.enumeration.SessionStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 import jakarta.persistence.*;
 import lombok.experimental.SuperBuilder;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Date;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
@@ -36,6 +39,24 @@ public class Session {
     private String gamePhoto;
     private Boolean enabled;
     private Date created_at;
+
+    @Column(name = "max_participants")
+    private Integer maxParticipants;
+
+    @Column(name = "price_amount", precision = 10, scale = 2)
+    private BigDecimal priceAmount;
+
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    private Double latitude;
+    private Double longitude;
+
+    @Enumerated(EnumType.STRING)
+    private SessionStatus status;
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
     @ManyToOne
     @JoinColumn(nullable = false,
             name = "perfil_id")

@@ -1,0 +1,15 @@
+target
+data
+logs
+.git
+.github
+.vscode
+.idea
+*.log
+.env
+.env.*
+.aws
+*.pem
+*.key
+*.p12
+*.jks

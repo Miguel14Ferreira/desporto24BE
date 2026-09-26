@@ -7,9 +7,11 @@ import com.example.desporto24.model.Friend;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.repository.FriendRepository;
+import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -26,13 +28,11 @@ public class ChatServiceImpl implements ChatService {
     private final ProfileService profileService;
     private final FriendRepository friendRepository;
     private final ChatRepository chatRepository;
+    private final ProfileRepository profileRepository;
 
     @Override
     public Chat sendMessage(Chat chat) {
-        ProfileDTO sender = profileService.findUserByUsername(chat.getUsername1());
-        ProfileDTO recipient = profileService.findUserByUsername(chat.getUsername2());
-
-        Friend friend = friendRepository.findByProfile1AndProfile2(sender, recipient);
+        Friend friend = requireFriendship(chat.getUsername1(), chat.getUsername2());
         if (friend.isChatBlocked()) {
             throw new ChatBlockedException(CHAT_BLOCKED);
         }
@@ -48,6 +48,8 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<Chat> findChatMessages(String sender, String recipient) {
+        requireFriendship(sender, recipient);
+
         List<Chat> chats = new ArrayList<>();
         chats.addAll(chatRepository.findByUsername1AndUsername2(sender, recipient));
         chats.addAll(chatRepository.findByUsername1AndUsername2(recipient, sender));
@@ -57,9 +59,22 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Friend getChatInfo(String firstUsername, String secondUsername) {
-        ProfileDTO profile1 = profileService.findUserByUsername(firstUsername);
-        ProfileDTO profile2 = profileService.findUserByUsername(secondUsername);
+        return requireFriendship(firstUsername, secondUsername);
+    }
 
-        return friendRepository.findByProfile1AndProfile2(profile1, profile2);
+    private Friend requireFriendship(String firstUsername, String secondUsername) {
+        Profile first = profileRepository.findUserByUsername(firstUsername)
+                .orElseThrow(() -> new AccessDeniedException("Friendship not found"));
+        Profile second = profileRepository.findUserByUsername(secondUsername)
+                .orElseThrow(() -> new AccessDeniedException("Friendship not found"));
+
+        return friendRepository.findByProfile1OrProfile2(first, first).stream()
+                .filter(friend ->
+                        (friend.getProfile1().getId().equals(first.getId())
+                                && friend.getProfile2().getId().equals(second.getId()))
+                        || (friend.getProfile1().getId().equals(second.getId())
+                                && friend.getProfile2().getId().equals(first.getId())))
+                .findFirst()
+                .orElseThrow(() -> new AccessDeniedException("Users are not friends"));
     }
 }

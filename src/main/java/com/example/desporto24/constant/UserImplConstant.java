@@ -40,5 +40,7 @@ public class UserImplConstant {
     public static final String BLOCKED = "A partir deste momento o chat está bloqueado";
     public static final String UNBLOCKED = "A partir deste momento o chat está desbloqueado";
     public static final String ALREADY_FRIENDS = "Tu já tens este perfil na tua lista de amigos!";
+    public static final String FRIEND_REQUEST_SELF = "Não podes enviar um pedido de amizade para o teu próprio perfil.";
+    public static final String FRIEND_REQUEST_ALREADY_PENDING = "Já existe um pedido de amizade pendente entre estes perfis.";
     public static final String NO_NOTIFICATION_FOUND = "Não foi encontrada nenhuma notificação";
 }

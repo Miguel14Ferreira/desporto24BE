@@ -1,4 +1,5 @@
 package com.example.desporto24.register.Notifications;
+import com.example.desporto24.enumeration.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,6 +31,16 @@ public class Notifications {
     private boolean isSessionInvite;
     private boolean isNormalMessage;
     private String token;
+
+    @Enumerated(EnumType.STRING)
+    private NotificationType type;
+
+    @Column(name = "session_id")
+    private Long sessionId;
+
+    @Column(name = "read", nullable = false)
+    private boolean read;
+
     @JoinColumn(nullable = false)
     private String username;
 

@@ -1,26 +1,29 @@
-# Use a specific version of Maven for the build stage
-FROM maven:3.9.3-eclipse-temurin-17 AS build
+FROM eclipse-temurin:21-jdk-jammy AS build
 
-WORKDIR /app
-
-# Copy the pom.xml and download dependencies first (to leverage Docker layer caching)
-COPY pom.xml .
-RUN mvn dependency:go-offline
-
-# Copy the source code and build the application
+WORKDIR /workspace
 COPY . .
-RUN mvn clean package -DskipTests
+RUN chmod +x mvnw && ./mvnw -q -DskipTests package
 
-# Use a lightweight JDK for the runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
+
+ENV CONTAINER_PORT=8080
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system desporto24 \
+    && useradd --system --gid desporto24 --home /app --shell /usr/sbin/nologin desporto24 \
+    && mkdir -p /app/data/media \
+    && chown -R desporto24:desporto24 /app
 
 WORKDIR /app
+COPY --from=build --chown=desporto24:desporto24 /workspace/target/*.jar app.jar
 
-# Copy the built JAR from the build stage
-COPY --from=build /app/target/*.jar app.jar
+USER desporto24
 
-# Expose the application port
 EXPOSE 8080
 
-# Run the application
-CMD ["java", "-jar", "app.jar"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+  CMD curl --fail --silent "http://127.0.0.1:${CONTAINER_PORT:-8080}/actuator/health" >/dev/null || exit 1
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -15,11 +15,12 @@ services:
       - 8080
     ports:
       - "8080:8080"
-      - "5005:5005"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://desporto24db:5432/desporto24?currentSchema=desporto24
     networks:
       - internalnet
+    volumes:
+      - media_data:/app/data/media
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 10s

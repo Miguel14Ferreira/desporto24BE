@@ -51,6 +51,7 @@ public class Profile implements Serializable {
     private Status statusId;
     private String oldEmail;
     private Boolean isFirstTimeLogin;
+    private long tokenVersion;
 
     public Profile(String username, String password) {
         this.username = username;

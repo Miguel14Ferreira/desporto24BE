@@ -1,17 +1,26 @@
 package com.example.desporto24.utility;
 
+import com.example.desporto24.security.RuntimeSecrets;
 import com.twilio.Twilio;
-import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
+
 import static com.twilio.rest.api.v2010.account.Message.creator;
 
-public class SmsUtils {
-    public static final String FROM_NUMBER = "+17622635693";
-    public static final String SID_KEY = "ACd4aa786bd33571cbec3ec88f69617528";
-    public static final String TOKEN_KEY = "2d1c1d225a03f24a99c662a215695f3c";
+public final class SmsUtils {
 
-    public static void sendSMS(String indicative, String to, String messageBody){
-        Twilio.init(SID_KEY, TOKEN_KEY);
-        creator(new PhoneNumber("+"+indicative+ to), new PhoneNumber(FROM_NUMBER),messageBody).create();
+    private SmsUtils() {
+    }
+
+    public static void sendSMS(String indicative, String to, String messageBody) {
+        String sid = RuntimeSecrets.require("TWILIO_ACCOUNT_SID");
+        String token = RuntimeSecrets.require("TWILIO_AUTH_TOKEN");
+        String fromNumber = RuntimeSecrets.require("TWILIO_FROM_NUMBER");
+
+        Twilio.init(sid, token);
+        creator(
+                new PhoneNumber("+" + indicative + to),
+                new PhoneNumber(fromNumber),
+                messageBody
+        ).create();
     }
 }

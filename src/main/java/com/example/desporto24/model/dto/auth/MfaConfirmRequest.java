@@ -1,0 +1,8 @@
+package com.example.desporto24.model.dto.auth;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record MfaConfirmRequest(
+        @NotBlank String challengeId,
+        @NotBlank String code
+) {}
