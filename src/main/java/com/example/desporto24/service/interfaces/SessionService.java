@@ -1,17 +1,27 @@
 package com.example.desporto24.service.interfaces;
 
-import com.example.desporto24.exception.NotAnImageFileException;
-import com.example.desporto24.model.Session;
-import com.example.desporto24.model.dto.SessionDTO;
+import com.example.desporto24.model.dto.session.CreateSessionRequest;
+import com.example.desporto24.model.dto.session.MySessionsResponse;
+import com.example.desporto24.model.dto.session.JoinSessionRequest;
+import com.example.desporto24.model.dto.session.JoinSessionResponse;
+import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionSearchCriteria;
+import com.example.desporto24.model.dto.session.SessionSummaryResponse;
+import com.example.desporto24.model.dto.session.SessionParticipantResponse;
+
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Date;
 import java.util.List;
 
 public interface SessionService {
-    Session findSessionByUsername(String username);
-    List<Session> getSessions();
-    void createSession(SessionDTO sessionDTO, MultipartFile photo) throws Exception, NotAnImageFileException;
-    Session findSessionByAddress(String address);
-    Session findSessionByGameDate(Date gameDate);
+    SessionDetailResponse create(CreateSessionRequest request, String username);
+    SessionDetailResponse create(CreateSessionRequest request, MultipartFile photo, String username);
+    SessionDetailResponse getById(Long sessionId, String username);
+    List<SessionSummaryResponse> discover(SessionSearchCriteria criteria);
+    MySessionsResponse mine(String username);
+    List<SessionParticipantResponse> participants(Long sessionId, String username);
+    JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username);
+    void leave(Long sessionId, String username);
+    void cancel(Long sessionId, String username);
+    void removeParticipant(Long sessionId, Long participantId, String username);
 }

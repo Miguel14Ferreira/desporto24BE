@@ -8,8 +8,12 @@ import java.util.Optional;
 
 public interface NotificationService {
     List<Notifications> getNotificationsFromProfile(String username);
-    void disableProfileAndSendEmail(String email);
-    void acceptFriendRequest(Long id, String token);
+    void disableProfileAndSendEmail(String email, String authenticatedUsername);
+    void acceptFriendRequest(Long id, String username);
+    void rejectFriendRequest(Long id, String username);
+    void acceptFriendRequestByToken(Long id, String token);
     void save(Notifications notifications);
     void deleteNotification(Notifications notifications);
+    void deleteNotification(Long id, String username);
+    void markRead(Long id, String username);
 }

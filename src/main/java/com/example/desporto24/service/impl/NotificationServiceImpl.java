@@ -19,6 +19,7 @@ import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,8 +51,11 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void disableProfileAndSendEmail(String email) {
+    public void disableProfileAndSendEmail(String email, String authenticatedUsername) {
         ProfileDTO profileDTO = getUserByEmailOrThrow(email);
+        if (!authenticatedUsername.equals(profileDTO.getUsername())) {
+            throw new AccessDeniedException("Cannot disable another user's account");
+        }
         profileDTO.setNotLocked(false);
         profileService.save(profileDTO);
         String token = createConfirmationToken(profileDTO.getUsername());
@@ -80,13 +84,48 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void acceptFriendRequest(Long id, String token) {
+    public void acceptFriendRequest(Long id, String username) {
+        Notifications notification = getOwnedNotification(id, username);
+        FriendRequest friendRequest = getFriendRequestFromNotification(notification, username);
+
+        friendRequestService.setConfirmedAt(friendRequest.getToken());
+        createFriendRelationship(friendRequest.getPerfil1(), friendRequest.getPerfil2());
+        notificationsRepository.delete(notification);
+    }
+
+    @Override
+    public void rejectFriendRequest(Long id, String username) {
+        Notifications notification = getOwnedNotification(id, username);
+        FriendRequest friendRequest = getFriendRequestFromNotification(notification, username);
+
+        friendRequestService.deleteFriendRequest(friendRequest);
+        notificationsRepository.delete(notification);
+    }
+
+    @Override
+    public void acceptFriendRequestByToken(Long id, String token) {
         FriendRequest friendRequest = getValidFriendRequestToken(token);
         notificationsRepository.deleteById(id);
         friendRequestService.setConfirmedAt(token);
-        friendRequestService.saveFriendRequest(friendRequest);
 
         createFriendRelationship(friendRequest.getPerfil1(), friendRequest.getPerfil2());
+    }
+
+    private FriendRequest getFriendRequestFromNotification(
+            Notifications notification,
+            String username) {
+        if (!notification.isFriendRequest()
+                || notification.getToken() == null
+                || notification.getToken().isBlank()) {
+            throw new AccessDeniedException("Notification is not an actionable friend request");
+        }
+
+        FriendRequest friendRequest = getValidFriendRequestToken(notification.getToken());
+        if (!username.equals(friendRequest.getPerfil2())) {
+            throw new AccessDeniedException("Friend request does not belong to authenticated user");
+        }
+
+        return friendRequest;
     }
 
     @Override
@@ -98,6 +137,33 @@ public class NotificationServiceImpl implements NotificationService {
     public void deleteNotification(Notifications notifications) {
         Notifications notifications1 = notificationsRepository.findByToken(notifications.getToken()).orElseThrow(() -> new NotificationNotFoundException(NO_NOTIFICATION_FOUND));
         notificationsRepository.delete(notifications1);
+    }
+
+    @Override
+    public void deleteNotification(Long id, String username) {
+        Notifications notification = getOwnedNotification(id, username);
+        notificationsRepository.delete(notification);
+    }
+
+    @Override
+    public void markRead(Long id, String username) {
+        Notifications notification = getOwnedNotification(id, username);
+        if (!notification.isRead()) {
+            notification.setRead(true);
+            notificationsRepository.save(notification);
+        }
+    }
+
+    private Notifications getOwnedNotification(Long id, String username) {
+        Notifications notification = notificationsRepository.findById(id)
+                .orElseThrow(() -> new NotificationNotFoundException(NO_NOTIFICATION_FOUND));
+
+        if (notification.getUsername() == null
+                || !notification.getUsername().equals(username)) {
+            throw new AccessDeniedException("Notification does not belong to authenticated user");
+        }
+
+        return notification;
     }
 
     private void createFriendRelationship(String username1, String username2) {

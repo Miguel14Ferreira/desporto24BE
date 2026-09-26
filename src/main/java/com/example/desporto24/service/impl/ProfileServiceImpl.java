@@ -5,17 +5,23 @@ import com.example.desporto24.exception.*;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.ProfileDTO;
+import com.example.desporto24.model.dto.profile.UpdateProfileRequest;
+import com.example.desporto24.model.dto.profile.ChangePasswordRequest;
+import com.example.desporto24.model.dto.profile.PublicProfileResponse;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
-import com.example.desporto24.register.token.ConfirmationToken;
-import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.interfaces.ProfileService;
+import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,7 +30,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.*;
 
 import static com.example.desporto24.constant.FileConstant.*;
@@ -34,7 +39,6 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.*;
 import static org.apache.commons.lang3.StringUtils.substring;
 import static org.springframework.http.MediaType.*;
-import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath;
 
 @Slf4j
 @Service
@@ -44,14 +48,28 @@ public class ProfileServiceImpl implements ProfileService {
 
     private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
-    private final ConfirmationTokenService confirmationTokenService;
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
+    private final PasswordHashService passwordHashService;
+
+    @Autowired(required = false)
+    private MediaStorage mediaStorage;
+
+    @Value("${ui.app.url}")
+    private String uiAppUrl;
 
     @Override
     public ProfileDTO findUserByUsername(String username) {
-        Profile profile = profileRepository.findUserByUsername(username).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         return profileMapper.toDto(profile);
+    }
+
+    @Override
+    public PublicProfileResponse findPublicProfile(String username) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        return toPublicProfile(profile);
     }
 
     @Override
@@ -73,57 +91,23 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     private void saveProfileImage(ProfileDTO profileDTO, MultipartFile profileImage) {
-            Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
-            validateImageFileType(profileImage.getContentType());
-            Path userFolder = createProfileFolder(profileDTO.getUsername());
-            deleteExistingProfileImage(userFolder, profileDTO.getUsername());
-            saveNewProfileImage(userFolder, profileDTO.getUsername(), profileImage);
-            profile.setProfilePicUrl(setProfileImageUrl(profileDTO.getUsername()));
-            save(profileDTO);
+        if (profileImage == null || profileImage.isEmpty()) {
+            return;
+        }
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
         }
 
+        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-// Criação de URL para a fotografia escolhida pelo utilizador no registo ou na alteração de dados
-        private String setProfileImageUrl(String username) {
-            return fromCurrentContextPath().path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
-        }
-
-// Helper methods for image operations
-        private void validateImageFileType(String contentType) {
-            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE).contains(contentType)) {
-                throw new NotAnImageFileException(NOT_AN_IMAGE_FILE);
-            }
-        }
-
-        private Path createProfileFolder(String username) {
-            try {
-                Path userFolder = Paths.get(USER_FOLDER + username).toAbsolutePath().normalize();
-                if (!Files.exists(userFolder)) {
-                    Files.createDirectories(userFolder);
-                    log.info(DIRECTORY_CREATED + userFolder);
-                }
-                return userFolder;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        private void deleteExistingProfileImage(Path userFolder, String username) {
-            try {
-                Files.deleteIfExists(Paths.get(userFolder + username + DOT + JPG_EXTENSION));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        private void saveNewProfileImage(Path userFolder, String username, MultipartFile profileImage) {
-            try {
-                Files.copy(profileImage.getInputStream(), userFolder.resolve(username + DOT + JPG_EXTENSION), REPLACE_EXISTING);
-                log.info(FILE_SAVED_IN_FILE_SYSTEM + profileImage.getOriginalFilename());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        var uri = mediaStorage.store(
+                "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
+                profileImage
+        );
+        profile.setProfilePicUrl(uri.toString());
+        profileRepository.save(profile);
+    }
 
 
     public void validateNewUsernameEmail(String currentUsername, String newUsername, String email) throws UsernameExistException, EmailExistException, UserNotFoundException {
@@ -161,6 +145,78 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public ProfileDTO updateMyProfile(String username, UpdateProfileRequest request, MultipartFile photo) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (request.email() != null && !Objects.equals(profile.getEmail(), request.email())) {
+            profileRepository.findUserByEmail(request.email())
+                    .filter(existing -> !existing.getId().equals(profile.getId()))
+                    .ifPresent(existing -> {
+                        throw new EmailExistException(EMAIL_ALREADY_EXIST);
+                    });
+        }
+
+        if (request.phone() != null && !Objects.equals(profile.getPhone(), request.phone())) {
+            profileRepository.findUserByPhone(request.phone())
+                    .filter(existing -> !existing.getId().equals(profile.getId()))
+                    .ifPresent(existing -> {
+                        throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+                    });
+        }
+
+        String previousEmail = profile.getEmail();
+
+        profile.setFullName(request.fullName());
+        profile.setDateOfBirth(request.dateOfBirth());
+        profile.setAddress(request.address());
+        profile.setCountry(request.country());
+        profile.setLocation(request.location());
+        profile.setPostalCode(request.postalCode());
+        profile.setIndicativePhone(request.indicativePhone());
+        profile.setPhone(request.phone());
+        profile.setGender(request.gender());
+        profile.setEmail(request.email());
+        profile.setFavoriteSports(request.favoriteSports());
+        profile.setMFA(request.mfa());
+
+        if (photo != null && !photo.isEmpty()) {
+            if (mediaStorage == null) {
+                throw new IllegalStateException("Media storage is not configured");
+            }
+            var uri = mediaStorage.store(
+                    "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
+                    photo
+            );
+            profile.setProfilePicUrl(uri.toString());
+        }
+
+        Profile saved = profileRepository.save(profile);
+        ProfileDTO updated = profileMapper.toDto(saved);
+        updated.setOldEmail(previousEmail);
+        sendUpdateProfileEmail(updated);
+        return updated;
+    }
+
+    @Override
+    public void changeMyPassword(String username, ChangePasswordRequest request) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (!passwordHashService.matchesAndUpgrade(profile, request.currentPassword())) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+
+        if (request.currentPassword().equals(request.newPassword())) {
+            throw new IllegalArgumentException("A nova palavra-passe tem de ser diferente da atual");
+        }
+
+        profile.setPassword(passwordHashService.encode(request.newPassword()));
+        profile.setTokenVersion(profile.getTokenVersion() + 1);
+        profileRepository.save(profile);
+    }
+
+    @Override
     public void updateUser(String username, ProfileDTO profileDTO, MultipartFile photo) {
         ProfileDTO profile = findUserByUsername(username);
         if (profile.getEmail().equals(profileDTO.getEmail())) {
@@ -175,30 +231,52 @@ public class ProfileServiceImpl implements ProfileService {
         sendUpdateProfileEmail(profile);
     }
     private void sendUpdateProfileEmail(ProfileDTO profileDTO) {
-        String token = UUID.randomUUID().toString();
-        ConfirmationToken confirmationToken = new ConfirmationToken(token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(60), profileDTO.getUsername());
-        confirmationTokenService.saveConfirmationToken(confirmationToken);
-        String link = fromCurrentContextPath().path("/confirmEmergencyToken/"+token+"/"+profileDTO.getUsername()).toUriString();
-        emailService.send(profileDTO.getOldEmail(), buildChangeProfileEmail(profileDTO.getUsername(), link));
-        emailService.send(profileDTO.getEmail(), buildChangeProfileEmail(profileDTO.getUsername(), link));
-        String assuntoNotificacaoAlteracaoDados = " Alteração de Dados de perfil";
-        String notificacaoAlteracaoDados = "Foram feitas alterações dos dados pessoais do teu perfil, se não foste tu clica para bloquearmos temporareamente a tua conta.";
-        String cumprimentosNotificacao = "Cumprimentos,";
-        String assinatura = "DESPORTO24";
+        String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
+        String emailBody = buildChangeProfileEmail(profileDTO.getUsername(), resetLink);
+
+        if (profileDTO.getOldEmail() != null
+                && !profileDTO.getOldEmail().isBlank()
+                && !profileDTO.getOldEmail().equals(profileDTO.getEmail())) {
+            emailService.send(profileDTO.getOldEmail(), emailBody);
+        }
+
+        if (profileDTO.getEmail() != null && !profileDTO.getEmail().isBlank()) {
+            emailService.send(profileDTO.getEmail(), emailBody);
+        }
+
+        String subject = "Alteração de dados de perfil";
+        String message = "Foram feitas alterações aos dados do teu perfil. "
+                + "Se não foste tu, redefine imediatamente a tua palavra-passe.";
+        String greeting = "Cumprimentos,";
+        String signature = "DESPORTO24";
         Date date = new Date();
-        String data = substring(String.valueOf(date),3,10);
-        String data2 = substring(String.valueOf(date),24,29);
-        String data3 = data2+data;
-        Notifications notification = new Notifications(assuntoNotificacaoAlteracaoDados,notificacaoAlteracaoDados,cumprimentosNotificacao,assinatura,data3,false,true,false,false,link,profileDTO.getUsername());
+        String displayDate = substring(String.valueOf(date), 24, 29)
+                + substring(String.valueOf(date), 3, 10);
+
+        Notifications notification = new Notifications(
+                subject,
+                message,
+                greeting,
+                signature,
+                displayDate,
+                false,
+                true,
+                false,
+                false,
+                null,
+                profileDTO.getUsername()
+        );
         notificationsRepository.save(notification);
     }
 
     @Override
     public void changeUsernameAndPassword(ProfileDTO profileDTO) {
-        ProfileDTO profile = findUserByUsername(profileDTO.getUsername());
+        Profile profile = profileRepository.findUserByUsername(profileDTO.getUsername())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         profile.setUsername(profileDTO.getNewUsername());
-        profile.setPassword(AES.encryptString(profileDTO.getPassword(), profile.getUserId()));
-        save(profile);
+        profile.setPassword(passwordHashService.encode(profileDTO.getPassword()));
+        profile.setTokenVersion(profile.getTokenVersion() + 1);
+        profileRepository.save(profile);
     }
 
     @Override
@@ -207,75 +285,39 @@ public class ProfileServiceImpl implements ProfileService {
         List<ProfileDTO> profileDTOs = new ArrayList<>();
 
         for (Profile profile : profiles) {
-            ProfileDTO profileDTO = profileMapper.toDto(profile);
-            profileDTOs.add(profileDTO);
+            profileDTOs.add(profileMapper.toDto(profile));
         }
         return profileDTOs;
     }
 
+    @Override
+    public List<PublicProfileResponse> searchPublicProfiles(String username) {
+        return profileRepository.searchProfile(username).stream()
+                .map(this::toPublicProfile)
+                .toList();
+    }
+
+    private PublicProfileResponse toPublicProfile(Profile profile) {
+        ProfileDTO dto = profileMapper.toDto(profile);
+        return new PublicProfileResponse(
+                dto.getUsername(),
+                dto.getFullName(),
+                dto.getCountry(),
+                dto.getLocation(),
+                dto.getFavoriteSports(),
+                dto.getProfilePicUrl(),
+                dto.getJoinDateDisplay()
+        );
+    }
+
     private String buildChangeProfileEmail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Alteração de dados pessoais</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Dados pessoais foram alterados no teu perfil. </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">\n Se não foste tu quem fez esta alteração, \n por favor clica neste link para bloquearmos temporareamente a tua conta: \n <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para bloquearmos a tua conta</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Após bloqueares a tua conta irás receber um novo mail para definires a tua nova palavra-passe e proceder ao desbloqueio da conta.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Este link vai expirar numa hora. </p> \n<p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
+        return "<h2>Alteração de dados pessoais</h2>"
+                + "<p>Olá " + name + ",</p>"
+                + "<p>Foram alterados dados pessoais no teu perfil Desporto24.</p>"
+                + "<p>Se foste tu, não precisas de fazer nada.</p>"
+                + "<p>Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe:</p>"
+                + "<p><a href=\"" + link + "\">Redefinir palavra-passe</a></p>"
+                + "<p>Cumprimentos,<br>DESPORTO24</p>";
     }
 
     @Override

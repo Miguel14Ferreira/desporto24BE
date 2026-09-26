@@ -21,4 +21,13 @@ public class FriendRequestService {
         friendRequestRepository.updateConfirmedAt(
                 token, LocalDateTime.now());
     }
+
+    public void deleteFriendRequest(FriendRequest friendRequest) {
+        friendRequestRepository.delete(friendRequest);
+    }
+
+    public boolean hasPendingRequestBetween(String firstUsername, String secondUsername) {
+        return friendRequestRepository
+                .existsPendingBetween(firstUsername, secondUsername);
+    }
 }

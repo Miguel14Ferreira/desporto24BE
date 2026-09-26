@@ -1,7 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.domain.HttpResponse;
-import com.example.desporto24.model.Ideas;
+import com.example.desporto24.model.dto.idea.IdeaSubmissionRequest;
 import com.example.desporto24.service.interfaces.IdeaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,8 +34,9 @@ public class IdeaController {
             @ApiResponse(responseCode = "400", description = "Invalid idea data"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<HttpResponse> registerNewIdea(@RequestBody Ideas idea) {
-        ideaService.submitNewIdea(idea);
+    public ResponseEntity<HttpResponse> registerNewIdea(
+            @RequestBody @Valid IdeaSubmissionRequest request) {
+        ideaService.submitNewIdea(request);
         return buildResponse();
     }
 

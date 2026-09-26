@@ -22,7 +22,15 @@ public class ProfilePrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return stream(this.user.getAuthorities()).map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+        var authorities = stream(this.user.getAuthorities())
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
+
+        if (this.user.getRole() != null && !this.user.getRole().isBlank()) {
+            authorities.add(new SimpleGrantedAuthority(this.user.getRole()));
+        }
+
+        return authorities;
     }
 
     @Override

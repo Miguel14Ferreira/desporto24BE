@@ -12,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +29,14 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
+    @GetMapping("/me")
+    public ResponseEntity<List<Notifications>> getMyNotifications(Authentication authentication) {
+        return new ResponseEntity<>(
+                notificationService.getNotificationsFromProfile(authentication.getName()),
+                OK
+        );
+    }
+
     @GetMapping("/{username}")
     @Operation(summary = "Get Notifications", description = "Retrieve all notifications for a specific user.")
     @ApiResponses(value = {
@@ -36,7 +46,12 @@ public class NotificationController {
             @ApiResponse(responseCode = "404", description = "User not found"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<List<Notifications>> getNotifications(@PathVariable("username") String username) {
+    public ResponseEntity<List<Notifications>> getNotifications(
+            @PathVariable("username") String username,
+            Authentication authentication) {
+        if (!authentication.getName().equals(username)) {
+            throw new AccessDeniedException("Cannot access another user's notifications");
+        }
         List<Notifications> notifications = notificationService.getNotificationsFromProfile(username);
         return new ResponseEntity<>(notifications, OK);
     }
@@ -51,9 +66,27 @@ public class NotificationController {
             @ApiResponse(responseCode = "400", description = "Invalid email provided"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<HttpResponse> blockAcc(@RequestBody String email) {
-        notificationService.disableProfileAndSendEmail(email);
+    public ResponseEntity<HttpResponse> blockAcc(
+            @RequestBody String email,
+            Authentication authentication) {
+        notificationService.disableProfileAndSendEmail(email, authentication.getName());
         return buildResponse(OK, DISABLED_PERFIL);
+    }
+
+    @PutMapping("/{id}/read")
+    public ResponseEntity<Void> markRead(
+            @PathVariable Long id,
+            Authentication authentication) {
+        notificationService.markRead(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMyNotification(
+            @PathVariable Long id,
+            Authentication authentication) {
+        notificationService.deleteNotification(id, authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/delete")
@@ -65,13 +98,34 @@ public class NotificationController {
             @ApiResponse(responseCode = "400", description = "Invalid notification ID"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<HttpResponse> deleteNotification(@RequestBody Notifications notifications) {
-        notificationService.deleteNotification(notifications);
+    public ResponseEntity<HttpResponse> deleteNotification(
+            @RequestBody Notifications notifications,
+            Authentication authentication) {
+        if (notifications.getId() == null) {
+            throw new IllegalArgumentException("Notification id is required");
+        }
+        notificationService.deleteNotification(notifications.getId(), authentication.getName());
         return buildResponse(OK, DELETED_NOTIFICATION);
     }
 
+    @PostMapping("/friend-request/{id}/accept")
+    public ResponseEntity<HttpResponse> acceptMyFriendRequest(
+            @PathVariable Long id,
+            Authentication authentication) {
+        notificationService.acceptFriendRequest(id, authentication.getName());
+        return buildResponse(OK, ACCEPTED_FRIEND_REQUEST);
+    }
+
+    @DeleteMapping("/friend-request/{id}/reject")
+    public ResponseEntity<Void> rejectMyFriendRequest(
+            @PathVariable Long id,
+            Authentication authentication) {
+        notificationService.rejectFriendRequest(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/friend-request/accept/{id}/{token}")
-    @Operation(summary = "Accept Friend Request", description = "Accept a friend request using the provided ID and token.")
+    @Operation(summary = "Accept Friend Request", description = "Legacy token-based friend request acceptance.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Friend request accepted successfully",
                     content = @Content(mediaType = "application/json",
@@ -79,9 +133,11 @@ public class NotificationController {
             @ApiResponse(responseCode = "400", description = "Invalid token or ID"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<HttpResponse> acceptFriendRequest(@PathVariable("id") Long id,
-                                                            @PathVariable("token") String token) throws Exception {
-        notificationService.acceptFriendRequest(id, token);
+    public ResponseEntity<HttpResponse> acceptFriendRequest(
+            @PathVariable("id") Long id,
+            @PathVariable("token") String token,
+            Authentication authentication) {
+        notificationService.acceptFriendRequest(id, authentication.getName());
         return buildResponse(OK, ACCEPTED_FRIEND_REQUEST);
     }
 

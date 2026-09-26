@@ -14,6 +14,17 @@ import java.util.Optional;
 public interface FriendRequestRepository extends JpaRepository<FriendRequest, Long> {
 
     Optional<FriendRequest> findByToken(String token);
+
+    @Query("""
+            select case when count(fr) > 0 then true else false end
+            from FriendRequest fr
+            where fr.confirmedAt is null
+              and (
+                    (fr.perfil1 = :firstUsername and fr.perfil2 = :secondUsername)
+                 or (fr.perfil1 = :secondUsername and fr.perfil2 = :firstUsername)
+              )
+            """)
+    boolean existsPendingBetween(String firstUsername, String secondUsername);
     @Transactional
     @Modifying
     @Query("UPDATE FriendRequest c " +

@@ -2,62 +2,65 @@ package com.example.desporto24.encryption;
 
 import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-
-import static com.example.desporto24.constant.SecurityConstant.KEY;
+import java.util.Map;
 
 public class AES {
-    private static final String encryptionCipher = "AES";
+
+    private static final String ENCRYPTION_CIPHER = "AES";
+    private static final String AES_ENVIRONMENT_KEY = "AES_ENCRYPTION_KEY";
 
     public static String encryptString(String plainText, String userId) {
+        if (plainText == null) {
+            return null;
+        }
         try {
-            String encryptedString;
-            String localKey = KEY.concat(userId);
-
-            //Composing secret key
-            SecretKey secretKey = new SecretKeySpec(localKey.getBytes(), encryptionCipher);
-
-            //AES cipher instance
-            Cipher cipher = Cipher.getInstance(encryptionCipher);
+            SecretKey secretKey = new SecretKeySpec(composedKey(userId), ENCRYPTION_CIPHER);
+            Cipher cipher = Cipher.getInstance(ENCRYPTION_CIPHER);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-
-            //Start encryption
-            byte[] encryptedBytes = cipher.doFinal(plainText.getBytes());
-
-            //Encode for readability
-            encryptedString = Base64.getEncoder().encodeToString(encryptedBytes);
-
-            return encryptedString;
-        } catch (NoSuchPaddingException | IllegalBlockSizeException | NoSuchAlgorithmException | BadPaddingException |
-                 InvalidKeyException e) {
+            byte[] encryptedBytes = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encryptedBytes);
+        } catch (NoSuchPaddingException | IllegalBlockSizeException | NoSuchAlgorithmException |
+                 BadPaddingException | InvalidKeyException e) {
             throw new RuntimeException(e);
         }
     }
 
     public static String decryptString(String encryptedString, String userId) {
+        if (encryptedString == null) {
+            return null;
+        }
         try {
-            String decryptedString;
-            String localKey = KEY.concat(userId);
-
-            //Composing secret key
-            SecretKey secretKey = new SecretKeySpec(localKey.getBytes(), encryptionCipher);
-
-            //AES cipher instance
-            Cipher cipher = Cipher.getInstance(encryptionCipher);
+            SecretKey secretKey = new SecretKeySpec(composedKey(userId), ENCRYPTION_CIPHER);
+            Cipher cipher = Cipher.getInstance(ENCRYPTION_CIPHER);
             cipher.init(Cipher.DECRYPT_MODE, secretKey);
-
-            //Decrypt the encoded text
             byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedString));
-
-            //Convert the decrypted bytes back to text.
-            decryptedString = new String(decryptedBytes);
-
-            return decryptedString;
-        } catch (NoSuchPaddingException | IllegalBlockSizeException | NoSuchAlgorithmException | BadPaddingException |
-                 InvalidKeyException e) {
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (NoSuchPaddingException | IllegalBlockSizeException | NoSuchAlgorithmException |
+                 BadPaddingException | InvalidKeyException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static String resolveBaseKey(Map<String, String> environment) {
+        String key = environment.get(AES_ENVIRONMENT_KEY);
+        if (key == null || key.isBlank()) {
+            throw new IllegalStateException("AES_ENCRYPTION_KEY must be configured");
+        }
+        return key;
+    }
+
+    private static byte[] composedKey(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("userId is required for AES encryption");
+        }
+        byte[] key = (resolveBaseKey(System.getenv()) + userId).getBytes(StandardCharsets.UTF_8);
+        if (key.length != 16 && key.length != 24 && key.length != 32) {
+            throw new IllegalStateException("AES_ENCRYPTION_KEY and userId must compose a valid AES key length");
+        }
+        return key;
     }
 }
