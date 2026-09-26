@@ -9,6 +9,7 @@ import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.model.dto.auth.MfaConfirmRequest;
+import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.register.MFA.MFAVerification;
 import com.example.desporto24.register.MFA.MFAVerificationService;
 import com.example.desporto24.register.token.ConfirmationTokenService;
@@ -123,6 +124,44 @@ class AuthenticationServiceImplTest {
         assertEquals("jwt-token", response.token());
         verify(loginAttemptService)
                 .handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+    }
+
+    @Test
+    void registrationInitializesSecureAccountDefaults() {
+        RegistrationRequest request = new RegistrationRequest(
+                TEST_USERNAME,
+                TEST_PASSWORD,
+                "Fixture User",
+                "1990-01-01",
+                "Fixture Street",
+                "Portugal",
+                "Lisboa",
+                "1000-001",
+                "351",
+                "912345678",
+                "outro",
+                "fixture@example.test",
+                "Padel"
+        );
+
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
+        when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
+        when(passwordHashService.encode(TEST_PASSWORD)).thenReturn("bcrypt-password");
+
+        service().signUpProfile(request, null);
+
+        verify(profileService).save(argThat(profile ->
+                profile.getUserId() != null
+                        && !profile.getUserId().isBlank()
+                        && "bcrypt-password".equals(profile.getPassword())
+                        && Boolean.TRUE.equals(profile.getNotLocked())
+                        && Boolean.FALSE.equals(profile.getEnabled())
+                        && Boolean.FALSE.equals(profile.getMFA())
+                        && "ROLE_USER".equals(profile.getRole())
+                        && profile.getAuthorities() != null
+                        && profile.getAuthorities().length > 0
+        ));
+        verify(emailService).send(eq("fixture@example.test"), anyString());
     }
 
     @Test

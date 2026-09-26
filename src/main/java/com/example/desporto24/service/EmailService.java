@@ -34,6 +34,10 @@ public class EmailService implements EmailSender {
 
     public MimeMessage send(String to, String email) {
         try {
+            if (RuntimeSecrets.isPreviewMode()) {
+                log.info("Preview mode: skipping outbound email to {}", to);
+                return new MimeMessage(getEmailSession());
+            }
             MimeMessage mimeMessage = new MimeMessage(getEmailSession());
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
             helper.setText(email, true);

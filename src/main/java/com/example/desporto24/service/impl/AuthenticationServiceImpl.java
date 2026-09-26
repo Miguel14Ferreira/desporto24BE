@@ -1,6 +1,7 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.exception.*;
+import com.example.desporto24.enumeration.Role;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Status;
 import com.example.desporto24.model.dto.ProfileDTO;
@@ -79,6 +80,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Value("${ui.app.url}")
     private String uiAppUrl;
 
+    @Value("${desporto.preview-mode:false}")
+    private boolean previewMode;
+
     @Autowired(required = false)
     private MediaStorage mediaStorage;
 
@@ -93,7 +97,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         validateProfileStatus(profile);
         loginAttemptService.handleLoginAttempt(profile.getUsername(), credentials.getPassword(), profile);
 
-        if (Boolean.TRUE.equals(profile.getMFA())) {
+        if (Boolean.TRUE.equals(profile.getMFA()) && !previewMode) {
             MFAVerification challenge = createAndSendMfaChallenge(profile);
             return new LoginResponse(
                     true,
@@ -173,7 +177,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         sendSMS(
                 profile.getIndicativePhone(),
-                decryptString(profile.getPhone(), profile.getUserId()),
+                resolveMfaPhone(profile),
                 "Desporto24APP \nCodigo de Verificação:\n" + rawCode
         );
         return challenge;
@@ -212,8 +216,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public void signUpProfile(RegistrationRequest request, MultipartFile photo) {
         ProfileDTO profileDTO = new ProfileDTO();
+        profileDTO.setUserId(UUID.randomUUID().toString());
         profileDTO.setUsername(request.username().trim());
-        profileDTO.setPassword(request.password());
+        profileDTO.setPassword(passwordHashService.encode(request.password()));
         profileDTO.setFullName(request.fullName());
         profileDTO.setDateOfBirth(request.dateOfBirth());
         profileDTO.setAddress(request.address());
@@ -225,12 +230,32 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         profileDTO.setGender(request.gender());
         profileDTO.setEmail(request.email().trim());
         profileDTO.setFavoriteSports(request.favoriteSports());
+        profileDTO.setNotLocked(true);
+        profileDTO.setEnabled(previewMode);
+        profileDTO.setMFA(false);
+        profileDTO.setRole(Role.ROLE_USER.name());
+        profileDTO.setAuthorities(Role.ROLE_USER.getAuthorities());
+        profileDTO.setStatusId(Status.OFFLINE);
+        profileDTO.setLoginAttempts(0);
+        profileDTO.setIsFirstTimeLogin(true);
 
         validateNewUsernameEmail(profileDTO);
         profileDTO.setProfilePicUrl(null);
         profileService.save(profileDTO);
         saveRegistrationProfileImage(profileDTO, photo);
-        sendSignUpEmail(profileDTO);
+        if (previewMode) {
+            createWelcomeNotification(profileDTO, null);
+        } else {
+            sendSignUpEmail(profileDTO);
+        }
+    }
+
+    private String resolveMfaPhone(Profile profile) {
+        try {
+            return decryptString(profile.getPhone(), profile.getUserId());
+        } catch (RuntimeException exception) {
+            return profile.getPhone();
+        }
     }
 
     private void saveRegistrationProfileImage(
