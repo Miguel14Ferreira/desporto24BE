@@ -157,7 +157,7 @@ class AuthenticationServiceImplTest {
             assertNull(response.profile());
             verifyNoInteractions(jwtTokenProvider);
             verify(mfaVerificationService).saveConfirmationMFA(any());
-            verify(passwordEncoder).encode(argThat(code -> code.matches("\\d{6}")));
+            verify(passwordEncoder).encode(argThat(code -> code.toString().matches("\\d{6}")));
             sms.verify(() -> SmsUtils.sendSMS(
                     eq("+351"),
                     eq("912345678"),
