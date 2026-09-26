@@ -289,11 +289,27 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
 
         String link = uiAppUrl.replaceAll("/+$", "")
-                + "/login/registerNewUser/confirmTokenRegistration/" + token;
+                + "/?confirmRegistration=" + token;
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
         emailService.send(profileDTO.getEmail(), buildRegistrationEmail(profileDTO.getUsername(), link));
 
         createWelcomeNotification(profileDTO, token);
+    }
+
+    @Override
+    public void resendRegistrationConfirmation(String username) {
+        String suppliedUsername = username == null ? "" : username.trim();
+        Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (Boolean.TRUE.equals(profile.getEnabled())) {
+            return;
+        }
+
+        confirmationTokenService.deleteByProfile(profile.getUsername());
+
+        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        sendSignUpEmail(profileDTO);
     }
 
     private void createWelcomeNotification(ProfileDTO profileDTO, String token) {
