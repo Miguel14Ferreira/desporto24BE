@@ -11,6 +11,10 @@ public final class RuntimeSecrets {
         return require(System.getenv(), name);
     }
 
+    public static boolean isPreviewMode() {
+        return Boolean.parseBoolean(System.getenv().getOrDefault("DESPORTO_PREVIEW_MODE", "false"));
+    }
+
     static String require(Map<String, String> environment, String name) {
         String value = environment.get(name);
         if (value == null || value.isBlank()) {
