@@ -20,4 +20,8 @@ public class ConfirmationTokenService {
         confirmationTokenRepository.updateConfirmedAt(
                 token, LocalDateTime.now());
     }
+
+    public void deleteByProfile(String username) {
+        confirmationTokenRepository.deleteByProfile(username);
+    }
 }
