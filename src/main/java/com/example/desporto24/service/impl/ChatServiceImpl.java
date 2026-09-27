@@ -1,19 +1,22 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.Chat.ChatRepository;
+import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.exception.ChatBlockedException;
 import com.example.desporto24.model.Chat;
 import com.example.desporto24.model.Friend;
 import com.example.desporto24.model.Profile;
-import com.example.desporto24.model.dto.ProfileDTO;
+import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.FriendRepository;
+import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.interfaces.ChatService;
-import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -25,25 +28,48 @@ import static com.example.desporto24.constant.UserImplConstant.CHAT_BLOCKED;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
-    private final ProfileService profileService;
     private final FriendRepository friendRepository;
     private final ChatRepository chatRepository;
     private final ProfileRepository profileRepository;
+    private final NotificationsRepository notificationsRepository;
 
     @Override
+    @Transactional
     public Chat sendMessage(Chat chat) {
         Friend friend = requireFriendship(chat.getUsername1(), chat.getUsername2());
         if (friend.isChatBlocked()) {
             throw new ChatBlockedException(CHAT_BLOCKED);
         }
 
-        return saveChatMessage(chat, new Date());
+        Chat saved = saveChatMessage(chat, new Date());
+        createChatNotification(saved);
+        return saved;
     }
 
     private Chat saveChatMessage(Chat chat, Date date) {
         chat.setDate(date);
         chatRepository.save(chat);
         return chat;
+    }
+
+    private void createChatNotification(Chat chat) {
+        Notifications notification = new Notifications();
+        notification.setSubject("Nova mensagem de " + chat.getUsername1());
+        notification.setMessage(chat.getText());
+        notification.setGreeting("");
+        notification.setSignature("");
+        notification.setCreatedAt(Instant.now().toString());
+        notification.setFriendRequest(false);
+        notification.setUpdateProfile(false);
+        notification.setSessionInvite(false);
+        notification.setNormalMessage(true);
+        notification.setToken(null);
+        notification.setUsername(chat.getUsername2());
+        notification.setRelatedUsername(chat.getUsername1());
+        notification.setType(NotificationType.CHAT_MESSAGE);
+        notification.setSessionId(null);
+        notification.setRead(false);
+        notificationsRepository.save(notification);
     }
 
     @Override
