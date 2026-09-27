@@ -77,6 +77,14 @@ public class ProfileController extends ExceptionHandling {
         );
     }
 
+    @GetMapping("/discover")
+    public ResponseEntity<List<PublicProfileResponse>> discoverProfiles(Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.discoverPublicProfiles(authentication.getName()),
+                OK
+        );
+    }
+
     @GetMapping("/name/{name}")
     @Operation(summary = "Search Public Profiles by Name", description = "Search public profile fields using a partial or full username.")
     public ResponseEntity<List<PublicProfileResponse>> getProfileByName(@PathVariable String name) {
