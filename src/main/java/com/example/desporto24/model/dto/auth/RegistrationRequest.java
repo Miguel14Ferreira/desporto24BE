@@ -67,7 +67,7 @@ public record RegistrationRequest(
         String favoriteSports
 ) {
 
-    @AssertTrue(message = "A data de nascimento não é válida")
+    @AssertTrue(message = "Tens de ter pelo menos 18 anos e uma data de nascimento válida")
     public boolean isDateOfBirthValid() {
         if (dateOfBirth == null || dateOfBirth.isBlank()) {
             return true;
@@ -76,7 +76,7 @@ public record RegistrationRequest(
         try {
             LocalDate birthDate = LocalDate.parse(dateOfBirth);
             LocalDate today = LocalDate.now();
-            return !birthDate.isAfter(today)
+            return !birthDate.isAfter(today.minusYears(18))
                     && !birthDate.isBefore(today.minusYears(120));
         } catch (DateTimeException exception) {
             return false;
