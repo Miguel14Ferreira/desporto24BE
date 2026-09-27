@@ -6,7 +6,6 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -19,12 +18,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 @Component
-@RequiredArgsConstructor
 public class ChatRealtimeGateway extends TextWebSocketHandler {
 
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileRepository profileRepository;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public ChatRealtimeGateway(
+            JWTokenProvider jwtTokenProvider,
+            ProfileRepository profileRepository) {
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.profileRepository = profileRepository;
+    }
 
     private final ConcurrentHashMap<String, Set<WebSocketSession>> sessionsByUsername =
             new ConcurrentHashMap<>();
