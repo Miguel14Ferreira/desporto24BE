@@ -11,7 +11,9 @@ import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.interfaces.ChatService;
+import com.example.desporto24.websocket.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatRepository chatRepository;
     private final ProfileRepository profileRepository;
     private final NotificationsRepository notificationsRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -43,6 +46,7 @@ public class ChatServiceImpl implements ChatService {
 
         Chat saved = saveChatMessage(chat, new Date());
         createChatNotification(saved);
+        eventPublisher.publishEvent(new ChatMessageCreatedEvent(saved));
         return saved;
     }
 
