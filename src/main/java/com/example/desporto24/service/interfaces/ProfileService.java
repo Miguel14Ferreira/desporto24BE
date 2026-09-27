@@ -25,5 +25,6 @@ public interface ProfileService {
     void changeUsernameAndPassword(ProfileDTO profileDTO);
     List<ProfileDTO> searchProfileByUsername(String username);
     List<PublicProfileResponse> searchPublicProfiles(String username);
+    List<PublicProfileResponse> discoverPublicProfiles(String username);
     void save(ProfileDTO profileDTO);
 }
