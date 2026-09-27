@@ -20,6 +20,7 @@ public interface ProfileService {
     ProfileDTO findUserByPhone(String phone);
     void updateUser(String username, ProfileDTO profileDTO, MultipartFile photo);
     ProfileDTO updateMyProfile(String username, UpdateProfileRequest request, MultipartFile photo);
+    ProfileDTO updateMyProfilePhoto(String username, MultipartFile photo);
     void changeMyPassword(String username, ChangePasswordRequest request);
     void changeUsernameAndPassword(ProfileDTO profileDTO);
     List<ProfileDTO> searchProfileByUsername(String username);
