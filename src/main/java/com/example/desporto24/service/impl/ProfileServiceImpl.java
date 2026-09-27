@@ -169,7 +169,7 @@ public class ProfileServiceImpl implements ProfileService {
                     if (Objects.equals(existingPhone, request.phone())) {
                         throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
                     }
-                } catch (IllegalArgumentException | RuntimeException ignored) {
+                } catch (RuntimeException ignored) {
                     // Ignore legacy/corrupted phone values here; they must not block the update.
                 }
             }
