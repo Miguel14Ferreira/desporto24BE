@@ -3,6 +3,7 @@ import com.example.desporto24.model.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,4 +25,7 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
              "WHERE p.username = :username " +
              "LIMIT 10", nativeQuery = true)
      List<Profile> searchProfile(@Param("username") String username);
+
+     @Query("SELECT p FROM Profile p WHERE LOWER(p.username) <> LOWER(:username) ORDER BY p.id DESC")
+     List<Profile> discoverProfiles(@Param("username") String username, Pageable pageable);
 }
