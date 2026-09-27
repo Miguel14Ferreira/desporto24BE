@@ -336,8 +336,18 @@ public class ProfileServiceImpl implements ProfileService {
                 dto.getLocation(),
                 dto.getFavoriteSports(),
                 dto.getProfilePicUrl(),
-                dto.getJoinDateDisplay()
+                publicJoinDate(profile)
         );
+    }
+
+    private String publicJoinDate(Profile profile) {
+        if (profile.getJoinDateDisplay() != null && !profile.getJoinDateDisplay().isBlank()) {
+            return profile.getJoinDateDisplay();
+        }
+        if (profile.getJoinDate() == null) {
+            return null;
+        }
+        return new java.text.SimpleDateFormat("MM/yyyy").format(profile.getJoinDate());
     }
 
     private String buildChangeProfileEmail(String name, String link) {
