@@ -1,9 +1,13 @@
 package com.example.desporto24.model.dto.profile;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.time.DateTimeException;
+import java.time.LocalDate;
 
 public record UpdateProfileRequest(
         @Size(max = 120) String fullName,
