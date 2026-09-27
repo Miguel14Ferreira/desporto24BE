@@ -157,24 +157,34 @@ public class ProfileServiceImpl implements ProfileService {
                     });
         }
 
-        if (request.phone() != null && !Objects.equals(profile.getPhone(), request.phone())) {
-            profileRepository.findUserByPhone(request.phone())
-                    .filter(existing -> !existing.getId().equals(profile.getId()))
-                    .ifPresent(existing -> {
+        String currentPhone = AES.decryptString(profile.getPhone(), profile.getUserId());
+        if (request.phone() != null && !Objects.equals(currentPhone, request.phone())) {
+            for (Profile existing : profileRepository.findAll()) {
+                if (existing.getId().equals(profile.getId()) || existing.getPhone() == null) {
+                    continue;
+                }
+
+                try {
+                    String existingPhone = AES.decryptString(existing.getPhone(), existing.getUserId());
+                    if (Objects.equals(existingPhone, request.phone())) {
                         throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                    });
+                    }
+                } catch (IllegalArgumentException | RuntimeException ignored) {
+                    // Ignore legacy/corrupted phone values here; they must not block the update.
+                }
+            }
         }
 
         String previousEmail = profile.getEmail();
 
         profile.setFullName(request.fullName());
         profile.setDateOfBirth(request.dateOfBirth());
-        profile.setAddress(request.address());
+        profile.setAddress(AES.encryptString(request.address(), profile.getUserId()));
         profile.setCountry(request.country());
         profile.setLocation(request.location());
         profile.setPostalCode(request.postalCode());
         profile.setIndicativePhone(request.indicativePhone());
-        profile.setPhone(request.phone());
+        profile.setPhone(AES.encryptString(request.phone(), profile.getUserId()));
         profile.setGender(request.gender());
         profile.setEmail(request.email());
         profile.setFavoriteSports(request.favoriteSports());
