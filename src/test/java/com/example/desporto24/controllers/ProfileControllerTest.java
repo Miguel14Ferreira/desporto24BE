@@ -119,12 +119,12 @@ class ProfileControllerTest {
         );
         ProfileDTO updated = new ProfileDTO();
         updated.setUsername("miguel");
-        when(profileService.updateMyProfile("miguel", request, null)).thenReturn(updated);
+        when(profileService.updateMyProfile("miguel", request)).thenReturn(updated);
 
-        var response = controller.updateMyProfile(request, null, authentication);
+        var response = controller.updateMyProfile(request, authentication);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("miguel", response.getBody().getUsername());
-        verify(profileService).updateMyProfile("miguel", request, null);
+        verify(profileService).updateMyProfile("miguel", request);
     }
 }
