@@ -10,6 +10,7 @@ import com.example.desporto24.model.dto.auth.PasswordResetInitiateRequest;
 import com.example.desporto24.model.dto.auth.PasswordResetConfirmRequest;
 import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
+import com.example.desporto24.security.SensitiveActionRateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -19,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.Duration;
 
 import static com.example.desporto24.constant.UserImplConstant.*;
 import static org.springframework.http.HttpStatus.ACCEPTED;
@@ -31,6 +34,7 @@ import static org.springframework.http.HttpStatus.OK;
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
+    private final SensitiveActionRateLimiter sensitiveActionRateLimiter;
 
     @PostMapping("/login")
     @Operation(summary = "User Login", description = "Authenticate a user and return a JWT or an MFA challenge.")
@@ -48,6 +52,11 @@ public class AuthenticationController {
     @PostMapping("/mfa/resend")
     @Operation(summary = "Resend MFA challenge", description = "Invalidates the client-side reference to the old challenge by returning a fresh challenge.")
     public ResponseEntity<LoginResponse> resendMfaToken(@RequestBody @Valid MfaResendRequest request) {
+        sensitiveActionRateLimiter.requireCooldown(
+                "mfa-resend",
+                request.challengeId(),
+                Duration.ofSeconds(60)
+        );
         return ResponseEntity.accepted().body(authenticationService.resendMfa(request.challengeId()));
     }
 
@@ -73,6 +82,11 @@ public class AuthenticationController {
 
     @PostMapping("/register/resend-confirmation")
     public ResponseEntity<HttpResponse> resendRegistrationConfirmation(@RequestParam String username) {
+        sensitiveActionRateLimiter.requireCooldown(
+                "registration-confirmation",
+                username,
+                Duration.ofSeconds(60)
+        );
         try {
             authenticationService.resendRegistrationConfirmation(username);
         } catch (UserNotFoundException ignored) {
@@ -84,6 +98,11 @@ public class AuthenticationController {
     @PostMapping("/reset-password/initiate")
     public ResponseEntity<HttpResponse> initiatePasswordReset(
             @RequestBody @Valid PasswordResetInitiateRequest request) {
+        sensitiveActionRateLimiter.requireCooldown(
+                "password-reset",
+                request.email(),
+                Duration.ofSeconds(60)
+        );
         authenticationService.resetPasswordStepOne(request.email());
         return buildResponse(PASSWORD_RESET_INITIATED);
     }
