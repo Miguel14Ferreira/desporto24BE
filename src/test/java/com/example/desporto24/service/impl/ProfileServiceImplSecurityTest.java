@@ -68,7 +68,7 @@ class ProfileServiceImplSecurityTest {
                 false
         );
 
-        service.updateMyProfile("miguel", request, null);
+        service.updateMyProfile("miguel", request);
 
         assertNotEquals("923456789", profile.getPhone());
         assertNotEquals("Rua Nova", profile.getAddress());
