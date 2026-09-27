@@ -7,6 +7,7 @@ import com.example.desporto24.model.dto.auth.PasswordResetInitiateRequest;
 import com.example.desporto24.model.dto.auth.PasswordResetConfirmRequest;
 import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
+import com.example.desporto24.security.SensitiveActionRateLimiter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,6 +31,9 @@ class AuthenticationControllerTest {
 
     @Mock
     private Authentication authentication;
+
+    @Mock
+    private SensitiveActionRateLimiter sensitiveActionRateLimiter;
 
     @InjectMocks
     private AuthenticationController controller;
