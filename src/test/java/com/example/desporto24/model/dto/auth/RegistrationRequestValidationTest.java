@@ -5,6 +5,8 @@ import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,6 +41,24 @@ class RegistrationRequestValidationTest {
         );
 
         assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void underageDateOfBirthIsRejected() {
+        RegistrationRequest request = copyWith(
+                validRequest(), "dateOfBirth", LocalDate.now().minusDays(9).toString()
+        );
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void exactlyEighteenYearsOldIsAccepted() {
+        RegistrationRequest request = copyWith(
+                validRequest(), "dateOfBirth", LocalDate.now().minusYears(18).toString()
+        );
+
+        assertTrue(validator.validate(request).isEmpty());
     }
 
     @Test
