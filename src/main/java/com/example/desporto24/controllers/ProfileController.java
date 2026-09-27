@@ -43,10 +43,9 @@ public class ProfileController extends ExceptionHandling {
     @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProfileDTO> updateMyProfile(
             @RequestPart("profile") @Valid UpdateProfileRequest request,
-            @RequestPart(value = "photo", required = false) MultipartFile photo,
             Authentication authentication) {
         return new ResponseEntity<>(
-                profileService.updateMyProfile(authentication.getName(), request, photo),
+                profileService.updateMyProfile(authentication.getName(), request),
                 OK
         );
     }
