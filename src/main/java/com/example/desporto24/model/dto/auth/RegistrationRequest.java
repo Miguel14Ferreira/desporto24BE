@@ -8,6 +8,9 @@ import jakarta.validation.constraints.Size;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public record RegistrationRequest(
         @NotBlank
@@ -81,6 +84,43 @@ public record RegistrationRequest(
         } catch (DateTimeException exception) {
             return false;
         }
+    }
+
+    @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
+    public boolean isFavoriteSportsValid() {
+        if (favoriteSports == null || favoriteSports.isBlank()) {
+            return true;
+        }
+
+        Set<String> allowedSports = Set.of(
+                "Futebol",
+                "Futsal",
+                "Basquetebol",
+                "Ténis",
+                "Padel",
+                "Voleibol",
+                "Corrida",
+                "Ciclismo",
+                "Natação",
+                "Andebol",
+                "Rugby",
+                "Badminton",
+                "Ténis de mesa",
+                "Squash",
+                "Hóquei",
+                "Surf",
+                "Escalada",
+                "Ginásio",
+                "Yoga",
+                "Pilates"
+        );
+
+        Set<String> selected = Arrays.stream(favoriteSports.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toSet());
+
+        return !selected.isEmpty() && selected.stream().allMatch(allowedSports::contains);
     }
 
     @AssertTrue(message = "O número de telefone completo não pode exceder 15 dígitos")
