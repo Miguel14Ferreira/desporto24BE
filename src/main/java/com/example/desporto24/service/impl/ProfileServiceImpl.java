@@ -145,7 +145,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
-    public ProfileDTO updateMyProfile(String username, UpdateProfileRequest request, MultipartFile photo) {
+    public ProfileDTO updateMyProfile(String username, UpdateProfileRequest request) {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
@@ -189,17 +189,6 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setEmail(request.email());
         profile.setFavoriteSports(request.favoriteSports());
         profile.setMFA(request.mfa());
-
-        if (photo != null && !photo.isEmpty()) {
-            if (mediaStorage == null) {
-                throw new IllegalStateException("Media storage is not configured");
-            }
-            var uri = mediaStorage.store(
-                    "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
-                    photo
-            );
-            profile.setProfilePicUrl(uri.toString());
-        }
 
         Profile saved = profileRepository.save(profile);
         ProfileDTO updated = profileMapper.toDto(saved);
