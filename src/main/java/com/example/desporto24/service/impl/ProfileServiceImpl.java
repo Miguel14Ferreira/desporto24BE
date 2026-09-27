@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -315,6 +316,13 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public List<PublicProfileResponse> searchPublicProfiles(String username) {
         return profileRepository.searchProfile(username).stream()
+                .map(this::toPublicProfile)
+                .toList();
+    }
+
+    @Override
+    public List<PublicProfileResponse> discoverPublicProfiles(String username) {
+        return profileRepository.discoverProfiles(username, PageRequest.of(0, 12)).stream()
                 .map(this::toPublicProfile)
                 .toList();
     }
