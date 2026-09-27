@@ -25,6 +25,7 @@ public final class SecurityConstant {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/register/confirm",
+            "/api/auth/register/resend-confirmation",
             "/api/auth/reset-password/**",
             "/api/auth/mfa/confirm",
             "/api/auth/mfa/resend",
