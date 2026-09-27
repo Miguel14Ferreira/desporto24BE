@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.domain.HttpResponse;
+import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.model.dto.auth.MfaConfirmRequest;
