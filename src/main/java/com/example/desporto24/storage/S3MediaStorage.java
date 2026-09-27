@@ -32,10 +32,11 @@ public class S3MediaStorage implements MediaStorage {
     public URI store(String key, MultipartFile file) {
         MediaStorageSupport.ValidatedMedia media = MediaStorageSupport.validate(file);
         String objectKey = key + media.extension();
+        MediaStorageProperties.S3 s3 = properties.getS3();
 
         s3Client.putObject(
                 PutObjectRequest.builder()
-                        .bucket(required(properties.getS3Bucket(), "MEDIA_S3_BUCKET"))
+                        .bucket(required(s3.getBucket(), "desporto.media.s3.bucket"))
                         .key(objectKey)
                         .contentType(media.mimeType())
                         .build(),
@@ -47,34 +48,37 @@ public class S3MediaStorage implements MediaStorage {
             return URI.create(stripTrailingSlash(publicBaseUrl) + "/" + objectKey);
         }
 
-        return URI.create("s3://" + properties.getS3Bucket() + "/" + objectKey);
+        return URI.create("s3://" + s3.getBucket() + "/" + objectKey);
     }
 
     @Override
     public void delete(String key) {
+        MediaStorageProperties.S3 s3 = properties.getS3();
         s3Client.deleteObject(DeleteObjectRequest.builder()
-                .bucket(required(properties.getS3Bucket(), "MEDIA_S3_BUCKET"))
+                .bucket(required(s3.getBucket(), "desporto.media.s3.bucket"))
                 .key(key)
                 .build());
     }
 
     private static S3Client buildClient(MediaStorageProperties properties) {
+        MediaStorageProperties.S3 s3 = properties.getS3();
+
         S3ClientBuilder builder = S3Client.builder()
-                .region(Region.of(properties.getS3Region()))
+                .region(Region.of(s3.getRegion()))
                 .serviceConfiguration(S3Configuration.builder()
-                        .pathStyleAccessEnabled(properties.getS3Endpoint() != null
-                                && !properties.getS3Endpoint().isBlank())
+                        .pathStyleAccessEnabled(s3.getEndpoint() != null
+                                && !s3.getEndpoint().isBlank())
                         .build());
 
-        if (properties.getS3Endpoint() != null && !properties.getS3Endpoint().isBlank()) {
-            builder.endpointOverride(URI.create(properties.getS3Endpoint()));
+        if (s3.getEndpoint() != null && !s3.getEndpoint().isBlank()) {
+            builder.endpointOverride(URI.create(s3.getEndpoint()));
         }
 
-        if (properties.getS3AccessKey() != null && !properties.getS3AccessKey().isBlank()) {
+        if (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()) {
             builder.credentialsProvider(StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(
-                            properties.getS3AccessKey(),
-                            required(properties.getS3SecretKey(), "MEDIA_S3_SECRET_KEY")
+                            s3.getAccessKey(),
+                            required(s3.getSecretKey(), "desporto.media.s3.secret-key")
                     )
             ));
         }
