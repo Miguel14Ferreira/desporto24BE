@@ -209,6 +209,29 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public ProfileDTO updateMyProfilePhoto(String username, MultipartFile photo) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+
+        if (photo == null || photo.isEmpty()) {
+            throw new IllegalArgumentException("A fotografia é obrigatória");
+        }
+
+        var uri = mediaStorage.store(
+                "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
+                photo
+        );
+
+        profile.setProfilePicUrl(uri.toString());
+        Profile saved = profileRepository.save(profile);
+        return profileMapper.toDto(saved);
+    }
+
+    @Override
     public void changeMyPassword(String username, ChangePasswordRequest request) {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
