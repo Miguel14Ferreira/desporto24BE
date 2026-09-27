@@ -3,6 +3,7 @@ package com.example.desporto24.storage;
 import com.example.desporto24.configuration.MediaStorageProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -16,6 +17,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.net.URI;
 
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "desporto.media.provider", havingValue = "s3")
 public class S3MediaStorage implements MediaStorage {
@@ -71,7 +73,18 @@ public class S3MediaStorage implements MediaStorage {
                         .build());
 
         if (s3.getEndpoint() != null && !s3.getEndpoint().isBlank()) {
-            builder.endpointOverride(URI.create(s3.getEndpoint()));
+            URI endpoint = URI.create(s3.getEndpoint());
+            String host = endpoint.getHost() == null ? "" : endpoint.getHost().toLowerCase();
+
+            if (host.endsWith(".r2.dev")) {
+                throw new IllegalStateException(
+                        "desporto.media.s3.endpoint must be the R2 S3 API endpoint (*.r2.cloudflarestorage.com), not the public r2.dev URL"
+                );
+            }
+
+            log.info("Configuring S3 media storage for bucket {} via {}",
+                    s3.getBucket(), host);
+            builder.endpointOverride(endpoint);
         }
 
         if (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()) {
