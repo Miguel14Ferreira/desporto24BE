@@ -34,6 +34,57 @@ class RegistrationRequestValidationTest {
     }
 
     @Test
+    void phoneIsOptional() {
+        RegistrationRequest request = new RegistrationRequest(
+                "fixture-user",
+                "not-a-real-password",
+                "Fixture",
+                "1995-05-30",
+                "Portugal",
+                null,
+                null,
+                "outro",
+                "fixture@example.test"
+        );
+
+        assertTrue(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void phoneWithoutIndicativeIsRejected() {
+        RegistrationRequest request = new RegistrationRequest(
+                "fixture-user",
+                "not-a-real-password",
+                "Fixture",
+                "1995-05-30",
+                "Portugal",
+                null,
+                "912345678",
+                "outro",
+                "fixture@example.test"
+        );
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void indicativeWithoutPhoneIsRejected() {
+        RegistrationRequest request = new RegistrationRequest(
+                "fixture-user",
+                "not-a-real-password",
+                "Fixture",
+                "1995-05-30",
+                "Portugal",
+                "351",
+                null,
+                "outro",
+                "fixture@example.test"
+        );
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
     void malformedDateIsRejected() {
         RegistrationRequest request = copyWith(
                 validRequest(), "dateOfBirth", "1995-99-99"
