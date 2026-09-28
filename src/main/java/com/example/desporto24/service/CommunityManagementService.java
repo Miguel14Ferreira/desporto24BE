@@ -47,6 +47,9 @@ public class CommunityManagementService {
                 .visibility(request.visibility())
                 .owner(owner)
                 .rankingsEnabled(false)
+                .winPoints(3)
+                .drawPoints(1)
+                .lossPoints(0)
                 .createdAt(Instant.now())
                 .build();
 
