@@ -7,6 +7,7 @@ public record CommunityRoundEntryResponse(
         String username,
         String fullName,
         String profilePicUrl,
+        String team,
         CommunityMatchResult result,
         int goals,
         int assists,
