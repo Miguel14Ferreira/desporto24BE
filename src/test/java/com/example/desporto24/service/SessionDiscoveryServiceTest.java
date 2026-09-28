@@ -6,6 +6,8 @@ import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -31,6 +33,8 @@ class SessionDiscoveryServiceTest {
 
     @Mock private SessionRepository sessionRepository;
     @Mock private ProfileRepository profileRepository;
+    @Mock private CommunityRepository communityRepository;
+    @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private SessionParticipantRepository participantRepository;
     @Mock private SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
@@ -48,6 +52,8 @@ class SessionDiscoveryServiceTest {
         service = new SessionServiceImpl(
                 sessionRepository,
                 profileRepository,
+                communityRepository,
+                communityMemberRepository,
                 participantRepository,
                 waitlistRepository,
                 sessionViewMapper,
