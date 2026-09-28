@@ -55,6 +55,7 @@ class ProfileServiceImplSecurityTest {
 
         UpdateProfileRequest request = new UpdateProfileRequest(
                 "Miguel Ferreira",
+                "Miguel",
                 "1995-05-30",
                 "Rua Nova",
                 "Portugal",
