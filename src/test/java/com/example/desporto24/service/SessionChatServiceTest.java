@@ -10,6 +10,7 @@ import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
@@ -25,6 +26,7 @@ class SessionChatServiceTest {
     private ProfileRepository profileRepository;
     private SessionParticipantRepository participantRepository;
     private SessionMessageRepository messageRepository;
+    private ApplicationEventPublisher eventPublisher;
     private SessionChatService service;
 
     @BeforeEach
@@ -33,11 +35,13 @@ class SessionChatServiceTest {
         profileRepository = mock(ProfileRepository.class);
         participantRepository = mock(SessionParticipantRepository.class);
         messageRepository = mock(SessionMessageRepository.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
         service = new SessionChatService(
                 sessionRepository,
                 profileRepository,
                 participantRepository,
-                messageRepository
+                messageRepository,
+                eventPublisher
         );
     }
 
