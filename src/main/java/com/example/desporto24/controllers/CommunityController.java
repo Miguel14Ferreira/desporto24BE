@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -34,6 +35,14 @@ public class CommunityController {
             @PathVariable Long id,
             Authentication authentication) {
         return ResponseEntity.ok(service.get(id, authentication.getName()));
+    }
+
+    @PutMapping(value = "/{id}/photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityResponse> updatePhoto(
+            @PathVariable Long id,
+            @RequestPart("photo") MultipartFile photo,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updatePhoto(id, authentication.getName(), photo));
     }
 
     @PostMapping("/{id}/invites")
