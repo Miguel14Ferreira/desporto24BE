@@ -422,6 +422,7 @@ public class ProfileServiceImpl implements ProfileService {
         return new PublicProfileResponse(
                 dto.getUsername(),
                 dto.getFullName(),
+                dto.getNickname(),
                 dto.getCountry(),
                 dto.getLocation(),
                 dto.getFavoriteSports(),
@@ -431,13 +432,14 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     private String publicJoinDate(Profile profile) {
-        if (profile.getJoinDateDisplay() != null && !profile.getJoinDateDisplay().isBlank()) {
-            return profile.getJoinDateDisplay();
-        }
         if (profile.getJoinDate() == null) {
             return null;
         }
-        return new java.text.SimpleDateFormat("MM/yyyy").format(profile.getJoinDate());
+
+        java.text.SimpleDateFormat formatter =
+                new java.text.SimpleDateFormat("dd/MM/yyyy, HH:mm", java.util.Locale.forLanguageTag("pt-PT"));
+        formatter.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Lisbon"));
+        return formatter.format(profile.getJoinDate());
     }
 
     private String buildSecurityEmail(String name, String title, String description, String link) {
