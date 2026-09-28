@@ -10,4 +10,6 @@ public interface SocialPostCommentRepository extends JpaRepository<SocialPostCom
     List<SocialPostComment> findByPostIdOrderByCreatedAtAsc(Long postId);
 
     long countByPostId(Long postId);
+
+    long deleteByPostId(Long postId);
 }
