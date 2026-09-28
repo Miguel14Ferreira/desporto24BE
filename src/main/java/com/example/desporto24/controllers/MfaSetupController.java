@@ -8,6 +8,9 @@ import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.MfaSetupConfirmRequest;
 import com.example.desporto24.model.dto.auth.MfaSetupResponse;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.NotificationsRepository;
+import com.example.desporto24.register.Notifications.Notifications;
+import com.example.desporto24.service.EmailService;
 import com.example.desporto24.security.TotpService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,8 @@ public class MfaSetupController {
     private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
     private final TotpService totpService;
+    private final EmailService emailService;
+    private final NotificationsRepository notificationsRepository;
 
     @PostMapping("/setup")
     public ResponseEntity<MfaSetupResponse> setup(Authentication authentication) {
@@ -61,7 +66,9 @@ public class MfaSetupController {
         }
 
         profile.setMFA(true);
-        return ResponseEntity.ok(profileMapper.toDto(profileRepository.save(profile)));
+        Profile saved = profileRepository.save(profile);
+        sendMfaSecurityNotice(saved, true);
+        return ResponseEntity.ok(profileMapper.toDto(saved));
     }
 
     @DeleteMapping
@@ -71,6 +78,44 @@ public class MfaSetupController {
 
         profile.setMFA(false);
         profile.setMfaSecret(null);
-        return ResponseEntity.ok(profileMapper.toDto(profileRepository.save(profile)));
+        Profile saved = profileRepository.save(profile);
+        sendMfaSecurityNotice(saved, false);
+        return ResponseEntity.ok(profileMapper.toDto(saved));
+    }
+
+    private void sendMfaSecurityNotice(Profile profile, boolean enabled) {
+        String title = enabled
+                ? "Autenticação multifator ativada"
+                : "Autenticação multifator desativada";
+
+        String description = enabled
+                ? "A autenticação multifator por Authenticator App foi ativada na tua conta DESPORTO24."
+                : "A autenticação multifator foi desativada na tua conta DESPORTO24.";
+
+        if (profile.getEmail() != null && !profile.getEmail().isBlank()) {
+            emailService.send(
+                    profile.getEmail(),
+                    "<h2>" + title + "</h2>"
+                            + "<p>Olá " + profile.getUsername() + ",</p>"
+                            + "<p>" + description + "</p>"
+                            + "<p>Se não foste tu, altera imediatamente a tua palavra-passe e contacta a equipa DESPORTO24.</p>"
+                            + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>"
+            );
+        }
+
+        Notifications notification = new Notifications(
+                title,
+                description + " Se não foste tu, protege imediatamente a tua conta.",
+                "Cumprimentos,",
+                "DESPORTO24 MANAGEMENT TEAM",
+                java.time.Instant.now().toString(),
+                false,
+                true,
+                false,
+                false,
+                null,
+                profile.getUsername()
+        );
+        notificationsRepository.save(notification);
     }
 }
