@@ -189,7 +189,6 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setGender(request.gender());
         profile.setEmail(request.email());
         profile.setFavoriteSports(request.favoriteSports());
-        profile.setMFA(request.mfa());
 
         Profile saved = profileRepository.save(profile);
         ProfileDTO updated = profileMapper.toDto(saved);
