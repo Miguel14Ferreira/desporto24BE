@@ -13,6 +13,9 @@ public record FeedItemResponse(
         Long sessionId,
         String sport,
         String city,
-        Instant gameDate
+        Instant gameDate,
+        long likeCount,
+        boolean likedByMe,
+        long commentCount
 ) {
 }
