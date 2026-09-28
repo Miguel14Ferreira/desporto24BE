@@ -1,0 +1,50 @@
+package com.example.desporto24.model.community;
+
+import com.example.desporto24.enumeration.CommunityMatchResult;
+import com.example.desporto24.model.Profile;
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(
+        name = "community_round_entry",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_community_round_entry",
+                columnNames = {"round_id", "profile_id"}
+        )
+)
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CommunityRoundEntry {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "round_id", nullable = false)
+    private CommunityRound round;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_id", nullable = false)
+    private Profile profile;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private CommunityMatchResult result;
+
+    @Column(nullable = false)
+    private int goals;
+
+    @Column(nullable = false)
+    private int assists;
+
+    @Column(nullable = false)
+    private boolean mvp;
+
+    @Column(name = "clean_sheet", nullable = false)
+    private boolean cleanSheet;
+}
