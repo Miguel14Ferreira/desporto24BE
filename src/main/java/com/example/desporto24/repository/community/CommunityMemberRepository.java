@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface CommunityMemberRepository extends JpaRepository<CommunityMember, Long> {
     Optional<CommunityMember> findByCommunityIdAndProfileId(Long communityId, Long profileId);
     List<CommunityMember> findByProfileIdOrderByJoinedAtDesc(Long profileId);
+    long countByProfileId(Long profileId);
     List<CommunityMember> findByCommunityIdOrderByJoinedAtAsc(Long communityId);
     boolean existsByCommunityIdAndProfileId(Long communityId, Long profileId);
 }
