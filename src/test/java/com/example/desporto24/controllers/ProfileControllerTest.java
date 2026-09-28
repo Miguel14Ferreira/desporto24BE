@@ -71,6 +71,7 @@ class ProfileControllerTest {
         PublicProfileResponse profile = new PublicProfileResponse(
                 "ana",
                 "Ana Silva",
+                "Aninhas",
                 "Portugal",
                 "Lisboa",
                 "Padel",
