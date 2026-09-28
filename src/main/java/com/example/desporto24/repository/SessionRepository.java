@@ -27,6 +27,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     List<Session> findByProfileIdOrderByGameDateAsc(Long profileId);
 
+    List<Session> findByCommunityIdOrderByGameDateDesc(Long communityId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Session s where s.id = :id")
     java.util.Optional<Session> findByIdForUpdate(@Param("id") Long id);
