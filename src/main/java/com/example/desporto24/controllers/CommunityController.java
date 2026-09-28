@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.community.*;
+import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityManagementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.List;
 public class CommunityController {
 
     private final CommunityManagementService service;
+    private final CommunityCompetitionService competitionService;
 
     @PostMapping
     public ResponseEntity<CommunityResponse> create(
@@ -70,6 +72,44 @@ public class CommunityController {
             @PathVariable Long inviteId,
             Authentication authentication) {
         service.rejectInvite(inviteId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/competition")
+    public ResponseEntity<CommunityCompetitionOverviewResponse> competitionOverview(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                competitionService.overview(id, authentication.getName())
+        );
+    }
+
+    @PutMapping("/{id}/competition/settings")
+    public ResponseEntity<CommunityCompetitionSettingsResponse> updateCompetitionSettings(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCommunityCompetitionSettingsRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                competitionService.updateSettings(id, authentication.getName(), request)
+        );
+    }
+
+    @PostMapping("/{id}/rounds")
+    public ResponseEntity<CommunityRoundResponse> createRound(
+            @PathVariable Long id,
+            @RequestBody @Valid CreateCommunityRoundRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                competitionService.createRound(id, authentication.getName(), request)
+        );
+    }
+
+    @DeleteMapping("/{id}/rounds/{roundId}")
+    public ResponseEntity<Void> deleteRound(
+            @PathVariable Long id,
+            @PathVariable Long roundId,
+            Authentication authentication) {
+        competitionService.deleteRound(id, roundId, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 
