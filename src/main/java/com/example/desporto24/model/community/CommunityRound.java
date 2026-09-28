@@ -22,6 +22,10 @@ public class CommunityRound {
     @JoinColumn(name = "community_id", nullable = false)
     private Community community;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "season_id")
+    private CommunitySeason season;
+
     @Column(nullable = false, length = 100)
     private String name;
 
