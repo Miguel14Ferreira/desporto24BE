@@ -26,12 +26,10 @@ public record GoogleRegistrationRequest(
         @Size(max = 100)
         String country,
 
-        @NotBlank
-        @Pattern(regexp = "\\d{1,4}", message = "O indicativo deve conter apenas dígitos")
+        @Pattern(regexp = "^$|\\d{1,4}", message = "O indicativo deve conter apenas dígitos")
         String indicativePhone,
 
-        @NotBlank
-        @Pattern(regexp = "\\d{4,15}", message = "O telemóvel deve conter apenas dígitos")
+        @Pattern(regexp = "^$|\\d{4,15}", message = "O telemóvel deve conter apenas dígitos")
         String phone,
 
         @Pattern(
@@ -52,9 +50,19 @@ public record GoogleRegistrationRequest(
         }
     }
 
+    @AssertTrue(message = "Preenche o indicativo apenas quando adicionares um número de telefone")
+    public boolean isPhonePairValid() {
+        boolean hasPhone = phone != null && !phone.isBlank();
+        boolean hasIndicative = indicativePhone != null && !indicativePhone.isBlank();
+        return hasPhone == hasIndicative;
+    }
+
     @AssertTrue(message = "O número de telefone completo não pode exceder 15 dígitos")
     public boolean isPhoneLengthValid() {
-        if (indicativePhone == null || phone == null
+        if (phone == null || phone.isBlank()) {
+            return true;
+        }
+        if (indicativePhone == null
                 || !indicativePhone.matches("\\d+")
                 || !phone.matches("\\d+")) {
             return true;
