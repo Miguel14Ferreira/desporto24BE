@@ -204,8 +204,7 @@ public class FriendServiceImpl implements FriendService {
                     return new FriendSummaryResponse(
                             other.getUsername(),
                             other.getFullName(),
-                            other.getLocation(),
-                            other.getFavoriteSports(),
+                            other.getNickname(),
                             other.getProfilePicUrl(),
                             friend.isChatBlocked(),
                             username.equals(friend.getWhoBlocked())
