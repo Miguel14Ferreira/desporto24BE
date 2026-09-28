@@ -1,5 +1,6 @@
 package com.example.desporto24.model.dto.profile;
 
+import com.example.desporto24.constant.SportsCatalog;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -27,4 +28,8 @@ public record UpdateProfileRequest(
         @Size(max = 255) String favoriteSports,
         Boolean mfa
 ) {
+    @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
+    public boolean isFavoriteSportsValid() {
+        return SportsCatalog.isValidSelection(favoriteSports);
+    }
 }
