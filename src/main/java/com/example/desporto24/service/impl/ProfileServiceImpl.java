@@ -271,10 +271,8 @@ public class ProfileServiceImpl implements ProfileService {
         String message = "Foram feitas alterações aos dados do teu perfil. "
                 + "Se não foste tu, redefine imediatamente a tua palavra-passe.";
         String greeting = "Cumprimentos,";
-        String signature = "DESPORTO24";
-        Date date = new Date();
-        String displayDate = substring(String.valueOf(date), 24, 29)
-                + substring(String.valueOf(date), 3, 10);
+        String signature = "DESPORTO24 MANAGEMENT TEAM";
+        String displayDate = java.time.Instant.now().toString();
 
         Notifications notification = new Notifications(
                 subject,
@@ -357,7 +355,7 @@ public class ProfileServiceImpl implements ProfileService {
                 + "<p>Se foste tu, não precisas de fazer nada.</p>"
                 + "<p>Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe:</p>"
                 + "<p><a href=\"" + link + "\">Redefinir palavra-passe</a></p>"
-                + "<p>Cumprimentos,<br>DESPORTO24</p>";
+                + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
     }
 
     @Override
