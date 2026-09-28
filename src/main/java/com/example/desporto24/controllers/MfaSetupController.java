@@ -105,7 +105,7 @@ public class MfaSetupController {
 
         Notifications notification = new Notifications(
                 title,
-                description + " Se não foste tu, protege imediatamente a tua conta.",
+                description + " Se não foste tu, bloqueia temporariamente os acessos à tua conta.",
                 "Cumprimentos,",
                 "DESPORTO24 MANAGEMENT TEAM",
                 java.time.Instant.now().toString(),
