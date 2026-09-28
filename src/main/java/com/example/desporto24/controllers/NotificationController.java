@@ -83,6 +83,16 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/me")
+    @Operation(
+            summary = "Delete all own notifications",
+            description = "Deletes every notification belonging to the authenticated user."
+    )
+    public ResponseEntity<Void> deleteAllMyNotifications(Authentication authentication) {
+        notificationService.deleteAllNotifications(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markRead(
             @PathVariable Long id,
