@@ -166,6 +166,11 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void deleteAllNotifications(String username) {
+        notificationsRepository.deleteByUsername(username);
+    }
+
+    @Override
     public void markRead(Long id, String username) {
         Notifications notification = getOwnedNotification(id, username);
         if (!notification.isRead()) {
