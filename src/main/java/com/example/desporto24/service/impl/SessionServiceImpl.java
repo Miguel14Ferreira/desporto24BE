@@ -189,6 +189,10 @@ public class SessionServiceImpl implements SessionService {
                 .filter(s -> !Boolean.TRUE.equals(criteria.freeOnly())
                         || s.getPriceAmount() == null
                         || s.getPriceAmount().compareTo(BigDecimal.ZERO) == 0)
+                .filter(s -> criteria.minPrice() == null
+                        || effectivePrice(s).compareTo(criteria.minPrice()) >= 0)
+                .filter(s -> criteria.maxPrice() == null
+                        || effectivePrice(s).compareTo(criteria.maxPrice()) <= 0)
                 .map(s -> toDiscoveryView(s, criteria, hasCoordinates))
                 .filter(v -> !hasCoordinates
                         || (v.distanceKm() != null && v.distanceKm() <= effectiveRadius))
@@ -196,6 +200,10 @@ public class SessionServiceImpl implements SessionService {
                         || v.participantCount() < v.maxParticipants())
                 .sorted(discoveryComparator(criteria.sort()))
                 .toList();
+    }
+
+    private BigDecimal effectivePrice(Session session) {
+        return session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount();
     }
 
     private SessionSummaryResponse toDiscoveryView(
