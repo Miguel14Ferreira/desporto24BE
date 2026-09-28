@@ -105,6 +105,7 @@ class ProfileControllerTest {
         when(authentication.getName()).thenReturn("miguel");
         UpdateProfileRequest request = new UpdateProfileRequest(
                 "Miguel Ferreira",
+                "Miguel",
                 "1990-01-01",
                 "Rua Teste",
                 "Portugal",
