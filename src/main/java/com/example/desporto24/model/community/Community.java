@@ -29,6 +29,9 @@ public class Community {
     @Column(length = 100)
     private String sport;
 
+    @Column(name = "photo_url", length = 1000)
+    private String photoUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommunityVisibility visibility;
