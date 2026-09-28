@@ -2,6 +2,7 @@ package com.example.desporto24.model.dto;
 import com.example.desporto24.model.Status;
 import jakarta.persistence.Id;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
 
@@ -24,6 +25,7 @@ public class ProfileDTO implements Serializable {
     private String gender;
     private String email;
     private String postalCode;
+    @JsonProperty("mfa")
     private Boolean MFA;
     private Boolean notLocked;
     private Boolean enabled;
