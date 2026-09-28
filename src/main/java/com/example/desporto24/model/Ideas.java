@@ -41,10 +41,10 @@ public class Ideas {
     private String problem;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column
     private IdeaStatus status = IdeaStatus.NEW;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at")
     private Instant createdAt = Instant.now();
 
     public Ideas(String name, String email, String city, String gender, String subject, String problem) {
