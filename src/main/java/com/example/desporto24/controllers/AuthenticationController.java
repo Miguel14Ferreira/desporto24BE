@@ -15,13 +15,20 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
+
+import org.springframework.beans.factory.annotation.Value;
+
+import static com.example.desporto24.constant.SecurityConstant.REFRESH_TOKEN_COOKIE;
 
 import static com.example.desporto24.constant.UserImplConstant.*;
 import static org.springframework.http.HttpStatus.ACCEPTED;
@@ -36,17 +43,35 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
     private final SensitiveActionRateLimiter sensitiveActionRateLimiter;
 
+    @Value("${desporto.app.refreshExpirationMs:604800000}")
+    private long refreshExpirationMs;
+
     @PostMapping("/login")
     @Operation(summary = "User Login", description = "Authenticate a user and return a JWT or an MFA challenge.")
     public ResponseEntity<LoginResponse> login(@RequestBody @Valid ProfileDTO credentials) {
         LoginResponse result = authenticationService.login(credentials);
-        return ResponseEntity.status(result.mfaRequired() ? ACCEPTED : OK).body(result);
+        if (result.mfaRequired()) {
+            return ResponseEntity.status(ACCEPTED).body(result);
+        }
+        return withRefreshCookie(result);
     }
 
     @PostMapping("/mfa/confirm")
     @Operation(summary = "Confirm MFA challenge", description = "Completes MFA and returns the JWT only after a valid challenge.")
     public ResponseEntity<LoginResponse> confirmMfaToken(@RequestBody @Valid MfaConfirmRequest request) {
-        return ResponseEntity.ok(authenticationService.confirmMfa(request));
+        return withRefreshCookie(authenticationService.confirmMfa(request));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh session", description = "Rotates the HttpOnly refresh cookie and returns a fresh access token.")
+    public ResponseEntity<LoginResponse> refresh(
+            @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+
+        LoginResponse result = authenticationService.refresh(refreshToken);
+        return withRefreshCookie(result);
     }
 
     @PostMapping("/mfa/resend")
@@ -63,7 +88,9 @@ public class AuthenticationController {
     @PostMapping("/logout")
     public ResponseEntity<Void> terminateSession(Authentication authentication) {
         authenticationService.terminateSession(authentication.getName());
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, clearRefreshCookie().toString())
+                .build();
     }
 
     @PostMapping(value = "/register", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -112,6 +139,38 @@ public class AuthenticationController {
             @RequestBody @Valid PasswordResetConfirmRequest request) {
         authenticationService.resetPasswordStepTwo(request.newPassword(), request.token());
         return buildResponse(PASSWORD_RESET_SUCCESS);
+    }
+
+    private ResponseEntity<LoginResponse> withRefreshCookie(LoginResponse result) {
+        String username = result.profile() == null ? null : result.profile().getUsername();
+        if (username == null || username.isBlank()) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+
+        String refreshToken = authenticationService.createRefreshToken(username);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie(refreshToken).toString())
+                .body(result);
+    }
+
+    private ResponseCookie refreshCookie(String token) {
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/api/auth")
+                .maxAge(Duration.ofMillis(refreshExpirationMs))
+                .build();
+    }
+
+    private ResponseCookie clearRefreshCookie() {
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/api/auth")
+                .maxAge(Duration.ZERO)
+                .build();
     }
 
     private ResponseEntity<HttpResponse> buildResponse(String message) {
