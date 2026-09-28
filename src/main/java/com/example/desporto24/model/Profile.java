@@ -44,6 +44,10 @@ public class Profile implements Serializable {
     private Boolean MFA;
     @Column(name = "mfa_secret")
     private String mfaSecret;
+
+    @Column(name = "google_subject", unique = true)
+    private String googleSubject;
+
     private String role;
     private String[] authorities;
     private String lastLoginDateDisplay;
