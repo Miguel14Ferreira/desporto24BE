@@ -287,7 +287,7 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         saveProfileImage(profile, photo);
-        sendUpdateProfileEmail(profile);
+        createProfileUpdateNotification(profile.getUsername(), List.of("Fotografia de perfil"));
     }
     private void createProfileUpdateNotification(String username, List<String> changedFields) {
         String fields = String.join(", ", changedFields);
