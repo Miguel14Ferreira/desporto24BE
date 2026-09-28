@@ -132,18 +132,15 @@ public class GoogleAuthenticationService {
         profile.setUsername(request.username().trim());
         profile.setPassword(passwordHashService.encode(UUID.randomUUID() + "-" + UUID.randomUUID()));
         profile.setFullName(identity.name() == null || identity.name().isBlank()
-                ? request.username().trim()
+                ? null
                 : identity.name().trim());
+        profile.setNickname(trimToNull(request.nickname()));
         profile.setDateOfBirth(request.dateOfBirth());
-        profile.setAddress(AES.encryptString(request.address().trim(), profile.getUserId()));
         profile.setCountry(request.country().trim());
-        profile.setLocation(request.location().trim());
-        profile.setPostalCode(request.postalCode().trim());
         profile.setIndicativePhone(request.indicativePhone().trim());
         profile.setPhone(AES.encryptString(request.phone().trim(), profile.getUserId()));
-        profile.setGender(request.gender().trim());
+        profile.setGender(trimToNull(request.gender()));
         profile.setEmail(identity.email().trim());
-        profile.setFavoriteSports(request.favoriteSports().trim());
         profile.setProfilePicUrl(identity.picture());
         profile.setNotLocked(true);
         profile.setEnabled(true);
@@ -204,6 +201,14 @@ public class GoogleAuthenticationService {
         );
         mfaVerificationService.saveConfirmationMFA(challenge);
         return challenge;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void validatePhoneAvailability(String phone) {
