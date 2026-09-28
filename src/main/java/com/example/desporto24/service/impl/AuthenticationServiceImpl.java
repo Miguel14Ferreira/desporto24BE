@@ -261,8 +261,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         profileDTO.setNickname(trimToNull(request.nickname()));
         profileDTO.setDateOfBirth(request.dateOfBirth());
         profileDTO.setCountry(request.country().trim());
-        profileDTO.setIndicativePhone(request.indicativePhone().trim());
-        profileDTO.setPhone(request.phone().trim());
+        profileDTO.setIndicativePhone(trimToNull(request.indicativePhone()));
+        profileDTO.setPhone(trimToNull(request.phone()));
         profileDTO.setGender(trimToNull(request.gender()));
         profileDTO.setEmail(request.email().trim());
         profileDTO.setNotLocked(true);
