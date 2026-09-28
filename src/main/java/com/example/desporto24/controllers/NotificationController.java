@@ -73,6 +73,16 @@ public class NotificationController {
         return buildResponse(OK, DISABLED_PERFIL);
     }
 
+    @PostMapping("/me/block")
+    @Operation(
+            summary = "Block own account access",
+            description = "Immediately blocks the authenticated account and invalidates existing sessions."
+    )
+    public ResponseEntity<Void> blockMyAccount(Authentication authentication) {
+        notificationService.blockOwnAccount(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markRead(
             @PathVariable Long id,
