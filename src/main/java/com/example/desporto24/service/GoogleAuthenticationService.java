@@ -125,7 +125,8 @@ public class GoogleAuthenticationService {
             throw new UsernameExistException(USERNAME_ALREADY_EXIST);
         }
 
-        validatePhoneAvailability(request.phone());
+        String phone = trimToNull(request.phone());
+        validatePhoneAvailability(phone);
 
         Profile profile = new Profile();
         profile.setUserId(generateUserId());
@@ -137,8 +138,8 @@ public class GoogleAuthenticationService {
         profile.setNickname(trimToNull(request.nickname()));
         profile.setDateOfBirth(request.dateOfBirth());
         profile.setCountry(request.country().trim());
-        profile.setIndicativePhone(request.indicativePhone().trim());
-        profile.setPhone(AES.encryptString(request.phone().trim(), profile.getUserId()));
+        profile.setIndicativePhone(phone == null ? null : trimToNull(request.indicativePhone()));
+        profile.setPhone(phone == null ? null : AES.encryptString(phone, profile.getUserId()));
         profile.setGender(trimToNull(request.gender()));
         profile.setEmail(identity.email().trim());
         profile.setProfilePicUrl(identity.picture());
@@ -212,6 +213,10 @@ public class GoogleAuthenticationService {
     }
 
     private void validatePhoneAvailability(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return;
+        }
+
         for (Profile existing : profileRepository.findAll()) {
             if (existing.getPhone() == null || existing.getUserId() == null) {
                 continue;
