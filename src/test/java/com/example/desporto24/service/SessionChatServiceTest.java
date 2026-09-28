@@ -4,18 +4,22 @@ import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionMessage;
+import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.example.desporto24.websocket.SessionChatMessageCreatedEvent;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -105,6 +109,47 @@ class SessionChatServiceTest {
         assertEquals("bora jogar", response.body());
         assertEquals("miguel", response.senderUsername());
         verify(messageRepository).save(argThat(m -> "bora jogar".equals(m.getBody())));
+    }
+
+    @Test
+    void postPublishesRealtimeEventForCreatorAndActiveParticipants() {
+        Profile creator = profile(1L, "creator");
+        Profile sender = profile(2L, "miguel");
+        Profile teammate = profile(3L, "teammate");
+        Session session = session(10L, creator);
+        stubActor(session, sender);
+
+        when(participantRepository.existsBySessionIdAndProfileIdAndState(
+                10L, 2L, ParticipantState.ACTIVE)).thenReturn(true);
+        when(participantRepository.findBySessionIdAndStateOrderByJoinedAtAsc(
+                10L, ParticipantState.ACTIVE)).thenReturn(List.of(
+                SessionParticipant.builder()
+                        .session(session)
+                        .profile(sender)
+                        .state(ParticipantState.ACTIVE)
+                        .build(),
+                SessionParticipant.builder()
+                        .session(session)
+                        .profile(teammate)
+                        .state(ParticipantState.ACTIVE)
+                        .build()
+        ));
+        when(messageRepository.save(any(SessionMessage.class)))
+                .thenAnswer(invocation -> {
+                    SessionMessage saved = invocation.getArgument(0);
+                    saved.setId(41L);
+                    return saved;
+                });
+
+        service.post(10L, "bora", "miguel");
+
+        ArgumentCaptor<SessionChatMessageCreatedEvent> eventCaptor =
+                ArgumentCaptor.forClass(SessionChatMessageCreatedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+
+        SessionChatMessageCreatedEvent event = eventCaptor.getValue();
+        assertEquals(41L, event.message().id());
+        assertEquals(Set.of("creator", "miguel", "teammate"), event.recipients());
     }
 
     @Test
