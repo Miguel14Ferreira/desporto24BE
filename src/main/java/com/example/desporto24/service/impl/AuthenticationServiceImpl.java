@@ -16,6 +16,7 @@ import com.example.desporto24.register.token.ConfirmationToken;
 import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.security.TotpService;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
@@ -50,7 +51,6 @@ import static com.example.desporto24.constant.FileConstant.*;
 import static com.example.desporto24.constant.UserImplConstant.*;
 import static com.example.desporto24.encryption.AES.decryptString;
 import static com.example.desporto24.model.Status.OFFLINE;
-import static com.example.desporto24.utility.SmsUtils.sendSMS;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.*;
 import static org.apache.commons.lang3.StringUtils.substring;
@@ -78,6 +78,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileMapper profileMapper;
+    private final TotpService totpService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
@@ -99,8 +100,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         validateProfileStatus(profile);
         loginAttemptService.handleLoginAttempt(profile.getUsername(), credentials.getPassword(), profile);
 
-        if (Boolean.TRUE.equals(profile.getMFA()) && !previewMode) {
-            MFAVerification challenge = createAndSendMfaChallenge(profile);
+        if (Boolean.TRUE.equals(profile.getMFA())
+                && profile.getMfaSecret() != null
+                && !profile.getMfaSecret().isBlank()) {
+            MFAVerification challenge = createMfaChallenge(profile);
             return new LoginResponse(
                     true,
                     challenge.getChallengeId(),
@@ -152,7 +155,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         validateProfileStatus(profile);
 
-        MFAVerification challenge = createAndSendMfaChallenge(profile);
+        MFAVerification challenge = createMfaChallenge(profile);
         return new LoginResponse(
                 true,
                 challenge.getChallengeId(),
@@ -169,14 +172,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         validateMfaCodeExpiryAndConfirmation(challenge);
 
-        String normalizedCode = request.code().trim().toUpperCase(Locale.ROOT);
-        if (!passwordEncoder.matches(normalizedCode, challenge.getCodeHash())) {
-            throw new BadCredentialsException(SMS_FAIL);
-        }
-
         Profile profile = profileRepository.findUserByUsername(challenge.getPerfil())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         validateProfileStatus(profile);
+
+        if (profile.getMfaSecret() == null || profile.getMfaSecret().isBlank()) {
+            throw new BadCredentialsException(SMS_FAIL);
+        }
+
+        String secret = decryptString(profile.getMfaSecret(), profile.getUserId());
+        String normalizedCode = request.code().trim();
+        if (!totpService.verify(secret, normalizedCode)) {
+            throw new BadCredentialsException(SMS_FAIL);
+        }
 
         LocalDateTime confirmedAt = LocalDateTime.now(ZoneOffset.UTC);
         if (!mfaVerificationService.confirmIfPending(challenge.getChallengeId(), confirmedAt)) {
@@ -193,25 +201,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return new LoginResponse(false, null, null, token, profileMapper.toDto(saved));
     }
 
-    private MFAVerification createAndSendMfaChallenge(Profile profile) {
+    private MFAVerification createMfaChallenge(Profile profile) {
         String challengeId = UUID.randomUUID().toString();
-        String rawCode = generateVerificationCode();
         LocalDateTime createdAt = LocalDateTime.now(ZoneOffset.UTC);
 
         MFAVerification challenge = new MFAVerification(
                 challengeId,
-                passwordEncoder.encode(rawCode),
+                null,
                 createdAt,
                 createdAt.plusMinutes(5),
                 profile.getUsername()
         );
         mfaVerificationService.saveConfirmationMFA(challenge);
-
-        sendSMS(
-                profile.getIndicativePhone(),
-                resolveMfaPhone(profile),
-                "Desporto24APP \nCodigo de Verificação:\n" + rawCode
-        );
         return challenge;
     }
 
