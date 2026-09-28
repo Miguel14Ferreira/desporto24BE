@@ -21,6 +21,9 @@ public class ProfileDTO implements Serializable {
     private String country;
     private String location;
     private String favoriteSports;
+    private String bio;
+    private String skillLevel;
+    private String availability;
     private String indicativePhone;
     private String phone;
     private String gender;
