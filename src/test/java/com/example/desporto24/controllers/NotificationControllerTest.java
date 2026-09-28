@@ -63,6 +63,16 @@ class NotificationControllerTest {
     }
 
     @Test
+    void blockOwnAccountUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+
+        var response = controller.blockMyAccount(authentication);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(notificationService).blockOwnAccount("miguel");
+    }
+
+    @Test
     void legacyDeleteUsesAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("miguel");
         Notifications notification = new Notifications();
