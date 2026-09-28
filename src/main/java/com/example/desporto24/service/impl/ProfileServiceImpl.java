@@ -183,6 +183,7 @@ public class ProfileServiceImpl implements ProfileService {
         boolean emailChanged = !Objects.equals(previousEmail, request.email());
 
         profile.setFullName(request.fullName());
+        profile.setNickname(request.nickname());
         profile.setDateOfBirth(request.dateOfBirth());
         profile.setAddress(AES.encryptString(request.address(), profile.getUserId()));
         profile.setCountry(request.country());
@@ -349,6 +350,7 @@ public class ProfileServiceImpl implements ProfileService {
         List<String> changed = new ArrayList<>();
 
         addChanged(changed, "Nome", profile.getFullName(), request.fullName());
+        addChanged(changed, "Alcunha", profile.getNickname(), request.nickname());
         addChanged(changed, "Data de nascimento", profile.getDateOfBirth(), request.dateOfBirth());
         addChanged(changed, "Morada", previousAddress, request.address());
         addChanged(changed, "País", profile.getCountry(), request.country());
