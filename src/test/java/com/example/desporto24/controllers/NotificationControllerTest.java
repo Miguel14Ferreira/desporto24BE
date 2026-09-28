@@ -99,6 +99,16 @@ class NotificationControllerTest {
     }
 
     @Test
+    void deleteAllNotificationsUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+
+        var response = controller.deleteAllMyNotifications(authentication);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(notificationService).deleteAllNotifications("miguel");
+    }
+
+    @Test
     void deleteNotificationUsesAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("miguel");
 
