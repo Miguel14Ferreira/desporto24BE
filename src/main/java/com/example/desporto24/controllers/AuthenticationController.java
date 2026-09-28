@@ -4,12 +4,16 @@ import com.example.desporto24.domain.HttpResponse;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
+import com.example.desporto24.model.dto.auth.GoogleAuthResponse;
+import com.example.desporto24.model.dto.auth.GoogleCredentialRequest;
+import com.example.desporto24.model.dto.auth.GoogleRegistrationRequest;
 import com.example.desporto24.model.dto.auth.MfaConfirmRequest;
 import com.example.desporto24.model.dto.auth.MfaResendRequest;
 import com.example.desporto24.model.dto.auth.PasswordResetInitiateRequest;
 import com.example.desporto24.model.dto.auth.PasswordResetConfirmRequest;
 import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
+import com.example.desporto24.service.GoogleAuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,9 +46,40 @@ public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
     private final SensitiveActionRateLimiter sensitiveActionRateLimiter;
+    private final GoogleAuthenticationService googleAuthenticationService;
 
     @Value("${desporto.app.refreshExpirationMs:604800000}")
     private long refreshExpirationMs;
+
+    @Value("${desporto.google.client-id:}")
+    private String googleClientId;
+
+    @GetMapping("/google/config")
+    public ResponseEntity<java.util.Map<String, String>> googleConfig() {
+        return ResponseEntity.ok(java.util.Map.of("clientId", googleClientId == null ? "" : googleClientId));
+    }
+
+    @PostMapping("/google/login")
+    public ResponseEntity<GoogleAuthResponse> googleLogin(
+            @RequestBody @Valid GoogleCredentialRequest request) {
+        GoogleAuthResponse result = googleAuthenticationService.authenticate(request.credential());
+
+        if (result.onboardingRequired()) {
+            return ResponseEntity.ok(result);
+        }
+        if (result.mfaRequired()) {
+            return ResponseEntity.status(ACCEPTED).body(result);
+        }
+        return withGoogleRefreshCookie(result);
+    }
+
+    @PostMapping("/google/register")
+    public ResponseEntity<GoogleAuthResponse> googleRegister(
+            @RequestBody @Valid GoogleRegistrationRequest request) {
+        return withGoogleRefreshCookie(
+                googleAuthenticationService.completeRegistration(request)
+        );
+    }
 
     @PostMapping("/login")
     @Operation(summary = "User Login", description = "Authenticate a user and return a JWT or an MFA challenge.")
@@ -142,6 +177,18 @@ public class AuthenticationController {
     }
 
     private ResponseEntity<LoginResponse> withRefreshCookie(LoginResponse result) {
+        String username = result.profile() == null ? null : result.profile().getUsername();
+        if (username == null || username.isBlank()) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+
+        String refreshToken = authenticationService.createRefreshToken(username);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie(refreshToken).toString())
+                .body(result);
+    }
+
+    private ResponseEntity<GoogleAuthResponse> withGoogleRefreshCookie(GoogleAuthResponse result) {
         String username = result.profile() == null ? null : result.profile().getUsername();
         if (username == null || username.isBlank()) {
             throw new BadCredentialsException(INCORRECT_CREDENTIALS);
