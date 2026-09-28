@@ -7,6 +7,9 @@ public record PublicProfileResponse(
         String country,
         String location,
         String favoriteSports,
+        String bio,
+        String skillLevel,
+        String availability,
         String profilePicUrl,
         String joinDateDisplay
 ) {
