@@ -12,6 +12,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
+import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +33,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityMemberRepository memberRepository;
     @Mock private CommunityRoundRepository roundRepository;
     @Mock private CommunityRoundEntryRepository entryRepository;
+    @Mock private CommunitySeasonRepository seasonRepository;
     @Mock private ProfileRepository profileRepository;
 
     @InjectMocks
@@ -66,6 +68,10 @@ class CommunityCompetitionServiceTest {
                         membership(community, mimocas, CommunityRole.MEMBER)
                 ));
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
+                .thenReturn(List.of());
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
+                .thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
                 .thenReturn(List.of());
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
                 .thenReturn(List.of(
