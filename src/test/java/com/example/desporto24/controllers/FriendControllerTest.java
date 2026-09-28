@@ -35,8 +35,7 @@ class FriendControllerTest {
         FriendSummaryResponse friend = new FriendSummaryResponse(
                 "ana",
                 "Ana Silva",
-                "Lisboa",
-                "Padel",
+                "Aninhas",
                 null,
                 false,
                 false
