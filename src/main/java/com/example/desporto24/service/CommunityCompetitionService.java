@@ -14,6 +14,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
+import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -31,22 +32,100 @@ public class CommunityCompetitionService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityRoundRepository roundRepository;
     private final CommunityRoundEntryRepository entryRepository;
+    private final CommunitySeasonRepository seasonRepository;
     private final ProfileRepository profileRepository;
 
     @Transactional(readOnly = true)
     public CommunityCompetitionOverviewResponse overview(Long communityId, String username) {
+        return overview(communityId, username, null);
+    }
+
+    @Transactional(readOnly = true)
+    public CommunityCompetitionOverviewResponse overview(
+            Long communityId,
+            String username,
+            Long seasonId) {
         Profile actor = profile(username);
         Community community = community(communityId);
         requireAccess(community, actor);
 
+        if (seasonId != null) {
+            CommunitySeason selected = seasonRepository.findById(seasonId)
+                    .orElseThrow(() -> new IllegalArgumentException("Época não encontrada"));
+            if (!selected.getCommunity().getId().equals(communityId)) {
+                throw new IllegalArgumentException("A época não pertence a esta comunidade");
+            }
+        }
+
+        Long activeSeasonId = seasonRepository.findByCommunityIdAndActiveTrue(communityId)
+                .map(CommunitySeason::getId)
+                .orElse(null);
+
+        List<CommunityRound> rounds = seasonId == null
+                ? roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(communityId)
+                : roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+                        communityId, seasonId);
+
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
-                roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(communityId)
+                seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
                         .stream()
-                        .map(this::roundResponse)
+                        .map(season -> seasonResponse(community, season))
                         .toList(),
-                standings(community)
+                seasonId,
+                activeSeasonId,
+                rounds.stream().map(this::roundResponse).toList(),
+                standings(community, seasonId)
         );
+    }
+
+    public CommunitySeasonResponse createSeason(
+            Long communityId,
+            String username,
+            CreateCommunitySeasonRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        Community community = community(communityId);
+
+        seasonRepository.findByCommunityIdAndActiveTrue(communityId)
+                .ifPresent(existing -> {
+                    throw new IllegalStateException(
+                            "Encerra a época ativa antes de criares outra"
+                    );
+                });
+
+        CommunitySeason season = seasonRepository.save(CommunitySeason.builder()
+                .community(community)
+                .name(request.name().trim())
+                .startsAt(request.startsAt() == null ? Instant.now() : request.startsAt())
+                .active(true)
+                .createdAt(Instant.now())
+                .build());
+
+        return seasonResponse(community, season);
+    }
+
+    public CommunitySeasonResponse closeSeason(
+            Long communityId,
+            Long seasonId,
+            String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        Community community = community(communityId);
+
+        CommunitySeason season = seasonRepository.findById(seasonId)
+                .orElseThrow(() -> new IllegalArgumentException("Época não encontrada"));
+        if (!season.getCommunity().getId().equals(communityId)) {
+            throw new IllegalArgumentException("A época não pertence a esta comunidade");
+        }
+        if (!season.isActive()) {
+            throw new IllegalStateException("Esta época já está encerrada");
+        }
+
+        season.setActive(false);
+        season.setEndedAt(Instant.now());
+        CommunitySeason saved = seasonRepository.save(season);
+        return seasonResponse(community, saved);
     }
 
     public CommunityCompetitionSettingsResponse updateSettings(
@@ -93,8 +172,13 @@ public class CommunityCompetitionService {
             }
         }
 
+        CommunitySeason activeSeason = seasonRepository
+                .findByCommunityIdAndActiveTrue(communityId)
+                .orElse(null);
+
         CommunityRound round = roundRepository.save(CommunityRound.builder()
                 .community(community)
+                .season(activeSeason)
                 .name(request.name().trim())
                 .playedAt(request.playedAt())
                 .createdAt(Instant.now())
@@ -136,12 +220,15 @@ public class CommunityCompetitionService {
         if (!round.getCommunity().getId().equals(communityId)) {
             throw new IllegalArgumentException("A jornada não pertence a esta comunidade");
         }
+        if (round.getSeason() != null && !round.getSeason().isActive()) {
+            throw new IllegalStateException("Não podes apagar jornadas de uma época encerrada");
+        }
 
         entryRepository.deleteByRoundId(roundId);
         roundRepository.delete(round);
     }
 
-    private List<CommunityStandingResponse> standings(Community community) {
+    private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
         Map<Long, StandingAccumulator> table = new LinkedHashMap<>();
 
         for (CommunityMember member : memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId())) {
@@ -151,8 +238,13 @@ public class CommunityCompetitionService {
             );
         }
 
-        for (CommunityRoundEntry entry : entryRepository
-                .findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(community.getId())) {
+        List<CommunityRoundEntry> sourceEntries = seasonId == null
+                ? entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(
+                        community.getId())
+                : entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(
+                        seasonId);
+
+        for (CommunityRoundEntry entry : sourceEntries) {
             StandingAccumulator row = table.computeIfAbsent(
                     entry.getProfile().getId(),
                     ignored -> new StandingAccumulator(entry.getProfile())
@@ -231,6 +323,36 @@ public class CommunityCompetitionService {
                 round.getName(),
                 round.getPlayedAt(),
                 entries
+        );
+    }
+
+    private CommunitySeasonResponse seasonResponse(
+            Community community,
+            CommunitySeason season) {
+        String championUsername = null;
+        String championDisplayName = null;
+        Integer championPoints = null;
+
+        if (!season.isActive()) {
+            List<CommunityStandingResponse> seasonStandings = standings(
+                    community, season.getId());
+            if (!seasonStandings.isEmpty() && seasonStandings.get(0).games() > 0) {
+                CommunityStandingResponse champion = seasonStandings.get(0);
+                championUsername = champion.username();
+                championDisplayName = champion.fullName();
+                championPoints = champion.points();
+            }
+        }
+
+        return new CommunitySeasonResponse(
+                season.getId(),
+                season.getName(),
+                season.getStartsAt(),
+                season.getEndedAt(),
+                season.isActive(),
+                championUsername,
+                championDisplayName,
+                championPoints
         );
     }
 
