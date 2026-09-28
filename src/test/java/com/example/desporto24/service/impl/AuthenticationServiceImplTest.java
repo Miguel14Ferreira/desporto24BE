@@ -109,6 +109,39 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void verifiedPasswordResetUnlocksTemporarilyBlockedAccount() {
+        ConfirmationToken token = mock(ConfirmationToken.class);
+        Profile profile = activeProfile(false);
+        profile.setNotLocked(false);
+        profile.setTokenVersion(7L);
+        profile.setLoginAttempts(3);
+
+        when(confirmationTokenService.getToken("recovery-token"))
+                .thenReturn(Optional.of(token));
+        when(token.getConfirmedAt()).thenReturn(null);
+        when(token.getExpiredAt())
+                .thenReturn(LocalDateTime.now().plusMinutes(5));
+        when(token.getProfile()).thenReturn(TEST_USERNAME);
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(passwordHashService.encode("recovered-password"))
+                .thenReturn("encoded-recovered-password");
+        when(profileRepository.save(profile)).thenReturn(profile);
+
+        service().resetPasswordStepTwo(
+                "recovered-password",
+                "recovery-token"
+        );
+
+        assertTrue(profile.getNotLocked());
+        assertEquals(0, profile.getLoginAttempts());
+        assertEquals(com.example.desporto24.model.Status.OFFLINE, profile.getStatusId());
+        assertEquals(8L, profile.getTokenVersion());
+        assertEquals("encoded-recovered-password", profile.getPassword());
+        verify(profileRepository).save(profile);
+    }
+
+    @Test
     void loginAcceptsUsernameWithDifferentLetterCase() {
         Profile profile = activeProfile(false);
         ProfileDTO credentials = credentials();
