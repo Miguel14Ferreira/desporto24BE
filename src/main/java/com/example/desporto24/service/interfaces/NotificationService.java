@@ -16,5 +16,6 @@ public interface NotificationService {
     void save(Notifications notifications);
     void deleteNotification(Notifications notifications);
     void deleteNotification(Long id, String username);
+    void deleteAllNotifications(String username);
     void markRead(Long id, String username);
 }
