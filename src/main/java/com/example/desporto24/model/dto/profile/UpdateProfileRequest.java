@@ -27,6 +27,13 @@ public record UpdateProfileRequest(
         String gender,
         @NotBlank @Email @Size(max = 254) String email,
         @Size(max = 255) String favoriteSports,
+        @Size(max = 280) String bio,
+        @Pattern(
+                regexp = "^$|(?i:BEGINNER|INTERMEDIATE|ADVANCED)",
+                message = "O nível deve ser BEGINNER, INTERMEDIATE ou ADVANCED"
+        )
+        String skillLevel,
+        @Size(max = 120) String availability,
         Boolean mfa
 ) {
     @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
