@@ -420,8 +420,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         ConfirmationToken confirmationToken = getValidConfirmationToken(token);
         confirmationTokenService.setConfirmedAt(token);
 
-        Profile profile = validateProfileForPasswordReset(confirmationToken.getProfile());
+        Profile profile = profileRepository.findUserByUsername(confirmationToken.getProfile())
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_EMAIL));
         updatePassword(profile, newPassword);
+        profile.setNotLocked(true);
+        profile.setLoginAttempts(0);
+        profile.setStatusId(OFFLINE);
         invalidateExistingTokens(profile);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         profileRepository.save(profile);
@@ -433,14 +437,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private void invalidateExistingTokens(Profile profile) {
         profile.setTokenVersion(profile.getTokenVersion() + 1);
-    }
-
-    private Profile validateProfileForPasswordReset(String username) throws UserNotFoundException, AccountDisabledException {
-        Profile profile = profileRepository.findUserByUsername(username).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_EMAIL));
-        if (Boolean.FALSE.equals(profile.getNotLocked())) {
-            throw new AccountDisabledException(ACCOUNT_DISABLED);
-        }
-        return profile;
     }
 
     private ConfirmationToken getValidConfirmationToken(String token) {
