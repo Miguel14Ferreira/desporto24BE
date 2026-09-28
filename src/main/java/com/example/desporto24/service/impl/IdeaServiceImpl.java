@@ -30,8 +30,8 @@ public class IdeaServiceImpl implements IdeaService {
         Ideas idea = new Ideas(
                 request.name().trim(),
                 request.email().trim(),
-                request.city().trim(),
-                request.gender(),
+                trimToEmpty(request.city()),
+                trimToEmpty(request.gender()),
                 request.subject().trim(),
                 request.problem().trim()
         );
@@ -98,11 +98,14 @@ public class IdeaServiceImpl implements IdeaService {
         return "<h2>Nova ideia recebida no DESPORTO24</h2>"
                 + "<p><strong>ID:</strong> " + idea.getId() + "</p>"
                 + "<p><strong>De:</strong> " + html(idea.getName()) + " &lt;" + html(idea.getEmail()) + "&gt;</p>"
-                + "<p><strong>Localidade:</strong> " + html(idea.getCity()) + "</p>"
-                + "<p><strong>Assunto:</strong> " + html(idea.getSubject()) + "</p>"
+                + "<p><strong>Categoria:</strong> " + html(idea.getSubject()) + "</p>"
                 + "<p><strong>Mensagem:</strong></p>"
                 + "<p>" + html(idea.getProblem()).replace("\n", "<br>") + "</p>"
                 + "<p>A sugestão ficou guardada com o estado <strong>Nova</strong> no painel de administração.</p>";
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String html(String value) {
