@@ -42,6 +42,8 @@ public class Profile implements Serializable {
     private Boolean NotLocked;
     private Boolean enabled;
     private Boolean MFA;
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
     private String role;
     private String[] authorities;
     private String lastLoginDateDisplay;
