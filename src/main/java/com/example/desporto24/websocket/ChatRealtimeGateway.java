@@ -23,7 +23,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
 
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileRepository profileRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     public ChatRealtimeGateway(
             JWTokenProvider jwtTokenProvider,
