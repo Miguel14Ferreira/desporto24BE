@@ -101,6 +101,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         loginAttemptService.handleLoginAttempt(profile.getUsername(), credentials.getPassword(), profile);
 
         if (Boolean.TRUE.equals(profile.getMFA())
+                && (profile.getMfaSecret() == null || profile.getMfaSecret().isBlank())) {
+            profile.setMFA(false);
+            profileRepository.save(profile);
+        }
+
+        if (Boolean.TRUE.equals(profile.getMFA())
                 && profile.getMfaSecret() != null
                 && !profile.getMfaSecret().isBlank()) {
             MFAVerification challenge = createMfaChallenge(profile);
