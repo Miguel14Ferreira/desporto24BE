@@ -32,6 +32,9 @@ public class CommunityRoundEntry {
     @JoinColumn(name = "profile_id", nullable = false)
     private Profile profile;
 
+    @Column(length = 100)
+    private String team;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private CommunityMatchResult result;
