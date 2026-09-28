@@ -19,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -43,10 +44,12 @@ public class SessionController {
             @RequestParam(required = false) String availability,
             @RequestParam(required = false) Boolean privateGame,
             @RequestParam(required = false) Boolean freeOnly,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) String sort) {
         return sessionService.discover(new SessionSearchCriteria(
                 sport, city, from, to, latitude, longitude, radiusKm,
-                availability, privateGame, freeOnly, sort
+                availability, privateGame, freeOnly, minPrice, maxPrice, sort
         ));
     }
 
