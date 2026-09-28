@@ -157,7 +157,7 @@ public class AuthenticationController {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .path("/api/auth")
                 .maxAge(Duration.ofMillis(refreshExpirationMs))
                 .build();
@@ -167,7 +167,7 @@ public class AuthenticationController {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .path("/api/auth")
                 .maxAge(Duration.ZERO)
                 .build();
