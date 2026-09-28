@@ -89,7 +89,7 @@ public class IdeaServiceImpl implements IdeaService {
         return "<h2>Obrigado pela tua mensagem</h2>"
                 + "<p>Recebemos a tua sugestão no Desporto24 com sucesso.</p>"
                 + "<p>A nossa equipa irá analisá-la no painel de gestão.</p>"
-                + "<p>Se precisares de falar connosco diretamente, responde para "
+                + "<p>Se precisares de falar connosco diretamente, envia-nos um email para "
                 + "<strong>" + MANAGEMENT_EMAIL + "</strong>.</p>"
                 + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
     }
