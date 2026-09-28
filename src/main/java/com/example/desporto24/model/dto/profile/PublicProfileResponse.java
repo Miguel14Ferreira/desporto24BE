@@ -13,4 +13,27 @@ public record PublicProfileResponse(
         String profilePicUrl,
         String joinDateDisplay
 ) {
+    public PublicProfileResponse(
+            String username,
+            String fullName,
+            String nickname,
+            String country,
+            String location,
+            String favoriteSports,
+            String profilePicUrl,
+            String joinDateDisplay) {
+        this(
+                username,
+                fullName,
+                nickname,
+                country,
+                location,
+                favoriteSports,
+                null,
+                null,
+                null,
+                profilePicUrl,
+                joinDateDisplay
+        );
+    }
 }
