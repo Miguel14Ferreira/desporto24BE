@@ -114,6 +114,36 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
+    public LoginResponse refresh(String refreshToken) {
+        String username = jwtTokenProvider.getSubject(refreshToken);
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        validateProfileStatus(profile);
+
+        if (profile.getTokenVersion() != jwtTokenProvider.getTokenVersion(refreshToken)
+                || !jwtTokenProvider.isRefreshTokenValid(username, refreshToken)) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+
+        String token = jwtTokenProvider.generateJwtToken(
+                new com.example.desporto24.model.ProfilePrincipal(profile)
+        );
+        return new LoginResponse(false, null, null, token, profileMapper.toDto(profile));
+    }
+
+    @Override
+    public String createRefreshToken(String username) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        validateProfileStatus(profile);
+
+        return jwtTokenProvider.generateRefreshToken(
+                new com.example.desporto24.model.ProfilePrincipal(profile)
+        );
+    }
+
+    @Override
     public LoginResponse resendMfa(String challengeId) {
         MFAVerification previousChallenge = mfaVerificationService.getByChallengeId(challengeId)
                 .orElseThrow(() -> new SMSNotFoundException(SMS_FAIL));
