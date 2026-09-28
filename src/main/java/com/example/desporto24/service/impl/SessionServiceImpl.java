@@ -7,6 +7,7 @@ import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
@@ -20,6 +21,8 @@ import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -57,6 +60,8 @@ public class SessionServiceImpl implements SessionService {
 
     private final SessionRepository sessionRepository;
     private final ProfileRepository profileRepository;
+    private final CommunityRepository communityRepository;
+    private final CommunityMemberRepository communityMemberRepository;
     private final SessionParticipantRepository participantRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionViewMapper sessionViewMapper;
@@ -81,6 +86,19 @@ public class SessionServiceImpl implements SessionService {
     public SessionDetailResponse create(CreateSessionRequest request, MultipartFile photo, String username) {
         Profile creator = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        Community linkedCommunity = null;
+        if (request.communityId() != null) {
+            linkedCommunity = communityRepository.findById(request.communityId())
+                    .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
+
+            if (!communityMemberRepository.existsByCommunityIdAndProfileId(
+                    linkedCommunity.getId(), creator.getId())) {
+                throw new AccessDeniedException(
+                        "Só membros da comunidade podem criar sessões associadas"
+                );
+            }
+        }
 
         if (!request.gameDate().isAfter(Instant.now())) {
             throw new IllegalArgumentException("Session date must be in the future");
@@ -107,6 +125,7 @@ public class SessionServiceImpl implements SessionService {
         session.setEnabled(true);
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
+        session.setCommunity(linkedCommunity);
 
         Session saved = sessionRepository.save(session);
 
