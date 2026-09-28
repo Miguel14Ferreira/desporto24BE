@@ -20,7 +20,12 @@ class SessionViewMapperPrivacyTest {
 
     private final SessionParticipantRepository participantRepository = mock(SessionParticipantRepository.class);
     private final SessionWaitlistRepository waitlistRepository = mock(SessionWaitlistRepository.class);
-    private final SessionViewMapper mapper = new SessionViewMapper(participantRepository, waitlistRepository);
+    private final VenueService venueService = mock(VenueService.class);
+    private final SessionViewMapper mapper = new SessionViewMapper(
+            participantRepository,
+            waitlistRepository,
+            venueService
+    );
 
     @Test
     void nonParticipantCannotSeeExactAddress() {
