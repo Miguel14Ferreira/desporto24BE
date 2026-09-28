@@ -17,6 +17,7 @@ import com.example.desporto24.register.token.ConfirmationToken;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.security.TotpService;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.interfaces.ProfileService;
@@ -59,6 +60,7 @@ class AuthenticationServiceImplTest {
     @Mock private BCryptPasswordEncoder passwordEncoder;
     @Mock private JWTokenProvider jwtTokenProvider;
     @Mock private ProfileMapper profileMapper;
+    @Mock private TotpService totpService;
 
     @Test
     void logoutInvalidatesExistingJwtVersion() {
@@ -306,7 +308,8 @@ class AuthenticationServiceImplTest {
                 passwordHashService,
                 passwordEncoder,
                 jwtTokenProvider,
-                profileMapper
+                profileMapper,
+                totpService
         );
         ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test");
         return service;
