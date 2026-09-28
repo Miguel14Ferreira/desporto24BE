@@ -11,6 +11,7 @@ public record CommunityResponse(
         String name,
         String description,
         String sport,
+        String photoUrl,
         CommunityVisibility visibility,
         boolean rankingsEnabled,
         String ownerUsername,
