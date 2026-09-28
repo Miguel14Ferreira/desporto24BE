@@ -90,9 +90,30 @@ public class CommunityController {
     @GetMapping("/{id}/competition")
     public ResponseEntity<CommunityCompetitionOverviewResponse> competitionOverview(
             @PathVariable Long id,
+            @RequestParam(required = false) Long seasonId,
             Authentication authentication) {
         return ResponseEntity.ok(
-                competitionService.overview(id, authentication.getName())
+                competitionService.overview(id, authentication.getName(), seasonId)
+        );
+    }
+
+    @PostMapping("/{id}/seasons")
+    public ResponseEntity<CommunitySeasonResponse> createSeason(
+            @PathVariable Long id,
+            @RequestBody @Valid CreateCommunitySeasonRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                competitionService.createSeason(id, authentication.getName(), request)
+        );
+    }
+
+    @PostMapping("/{id}/seasons/{seasonId}/close")
+    public ResponseEntity<CommunitySeasonResponse> closeSeason(
+            @PathVariable Long id,
+            @PathVariable Long seasonId,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                competitionService.closeSeason(id, seasonId, authentication.getName())
         );
     }
 
