@@ -7,6 +7,8 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityRoundEntry;
+import com.example.desporto24.model.community.CommunitySeason;
+import com.example.desporto24.model.dto.community.CreateCommunitySeasonRequest;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -99,6 +102,48 @@ class CommunityCompetitionServiceTest {
         assertEquals(100.0, leader.winRate());
         assertEquals("W2", leader.currentStreak());
         assertEquals(2, leader.bestWinStreak());
+    }
+
+    @Test
+    void createsAnActiveSeasonWhenNoSeasonIsOpen() {
+        Profile miguel = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder()
+                .id(7L)
+                .name("CNG")
+                .visibility(CommunityVisibility.PRIVATE)
+                .owner(miguel)
+                .rankingsEnabled(true)
+                .winPoints(3)
+                .drawPoints(1)
+                .lossPoints(0)
+                .createdAt(Instant.now())
+                .build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(miguel));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(
+                        community, miguel, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L))
+                .thenReturn(Optional.of(community));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
+                .thenReturn(Optional.empty());
+        when(seasonRepository.save(any(CommunitySeason.class)))
+                .thenAnswer(invocation -> {
+                    CommunitySeason season = invocation.getArgument(0);
+                    season.setId(44L);
+                    return season;
+                });
+
+        var result = service.createSeason(
+                7L,
+                "TMF14",
+                new CreateCommunitySeasonRequest("Época 2026/27", null)
+        );
+
+        assertEquals(44L, result.id());
+        assertEquals("Época 2026/27", result.name());
+        assertEquals(true, result.active());
     }
 
     private Profile profile(Long id, String username, String fullName) {
