@@ -9,6 +9,7 @@ public record FeedItemResponse(
         String authorDisplayName,
         String authorProfilePicUrl,
         String content,
+        String imageUrl,
         Instant createdAt,
         Long sessionId,
         String sport,
