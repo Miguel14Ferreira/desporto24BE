@@ -1,0 +1,332 @@
+package com.example.desporto24.service;
+
+import com.example.desporto24.enumeration.CommunityInviteStatus;
+import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.community.Community;
+import com.example.desporto24.model.community.CommunityInvite;
+import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.model.dto.community.*;
+import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.community.CommunityInviteRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class CommunityManagementService {
+
+    private final CommunityRepository communityRepository;
+    private final CommunityMemberRepository memberRepository;
+    private final CommunityInviteRepository inviteRepository;
+    private final ProfileRepository profileRepository;
+
+    public CommunityResponse create(String username, CreateCommunityRequest request) {
+        Profile owner = profile(username);
+
+        Community community = Community.builder()
+                .name(request.name().trim())
+                .description(trimToNull(request.description()))
+                .sport(trimToNull(request.sport()))
+                .visibility(request.visibility())
+                .owner(owner)
+                .rankingsEnabled(false)
+                .createdAt(Instant.now())
+                .build();
+
+        Community saved = communityRepository.save(community);
+
+        memberRepository.save(CommunityMember.builder()
+                .community(saved)
+                .profile(owner)
+                .role(CommunityRole.OWNER)
+                .joinedAt(Instant.now())
+                .build());
+
+        return toResponse(saved, owner);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityResponse> mine(String username) {
+        Profile current = profile(username);
+        return memberRepository.findByProfileIdOrderByJoinedAtDesc(current.getId()).stream()
+                .map(member -> toResponse(member.getCommunity(), current))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CommunityResponse get(Long communityId, String username) {
+        Profile current = profile(username);
+        Community community = community(communityId);
+
+        CommunityMember membership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, current.getId())
+                .orElse(null);
+
+        if (membership == null && community.getVisibility().name().equals("PRIVATE")) {
+            throw new SecurityException("Não tens acesso a esta comunidade");
+        }
+
+        return toResponse(community, current);
+    }
+
+    public CommunityInviteResponse invite(Long communityId, String username, InviteCommunityMemberRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        Profile invited = profile(request.username().trim());
+        if (memberRepository.existsByCommunityIdAndProfileId(communityId, invited.getId())) {
+            throw new IllegalArgumentException("Este utilizador já pertence à comunidade");
+        }
+
+        inviteRepository.findByCommunityIdAndInvitedProfileIdAndStatus(
+                communityId, invited.getId(), CommunityInviteStatus.PENDING
+        ).ifPresent(existing -> {
+            throw new IllegalArgumentException("Já existe um convite pendente para este utilizador");
+        });
+
+        Community community = community(communityId);
+        CommunityInvite invite = inviteRepository.save(CommunityInvite.builder()
+                .community(community)
+                .invitedProfile(invited)
+                .invitedBy(actor)
+                .status(CommunityInviteStatus.PENDING)
+                .createdAt(Instant.now())
+                .build());
+
+        return toInviteResponse(invite);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityInviteResponse> myInvites(String username) {
+        Profile current = profile(username);
+        return inviteRepository.findByInvitedProfileIdAndStatusOrderByCreatedAtDesc(
+                        current.getId(), CommunityInviteStatus.PENDING)
+                .stream()
+                .map(this::toInviteResponse)
+                .toList();
+    }
+
+    public CommunityResponse acceptInvite(Long inviteId, String username) {
+        Profile current = profile(username);
+        CommunityInvite invite = inviteRepository.findById(inviteId)
+                .orElseThrow(() -> new IllegalArgumentException("Convite não encontrado"));
+
+        requireInviteTarget(invite, current);
+        requirePending(invite);
+
+        Community community = invite.getCommunity();
+        if (!memberRepository.existsByCommunityIdAndProfileId(community.getId(), current.getId())) {
+            memberRepository.save(CommunityMember.builder()
+                    .community(community)
+                    .profile(current)
+                    .role(CommunityRole.MEMBER)
+                    .joinedAt(Instant.now())
+                    .build());
+        }
+
+        invite.setStatus(CommunityInviteStatus.ACCEPTED);
+        inviteRepository.save(invite);
+        return toResponse(community, current);
+    }
+
+    public void rejectInvite(Long inviteId, String username) {
+        Profile current = profile(username);
+        CommunityInvite invite = inviteRepository.findById(inviteId)
+                .orElseThrow(() -> new IllegalArgumentException("Convite não encontrado"));
+
+        requireInviteTarget(invite, current);
+        requirePending(invite);
+        invite.setStatus(CommunityInviteStatus.REJECTED);
+        inviteRepository.save(invite);
+    }
+
+    public CommunityResponse updateRole(
+            Long communityId,
+            String actorUsername,
+            String targetUsername,
+            UpdateCommunityRoleRequest request) {
+        Profile actor = profile(actorUsername);
+        CommunityMember actorMembership = requireOwner(communityId, actor);
+
+        Profile target = profile(targetUsername);
+        CommunityMember targetMembership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, target.getId())
+                .orElseThrow(() -> new IllegalArgumentException("O utilizador não pertence à comunidade"));
+
+        if (targetMembership.getRole() == CommunityRole.OWNER) {
+            throw new IllegalArgumentException("Usa a transferência de ownership para alterar o Owner");
+        }
+        if (request.role() == CommunityRole.OWNER) {
+            throw new IllegalArgumentException("Usa a transferência de ownership para definir um novo Owner");
+        }
+
+        targetMembership.setRole(request.role());
+        memberRepository.save(targetMembership);
+
+        return toResponse(actorMembership.getCommunity(), actor);
+    }
+
+    public void removeMember(Long communityId, String actorUsername, String targetUsername) {
+        Profile actor = profile(actorUsername);
+        requireAdmin(communityId, actor);
+
+        Profile target = profile(targetUsername);
+        CommunityMember targetMembership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, target.getId())
+                .orElseThrow(() -> new IllegalArgumentException("O utilizador não pertence à comunidade"));
+
+        if (targetMembership.getRole() == CommunityRole.OWNER) {
+            throw new IllegalArgumentException("O Owner não pode ser removido");
+        }
+
+        memberRepository.delete(targetMembership);
+    }
+
+    public void leave(Long communityId, String username) {
+        Profile current = profile(username);
+        CommunityMember membership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, current.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Não pertences a esta comunidade"));
+
+        if (membership.getRole() == CommunityRole.OWNER) {
+            throw new IllegalArgumentException("Transfere primeiro a ownership antes de sair");
+        }
+
+        memberRepository.delete(membership);
+    }
+
+    public CommunityResponse transferOwnership(
+            Long communityId,
+            String username,
+            TransferOwnershipRequest request) {
+        Profile current = profile(username);
+        CommunityMember currentMembership = requireOwner(communityId, current);
+
+        Profile newOwner = profile(request.username().trim());
+        CommunityMember newOwnerMembership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, newOwner.getId())
+                .orElseThrow(() -> new IllegalArgumentException("O novo Owner tem de ser membro da comunidade"));
+
+        currentMembership.setRole(CommunityRole.ADMIN);
+        newOwnerMembership.setRole(CommunityRole.OWNER);
+        memberRepository.save(currentMembership);
+        memberRepository.save(newOwnerMembership);
+
+        Community community = currentMembership.getCommunity();
+        community.setOwner(newOwner);
+        communityRepository.save(community);
+
+        return toResponse(community, current);
+    }
+
+    private CommunityResponse toResponse(Community community, Profile current) {
+        List<CommunityMember> memberships = memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId());
+        CommunityRole myRole = memberships.stream()
+                .filter(m -> m.getProfile().getId().equals(current.getId()))
+                .map(CommunityMember::getRole)
+                .findFirst()
+                .orElse(null);
+
+        List<CommunityMemberResponse> members = memberships.stream()
+                .sorted(Comparator.comparing(m -> roleOrder(m.getRole())))
+                .map(m -> new CommunityMemberResponse(
+                        m.getProfile().getId(),
+                        m.getProfile().getUsername(),
+                        m.getProfile().getFullName(),
+                        m.getProfile().getProfilePicUrl(),
+                        m.getRole()
+                ))
+                .toList();
+
+        return new CommunityResponse(
+                community.getId(),
+                community.getName(),
+                community.getDescription(),
+                community.getSport(),
+                community.getVisibility(),
+                community.isRankingsEnabled(),
+                community.getOwner().getUsername(),
+                myRole,
+                members.size(),
+                community.getCreatedAt(),
+                members
+        );
+    }
+
+    private int roleOrder(CommunityRole role) {
+        return switch (role) {
+            case OWNER -> 0;
+            case ADMIN -> 1;
+            case MEMBER -> 2;
+        };
+    }
+
+    private CommunityInviteResponse toInviteResponse(CommunityInvite invite) {
+        return new CommunityInviteResponse(
+                invite.getId(),
+                invite.getCommunity().getId(),
+                invite.getCommunity().getName(),
+                invite.getInvitedBy().getUsername(),
+                invite.getCreatedAt()
+        );
+    }
+
+    private Profile profile(String username) {
+        return profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new IllegalArgumentException("Utilizador não encontrado"));
+    }
+
+    private Community community(Long id) {
+        return communityRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
+    }
+
+    private CommunityMember requireAdmin(Long communityId, Profile actor) {
+        CommunityMember membership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new SecurityException("Não pertences a esta comunidade"));
+
+        if (membership.getRole() != CommunityRole.OWNER && membership.getRole() != CommunityRole.ADMIN) {
+            throw new SecurityException("Apenas Owners e Admins podem executar esta ação");
+        }
+        return membership;
+    }
+
+    private CommunityMember requireOwner(Long communityId, Profile actor) {
+        CommunityMember membership = memberRepository
+                .findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new SecurityException("Não pertences a esta comunidade"));
+
+        if (membership.getRole() != CommunityRole.OWNER) {
+            throw new SecurityException("Apenas o Owner pode executar esta ação");
+        }
+        return membership;
+    }
+
+    private void requireInviteTarget(CommunityInvite invite, Profile profile) {
+        if (!invite.getInvitedProfile().getId().equals(profile.getId())) {
+            throw new SecurityException("Este convite não te pertence");
+        }
+    }
+
+    private void requirePending(CommunityInvite invite) {
+        if (invite.getStatus() != CommunityInviteStatus.PENDING) {
+            throw new IllegalArgumentException("Este convite já não está pendente");
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+}
