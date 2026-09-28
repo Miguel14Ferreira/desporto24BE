@@ -12,6 +12,11 @@ import com.example.desporto24.repository.community.CommunityInviteRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
+import com.example.desporto24.storage.MediaStorage;
+
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +33,9 @@ public class CommunityManagementService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
     private final ProfileRepository profileRepository;
+
+    @Autowired(required = false)
+    private MediaStorage mediaStorage;
 
     public CommunityResponse create(String username, CreateCommunityRequest request) {
         Profile owner = profile(username);
@@ -76,6 +84,28 @@ public class CommunityManagementService {
         }
 
         return toResponse(community, current);
+    }
+
+    public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+        if (photo == null || photo.isEmpty()) {
+            throw new IllegalArgumentException("A fotografia é obrigatória");
+        }
+
+        Community community = community(communityId);
+        var uri = mediaStorage.store(
+                "communities/" + community.getId() + "/" + UUID.randomUUID(),
+                photo
+        );
+
+        community.setPhotoUrl(uri.toString());
+        Community saved = communityRepository.save(community);
+        return toResponse(saved, actor);
     }
 
     public CommunityInviteResponse invite(Long communityId, String username, InviteCommunityMemberRequest request) {
@@ -252,6 +282,7 @@ public class CommunityManagementService {
                 community.getName(),
                 community.getDescription(),
                 community.getSport(),
+                community.getPhotoUrl(),
                 community.getVisibility(),
                 community.isRankingsEnabled(),
                 community.getOwner().getUsername(),
