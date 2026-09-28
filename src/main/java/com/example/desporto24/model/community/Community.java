@@ -43,6 +43,15 @@ public class Community {
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;
 
+    @Column(name = "win_points")
+    private Integer winPoints;
+
+    @Column(name = "draw_points")
+    private Integer drawPoints;
+
+    @Column(name = "loss_points")
+    private Integer lossPoints;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }
