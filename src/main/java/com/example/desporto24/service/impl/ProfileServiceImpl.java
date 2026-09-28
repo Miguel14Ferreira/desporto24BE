@@ -194,6 +194,9 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setGender(request.gender());
         profile.setEmail(request.email());
         profile.setFavoriteSports(request.favoriteSports());
+        profile.setBio(request.bio());
+        profile.setSkillLevel(request.skillLevel());
+        profile.setAvailability(request.availability());
 
         Profile saved = profileRepository.save(profile);
         ProfileDTO updated = profileMapper.toDto(saved);
@@ -361,6 +364,9 @@ public class ProfileServiceImpl implements ProfileService {
         addChanged(changed, "Género", profile.getGender(), request.gender());
         addChanged(changed, "Email", profile.getEmail(), request.email());
         addChanged(changed, "Desportos favoritos", profile.getFavoriteSports(), request.favoriteSports());
+        addChanged(changed, "Bio desportiva", profile.getBio(), request.bio());
+        addChanged(changed, "Nível", profile.getSkillLevel(), request.skillLevel());
+        addChanged(changed, "Disponibilidade", profile.getAvailability(), request.availability());
 
         return changed;
     }
@@ -426,6 +432,9 @@ public class ProfileServiceImpl implements ProfileService {
                 dto.getCountry(),
                 dto.getLocation(),
                 dto.getFavoriteSports(),
+                dto.getBio(),
+                dto.getSkillLevel(),
+                dto.getAvailability(),
                 dto.getProfilePicUrl(),
                 publicJoinDate(profile)
         );
