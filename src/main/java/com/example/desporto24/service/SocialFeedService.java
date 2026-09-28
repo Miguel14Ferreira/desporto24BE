@@ -10,6 +10,8 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.social.ProfileFollowRepository;
 import com.example.desporto24.repository.social.SocialPostRepository;
+import com.example.desporto24.repository.social.SocialPostLikeRepository;
+import com.example.desporto24.repository.social.SocialPostCommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,6 +35,8 @@ public class SocialFeedService {
 
     private final SocialPostRepository postRepository;
     private final ProfileFollowRepository followRepository;
+    private final SocialPostLikeRepository likeRepository;
+    private final SocialPostCommentRepository commentRepository;
     private final ProfileRepository profileRepository;
     private final SessionRepository sessionRepository;
 
@@ -47,7 +51,7 @@ public class SocialFeedService {
                 .createdAt(Instant.now())
                 .build());
 
-        return postItem(post);
+        return postItem(post, author);
     }
 
     public void deletePost(Long postId, String username) {
@@ -90,7 +94,7 @@ public class SocialFeedService {
                         PageRequest.of(0, FEED_LIMIT));
 
         List<FeedItemResponse> items = new ArrayList<>();
-        posts.stream().map(this::postItem).forEach(items::add);
+        posts.stream().map(post -> postItem(post, actor)).forEach(items::add);
         sessions.stream().map(this::sessionItem).forEach(items::add);
 
         return items.stream()
@@ -99,7 +103,7 @@ public class SocialFeedService {
                 .toList();
     }
 
-    private FeedItemResponse postItem(SocialPost post) {
+    private FeedItemResponse postItem(SocialPost post, Profile viewer) {
         Profile author = post.getAuthor();
 
         return new FeedItemResponse(
@@ -113,7 +117,13 @@ public class SocialFeedService {
                 null,
                 null,
                 null,
-                null
+                null,
+                likeRepository.countByPostId(post.getId()),
+                likeRepository.existsByPostIdAndProfileId(
+                        post.getId(),
+                        viewer.getId()
+                ),
+                commentRepository.countByPostId(post.getId())
         );
     }
 
@@ -134,7 +144,10 @@ public class SocialFeedService {
                 session.getId(),
                 session.getSport(),
                 session.getCity(),
-                session.getGameDate() == null ? null : session.getGameDate().toInstant()
+                session.getGameDate() == null ? null : session.getGameDate().toInstant(),
+                0,
+                false,
+                0
         );
     }
 
