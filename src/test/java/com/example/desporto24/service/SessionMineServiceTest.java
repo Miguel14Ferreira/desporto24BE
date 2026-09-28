@@ -13,6 +13,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
+import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -40,6 +41,7 @@ class SessionMineServiceTest {
     @Mock private ProfileRepository profileRepository;
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository communityMemberRepository;
+    @Mock private VenueRepository venueRepository;
     @Mock private SessionParticipantRepository participantRepository;
     @Mock private SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
@@ -59,6 +61,7 @@ class SessionMineServiceTest {
                 profileRepository,
                 communityRepository,
                 communityMemberRepository,
+                venueRepository,
                 participantRepository,
                 waitlistRepository,
                 sessionViewMapper,
