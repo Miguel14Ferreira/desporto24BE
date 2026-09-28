@@ -134,17 +134,13 @@ class AuthenticationServiceImplTest {
         RegistrationRequest request = new RegistrationRequest(
                 TEST_USERNAME,
                 TEST_PASSWORD,
-                "Fixture User",
+                "Fixture",
                 "1990-01-01",
-                "Fixture Street",
                 "Portugal",
-                "Lisboa",
-                "1000-001",
                 "351",
                 "912345678",
                 "outro",
-                "fixture@example.test",
-                "Padel"
+                "fixture@example.test"
         );
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
