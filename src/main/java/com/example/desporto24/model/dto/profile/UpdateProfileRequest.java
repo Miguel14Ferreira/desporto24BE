@@ -12,6 +12,7 @@ import java.time.LocalDate;
 
 public record UpdateProfileRequest(
         @Size(max = 120) String fullName,
+        @Size(max = 80) String nickname,
         @Pattern(regexp = "^$|\\d{4}-\\d{2}-\\d{2}$", message = "A data de nascimento deve estar no formato yyyy-MM-dd")
         String dateOfBirth,
         @Size(max = 255) String address,
