@@ -8,6 +8,7 @@ import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.model.community.CommunityRoundEntry;
+import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
