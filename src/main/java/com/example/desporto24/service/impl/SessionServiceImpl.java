@@ -8,6 +8,7 @@ import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
+import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
@@ -23,6 +24,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
+import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -62,6 +64,7 @@ public class SessionServiceImpl implements SessionService {
     private final ProfileRepository profileRepository;
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
+    private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionViewMapper sessionViewMapper;
@@ -100,6 +103,12 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
+        Venue linkedVenue = null;
+        if (request.venueId() != null) {
+            linkedVenue = venueRepository.findById(request.venueId())
+                    .orElseThrow(() -> new IllegalArgumentException("Recinto não encontrado"));
+        }
+
         if (!request.gameDate().isAfter(Instant.now())) {
             throw new IllegalArgumentException("Session date must be in the future");
         }
@@ -113,19 +122,28 @@ public class SessionServiceImpl implements SessionService {
         session.setUserId(creator.getUserId());
         session.setSport(request.sport());
         session.setGameDate(Date.from(request.gameDate()));
-        session.setCity(request.city());
-        session.setAddress(request.address());
+        session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
+        session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
         session.setMaxParticipants(request.maxParticipants());
         session.setPriceAmount(request.priceAmount() == null ? BigDecimal.ZERO : request.priceAmount());
         session.setPrivateGame(request.privateGame());
         session.setPasswordHash(request.privateGame() ? passwordHashService.encode(request.password()) : null);
-        session.setLatitude(request.latitude());
-        session.setLongitude(request.longitude());
+        session.setLatitude(
+                linkedVenue != null && linkedVenue.getLatitude() != null
+                        ? linkedVenue.getLatitude()
+                        : request.latitude()
+        );
+        session.setLongitude(
+                linkedVenue != null && linkedVenue.getLongitude() != null
+                        ? linkedVenue.getLongitude()
+                        : request.longitude()
+        );
         session.setStatus(SessionStatus.OPEN);
         session.setEnabled(true);
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
         session.setCommunity(linkedCommunity);
+        session.setVenue(linkedVenue);
 
         Session saved = sessionRepository.save(session);
 
