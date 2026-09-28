@@ -37,6 +37,40 @@ public record UpdateProfileRequest(
         Boolean mfa
 ) {
     @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
+    public UpdateProfileRequest(
+            String fullName,
+            String nickname,
+            String dateOfBirth,
+            String address,
+            String country,
+            String location,
+            String postalCode,
+            String indicativePhone,
+            String phone,
+            String gender,
+            String email,
+            String favoriteSports,
+            Boolean mfa) {
+        this(
+                fullName,
+                nickname,
+                dateOfBirth,
+                address,
+                country,
+                location,
+                postalCode,
+                indicativePhone,
+                phone,
+                gender,
+                email,
+                favoriteSports,
+                null,
+                null,
+                null,
+                mfa
+        );
+    }
+
     public boolean isFavoriteSportsValid() {
         return SportsCatalog.isValidSelection(favoriteSports);
     }
