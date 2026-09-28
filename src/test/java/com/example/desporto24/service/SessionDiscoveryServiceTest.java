@@ -144,6 +144,25 @@ class SessionDiscoveryServiceTest {
     }
 
     @Test
+    void filtersByMinimumAndMaximumPrice() {
+        Session cheap = session(1L, "Futebol", "Queluz", null, null, 2, false, 10, 2);
+        Session match = session(2L, "Futebol", "Queluz", null, null, 6, false, 10, 2);
+        Session expensive = session(3L, "Futebol", "Queluz", null, null, 12, false, 10, 2);
+
+        stubCandidates(cheap, match, expensive);
+        stubSummary(match, null, 2);
+
+        SessionSearchCriteria criteria = new SessionSearchCriteria(
+                null, null, null, null, null, null, null,
+                null, null, null, BigDecimal.valueOf(5), BigDecimal.valueOf(10), "date"
+        );
+
+        List<SessionSummaryResponse> result = service.discover(criteria);
+
+        assertEquals(List.of(2L), result.stream().map(SessionSummaryResponse::id).toList());
+    }
+
+    @Test
     void supportsVacancyAndPriceSorting() {
         Session a = session(1L, "Futebol", "Queluz", null, null, 8, false, 10, 8);
         Session b = session(2L, "Futebol", "Queluz", null, null, 2, false, 10, 2);
@@ -209,7 +228,7 @@ class SessionDiscoveryServiceTest {
             String availability, Boolean privateGame, Boolean freeOnly, String sort) {
         return new SessionSearchCriteria(
                 sport, city, from, to, latitude, longitude, radiusKm,
-                availability, privateGame, freeOnly, sort
+                availability, privateGame, freeOnly, null, null, sort
         );
     }
 }
