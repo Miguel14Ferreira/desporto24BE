@@ -1,6 +1,5 @@
 package com.example.desporto24.model.dto.auth;
 
-import com.example.desporto24.constant.SportsCatalog;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -19,29 +18,16 @@ public record RegistrationRequest(
         @Size(min = 8, max = 128)
         String password,
 
-        @NotBlank
-        @Size(max = 120)
-        String fullName,
+        @Size(max = 80)
+        String nickname,
 
         @NotBlank
         @Pattern(regexp = "\\d{4}-\\d{2}-\\d{2}", message = "A data de nascimento deve estar no formato yyyy-MM-dd")
         String dateOfBirth,
 
         @NotBlank
-        @Size(max = 255)
-        String address,
-
-        @NotBlank
         @Size(max = 100)
         String country,
-
-        @NotBlank
-        @Size(max = 120)
-        String location,
-
-        @NotBlank
-        @Size(max = 32)
-        String postalCode,
 
         @NotBlank
         @Pattern(regexp = "\\d{1,4}", message = "O indicativo deve conter apenas dígitos")
@@ -51,9 +37,8 @@ public record RegistrationRequest(
         @Pattern(regexp = "\\d{4,15}", message = "O telemóvel deve conter apenas dígitos")
         String phone,
 
-        @NotBlank
         @Pattern(
-                regexp = "(?i)masculino|feminino|outro",
+                regexp = "^$|(?i:masculino|feminino|outro)",
                 message = "O género deve ser masculino, feminino ou outro"
         )
         String gender,
@@ -61,32 +46,19 @@ public record RegistrationRequest(
         @NotBlank
         @Email
         @Size(max = 254)
-        String email,
-
-        @NotBlank
-        @Size(max = 255)
-        String favoriteSports
+        String email
 ) {
 
     @AssertTrue(message = "Tens de ter pelo menos 18 anos e uma data de nascimento válida")
     public boolean isDateOfBirthValid() {
-        if (dateOfBirth == null || dateOfBirth.isBlank()) {
-            return true;
-        }
-
         try {
             LocalDate birthDate = LocalDate.parse(dateOfBirth);
             LocalDate today = LocalDate.now();
             return !birthDate.isAfter(today.minusYears(18))
                     && !birthDate.isBefore(today.minusYears(120));
-        } catch (DateTimeException exception) {
+        } catch (DateTimeException | NullPointerException exception) {
             return false;
         }
-    }
-
-    @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
-    public boolean isFavoriteSportsValid() {
-        return SportsCatalog.isValidSelection(favoriteSports);
     }
 
     @AssertTrue(message = "O número de telefone completo não pode exceder 15 dígitos")
@@ -96,7 +68,6 @@ public record RegistrationRequest(
                 || !phone.matches("\\d+")) {
             return true;
         }
-
         return indicativePhone.length() + phone.length() <= 15;
     }
 }
