@@ -8,5 +8,6 @@ import java.util.List;
 public interface CommunityRoundEntryRepository extends JpaRepository<CommunityRoundEntry, Long> {
     List<CommunityRoundEntry> findByRoundIdOrderByIdAsc(Long roundId);
     List<CommunityRoundEntry> findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(Long communityId);
+    List<CommunityRoundEntry> findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(Long seasonId);
     void deleteByRoundId(Long roundId);
 }
