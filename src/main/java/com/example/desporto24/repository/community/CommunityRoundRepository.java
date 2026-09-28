@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface CommunityRoundRepository extends JpaRepository<CommunityRound, Long> {
     List<CommunityRound> findByCommunityIdOrderByPlayedAtDescIdDesc(Long communityId);
+    List<CommunityRound> findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+            Long communityId, Long seasonId);
 }
