@@ -1,8 +1,10 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.community.*;
+import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityManagementService;
+import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ public class CommunityController {
 
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
+    private final CommunitySessionService communitySessionService;
 
     @PostMapping
     public ResponseEntity<CommunityResponse> create(
@@ -73,6 +76,15 @@ public class CommunityController {
             Authentication authentication) {
         service.rejectInvite(inviteId, authentication.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/sessions")
+    public ResponseEntity<List<SessionSummaryResponse>> sessions(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communitySessionService.sessions(id, authentication.getName())
+        );
     }
 
     @GetMapping("/{id}/competition")
