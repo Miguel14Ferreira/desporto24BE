@@ -1,0 +1,58 @@
+package com.example.desporto24.model.venue;
+
+import com.example.desporto24.model.Profile;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.Instant;
+
+@Entity
+@Table(name = "venue")
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Venue {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 140)
+    private String name;
+
+    @Column(nullable = false, length = 120)
+    private String city;
+
+    @Column(nullable = false, length = 255)
+    private String address;
+
+    @Column(length = 255)
+    private String sports;
+
+    @Column(name = "surface_type", length = 80)
+    private String surfaceType;
+
+    @Column(nullable = false)
+    private boolean indoor;
+
+    @Column(name = "changing_rooms", nullable = false)
+    private boolean changingRooms;
+
+    @Column(nullable = false)
+    private boolean parking;
+
+    @Column(nullable = false)
+    private boolean lighting;
+
+    private Double latitude;
+    private Double longitude;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_profile_id", nullable = false)
+    private Profile createdBy;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+}
