@@ -38,6 +38,16 @@ public class Profile implements Serializable {
     @Unique
     private String email;
     private String favoriteSports;
+
+    @Column(length = 280)
+    private String bio;
+
+    @Column(name = "skill_level", length = 32)
+    private String skillLevel;
+
+    @Column(length = 120)
+    private String availability;
+
     private String profilePicUrl;
     private int loginAttempts;
     private Boolean NotLocked;
