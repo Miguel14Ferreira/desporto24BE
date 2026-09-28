@@ -19,6 +19,7 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      Optional<Profile> findUserByPhone(String phone);
      Optional<Profile> findUserByOldEmail(String email);
      Optional<Profile> findUserByUserId(String userId);
+     Optional<Profile> findByGoogleSubject(String googleSubject);
 
      @Query(value = "SELECT p " +
              "FROM Profile p " +
