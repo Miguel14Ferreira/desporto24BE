@@ -12,17 +12,22 @@ import com.example.desporto24.repository.social.ProfileFollowRepository;
 import com.example.desporto24.repository.social.SocialPostRepository;
 import com.example.desporto24.repository.social.SocialPostLikeRepository;
 import com.example.desporto24.repository.social.SocialPostCommentRepository;
+import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -40,6 +45,9 @@ public class SocialFeedService {
     private final ProfileRepository profileRepository;
     private final SessionRepository sessionRepository;
 
+    @Autowired(required = false)
+    private MediaStorage mediaStorage;
+
     public FeedItemResponse createPost(
             String username,
             CreateSocialPostRequest request) {
@@ -48,6 +56,44 @@ public class SocialFeedService {
         SocialPost post = postRepository.save(SocialPost.builder()
                 .author(author)
                 .content(request.content().trim())
+                .createdAt(Instant.now())
+                .build());
+
+        return postItem(post, author);
+    }
+
+    public FeedItemResponse createPostWithImage(
+            String username,
+            String content,
+            MultipartFile image) {
+        String normalizedContent = content == null ? "" : content.trim();
+
+        if (normalizedContent.isBlank()) {
+            throw new IllegalArgumentException("A publicação não pode estar vazia");
+        }
+        if (normalizedContent.length() > 1000) {
+            throw new IllegalArgumentException("A publicação não pode ter mais de 1000 caracteres");
+        }
+        if (image == null || image.isEmpty()) {
+            return createPost(
+                    username,
+                    new CreateSocialPostRequest(normalizedContent)
+            );
+        }
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+
+        Profile author = profile(username);
+        String baseKey = "posts/" + author.getId() + "/" + UUID.randomUUID();
+        URI uri = mediaStorage.store(baseKey, image);
+        String storageKey = storageKey(uri);
+
+        SocialPost post = postRepository.save(SocialPost.builder()
+                .author(author)
+                .content(normalizedContent)
+                .imageUrl(uri.toString())
+                .imageStorageKey(storageKey)
                 .createdAt(Instant.now())
                 .build());
 
@@ -63,7 +109,18 @@ public class SocialFeedService {
             throw new AccessDeniedException("Só podes apagar as tuas publicações");
         }
 
+        likeRepository.deleteByPostId(postId);
+        commentRepository.deleteByPostId(postId);
         postRepository.delete(post);
+        postRepository.flush();
+
+        if (
+                mediaStorage != null
+                && post.getImageStorageKey() != null
+                && !post.getImageStorageKey().isBlank()
+        ) {
+            mediaStorage.delete(post.getImageStorageKey());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +170,7 @@ public class SocialFeedService {
                 displayName(author),
                 author.getProfilePicUrl(),
                 post.getContent(),
+                post.getImageUrl(),
                 post.getCreatedAt(),
                 null,
                 null,
@@ -140,6 +198,7 @@ public class SocialFeedService {
                 author == null ? session.getUsername() : displayName(author),
                 author == null ? null : author.getProfilePicUrl(),
                 null,
+                null,
                 createdAt,
                 session.getId(),
                 session.getSport(),
@@ -149,6 +208,25 @@ public class SocialFeedService {
                 false,
                 0
         );
+    }
+
+    private String storageKey(URI uri) {
+        String path = uri.getPath();
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+
+        int index = path.indexOf("/posts/");
+        if (index >= 0) {
+            return path.substring(index + 1);
+        }
+
+        index = path.indexOf("posts/");
+        if (index >= 0) {
+            return path.substring(index);
+        }
+
+        return path.startsWith("/") ? path.substring(1) : path;
     }
 
     private String displayName(Profile profile) {
