@@ -43,17 +43,13 @@ class AuthenticationControllerTest {
         RegistrationRequest request = new RegistrationRequest(
                 "miguel",
                 "password-123",
-                "Miguel Ferreira",
+                "Miguel",
                 "1990-01-01",
-                "Rua Teste",
                 "Portugal",
-                "Lisboa",
-                "1000-000",
                 "351",
                 "912345678",
                 "masculino",
-                "miguel@example.com",
-                "Padel"
+                "miguel@example.com"
         );
 
         var response = controller.registerUser(request, null);
