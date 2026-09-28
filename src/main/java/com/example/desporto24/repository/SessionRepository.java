@@ -26,6 +26,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             Collection<SessionStatus> statuses, Date gameDate);
 
     List<Session> findByProfileIdOrderByGameDateAsc(Long profileId);
+    long countByProfileId(Long profileId);
 
     List<Session> findByCommunityIdOrderByGameDateDesc(Long communityId);
 
