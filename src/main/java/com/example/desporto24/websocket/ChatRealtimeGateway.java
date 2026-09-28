@@ -2,6 +2,7 @@ package com.example.desporto24.websocket;
 
 import com.example.desporto24.model.Chat;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.dto.session.SessionMessageResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -109,6 +110,41 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             }
         } catch (RuntimeException ignored) {
             // Realtime delivery must never roll back a persisted chat message.
+        }
+    }
+
+    public void publishSessionChatMessage(
+            Set<String> usernames,
+            SessionMessageResponse message) {
+        if (usernames == null || usernames.isEmpty() || message == null) {
+            return;
+        }
+
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "SESSION_CHAT_MESSAGE")
+                    .set("message", objectMapper.valueToTree(message))
+                    .toString();
+
+            for (String username : usernames) {
+                Set<WebSocketSession> sessions = sessionsByUsername.get(username);
+                if (sessions == null || sessions.isEmpty()) {
+                    continue;
+                }
+
+                for (WebSocketSession session : sessions) {
+                    if (!session.isOpen()) {
+                        continue;
+                    }
+                    try {
+                        send(session, payload);
+                    } catch (IOException ignored) {
+                        // Persisted session chat remains the source of truth.
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Realtime delivery must never roll back a persisted message.
         }
     }
 
