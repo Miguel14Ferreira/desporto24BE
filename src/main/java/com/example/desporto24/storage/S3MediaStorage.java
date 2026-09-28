@@ -23,11 +23,10 @@ import java.net.URI;
 public class S3MediaStorage implements MediaStorage {
 
     private final MediaStorageProperties properties;
-    private final S3Client s3Client;
+    private volatile S3Client s3Client;
 
     public S3MediaStorage(MediaStorageProperties properties) {
         this.properties = properties;
-        this.s3Client = buildClient(properties);
     }
 
     @Override
@@ -36,7 +35,7 @@ public class S3MediaStorage implements MediaStorage {
         String objectKey = key + media.extension();
         MediaStorageProperties.S3 s3 = properties.getS3();
 
-        s3Client.putObject(
+        client().putObject(
                 PutObjectRequest.builder()
                         .bucket(required(s3.getBucket(), "desporto.media.s3.bucket"))
                         .key(objectKey)
@@ -56,10 +55,24 @@ public class S3MediaStorage implements MediaStorage {
     @Override
     public void delete(String key) {
         MediaStorageProperties.S3 s3 = properties.getS3();
-        s3Client.deleteObject(DeleteObjectRequest.builder()
+        client().deleteObject(DeleteObjectRequest.builder()
                 .bucket(required(s3.getBucket(), "desporto.media.s3.bucket"))
                 .key(key)
                 .build());
+    }
+
+    private S3Client client() {
+        S3Client current = s3Client;
+        if (current != null) {
+            return current;
+        }
+
+        synchronized (this) {
+            if (s3Client == null) {
+                s3Client = buildClient(properties);
+            }
+            return s3Client;
+        }
     }
 
     private static S3Client buildClient(MediaStorageProperties properties) {
