@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record CommunityRoundEntryRequest(
         @NotBlank String username,
+        String team,
         @NotNull CommunityMatchResult result,
         @Min(0) Integer goals,
         @Min(0) Integer assists,
