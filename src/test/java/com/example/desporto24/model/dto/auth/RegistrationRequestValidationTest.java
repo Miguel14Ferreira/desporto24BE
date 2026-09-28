@@ -27,8 +27,7 @@ class RegistrationRequestValidationTest {
     @Test
     void blankRequiredFieldsAreRejected() {
         RegistrationRequest request = new RegistrationRequest(
-                "", "", "", "", "", "", "", "",
-                "", "", "", "", ""
+                "", "", null, "", "", "", "", null, ""
         );
 
         assertFalse(validator.validate(request).isEmpty());
@@ -93,17 +92,13 @@ class RegistrationRequestValidationTest {
         RegistrationRequest request = new RegistrationRequest(
                 "fixture-user",
                 "not-a-real-password",
-                "Fixture User",
+                "Fixture",
                 "1995-05-30",
-                "Fixture Street",
                 "Portugal",
-                "Lisboa",
-                "1000-001",
                 "1234",
                 "123456789012",
                 "outro",
-                "fixture@example.test",
-                "Padel"
+                "fixture@example.test"
         );
 
         assertFalse(validator.validate(request).isEmpty());
@@ -119,6 +114,15 @@ class RegistrationRequestValidationTest {
     }
 
     @Test
+    void blankGenderIsAccepted() {
+        RegistrationRequest request = copyWith(
+                validRequest(), "gender", ""
+        );
+
+        assertTrue(validator.validate(request).isEmpty());
+    }
+
+    @Test
     void malformedEmailIsRejected() {
         RegistrationRequest request = copyWith(
                 validRequest(), "email", "not-an-email"
@@ -131,17 +135,13 @@ class RegistrationRequestValidationTest {
         return new RegistrationRequest(
                 "fixture-user",
                 "not-a-real-password",
-                "Fixture User",
+                "Fixture",
                 "1995-05-30",
-                "Fixture Street",
                 "Portugal",
-                "Lisboa",
-                "1000-001",
                 "351",
                 "912345678",
                 "outro",
-                "fixture@example.test",
-                "Padel"
+                "fixture@example.test"
         );
     }
 
@@ -152,17 +152,13 @@ class RegistrationRequestValidationTest {
         return new RegistrationRequest(
                 field.equals("username") ? value : source.username(),
                 field.equals("password") ? value : source.password(),
-                field.equals("fullName") ? value : source.fullName(),
+                field.equals("nickname") ? value : source.nickname(),
                 field.equals("dateOfBirth") ? value : source.dateOfBirth(),
-                field.equals("address") ? value : source.address(),
                 field.equals("country") ? value : source.country(),
-                field.equals("location") ? value : source.location(),
-                field.equals("postalCode") ? value : source.postalCode(),
                 field.equals("indicativePhone") ? value : source.indicativePhone(),
                 field.equals("phone") ? value : source.phone(),
                 field.equals("gender") ? value : source.gender(),
-                field.equals("email") ? value : source.email(),
-                field.equals("favoriteSports") ? value : source.favoriteSports()
+                field.equals("email") ? value : source.email()
         );
     }
 }
