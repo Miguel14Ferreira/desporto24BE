@@ -26,6 +26,12 @@ public class SocialPost {
     @Column(nullable = false, length = 1000)
     private String content;
 
+    @Column(name = "image_url", length = 1200)
+    private String imageUrl;
+
+    @Column(name = "image_storage_key", length = 800)
+    private String imageStorageKey;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }
