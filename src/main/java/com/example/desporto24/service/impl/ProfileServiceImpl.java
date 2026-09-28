@@ -177,6 +177,10 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         String previousEmail = profile.getEmail();
+        String previousAddress = decryptSafely(profile.getAddress(), profile.getUserId());
+        String previousPhone = decryptSafely(profile.getPhone(), profile.getUserId());
+        List<String> changedFields = detectProfileChanges(profile, request, previousAddress, previousPhone);
+        boolean emailChanged = !Objects.equals(previousEmail, request.email());
 
         profile.setFullName(request.fullName());
         profile.setDateOfBirth(request.dateOfBirth());
@@ -193,7 +197,27 @@ public class ProfileServiceImpl implements ProfileService {
         Profile saved = profileRepository.save(profile);
         ProfileDTO updated = profileMapper.toDto(saved);
         updated.setOldEmail(previousEmail);
-        sendUpdateProfileEmail(updated);
+
+        if (!changedFields.isEmpty()) {
+            if (emailChanged) {
+                sendProfileSecurityEmail(
+                        previousEmail,
+                        updated.getEmail(),
+                        updated.getUsername(),
+                        "Alteração de email",
+                        "O endereço de email associado à tua conta DESPORTO24 foi alterado."
+                );
+                createSecurityNotification(
+                        updated.getUsername(),
+                        "Alteração de email",
+                        "O endereço de email associado à tua conta foi alterado. "
+                                + "Se não foste tu, redefine imediatamente a tua palavra-passe."
+                );
+            } else {
+                createProfileUpdateNotification(updated.getUsername(), changedFields);
+            }
+        }
+
         return updated;
     }
 
@@ -236,6 +260,19 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setPassword(passwordHashService.encode(request.newPassword()));
         profile.setTokenVersion(profile.getTokenVersion() + 1);
         profileRepository.save(profile);
+
+        sendProfileSecurityEmail(
+                profile.getEmail(),
+                profile.getEmail(),
+                profile.getUsername(),
+                "Palavra-passe alterada",
+                "A palavra-passe da tua conta DESPORTO24 foi alterada."
+        );
+        createSecurityNotification(
+                profile.getUsername(),
+                "Palavra-passe alterada",
+                "A tua palavra-passe foi alterada. Se não foste tu, redefine-a imediatamente."
+        );
     }
 
     @Override
@@ -252,23 +289,18 @@ public class ProfileServiceImpl implements ProfileService {
         saveProfileImage(profile, photo);
         sendUpdateProfileEmail(profile);
     }
-    private void sendUpdateProfileEmail(ProfileDTO profileDTO) {
-        String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
-        String emailBody = buildChangeProfileEmail(profileDTO.getUsername(), resetLink);
+    private void createProfileUpdateNotification(String username, List<String> changedFields) {
+        String fields = String.join(", ", changedFields);
+        String subject = "Perfil atualizado";
+        String message = "Foram atualizados os seguintes dados do teu perfil: " + fields + ".";
+        createNotification(username, subject, message, false);
+    }
 
-        if (profileDTO.getOldEmail() != null
-                && !profileDTO.getOldEmail().isBlank()
-                && !profileDTO.getOldEmail().equals(profileDTO.getEmail())) {
-            emailService.send(profileDTO.getOldEmail(), emailBody);
-        }
+    private void createSecurityNotification(String username, String subject, String message) {
+        createNotification(username, subject, message, true);
+    }
 
-        if (profileDTO.getEmail() != null && !profileDTO.getEmail().isBlank()) {
-            emailService.send(profileDTO.getEmail(), emailBody);
-        }
-
-        String subject = "Alteração de dados de perfil";
-        String message = "Foram feitas alterações aos dados do teu perfil. "
-                + "Se não foste tu, redefine imediatamente a tua palavra-passe.";
+    private void createNotification(String username, String subject, String message, boolean security) {
         String greeting = "Cumprimentos,";
         String signature = "DESPORTO24 MANAGEMENT TEAM";
         String displayDate = java.time.Instant.now().toString();
@@ -284,9 +316,68 @@ public class ProfileServiceImpl implements ProfileService {
                 false,
                 false,
                 null,
-                profileDTO.getUsername()
+                username
         );
         notificationsRepository.save(notification);
+    }
+
+    private void sendProfileSecurityEmail(
+            String oldEmail,
+            String currentEmail,
+            String username,
+            String title,
+            String description) {
+        String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
+        String emailBody = buildSecurityEmail(username, title, description, resetLink);
+
+        if (oldEmail != null && !oldEmail.isBlank()) {
+            emailService.send(oldEmail, emailBody);
+        }
+
+        if (currentEmail != null
+                && !currentEmail.isBlank()
+                && !Objects.equals(oldEmail, currentEmail)) {
+            emailService.send(currentEmail, emailBody);
+        }
+    }
+
+    private List<String> detectProfileChanges(
+            Profile profile,
+            UpdateProfileRequest request,
+            String previousAddress,
+            String previousPhone) {
+        List<String> changed = new ArrayList<>();
+
+        addChanged(changed, "Nome", profile.getFullName(), request.fullName());
+        addChanged(changed, "Data de nascimento", profile.getDateOfBirth(), request.dateOfBirth());
+        addChanged(changed, "Morada", previousAddress, request.address());
+        addChanged(changed, "País", profile.getCountry(), request.country());
+        addChanged(changed, "Localização", profile.getLocation(), request.location());
+        addChanged(changed, "Código postal", profile.getPostalCode(), request.postalCode());
+        addChanged(changed, "Indicativo telefónico", profile.getIndicativePhone(), request.indicativePhone());
+        addChanged(changed, "Telefone", previousPhone, request.phone());
+        addChanged(changed, "Género", profile.getGender(), request.gender());
+        addChanged(changed, "Email", profile.getEmail(), request.email());
+        addChanged(changed, "Desportos favoritos", profile.getFavoriteSports(), request.favoriteSports());
+
+        return changed;
+    }
+
+    private void addChanged(List<String> changed, String label, Object before, Object after) {
+        if (!Objects.equals(before, after)) {
+            changed.add(label);
+        }
+    }
+
+    private String decryptSafely(String value, String userId) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return AES.decryptString(value, userId);
+        } catch (RuntimeException exception) {
+            return value;
+        }
     }
 
     @Override
@@ -347,10 +438,10 @@ public class ProfileServiceImpl implements ProfileService {
         return new java.text.SimpleDateFormat("MM/yyyy").format(profile.getJoinDate());
     }
 
-    private String buildChangeProfileEmail(String name, String link) {
-        return "<h2>Alteração de dados pessoais</h2>"
+    private String buildSecurityEmail(String name, String title, String description, String link) {
+        return "<h2>" + title + "</h2>"
                 + "<p>Olá " + name + ",</p>"
-                + "<p>Foram alterados dados pessoais no teu perfil Desporto24.</p>"
+                + "<p>" + description + "</p>"
                 + "<p>Se foste tu, não precisas de fazer nada.</p>"
                 + "<p>Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe:</p>"
                 + "<p><a href=\"" + link + "\">Redefinir palavra-passe</a></p>"
