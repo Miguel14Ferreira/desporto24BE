@@ -113,6 +113,7 @@ public class CommunityCompetitionService {
             entries.add(CommunityRoundEntry.builder()
                     .round(round)
                     .profile(player)
+                    .team(trimToNull(requestEntry.team()))
                     .result(requestEntry.result())
                     .goals(valueOrZero(requestEntry.goals()))
                     .assists(valueOrZero(requestEntry.assists()))
@@ -216,6 +217,7 @@ public class CommunityCompetitionService {
                         entry.getProfile().getUsername(),
                         entry.getProfile().getFullName(),
                         entry.getProfile().getProfilePicUrl(),
+                        entry.getTeam(),
                         entry.getResult(),
                         entry.getGoals(),
                         entry.getAssists(),
@@ -277,6 +279,12 @@ public class CommunityCompetitionService {
 
     private int valueOrZero(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static final class StandingAccumulator {
