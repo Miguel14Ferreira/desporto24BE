@@ -258,17 +258,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
         profileDTO.setPassword(request.password());
-        profileDTO.setFullName(request.fullName());
+        profileDTO.setNickname(trimToNull(request.nickname()));
         profileDTO.setDateOfBirth(request.dateOfBirth());
-        profileDTO.setAddress(request.address());
-        profileDTO.setCountry(request.country());
-        profileDTO.setLocation(request.location());
-        profileDTO.setPostalCode(request.postalCode());
-        profileDTO.setIndicativePhone(request.indicativePhone());
-        profileDTO.setPhone(request.phone());
-        profileDTO.setGender(request.gender());
+        profileDTO.setCountry(request.country().trim());
+        profileDTO.setIndicativePhone(request.indicativePhone().trim());
+        profileDTO.setPhone(request.phone().trim());
+        profileDTO.setGender(trimToNull(request.gender()));
         profileDTO.setEmail(request.email().trim());
-        profileDTO.setFavoriteSports(request.favoriteSports());
         profileDTO.setNotLocked(true);
         profileDTO.setEnabled(previewMode);
         profileDTO.setMFA(false);
@@ -287,6 +283,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } else {
             sendSignUpEmail(profileDTO);
         }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String resolveMfaPhone(Profile profile) {
