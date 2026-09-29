@@ -63,6 +63,9 @@ public class Venue {
     @Column
     private Boolean lockers;
 
+    @Column
+    private Boolean accessible;
+
     @Column(nullable = false)
     private boolean parking;
 
