@@ -20,6 +20,11 @@ public class Venue {
         OFFICIAL
     }
 
+    public enum OwnershipType {
+        PUBLIC,
+        PRIVATE
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,6 +43,10 @@ public class Venue {
 
     @Column(name = "venue_type", length = 80)
     private String venueType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ownership_type", length = 20)
+    private OwnershipType ownershipType;
 
     @Column(name = "surface_type", length = 80)
     private String surfaceType;
