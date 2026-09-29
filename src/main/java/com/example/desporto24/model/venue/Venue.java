@@ -15,6 +15,11 @@ import java.time.Instant;
 @AllArgsConstructor
 public class Venue {
 
+    public enum InformationSource {
+        COMMUNITY,
+        OFFICIAL
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -48,6 +53,11 @@ public class Venue {
 
     private Double latitude;
     private Double longitude;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "information_source", length = 20)
+    @Builder.Default
+    private InformationSource informationSource = InformationSource.COMMUNITY;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_profile_id", nullable = false)
