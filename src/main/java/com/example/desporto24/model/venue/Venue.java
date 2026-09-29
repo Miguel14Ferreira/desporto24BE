@@ -57,6 +57,9 @@ public class Venue {
     @Column(name = "changing_rooms", nullable = false)
     private boolean changingRooms;
 
+    @Column
+    private Boolean toilets;
+
     @Column(nullable = false)
     private boolean parking;
 
