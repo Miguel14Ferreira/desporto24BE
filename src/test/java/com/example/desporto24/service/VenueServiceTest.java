@@ -57,6 +57,8 @@ class VenueServiceTest {
                         true,
                         true,
                         true,
+                        true,
+                        true,
                         38.72,
                         -9.14
                 ),
@@ -71,6 +73,8 @@ class VenueServiceTest {
         assertEquals(Boolean.TRUE, response.toilets());
         assertEquals(Boolean.TRUE, response.lockers());
         assertEquals(Boolean.TRUE, response.accessible());
+        assertEquals(Boolean.TRUE, response.firstAid());
+        assertEquals(Boolean.TRUE, response.aed());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());

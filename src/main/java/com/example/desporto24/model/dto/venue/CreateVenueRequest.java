@@ -17,6 +17,8 @@ public record CreateVenueRequest(
         Boolean toilets,
         Boolean lockers,
         Boolean accessible,
+        Boolean firstAid,
+        Boolean aed,
         boolean parking,
         boolean lighting,
         Double latitude,
