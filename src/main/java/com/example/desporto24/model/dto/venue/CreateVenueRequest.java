@@ -14,6 +14,7 @@ public record CreateVenueRequest(
         @Size(max = 80) String surfaceType,
         boolean indoor,
         boolean changingRooms,
+        Boolean toilets,
         boolean parking,
         boolean lighting,
         Double latitude,

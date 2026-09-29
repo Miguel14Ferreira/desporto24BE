@@ -60,6 +60,7 @@ public class VenueService {
                 .surfaceType(trimToNull(request.surfaceType()))
                 .indoor(request.indoor())
                 .changingRooms(request.changingRooms())
+                .toilets(request.toilets())
                 .parking(request.parking())
                 .lighting(request.lighting())
                 .latitude(request.latitude())
@@ -88,6 +89,7 @@ public class VenueService {
                 venue.getSurfaceType(),
                 venue.isIndoor(),
                 venue.isChangingRooms(),
+                venue.getToilets(),
                 venue.isParking(),
                 venue.isLighting(),
                 venue.getLatitude(),

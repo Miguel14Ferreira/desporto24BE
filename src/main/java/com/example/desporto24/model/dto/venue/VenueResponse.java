@@ -11,6 +11,7 @@ public record VenueResponse(
         String surfaceType,
         boolean indoor,
         boolean changingRooms,
+        Boolean toilets,
         boolean parking,
         boolean lighting,
         Double latitude,
