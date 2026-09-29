@@ -23,6 +23,7 @@ public record CreateVenueRequest(
         @Size(max = 500) String services,
         @Size(max = 500) String transport,
         @Size(max = 1000) String openingHours,
+        @Size(max = 255) String priceInfo,
         boolean parking,
         boolean lighting,
         Double latitude,

@@ -69,6 +69,7 @@ public class VenueService {
                 .services(trimToNull(request.services()))
                 .transport(trimToNull(request.transport()))
                 .openingHours(trimToNull(request.openingHours()))
+                .priceInfo(trimToNull(request.priceInfo()))
                 .parking(request.parking())
                 .lighting(request.lighting())
                 .latitude(request.latitude())
@@ -106,6 +107,7 @@ public class VenueService {
                 venue.getServices(),
                 venue.getTransport(),
                 venue.getOpeningHours(),
+                venue.getPriceInfo(),
                 venue.isParking(),
                 venue.isLighting(),
                 venue.getLatitude(),

@@ -61,6 +61,7 @@ class VenueServiceTest {
                         "Bar, aluguer de material",
                         "Metro e autocarros próximos",
                         "Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00",
+                        "25€/hora",
                         true,
                         true,
                         38.72,
@@ -83,6 +84,7 @@ class VenueServiceTest {
         assertEquals("Bar, aluguer de material", response.services());
         assertEquals("Metro e autocarros próximos", response.transport());
         assertEquals("Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00", response.openingHours());
+        assertEquals("25€/hora", response.priceInfo());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());
