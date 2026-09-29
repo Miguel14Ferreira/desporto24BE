@@ -61,6 +61,7 @@ class VenueServiceTest {
         assertEquals(9L, response.id());
         assertEquals("Pavilhão Central", response.name());
         assertEquals("Madeira", response.surfaceType());
+        assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());
         assertTrue(response.parking());

@@ -88,8 +88,15 @@ public class VenueService {
                 venue.isLighting(),
                 venue.getLatitude(),
                 venue.getLongitude(),
+                informationSource(venue),
                 venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername()
         );
+    }
+
+    private String informationSource(Venue venue) {
+        return venue.getInformationSource() == null
+                ? Venue.InformationSource.COMMUNITY.name()
+                : venue.getInformationSource().name();
     }
 
     private String normalize(String value) {

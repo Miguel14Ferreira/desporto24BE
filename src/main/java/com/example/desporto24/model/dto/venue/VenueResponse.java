@@ -13,6 +13,7 @@ public record VenueResponse(
         boolean lighting,
         Double latitude,
         Double longitude,
+        String informationSource,
         String createdByUsername
 ) {
 }
