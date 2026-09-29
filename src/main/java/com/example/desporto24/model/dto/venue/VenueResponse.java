@@ -6,6 +6,7 @@ public record VenueResponse(
         String city,
         String address,
         String sports,
+        String venueType,
         String surfaceType,
         boolean indoor,
         boolean changingRooms,

@@ -47,6 +47,7 @@ class VenueServiceTest {
                         "Lisboa",
                         "Rua do Desporto 10",
                         "Futsal",
+                        "Pavilhão",
                         "Madeira",
                         true,
                         true,
@@ -60,6 +61,7 @@ class VenueServiceTest {
 
         assertEquals(9L, response.id());
         assertEquals("Pavilhão Central", response.name());
+        assertEquals("Pavilhão", response.venueType());
         assertEquals("Madeira", response.surfaceType());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());

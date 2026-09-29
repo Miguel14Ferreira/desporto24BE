@@ -8,6 +8,7 @@ public record CreateVenueRequest(
         @NotBlank @Size(max = 120) String city,
         @NotBlank @Size(max = 255) String address,
         @Size(max = 255) String sports,
+        @Size(max = 80) String venueType,
         @Size(max = 80) String surfaceType,
         boolean indoor,
         boolean changingRooms,

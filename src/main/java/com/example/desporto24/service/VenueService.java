@@ -55,6 +55,7 @@ public class VenueService {
                 .city(request.city().trim())
                 .address(request.address().trim())
                 .sports(trimToNull(request.sports()))
+                .venueType(trimToNull(request.venueType()))
                 .surfaceType(trimToNull(request.surfaceType()))
                 .indoor(request.indoor())
                 .changingRooms(request.changingRooms())
@@ -81,6 +82,7 @@ public class VenueService {
                 venue.getCity(),
                 venue.getAddress(),
                 venue.getSports(),
+                venue.getVenueType(),
                 venue.getSurfaceType(),
                 venue.isIndoor(),
                 venue.isChangingRooms(),
