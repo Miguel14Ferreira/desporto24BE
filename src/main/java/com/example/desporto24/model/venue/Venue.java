@@ -36,6 +36,9 @@ public class Venue {
     @Column(length = 255)
     private String sports;
 
+    @Column(name = "venue_type", length = 80)
+    private String venueType;
+
     @Column(name = "surface_type", length = 80)
     private String surfaceType;
 
