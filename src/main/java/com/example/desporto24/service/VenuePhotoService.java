@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.model.venue.VenuePhoto;
 import com.example.desporto24.repository.ProfileRepository;
@@ -31,7 +32,7 @@ public class VenuePhotoService {
     @Autowired(required = false)
     private MediaStorage mediaStorage;
 
-    public VenuePhoto addPhoto(Long venueId, String username, MultipartFile photo) {
+    public VenuePhotoResponse addPhoto(Long venueId, String username, MultipartFile photo) {
         if (mediaStorage == null) {
             throw new IllegalStateException("Media storage is not configured");
         }
@@ -49,12 +50,23 @@ public class VenuePhotoService {
         String storageKey = "venues/" + venueId + "/" + UUID.randomUUID();
         var uri = mediaStorage.store(storageKey, photo);
 
-        return venuePhotoRepository.save(VenuePhoto.builder()
+        VenuePhoto saved = venuePhotoRepository.save(VenuePhoto.builder()
                 .venue(venue)
                 .photoUrl(uri.toString())
                 .storageKey(storageKey)
                 .uploadedBy(uploader)
                 .createdAt(Instant.now())
                 .build());
+
+        return toResponse(saved);
+    }
+
+    private VenuePhotoResponse toResponse(VenuePhoto photo) {
+        return new VenuePhotoResponse(
+                photo.getId(),
+                photo.getPhotoUrl(),
+                photo.getUploadedBy() == null ? null : photo.getUploadedBy().getUsername(),
+                photo.getCreatedAt()
+        );
     }
 }
