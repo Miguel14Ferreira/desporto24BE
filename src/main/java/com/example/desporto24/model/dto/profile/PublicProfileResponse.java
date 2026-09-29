@@ -10,6 +10,7 @@ public record PublicProfileResponse(
         String bio,
         String skillLevel,
         String availability,
+        Integer age,
         String profilePicUrl,
         String joinDateDisplay
 ) {
@@ -29,6 +30,7 @@ public record PublicProfileResponse(
                 country,
                 location,
                 favoriteSports,
+                null,
                 null,
                 null,
                 null,

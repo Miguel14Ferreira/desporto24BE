@@ -85,6 +85,33 @@ public class ProfileController extends ExceptionHandling {
         );
     }
 
+    @GetMapping("/search")
+    @Operation(
+            summary = "Find compatible sports profiles",
+            description = "Search public profiles by optional sport, location, age, level and name filters."
+    )
+    public ResponseEntity<List<PublicProfileResponse>> searchProfiles(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String sport,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Integer minAge,
+            @RequestParam(required = false) Integer maxAge,
+            @RequestParam(required = false) String skillLevel,
+            Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.searchPublicProfiles(
+                        authentication.getName(),
+                        name,
+                        sport,
+                        location,
+                        minAge,
+                        maxAge,
+                        skillLevel
+                ),
+                OK
+        );
+    }
+
     @GetMapping("/name/{name}")
     @Operation(summary = "Search Public Profiles by Name", description = "Search public profile fields using a partial or full username.")
     public ResponseEntity<List<PublicProfileResponse>> getProfileByName(@PathVariable String name) {

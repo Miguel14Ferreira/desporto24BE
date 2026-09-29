@@ -31,6 +31,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.*;
 
 import static com.example.desporto24.constant.FileConstant.*;
@@ -417,8 +419,56 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public List<PublicProfileResponse> searchPublicProfiles(
+            String actorUsername,
+            String name,
+            String sport,
+            String location,
+            Integer minAge,
+            Integer maxAge,
+            String skillLevel) {
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw new IllegalArgumentException("A idade mínima não pode ser superior à idade máxima");
+        }
+
+        String normalizedName = blankToNull(name);
+        String normalizedSport = blankToNull(sport);
+        String normalizedLocation = blankToNull(location);
+        String normalizedSkillLevel = blankToNull(skillLevel);
+
+        return profileRepository.searchPublicCandidates(
+                        actorUsername,
+                        normalizedName,
+                        normalizedSport,
+                        normalizedLocation,
+                        normalizedSkillLevel,
+                        PageRequest.of(0, 100)
+                )
+                .stream()
+                .filter(profile -> matchesAge(profile, minAge, maxAge))
+                .limit(50)
+                .map(this::toPublicProfile)
+                .toList();
+    }
+
+    @Override
     public List<PublicProfileResponse> discoverPublicProfiles(String username) {
-        return profileRepository.discoverProfiles(username, PageRequest.of(0, 12)).stream()
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        return profileRepository.discoverProfiles(username, PageRequest.of(0, 100))
+                .stream()
+                .sorted((left, right) -> {
+                    int scoreCompare = Integer.compare(
+                            compatibilityScore(actor, right),
+                            compatibilityScore(actor, left)
+                    );
+                    if (scoreCompare != 0) {
+                        return scoreCompare;
+                    }
+                    return Long.compare(right.getId(), left.getId());
+                })
+                .limit(12)
                 .map(this::toPublicProfile)
                 .toList();
     }
@@ -435,9 +485,107 @@ public class ProfileServiceImpl implements ProfileService {
                 dto.getBio(),
                 dto.getSkillLevel(),
                 dto.getAvailability(),
+                ageOf(profile.getDateOfBirth()),
                 dto.getProfilePicUrl(),
                 publicJoinDate(profile)
         );
+    }
+
+    private int compatibilityScore(Profile actor, Profile candidate) {
+        int score = 0;
+
+        Set<String> actorSports = normalizedSports(actor.getFavoriteSports());
+        Set<String> candidateSports = normalizedSports(candidate.getFavoriteSports());
+        long sharedSports = actorSports.stream()
+                .filter(candidateSports::contains)
+                .count();
+        score += (int) sharedSports * 5;
+
+        if (sameNormalized(actor.getLocation(), candidate.getLocation())) {
+            score += 4;
+        }
+
+        if (sameNormalized(actor.getSkillLevel(), candidate.getSkillLevel())) {
+            score += 2;
+        }
+
+        Integer actorAge = ageOf(actor.getDateOfBirth());
+        Integer candidateAge = ageOf(candidate.getDateOfBirth());
+        if (actorAge != null && candidateAge != null) {
+            int difference = Math.abs(actorAge - candidateAge);
+            if (difference <= 5) {
+                score += 2;
+            } else if (difference <= 10) {
+                score += 1;
+            }
+        }
+
+        if (sameNormalized(actor.getAvailability(), candidate.getAvailability())) {
+            score += 1;
+        }
+
+        return score;
+    }
+
+    private boolean matchesAge(Profile profile, Integer minAge, Integer maxAge) {
+        if (minAge == null && maxAge == null) {
+            return true;
+        }
+
+        Integer age = ageOf(profile.getDateOfBirth());
+        if (age == null) {
+            return false;
+        }
+
+        return (minAge == null || age >= minAge)
+                && (maxAge == null || age <= maxAge);
+    }
+
+    private Integer ageOf(String dateOfBirth) {
+        if (dateOfBirth == null || dateOfBirth.isBlank()) {
+            return null;
+        }
+
+        try {
+            LocalDate birthDate = LocalDate.parse(dateOfBirth.trim());
+            LocalDate today = LocalDate.now(java.time.ZoneId.of("Europe/Lisbon"));
+            if (birthDate.isAfter(today)) {
+                return null;
+            }
+            return Period.between(birthDate, today).getYears();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private Set<String> normalizedSports(String sports) {
+        if (sports == null || sports.isBlank()) {
+            return Set.of();
+        }
+
+        Set<String> values = new HashSet<>();
+        for (String sport : sports.split(",")) {
+            String normalized = sport.trim().toLowerCase(Locale.ROOT);
+            if (!normalized.isBlank()) {
+                values.add(normalized);
+            }
+        }
+        return values;
+    }
+
+    private boolean sameNormalized(String left, String right) {
+        return left != null
+                && right != null
+                && !left.isBlank()
+                && left.trim().equalsIgnoreCase(right.trim());
+    }
+
+    private String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private String publicJoinDate(Profile profile) {
