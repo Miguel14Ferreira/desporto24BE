@@ -81,6 +81,9 @@ public class Venue {
     @Column(length = 500)
     private String transport;
 
+    @Column(name = "opening_hours", length = 1000)
+    private String openingHours;
+
     @Column(nullable = false)
     private boolean parking;
 
