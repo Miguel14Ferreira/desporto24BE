@@ -72,6 +72,12 @@ public class Venue {
     @Column
     private Boolean aed;
 
+    @Column
+    private Boolean cafe;
+
+    @Column(length = 500)
+    private String services;
+
     @Column(nullable = false)
     private boolean parking;
 
