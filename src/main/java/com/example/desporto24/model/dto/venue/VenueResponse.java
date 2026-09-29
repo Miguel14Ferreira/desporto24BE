@@ -13,6 +13,7 @@ public record VenueResponse(
         boolean changingRooms,
         Boolean toilets,
         Boolean lockers,
+        Boolean accessible,
         boolean parking,
         boolean lighting,
         Double latitude,
