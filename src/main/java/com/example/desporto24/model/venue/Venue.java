@@ -66,6 +66,12 @@ public class Venue {
     @Column
     private Boolean accessible;
 
+    @Column(name = "first_aid")
+    private Boolean firstAid;
+
+    @Column
+    private Boolean aed;
+
     @Column(nullable = false)
     private boolean parking;
 
