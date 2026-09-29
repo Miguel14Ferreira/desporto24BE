@@ -67,6 +67,7 @@ public class VenueService {
                 .aed(request.aed())
                 .cafe(request.cafe())
                 .services(trimToNull(request.services()))
+                .transport(trimToNull(request.transport()))
                 .parking(request.parking())
                 .lighting(request.lighting())
                 .latitude(request.latitude())
@@ -102,6 +103,7 @@ public class VenueService {
                 venue.getAed(),
                 venue.getCafe(),
                 venue.getServices(),
+                venue.getTransport(),
                 venue.isParking(),
                 venue.isLighting(),
                 venue.getLatitude(),
