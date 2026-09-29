@@ -36,6 +36,11 @@ public class VenueController {
         return venueService.get(id);
     }
 
+    @GetMapping("/{id}/photos")
+    public List<VenuePhotoResponse> listPhotos(@PathVariable Long id) {
+        return venuePhotoService.listPhotos(id);
+    }
+
     @PostMapping
     public ResponseEntity<VenueResponse> create(
             @RequestBody @Valid CreateVenueRequest request,
