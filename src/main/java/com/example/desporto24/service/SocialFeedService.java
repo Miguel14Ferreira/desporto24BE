@@ -6,12 +6,14 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.social.CreateSocialPostRequest;
 import com.example.desporto24.model.dto.social.FeedItemResponse;
 import com.example.desporto24.model.social.SocialPost;
+import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.social.ProfileFollowRepository;
 import com.example.desporto24.repository.social.SocialPostRepository;
 import com.example.desporto24.repository.social.SocialPostLikeRepository;
 import com.example.desporto24.repository.social.SocialPostCommentRepository;
+import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,7 @@ public class SocialFeedService {
     private final SocialPostCommentRepository commentRepository;
     private final ProfileRepository profileRepository;
     private final SessionRepository sessionRepository;
+    private final SessionParticipantRepository participantRepository;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -150,9 +153,16 @@ public class SocialFeedService {
                         authorIds,
                         PageRequest.of(0, FEED_LIMIT));
 
+        List<SessionParticipant> attendedSessions =
+                participantRepository.findPublicAttendanceFeed(
+                        authorIds,
+                        PageRequest.of(0, FEED_LIMIT)
+                );
+
         List<FeedItemResponse> items = new ArrayList<>();
         posts.stream().map(post -> postItem(post, actor)).forEach(items::add);
         sessions.stream().map(this::sessionItem).forEach(items::add);
+        attendedSessions.stream().map(this::attendanceItem).forEach(items::add);
 
         return items.stream()
                 .sorted((left, right) -> right.createdAt().compareTo(left.createdAt()))
@@ -204,6 +214,32 @@ public class SocialFeedService {
                 session.getSport(),
                 session.getCity(),
                 session.getGameDate() == null ? null : session.getGameDate().toInstant(),
+                0,
+                false,
+                0
+        );
+    }
+
+    private FeedItemResponse attendanceItem(
+            SessionParticipant participant) {
+        Profile author = participant.getProfile();
+        Session session = participant.getSession();
+
+        return new FeedItemResponse(
+                "SESSION_ATTENDED",
+                null,
+                author.getUsername(),
+                displayName(author),
+                author.getProfilePicUrl(),
+                null,
+                null,
+                participant.getAttendanceRecordedAt(),
+                session.getId(),
+                session.getSport(),
+                session.getCity(),
+                session.getGameDate() == null
+                        ? null
+                        : session.getGameDate().toInstant(),
                 0,
                 false,
                 0
