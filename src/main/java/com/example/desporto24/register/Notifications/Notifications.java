@@ -38,6 +38,9 @@ public class Notifications {
     @Column(name = "session_id")
     private Long sessionId;
 
+    @Column(name = "related_username")
+    private String relatedUsername;
+
     @Column(name = "read", nullable = false)
     private boolean read;
 

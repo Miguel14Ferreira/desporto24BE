@@ -4,9 +4,13 @@ import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
+import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
+import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -35,6 +39,9 @@ class SessionCreationServiceTest {
 
     @Mock private SessionRepository sessionRepository;
     @Mock private ProfileRepository profileRepository;
+    @Mock private CommunityRepository communityRepository;
+    @Mock private CommunityMemberRepository communityMemberRepository;
+    @Mock private VenueRepository venueRepository;
     @Mock private SessionParticipantRepository participantRepository;
     @Mock private SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
@@ -87,6 +94,58 @@ class SessionCreationServiceTest {
     }
 
     @Test
+    void savedVenueOverridesManualLocation() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        Venue venue = Venue.builder()
+                .id(44L)
+                .name("Pavilhão Central")
+                .city("Lisboa")
+                .address("Rua do Desporto 10")
+                .latitude(38.72)
+                .longitude(-9.14)
+                .createdBy(creator)
+                .build();
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+        when(venueRepository.findById(44L))
+                .thenReturn(Optional.of(venue));
+        when(sessionRepository.save(any(Session.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futsal",
+                Instant.now().plusSeconds(3600),
+                "Outra cidade",
+                "Outra morada",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                null,
+                null,
+                null,
+                44L
+        );
+
+        service().create(request, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository).save(captor.capture());
+
+        Session saved = captor.getValue();
+        assertSame(venue, saved.getVenue());
+        assertEquals("Lisboa", saved.getCity());
+        assertEquals("Rua do Desporto 10", saved.getAddress());
+        assertEquals(38.72, saved.getLatitude());
+        assertEquals(-9.14, saved.getLongitude());
+    }
+
+    @Test
     void optionalPhotoIsStoredAndSavedAsSessionImageUrl() {
         Profile creator = new Profile();
         creator.setId(7L);
@@ -134,6 +193,9 @@ class SessionCreationServiceTest {
         SessionServiceImpl service = new SessionServiceImpl(
                 sessionRepository,
                 profileRepository,
+                communityRepository,
+                communityMemberRepository,
+                venueRepository,
                 participantRepository,
                 waitlistRepository,
                 sessionViewMapper,

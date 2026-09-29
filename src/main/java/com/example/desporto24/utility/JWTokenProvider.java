@@ -27,14 +27,38 @@ public class JWTokenProvider {
     @Value("${desporto.app.jwtSecret}")
     private String secret;
 
+    @Value("${desporto.app.jwtExpirationMs:1800000}")
+    private long expirationTimeMs;
+
+    @Value("${desporto.app.refreshExpirationMs:604800000}")
+    private long refreshExpirationTimeMs;
+
     public String generateJwtToken(ProfilePrincipal profilePrincipal){
         String [] claims = getClaimsFromPerfil(profilePrincipal);
         return JWT.create().withIssuer(DESPORTO_24).withAudience(DESPORTO_24_ADMINISTRATION)
                 .withIssuedAt(new Date()).withSubject(profilePrincipal.getUsername())
                 .withArrayClaim(AUTHORITIES, claims)
                 .withClaim(TOKEN_VERSION, profilePrincipal.getProfile().getTokenVersion())
-                .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .withClaim(TOKEN_TYPE, ACCESS_TOKEN_TYPE)
+                .withExpiresAt(new Date(System.currentTimeMillis() + expirationTimeMs))
                 .sign(HMAC512(secret.getBytes()));
+    }
+
+    public String generateRefreshToken(ProfilePrincipal profilePrincipal) {
+        return JWT.create().withIssuer(DESPORTO_24).withAudience(DESPORTO_24_ADMINISTRATION)
+                .withIssuedAt(new Date()).withSubject(profilePrincipal.getUsername())
+                .withClaim(TOKEN_VERSION, profilePrincipal.getProfile().getTokenVersion())
+                .withClaim(TOKEN_TYPE, REFRESH_TOKEN_TYPE)
+                .withExpiresAt(new Date(System.currentTimeMillis() + refreshExpirationTimeMs))
+                .sign(HMAC512(secret.getBytes()));
+    }
+
+    public boolean isRefreshTokenValid(String username, String token) {
+        JWTVerifier verifier = getJWTVerifier();
+        String type = verifier.verify(token).getClaim(TOKEN_TYPE).asString();
+        return REFRESH_TOKEN_TYPE.equals(type)
+                && StringUtils.isNotEmpty(username)
+                && !isTokenExpired(verifier, token);
     }
 
     public List<GrantedAuthority> getAuthorities(String token){
@@ -55,7 +79,10 @@ public class JWTokenProvider {
 
     public boolean isTokenValid(String username, String token){
         JWTVerifier verifier = getJWTVerifier();
-        return StringUtils.isNotEmpty(username) && !isTokenExpired(verifier, token);
+        String type = verifier.verify(token).getClaim(TOKEN_TYPE).asString();
+        return (type == null || ACCESS_TOKEN_TYPE.equals(type))
+                && StringUtils.isNotEmpty(username)
+                && !isTokenExpired(verifier, token);
     }
 
     public String getSubject(String token){
@@ -86,7 +113,6 @@ public class JWTokenProvider {
         }
         return verifier;
     }
-
 
     private String[] getClaimsFromPerfil(ProfilePrincipal perfil) {
         List<String> authorithies = new ArrayList<>();

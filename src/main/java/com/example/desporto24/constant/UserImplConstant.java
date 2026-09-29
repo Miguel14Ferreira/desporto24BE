@@ -17,6 +17,7 @@ public class UserImplConstant {
     public static final String TOKEN_ALREADY_CONFIRMED = "Este código de verificação de email já foi confirmado, podes aceder à tua conta";
     public static final String TOKEN_EXPIRED = "Este código de verificação de email foi expirado, tenta novamente";
     public static final String NEW_USER_REGISTERED = "Foi enviado um mail para o email inserido, após a confirmação do email será possível efetuar o login no site.";
+    public static final String CONFIRMATION_EMAIL_RESENT = "Foi enviado um novo email de confirmação. Verifica a tua caixa de entrada.";
     public static final String SMS_RESENT = "Foi-te enviado um novo código através de SMS";
     public static final String SMS_FAIL = "O código introduzido está incorreto, por favor tenta novamente";
     public static final String SMS_ALREADY_CONFIRMED = "O código introduzido já foi confirmado, por favor pede um novo";

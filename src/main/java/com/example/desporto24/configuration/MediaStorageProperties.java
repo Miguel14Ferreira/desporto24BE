@@ -13,9 +13,15 @@ public class MediaStorageProperties {
     private String provider = "local";
     private String localRoot = "./data/media";
     private String publicBaseUrl = "";
-    private String s3Bucket = "";
-    private String s3Region = "auto";
-    private String s3Endpoint = "";
-    private String s3AccessKey = "";
-    private String s3SecretKey = "";
+    private S3 s3 = new S3();
+
+    @Getter
+    @Setter
+    public static class S3 {
+        private String bucket = "";
+        private String region = "auto";
+        private String endpoint = "";
+        private String accessKey = "";
+        private String secretKey = "";
+    }
 }

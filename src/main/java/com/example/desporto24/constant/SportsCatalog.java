@@ -1,0 +1,143 @@
+package com.example.desporto24.constant;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+public final class SportsCatalog {
+
+    private SportsCatalog() {
+    }
+
+    public static final Set<String> ALLOWED = Set.of(
+            "Aeromodelismo",
+            "Aikido",
+            "Andebol",
+            "Apneia",
+            "Artes Marciais Chinesas",
+            "Atividades Subaquáticas",
+            "Atletismo",
+            "Automobilismo",
+            "Badminton",
+            "Basebol",
+            "Basquetebol",
+            "Basquetebol 3x3",
+            "Bilhar",
+            "BMX",
+            "Bodyboard",
+            "Boxe",
+            "Breaking",
+            "Bridge",
+            "Calistenia",
+            "Caminhada",
+            "Campismo",
+            "Canoagem",
+            "Canoagem Slalom",
+            "Canoagem Velocidade",
+            "Ciclismo",
+            "Ciclismo de Estrada",
+            "Ciclismo de Pista",
+            "Ciclocrosse",
+            "Columbofilia",
+            "Corfebol",
+            "Corrida",
+            "Cricket",
+            "Curling",
+            "Damas",
+            "Dança Desportiva",
+            "Escalada",
+            "Esgrima",
+            "Esqui",
+            "Esqui Alpino",
+            "Esqui de Fundo",
+            "Esqui Freestyle",
+            "Esqui de Montanha",
+            "Flag Football",
+            "Futebol",
+            "Futebol Americano",
+            "Futevólei",
+            "Futsal",
+            "Ginásio",
+            "Ginástica",
+            "Ginástica Artística",
+            "Ginástica Rítmica",
+            "Golfe",
+            "Halterofilismo",
+            "Hóquei",
+            "Hóquei em Campo",
+            "Hóquei em Patins",
+            "Hóquei no Gelo",
+            "Jiu-Jitsu",
+            "Jiu-Jitsu Brasileiro",
+            "Judo",
+            "Karaté",
+            "Karting",
+            "Kempo",
+            "Kickboxing",
+            "Kung Fu",
+            "Lacrosse",
+            "Luta Greco-Romana",
+            "Luta Livre Olímpica",
+            "Mergulho",
+            "Montanhismo",
+            "Motociclismo",
+            "Motocross",
+            "Motonáutica",
+            "Mountain Bike",
+            "Muay Thai",
+            "Musculação",
+            "Natação",
+            "Natação Artística",
+            "Natação em Águas Abertas",
+            "Orientação",
+            "Padel",
+            "Paraquedismo",
+            "Parkour",
+            "Patinagem",
+            "Patinagem Artística",
+            "Patinagem de Velocidade",
+            "Pentatlo Moderno",
+            "Pesca Desportiva",
+            "Petanca",
+            "Pickleball",
+            "Pilates",
+            "Polo Aquático",
+            "Powerlifting",
+            "Remo",
+            "Rugby",
+            "Rugby Sevens",
+            "Skate",
+            "Snowboard",
+            "Softbol",
+            "Squash",
+            "Stand Up Paddle",
+            "Surf",
+            "Taekwondo",
+            "Ténis",
+            "Ténis de mesa",
+            "Tiro",
+            "Tiro com Arco",
+            "Trail Running",
+            "Trampolim",
+            "Triatlo",
+            "Vela",
+            "Voo Livre",
+            "Voleibol",
+            "Voleibol de Praia",
+            "Xadrez",
+            "Yoga"
+    );
+
+    public static boolean isValidSelection(String favoriteSports) {
+        if (favoriteSports == null || favoriteSports.isBlank()) {
+            return true;
+        }
+
+        Set<String> selected = Arrays.stream(favoriteSports.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .collect(Collectors.toSet());
+
+        return !selected.isEmpty() && selected.stream().allMatch(ALLOWED::contains);
+    }
+}

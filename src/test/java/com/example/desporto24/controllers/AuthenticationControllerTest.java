@@ -7,6 +7,7 @@ import com.example.desporto24.model.dto.auth.PasswordResetInitiateRequest;
 import com.example.desporto24.model.dto.auth.PasswordResetConfirmRequest;
 import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
+import com.example.desporto24.security.SensitiveActionRateLimiter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,6 +32,9 @@ class AuthenticationControllerTest {
     @Mock
     private Authentication authentication;
 
+    @Mock
+    private SensitiveActionRateLimiter sensitiveActionRateLimiter;
+
     @InjectMocks
     private AuthenticationController controller;
 
@@ -39,17 +43,13 @@ class AuthenticationControllerTest {
         RegistrationRequest request = new RegistrationRequest(
                 "miguel",
                 "password-123",
-                "Miguel Ferreira",
+                "Miguel",
                 "1990-01-01",
-                "Rua Teste",
                 "Portugal",
-                "Lisboa",
-                "1000-000",
                 "351",
                 "912345678",
                 "masculino",
-                "miguel@example.com",
-                "Padel"
+                "miguel@example.com"
         );
 
         var response = controller.registerUser(request, null);

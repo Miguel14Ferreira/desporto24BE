@@ -6,9 +6,9 @@ import jakarta.validation.constraints.Size;
 
 public record IdeaSubmissionRequest(
         @NotBlank @Size(max = 120) String name,
-        @NotBlank @Size(max = 120) String city,
+        @Size(max = 120) String city,
         @NotBlank @Email @Size(max = 255) String email,
-        @NotBlank @Size(max = 32) String gender,
+        @Size(max = 32) String gender,
         @NotBlank @Size(max = 160) String subject,
         @NotBlank @Size(max = 4000) String problem
 ) {

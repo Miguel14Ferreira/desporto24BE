@@ -35,6 +35,14 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
             Long profileId,
             Collection<AttendanceStatus> attendanceStatuses);
 
+    List<SessionParticipant> findByProfileIdAndAttendanceStatusOrderByAttendanceRecordedAtDesc(
+            Long profileId,
+            AttendanceStatus attendanceStatus);
+
+    List<SessionParticipant> findBySessionIdAndAttendanceStatusOrderByJoinedAtAsc(
+            Long sessionId,
+            AttendanceStatus attendanceStatus);
+
     @Query("""
             select p from SessionParticipant p
             join fetch p.session s

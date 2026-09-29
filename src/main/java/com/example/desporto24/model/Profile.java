@@ -26,6 +26,7 @@ public class Profile implements Serializable {
     private String newUsername;
     private String password;
     private String fullName;
+    private String nickname;
     private String dateOfBirth;
     private String address;
     private String country;
@@ -37,11 +38,27 @@ public class Profile implements Serializable {
     @Unique
     private String email;
     private String favoriteSports;
+
+    @Column(length = 280)
+    private String bio;
+
+    @Column(name = "skill_level", length = 32)
+    private String skillLevel;
+
+    @Column(length = 120)
+    private String availability;
+
     private String profilePicUrl;
     private int loginAttempts;
     private Boolean NotLocked;
     private Boolean enabled;
     private Boolean MFA;
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
+
+    @Column(name = "google_subject", unique = true)
+    private String googleSubject;
+
     private String role;
     private String[] authorities;
     private String lastLoginDateDisplay;

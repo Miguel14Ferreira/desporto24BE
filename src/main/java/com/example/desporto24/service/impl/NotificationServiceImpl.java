@@ -6,6 +6,7 @@ import com.example.desporto24.exception.TokenNotFoundException;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Friend;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.Status;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.register.FriendRequest.FriendRequest;
 import com.example.desporto24.register.FriendRequest.FriendRequestService;
@@ -20,6 +21,7 @@ import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +47,9 @@ public class NotificationServiceImpl implements NotificationService {
     private final FriendRepository friendRepository;
     private final ProfileRepository profileRepository;
 
+    @Value("${ui.app.url}")
+    private String uiAppUrl;
+
     @Override
     public List<Notifications> getNotificationsFromProfile(String username) {
         return notificationsRepository.findByUsername(username);
@@ -56,15 +61,30 @@ public class NotificationServiceImpl implements NotificationService {
         if (!authenticatedUsername.equals(profileDTO.getUsername())) {
             throw new AccessDeniedException("Cannot disable another user's account");
         }
-        profileDTO.setNotLocked(false);
-        profileService.save(profileDTO);
-        String token = createConfirmationToken(profileDTO.getUsername());
-        String link = generateLink("/confirmEmergencyToken/resetPassword/" + token + "/" + profileDTO.getOldEmail());
-        emailService.send(profileDTO.getOldEmail(), buildEmergencyResetPasswordMail(profileDTO.getUsername(), link));
+        blockOwnAccount(authenticatedUsername);
     }
 
-    private String generateLink(String path) {
-        return fromCurrentContextPath().path(path).toUriString();
+    @Override
+    public void blockOwnAccount(String username) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (Boolean.FALSE.equals(profile.getNotLocked())) {
+            return;
+        }
+
+        profile.setNotLocked(false);
+        profile.setStatusId(Status.OFFLINE);
+        profile.setTokenVersion(profile.getTokenVersion() + 1);
+        profileRepository.save(profile);
+
+        String token = createConfirmationToken(profile.getUsername());
+        String link = uiAppUrl.replaceAll("/+$", "")
+                + "/login/resetPassword/" + token;
+        emailService.send(
+                profile.getEmail(),
+                buildAccountLockedRecoveryEmail(profile.getUsername(), link)
+        );
     }
 
     private String createConfirmationToken(String username) {
@@ -146,6 +166,11 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void deleteAllNotifications(String username) {
+        notificationsRepository.deleteByUsername(username);
+    }
+
+    @Override
     public void markRead(Long id, String username) {
         Notifications notification = getOwnedNotification(id, username);
         if (!notification.isRead()) {
@@ -186,6 +211,17 @@ public class NotificationServiceImpl implements NotificationService {
             throw new TokenExpiredException(TOKEN_EXPIRED);
         }
         return friendRequest;
+    }
+
+    private String buildAccountLockedRecoveryEmail(String name, String link) {
+        return "<h2>Acessos à conta bloqueados</h2>"
+                + "<p>Olá " + name + ",</p>"
+                + "<p>Os acessos à tua conta DESPORTO24 foram bloqueados por motivos de segurança.</p>"
+                + "<p>Todos os tokens de sessão anteriores deixaram de ser válidos.</p>"
+                + "<p>Para recuperares o acesso, define uma nova palavra-passe através deste link:</p>"
+                + "<p><a href=\"" + link + "\">Recuperar e desbloquear conta</a></p>"
+                + "<p>O link expira em 15 minutos.</p>"
+                + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
     }
 
     private String buildEmergencyResetPasswordMail(String name, String link) {

@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
@@ -145,7 +146,7 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
-    public ProfileDTO updateMyProfile(String username, UpdateProfileRequest request, MultipartFile photo) {
+    public ProfileDTO updateMyProfile(String username, UpdateProfileRequest request) {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
@@ -157,45 +158,94 @@ public class ProfileServiceImpl implements ProfileService {
                     });
         }
 
-        if (request.phone() != null && !Objects.equals(profile.getPhone(), request.phone())) {
-            profileRepository.findUserByPhone(request.phone())
-                    .filter(existing -> !existing.getId().equals(profile.getId()))
-                    .ifPresent(existing -> {
+        String currentPhone = AES.decryptString(profile.getPhone(), profile.getUserId());
+        if (request.phone() != null && !Objects.equals(currentPhone, request.phone())) {
+            for (Profile existing : profileRepository.findAll()) {
+                if (existing.getId().equals(profile.getId()) || existing.getPhone() == null) {
+                    continue;
+                }
+
+                try {
+                    String existingPhone = AES.decryptString(existing.getPhone(), existing.getUserId());
+                    if (Objects.equals(existingPhone, request.phone())) {
                         throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                    });
+                    }
+                } catch (RuntimeException ignored) {
+                    // Ignore legacy/corrupted phone values here; they must not block the update.
+                }
+            }
         }
 
         String previousEmail = profile.getEmail();
+        String previousAddress = decryptSafely(profile.getAddress(), profile.getUserId());
+        String previousPhone = decryptSafely(profile.getPhone(), profile.getUserId());
+        List<String> changedFields = detectProfileChanges(profile, request, previousAddress, previousPhone);
+        boolean emailChanged = !Objects.equals(previousEmail, request.email());
 
         profile.setFullName(request.fullName());
+        profile.setNickname(request.nickname());
         profile.setDateOfBirth(request.dateOfBirth());
-        profile.setAddress(request.address());
+        profile.setAddress(AES.encryptString(request.address(), profile.getUserId()));
         profile.setCountry(request.country());
         profile.setLocation(request.location());
         profile.setPostalCode(request.postalCode());
         profile.setIndicativePhone(request.indicativePhone());
-        profile.setPhone(request.phone());
+        profile.setPhone(AES.encryptString(request.phone(), profile.getUserId()));
         profile.setGender(request.gender());
         profile.setEmail(request.email());
         profile.setFavoriteSports(request.favoriteSports());
-        profile.setMFA(request.mfa());
-
-        if (photo != null && !photo.isEmpty()) {
-            if (mediaStorage == null) {
-                throw new IllegalStateException("Media storage is not configured");
-            }
-            var uri = mediaStorage.store(
-                    "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
-                    photo
-            );
-            profile.setProfilePicUrl(uri.toString());
-        }
+        profile.setBio(request.bio());
+        profile.setSkillLevel(request.skillLevel());
+        profile.setAvailability(request.availability());
 
         Profile saved = profileRepository.save(profile);
         ProfileDTO updated = profileMapper.toDto(saved);
         updated.setOldEmail(previousEmail);
-        sendUpdateProfileEmail(updated);
+
+        if (!changedFields.isEmpty()) {
+            if (emailChanged) {
+                sendProfileSecurityEmail(
+                        previousEmail,
+                        updated.getEmail(),
+                        updated.getUsername(),
+                        "Alteração de email",
+                        "O endereço de email associado à tua conta DESPORTO24 foi alterado."
+                );
+                createSecurityNotification(
+                        updated.getUsername(),
+                        "Alteração de email",
+                        "O endereço de email associado à tua conta foi alterado. "
+                                + "Se não foste tu, redefine imediatamente a tua palavra-passe."
+                );
+            } else {
+                createProfileUpdateNotification(updated.getUsername(), changedFields);
+            }
+        }
+
         return updated;
+    }
+
+    @Override
+    public ProfileDTO updateMyProfilePhoto(String username, MultipartFile photo) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+
+        if (photo == null || photo.isEmpty()) {
+            throw new IllegalArgumentException("A fotografia é obrigatória");
+        }
+
+        var uri = mediaStorage.store(
+                "profiles/" + profile.getId() + "/" + UUID.randomUUID(),
+                photo
+        );
+
+        profile.setProfilePicUrl(uri.toString());
+        Profile saved = profileRepository.save(profile);
+        return profileMapper.toDto(saved);
     }
 
     @Override
@@ -214,6 +264,19 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setPassword(passwordHashService.encode(request.newPassword()));
         profile.setTokenVersion(profile.getTokenVersion() + 1);
         profileRepository.save(profile);
+
+        sendProfileSecurityEmail(
+                profile.getEmail(),
+                profile.getEmail(),
+                profile.getUsername(),
+                "Palavra-passe alterada",
+                "A palavra-passe da tua conta DESPORTO24 foi alterada."
+        );
+        createSecurityNotification(
+                profile.getUsername(),
+                "Palavra-passe alterada",
+                "A tua palavra-passe foi alterada. Se não foste tu, redefine-a imediatamente."
+        );
     }
 
     @Override
@@ -228,30 +291,23 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         saveProfileImage(profile, photo);
-        sendUpdateProfileEmail(profile);
+        createProfileUpdateNotification(profile.getUsername(), List.of("Fotografia de perfil"));
     }
-    private void sendUpdateProfileEmail(ProfileDTO profileDTO) {
-        String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
-        String emailBody = buildChangeProfileEmail(profileDTO.getUsername(), resetLink);
+    private void createProfileUpdateNotification(String username, List<String> changedFields) {
+        String fields = String.join(", ", changedFields);
+        String subject = "Perfil atualizado";
+        String message = "Foram atualizados os seguintes dados do teu perfil: " + fields + ".";
+        createNotification(username, subject, message, false);
+    }
 
-        if (profileDTO.getOldEmail() != null
-                && !profileDTO.getOldEmail().isBlank()
-                && !profileDTO.getOldEmail().equals(profileDTO.getEmail())) {
-            emailService.send(profileDTO.getOldEmail(), emailBody);
-        }
+    private void createSecurityNotification(String username, String subject, String message) {
+        createNotification(username, subject, message, true);
+    }
 
-        if (profileDTO.getEmail() != null && !profileDTO.getEmail().isBlank()) {
-            emailService.send(profileDTO.getEmail(), emailBody);
-        }
-
-        String subject = "Alteração de dados de perfil";
-        String message = "Foram feitas alterações aos dados do teu perfil. "
-                + "Se não foste tu, redefine imediatamente a tua palavra-passe.";
+    private void createNotification(String username, String subject, String message, boolean security) {
         String greeting = "Cumprimentos,";
-        String signature = "DESPORTO24";
-        Date date = new Date();
-        String displayDate = substring(String.valueOf(date), 24, 29)
-                + substring(String.valueOf(date), 3, 10);
+        String signature = "DESPORTO24 MANAGEMENT TEAM";
+        String displayDate = java.time.Instant.now().toString();
 
         Notifications notification = new Notifications(
                 subject,
@@ -264,9 +320,72 @@ public class ProfileServiceImpl implements ProfileService {
                 false,
                 false,
                 null,
-                profileDTO.getUsername()
+                username
         );
         notificationsRepository.save(notification);
+    }
+
+    private void sendProfileSecurityEmail(
+            String oldEmail,
+            String currentEmail,
+            String username,
+            String title,
+            String description) {
+        String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
+        String emailBody = buildSecurityEmail(username, title, description, resetLink);
+
+        if (oldEmail != null && !oldEmail.isBlank()) {
+            emailService.send(oldEmail, emailBody);
+        }
+
+        if (currentEmail != null
+                && !currentEmail.isBlank()
+                && !Objects.equals(oldEmail, currentEmail)) {
+            emailService.send(currentEmail, emailBody);
+        }
+    }
+
+    private List<String> detectProfileChanges(
+            Profile profile,
+            UpdateProfileRequest request,
+            String previousAddress,
+            String previousPhone) {
+        List<String> changed = new ArrayList<>();
+
+        addChanged(changed, "Nome", profile.getFullName(), request.fullName());
+        addChanged(changed, "Alcunha", profile.getNickname(), request.nickname());
+        addChanged(changed, "Data de nascimento", profile.getDateOfBirth(), request.dateOfBirth());
+        addChanged(changed, "Morada", previousAddress, request.address());
+        addChanged(changed, "País", profile.getCountry(), request.country());
+        addChanged(changed, "Localização", profile.getLocation(), request.location());
+        addChanged(changed, "Código postal", profile.getPostalCode(), request.postalCode());
+        addChanged(changed, "Indicativo telefónico", profile.getIndicativePhone(), request.indicativePhone());
+        addChanged(changed, "Telefone", previousPhone, request.phone());
+        addChanged(changed, "Género", profile.getGender(), request.gender());
+        addChanged(changed, "Email", profile.getEmail(), request.email());
+        addChanged(changed, "Desportos favoritos", profile.getFavoriteSports(), request.favoriteSports());
+        addChanged(changed, "Bio desportiva", profile.getBio(), request.bio());
+        addChanged(changed, "Nível", profile.getSkillLevel(), request.skillLevel());
+        addChanged(changed, "Disponibilidade", profile.getAvailability(), request.availability());
+
+        return changed;
+    }
+
+    private void addChanged(List<String> changed, String label, Object before, Object after) {
+        if (!Objects.equals(before, after)) {
+            changed.add(label);
+        }
+    }
+
+    private String decryptSafely(String value, String userId) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return AES.decryptString(value, userId);
+        } catch (RuntimeException exception) {
+            return value;
+        }
     }
 
     @Override
@@ -297,27 +416,49 @@ public class ProfileServiceImpl implements ProfileService {
                 .toList();
     }
 
+    @Override
+    public List<PublicProfileResponse> discoverPublicProfiles(String username) {
+        return profileRepository.discoverProfiles(username, PageRequest.of(0, 12)).stream()
+                .map(this::toPublicProfile)
+                .toList();
+    }
+
     private PublicProfileResponse toPublicProfile(Profile profile) {
         ProfileDTO dto = profileMapper.toDto(profile);
         return new PublicProfileResponse(
                 dto.getUsername(),
                 dto.getFullName(),
+                dto.getNickname(),
                 dto.getCountry(),
                 dto.getLocation(),
                 dto.getFavoriteSports(),
+                dto.getBio(),
+                dto.getSkillLevel(),
+                dto.getAvailability(),
                 dto.getProfilePicUrl(),
-                dto.getJoinDateDisplay()
+                publicJoinDate(profile)
         );
     }
 
-    private String buildChangeProfileEmail(String name, String link) {
-        return "<h2>Alteração de dados pessoais</h2>"
+    private String publicJoinDate(Profile profile) {
+        if (profile.getJoinDate() == null) {
+            return null;
+        }
+
+        java.text.SimpleDateFormat formatter =
+                new java.text.SimpleDateFormat("dd/MM/yyyy, HH:mm", java.util.Locale.forLanguageTag("pt-PT"));
+        formatter.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Lisbon"));
+        return formatter.format(profile.getJoinDate());
+    }
+
+    private String buildSecurityEmail(String name, String title, String description, String link) {
+        return "<h2>" + title + "</h2>"
                 + "<p>Olá " + name + ",</p>"
-                + "<p>Foram alterados dados pessoais no teu perfil Desporto24.</p>"
+                + "<p>" + description + "</p>"
                 + "<p>Se foste tu, não precisas de fazer nada.</p>"
                 + "<p>Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe:</p>"
                 + "<p><a href=\"" + link + "\">Redefinir palavra-passe</a></p>"
-                + "<p>Cumprimentos,<br>DESPORTO24</p>";
+                + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
     }
 
     @Override

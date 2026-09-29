@@ -22,6 +22,7 @@ public class SessionViewMapper {
 
     private final SessionParticipantRepository participantRepository;
     private final SessionWaitlistRepository waitlistRepository;
+    private final VenueService venueService;
 
     public SessionSummaryResponse toSummary(Session session, Double distanceKm) {
         return new SessionSummaryResponse(
@@ -83,7 +84,8 @@ public class SessionViewMapper {
                 creator || participant,
                 waitlistEntry.isPresent(),
                 waitlistPosition,
-                session.getGamePhoto()
+                session.getGamePhoto(),
+                session.getVenue() == null ? null : venueService.toResponse(session.getVenue())
         );
     }
 }

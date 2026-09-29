@@ -10,8 +10,11 @@ public interface AuthenticationService {
     LoginResponse login(ProfileDTO credentials);
     LoginResponse confirmMfa(MfaConfirmRequest request);
     LoginResponse resendMfa(String challengeId);
+    LoginResponse refresh(String refreshToken);
+    String createRefreshToken(String username);
     void terminateSession(String username);
     void signUpProfile(RegistrationRequest request, MultipartFile photo);
+    void resendRegistrationConfirmation(String username);
     void resetPasswordStepOne(String email);
     void resetPasswordStepTwo(String newPassword, String token);
     void confirmToken(String token);

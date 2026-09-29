@@ -43,10 +43,19 @@ public class ProfileController extends ExceptionHandling {
     @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProfileDTO> updateMyProfile(
             @RequestPart("profile") @Valid UpdateProfileRequest request,
-            @RequestPart(value = "photo", required = false) MultipartFile photo,
             Authentication authentication) {
         return new ResponseEntity<>(
-                profileService.updateMyProfile(authentication.getName(), request, photo),
+                profileService.updateMyProfile(authentication.getName(), request),
+                OK
+        );
+    }
+
+    @PutMapping(value = "/me/photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ProfileDTO> updateMyProfilePhoto(
+            @RequestPart("photo") MultipartFile photo,
+            Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.updateMyProfilePhoto(authentication.getName(), photo),
                 OK
         );
     }
@@ -64,6 +73,14 @@ public class ProfileController extends ExceptionHandling {
     public ResponseEntity<PublicProfileResponse> getUserProfile(@PathVariable String username) {
         return new ResponseEntity<>(
                 profileService.findPublicProfile(username),
+                OK
+        );
+    }
+
+    @GetMapping("/discover")
+    public ResponseEntity<List<PublicProfileResponse>> discoverProfiles(Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.discoverPublicProfiles(authentication.getName()),
                 OK
         );
     }

@@ -73,6 +73,26 @@ public class NotificationController {
         return buildResponse(OK, DISABLED_PERFIL);
     }
 
+    @PostMapping("/me/block")
+    @Operation(
+            summary = "Block own account access",
+            description = "Immediately blocks the authenticated account and invalidates existing sessions."
+    )
+    public ResponseEntity<Void> blockMyAccount(Authentication authentication) {
+        notificationService.blockOwnAccount(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/me")
+    @Operation(
+            summary = "Delete all own notifications",
+            description = "Deletes every notification belonging to the authenticated user."
+    )
+    public ResponseEntity<Void> deleteAllMyNotifications(Authentication authentication) {
+        notificationService.deleteAllNotifications(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markRead(
             @PathVariable Long id,

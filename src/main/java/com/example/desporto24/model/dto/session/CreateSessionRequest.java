@@ -19,6 +19,62 @@ public record CreateSessionRequest(
         boolean privateGame,
         String password,
         Double latitude,
-        Double longitude
+        Double longitude,
+        Long communityId,
+        Long venueId
 ) {
+    public CreateSessionRequest(
+            String sport,
+            Instant gameDate,
+            String city,
+            String address,
+            Integer maxParticipants,
+            BigDecimal priceAmount,
+            boolean privateGame,
+            String password,
+            Double latitude,
+            Double longitude) {
+        this(
+                sport,
+                gameDate,
+                city,
+                address,
+                maxParticipants,
+                priceAmount,
+                privateGame,
+                password,
+                latitude,
+                longitude,
+                null,
+                null
+        );
+    }
+
+    public CreateSessionRequest(
+            String sport,
+            Instant gameDate,
+            String city,
+            String address,
+            Integer maxParticipants,
+            BigDecimal priceAmount,
+            boolean privateGame,
+            String password,
+            Double latitude,
+            Double longitude,
+            Long communityId) {
+        this(
+                sport,
+                gameDate,
+                city,
+                address,
+                maxParticipants,
+                priceAmount,
+                privateGame,
+                password,
+                latitude,
+                longitude,
+                communityId,
+                null
+        );
+    }
 }

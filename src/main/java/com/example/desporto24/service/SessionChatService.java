@@ -12,12 +12,17 @@ import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+
+import com.example.desporto24.websocket.SessionChatMessageCreatedEvent;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -29,6 +34,7 @@ public class SessionChatService {
     private final ProfileRepository profileRepository;
     private final SessionParticipantRepository participantRepository;
     private final SessionMessageRepository messageRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<SessionMessageResponse> messages(Long sessionId, String username) {
@@ -69,7 +75,30 @@ public class SessionChatService {
                 .createdAt(Instant.now())
                 .build());
 
-        return toResponse(saved);
+        SessionMessageResponse response = toResponse(saved);
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(
+                response,
+                realtimeRecipients(session)
+        ));
+
+        return response;
+    }
+
+    private Set<String> realtimeRecipients(Session session) {
+        Set<String> recipients = new LinkedHashSet<>();
+
+        if (session.getProfile() != null && session.getProfile().getUsername() != null) {
+            recipients.add(session.getProfile().getUsername());
+        }
+
+        participantRepository
+                .findBySessionIdAndStateOrderByJoinedAtAsc(session.getId(), ParticipantState.ACTIVE)
+                .stream()
+                .map(participant -> participant.getProfile().getUsername())
+                .filter(username -> username != null && !username.isBlank())
+                .forEach(recipients::add);
+
+        return recipients;
     }
 
     private void requireChatAccess(Session session, Profile actor) {

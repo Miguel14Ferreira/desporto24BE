@@ -1,0 +1,17 @@
+package com.example.desporto24.model.dto.community;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.time.Instant;
+import java.util.List;
+
+public record CreateCommunityRoundRequest(
+        @NotBlank @Size(max = 100) String name,
+        @NotNull Instant playedAt,
+        @NotEmpty List<@Valid CommunityRoundEntryRequest> entries
+) {
+}

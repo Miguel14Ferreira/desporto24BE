@@ -20,6 +20,8 @@ class JWTokenProviderTest {
                 "fixture-secret-that-is-deliberately-long-enough-for-hmac512-tests-1234567890"
         );
 
+        ReflectionTestUtils.setField(provider, "expirationTimeMs", 1_800_000L);
+
         Profile profile = new Profile();
         profile.setUsername("miguel");
         profile.setAuthorities(new String[]{"user:read"});

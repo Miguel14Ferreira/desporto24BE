@@ -1,5 +1,7 @@
 package com.example.desporto24.model;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.model.community.Community;
+import com.example.desporto24.model.venue.Venue;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
@@ -61,6 +63,14 @@ public class Session {
     @JoinColumn(nullable = false,
             name = "perfil_id")
     private Profile profile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "community_id")
+    private Community community;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "venue_id")
+    private Venue venue;
 
     public Session(String username, String desporto, String jogadores, Date datadejogo, String localidade, Boolean privado, String morada, String preco, String password) {
         this.username = username;
