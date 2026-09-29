@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
@@ -31,6 +32,18 @@ public class VenuePhotoService {
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
+
+    @Transactional(readOnly = true)
+    public List<VenuePhotoResponse> listPhotos(Long venueId) {
+        if (!venueRepository.existsById(venueId)) {
+            throw new IllegalArgumentException("Recinto não encontrado");
+        }
+
+        return venuePhotoRepository.findByVenueIdOrderByCreatedAtAsc(venueId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
 
     public VenuePhotoResponse addPhoto(Long venueId, String username, MultipartFile photo) {
         if (mediaStorage == null) {
