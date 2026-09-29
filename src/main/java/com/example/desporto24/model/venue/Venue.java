@@ -78,6 +78,9 @@ public class Venue {
     @Column(length = 500)
     private String services;
 
+    @Column(length = 500)
+    private String transport;
+
     @Column(nullable = false)
     private boolean parking;
 
