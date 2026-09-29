@@ -1,14 +1,18 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.venue.CreateVenueRequest;
+import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.dto.venue.VenueResponse;
+import com.example.desporto24.service.VenuePhotoService;
 import com.example.desporto24.service.VenueService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -18,6 +22,7 @@ import java.util.List;
 public class VenueController {
 
     private final VenueService venueService;
+    private final VenuePhotoService venuePhotoService;
 
     @GetMapping
     public List<VenueResponse> search(
@@ -37,5 +42,14 @@ public class VenueController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(venueService.create(request, authentication.getName()));
+    }
+
+    @PostMapping(value = "/{id}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<VenuePhotoResponse> addPhoto(
+            @PathVariable Long id,
+            @RequestPart("photo") MultipartFile photo,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(venuePhotoService.addPhoto(id, authentication.getName(), photo));
     }
 }
