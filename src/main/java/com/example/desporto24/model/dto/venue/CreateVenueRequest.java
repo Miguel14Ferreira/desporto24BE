@@ -22,6 +22,7 @@ public record CreateVenueRequest(
         Boolean cafe,
         @Size(max = 500) String services,
         @Size(max = 500) String transport,
+        @Size(max = 1000) String openingHours,
         boolean parking,
         boolean lighting,
         Double latitude,

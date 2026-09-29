@@ -19,6 +19,7 @@ public record VenueResponse(
         Boolean cafe,
         String services,
         String transport,
+        String openingHours,
         boolean parking,
         boolean lighting,
         Double latitude,

@@ -60,6 +60,7 @@ class VenueServiceTest {
                         true,
                         "Bar, aluguer de material",
                         "Metro e autocarros próximos",
+                        "Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00",
                         true,
                         true,
                         38.72,
@@ -81,6 +82,7 @@ class VenueServiceTest {
         assertEquals(Boolean.TRUE, response.cafe());
         assertEquals("Bar, aluguer de material", response.services());
         assertEquals("Metro e autocarros próximos", response.transport());
+        assertEquals("Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00", response.openingHours());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());
