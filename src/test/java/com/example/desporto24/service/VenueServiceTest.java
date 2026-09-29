@@ -48,6 +48,7 @@ class VenueServiceTest {
                         "Rua do Desporto 10",
                         "Futsal",
                         "Pavilhão",
+                        Venue.OwnershipType.PUBLIC,
                         "Madeira",
                         true,
                         true,
@@ -62,6 +63,7 @@ class VenueServiceTest {
         assertEquals(9L, response.id());
         assertEquals("Pavilhão Central", response.name());
         assertEquals("Pavilhão", response.venueType());
+        assertEquals("PUBLIC", response.ownershipType());
         assertEquals("Madeira", response.surfaceType());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());

@@ -56,6 +56,7 @@ public class VenueService {
                 .address(request.address().trim())
                 .sports(trimToNull(request.sports()))
                 .venueType(trimToNull(request.venueType()))
+                .ownershipType(request.ownershipType())
                 .surfaceType(trimToNull(request.surfaceType()))
                 .indoor(request.indoor())
                 .changingRooms(request.changingRooms())
@@ -83,6 +84,7 @@ public class VenueService {
                 venue.getAddress(),
                 venue.getSports(),
                 venue.getVenueType(),
+                ownershipType(venue),
                 venue.getSurfaceType(),
                 venue.isIndoor(),
                 venue.isChangingRooms(),
@@ -93,6 +95,10 @@ public class VenueService {
                 informationSource(venue),
                 venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername()
         );
+    }
+
+    private String ownershipType(Venue venue) {
+        return venue.getOwnershipType() == null ? null : venue.getOwnershipType().name();
     }
 
     private String informationSource(Venue venue) {

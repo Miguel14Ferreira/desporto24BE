@@ -1,5 +1,6 @@
 package com.example.desporto24.model.dto.venue;
 
+import com.example.desporto24.model.venue.Venue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -9,6 +10,7 @@ public record CreateVenueRequest(
         @NotBlank @Size(max = 255) String address,
         @Size(max = 255) String sports,
         @Size(max = 80) String venueType,
+        Venue.OwnershipType ownershipType,
         @Size(max = 80) String surfaceType,
         boolean indoor,
         boolean changingRooms,
