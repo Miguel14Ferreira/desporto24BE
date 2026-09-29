@@ -55,6 +55,7 @@ class VenueServiceTest {
                         true,
                         true,
                         true,
+                        true,
                         38.72,
                         -9.14
                 ),
@@ -67,6 +68,7 @@ class VenueServiceTest {
         assertEquals("PUBLIC", response.ownershipType());
         assertEquals("Madeira", response.surfaceType());
         assertEquals(Boolean.TRUE, response.toilets());
+        assertEquals(Boolean.TRUE, response.lockers());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());

@@ -15,6 +15,7 @@ public record CreateVenueRequest(
         boolean indoor,
         boolean changingRooms,
         Boolean toilets,
+        Boolean lockers,
         boolean parking,
         boolean lighting,
         Double latitude,

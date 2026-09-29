@@ -61,6 +61,7 @@ public class VenueService {
                 .indoor(request.indoor())
                 .changingRooms(request.changingRooms())
                 .toilets(request.toilets())
+                .lockers(request.lockers())
                 .parking(request.parking())
                 .lighting(request.lighting())
                 .latitude(request.latitude())
@@ -90,6 +91,7 @@ public class VenueService {
                 venue.isIndoor(),
                 venue.isChangingRooms(),
                 venue.getToilets(),
+                venue.getLockers(),
                 venue.isParking(),
                 venue.isLighting(),
                 venue.getLatitude(),
