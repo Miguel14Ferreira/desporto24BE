@@ -84,6 +84,9 @@ public class Venue {
     @Column(name = "opening_hours", length = 1000)
     private String openingHours;
 
+    @Column(name = "price_info", length = 255)
+    private String priceInfo;
+
     @Column(nullable = false)
     private boolean parking;
 
