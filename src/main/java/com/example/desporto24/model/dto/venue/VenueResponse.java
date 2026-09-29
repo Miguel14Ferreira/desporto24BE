@@ -16,6 +16,8 @@ public record VenueResponse(
         Boolean accessible,
         Boolean firstAid,
         Boolean aed,
+        Boolean cafe,
+        String services,
         boolean parking,
         boolean lighting,
         Double latitude,

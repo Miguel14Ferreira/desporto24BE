@@ -65,6 +65,8 @@ public class VenueService {
                 .accessible(request.accessible())
                 .firstAid(request.firstAid())
                 .aed(request.aed())
+                .cafe(request.cafe())
+                .services(trimToNull(request.services()))
                 .parking(request.parking())
                 .lighting(request.lighting())
                 .latitude(request.latitude())
@@ -98,6 +100,8 @@ public class VenueService {
                 venue.getAccessible(),
                 venue.getFirstAid(),
                 venue.getAed(),
+                venue.getCafe(),
+                venue.getServices(),
                 venue.isParking(),
                 venue.isLighting(),
                 venue.getLatitude(),
