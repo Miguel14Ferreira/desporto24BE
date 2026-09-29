@@ -113,7 +113,8 @@ public class VenueService {
                 venue.getLatitude(),
                 venue.getLongitude(),
                 informationSource(venue),
-                venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername()
+                venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername(),
+                venue.getCreatedAt()
         );
     }
 
