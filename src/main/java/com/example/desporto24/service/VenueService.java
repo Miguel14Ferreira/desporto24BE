@@ -80,6 +80,7 @@ public class VenueService {
                 .restaurant(request.restaurant())
                 .vendingMachines(request.vendingMachines())
                 .sportsShop(request.sportsShop())
+                .wifi(request.wifi())
                 .nearbyRadiusMeters(request.nearbyRadiusMeters())
                 .nearbyPharmacy(request.nearbyPharmacy())
                 .nearbyAtm(request.nearbyAtm())
@@ -135,6 +136,7 @@ public class VenueService {
                 venue.getRestaurant(),
                 venue.getVendingMachines(),
                 venue.getSportsShop(),
+                venue.getWifi(),
                 venue.getNearbyRadiusMeters(),
                 venue.getNearbyPharmacy(),
                 venue.getNearbyAtm(),
