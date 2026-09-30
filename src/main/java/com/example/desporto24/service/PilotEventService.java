@@ -35,6 +35,26 @@ public class PilotEventService {
     }
 
     @Transactional
+    public void recordRegistrationCompleted(Profile profile) {
+        if (profile == null || profile.getId() == null) {
+            throw new IllegalArgumentException("Registration event requires a persisted profile");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndProfileId(
+                PilotEventType.REGISTRATION_COMPLETED,
+                profile.getId()
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.REGISTRATION_COMPLETED)
+                .profile(profile)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
     public void recordBusinessEvent(
             PilotEventType eventType,
             Profile profile,

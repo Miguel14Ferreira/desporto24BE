@@ -20,6 +20,7 @@ import com.example.desporto24.security.TotpService;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
+import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
@@ -79,6 +80,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileMapper profileMapper;
     private final TotpService totpService;
+    private final PilotEventService pilotEventService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
@@ -468,7 +470,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         Profile profile = profileRepository.findUserByUsername(confirmationToken.getProfile()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         profile.setEnabled(true);
-        profileRepository.save(profile);
+        Profile saved = profileRepository.save(profile);
+        pilotEventService.recordRegistrationCompleted(saved);
     }
 
     private String generateVerificationCode() {

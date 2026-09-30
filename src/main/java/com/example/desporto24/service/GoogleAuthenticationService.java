@@ -50,6 +50,7 @@ public class GoogleAuthenticationService {
     private final JWTokenProvider jwtTokenProvider;
     private final MFAVerificationService mfaVerificationService;
     private final NotificationsRepository notificationsRepository;
+    private final PilotEventService pilotEventService;
 
     @Transactional
     public GoogleAuthResponse authenticate(String credential) {
@@ -158,6 +159,7 @@ public class GoogleAuthenticationService {
 
         Profile saved = profileRepository.save(profile);
         createWelcomeNotification(saved);
+        pilotEventService.recordRegistrationCompleted(saved);
 
         return completedLogin(saved, identity);
     }

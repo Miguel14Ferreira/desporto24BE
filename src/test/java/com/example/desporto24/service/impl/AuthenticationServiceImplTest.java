@@ -20,6 +20,7 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
+import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.example.desporto24.utility.SmsUtils;
@@ -61,6 +62,7 @@ class AuthenticationServiceImplTest {
     @Mock private JWTokenProvider jwtTokenProvider;
     @Mock private ProfileMapper profileMapper;
     @Mock private TotpService totpService;
+    @Mock private PilotEventService pilotEventService;
 
     @Test
     void logoutInvalidatesExistingJwtVersion() {
@@ -211,6 +213,28 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void confirmedRegistrationRecordsPilotEvent() {
+        ConfirmationToken token = mock(ConfirmationToken.class);
+        Profile profile = activeProfile(false);
+        profile.setEnabled(false);
+        profile.setId(42L);
+
+        when(confirmationTokenService.getToken("registration-token"))
+                .thenReturn(Optional.of(token));
+        when(token.getConfirmedAt()).thenReturn(null);
+        when(token.getExpiredAt()).thenReturn(LocalDateTime.now().plusMinutes(5));
+        when(token.getProfile()).thenReturn(TEST_USERNAME);
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(profileRepository.save(profile)).thenReturn(profile);
+
+        service().confirmToken("registration-token");
+
+        assertTrue(profile.getEnabled());
+        verify(pilotEventService).recordRegistrationCompleted(profile);
+    }
+
+    @Test
     void registrationRejectsUsernameThatOnlyDiffersByCase() {
         ProfileDTO candidate = safeProfile();
         candidate.setUsername("FiXtUrE-UsEr");
@@ -338,7 +362,8 @@ class AuthenticationServiceImplTest {
                 passwordEncoder,
                 jwtTokenProvider,
                 profileMapper,
-                totpService
+                totpService,
+                pilotEventService
         );
         ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test");
         return service;

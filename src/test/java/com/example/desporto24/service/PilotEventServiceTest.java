@@ -49,6 +49,29 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void recordsRegistrationOnlyOncePerProfile() {
+        Profile profile = new Profile();
+        profile.setId(42L);
+
+        when(pilotEventRepository.existsByEventTypeAndProfileId(
+                PilotEventType.REGISTRATION_COMPLETED,
+                42L
+        )).thenReturn(false, true);
+
+        service.recordRegistrationCompleted(profile);
+        service.recordRegistrationCompleted(profile);
+
+        ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
+        verify(pilotEventRepository, times(1)).save(captor.capture());
+
+        PilotEvent event = captor.getValue();
+        assertEquals(PilotEventType.REGISTRATION_COMPLETED, event.getEventType());
+        assertEquals(profile, event.getProfile());
+        assertNull(event.getSubjectId());
+        assertNotNull(event.getCreatedAt());
+    }
+
+    @Test
     void recordsBusinessEventFromTrustedDomainService() {
         Profile profile = new Profile();
         profile.setId(42L);

@@ -9,4 +9,6 @@ import org.springframework.stereotype.Repository;
 public interface PilotEventRepository extends JpaRepository<PilotEvent, Long> {
 
     boolean existsByEventTypeAndDeviceId(PilotEventType eventType, String deviceId);
+
+    boolean existsByEventTypeAndProfileId(PilotEventType eventType, Long profileId);
 }
