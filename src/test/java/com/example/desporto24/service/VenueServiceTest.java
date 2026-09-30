@@ -93,6 +93,30 @@ class VenueServiceTest {
         assertTrue(response.lighting());
     }
     @Test
+    void matchesSportExactlyIgnoringCaseAndWhitespace() {
+        Venue matching = Venue.builder()
+                .name("Campo Padel")
+                .city("Lisboa")
+                .address("Rua A")
+                .sports("  Padel  ")
+                .build();
+        Venue partial = Venue.builder()
+                .name("Campo Padelball")
+                .city("Lisboa")
+                .address("Rua B")
+                .sports("Padelball")
+                .build();
+
+        when(venueRepository.findAllByOrderByNameAsc())
+                .thenReturn(List.of(matching, partial));
+
+        var results = service.search(null, " PADEL ");
+
+        assertEquals(1, results.size());
+        assertEquals("Campo Padel", results.getFirst().name());
+    }
+
+    @Test
     void excludesVenuesWithoutSportsWhenFilteringBySport() {
         Venue matching = Venue.builder()
                 .name("Campo Padel")
