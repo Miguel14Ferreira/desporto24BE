@@ -27,6 +27,8 @@ public record CreateVenueRequest(
         @Size(max = 500) String transport,
         @Size(max = 1000) String openingHours,
         @Size(max = 255) String priceInfo,
+        @Size(max = 255) String website,
+        @Size(max = 255) String contact,
         boolean parking,
         boolean lighting,
         @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,

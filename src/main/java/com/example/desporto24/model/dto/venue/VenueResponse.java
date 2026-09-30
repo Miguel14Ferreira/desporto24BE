@@ -24,6 +24,8 @@ public record VenueResponse(
         String transport,
         String openingHours,
         String priceInfo,
+        String website,
+        String contact,
         boolean parking,
         boolean lighting,
         Double latitude,

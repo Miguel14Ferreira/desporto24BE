@@ -97,6 +97,12 @@ public class Venue {
     @Column(name = "price_info", length = 255)
     private String priceInfo;
 
+    @Column(length = 255)
+    private String website;
+
+    @Column(length = 255)
+    private String contact;
+
     @Column(nullable = false)
     private boolean parking;
 

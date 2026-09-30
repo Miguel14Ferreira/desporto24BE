@@ -64,6 +64,8 @@ class VenueServiceTest {
                         "Metro e autocarros próximos",
                         "Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00",
                         "25€/hora",
+                        "https://pavilhao.example",
+                        "+351 210 000 000",
                         true,
                         true,
                         38.72,
@@ -88,6 +90,8 @@ class VenueServiceTest {
         assertEquals("Metro e autocarros próximos", response.transport());
         assertEquals("Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00", response.openingHours());
         assertEquals("25€/hora", response.priceInfo());
+        assertEquals("https://pavilhao.example", response.website());
+        assertEquals("+351 210 000 000", response.contact());
         assertEquals("COMMUNITY", response.informationSource());
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());
