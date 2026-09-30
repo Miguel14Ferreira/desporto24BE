@@ -55,6 +55,28 @@ public class PilotEventService {
     }
 
     @Transactional
+    public void recordSessionJoined(Profile profile, Long sessionId) {
+        if (profile == null || profile.getId() == null || sessionId == null) {
+            throw new IllegalArgumentException("Session join event requires persisted profile and session");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndProfileIdAndSubjectId(
+                PilotEventType.SESSION_JOINED,
+                profile.getId(),
+                sessionId
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.SESSION_JOINED)
+                .profile(profile)
+                .subjectId(sessionId)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
     public void recordBusinessEvent(
             PilotEventType eventType,
             Profile profile,

@@ -31,6 +31,7 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
 import com.example.desporto24.service.SessionNotificationService;
+import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.ReliabilityService;
 import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
@@ -74,6 +75,7 @@ public class SessionServiceImpl implements SessionService {
     private final WaitlistPromotionService waitlistPromotionService;
     private final ReliabilityService reliabilityService;
     private final SessionNotificationService sessionNotificationService;
+    private final PilotEventService pilotEventService;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -328,6 +330,7 @@ public class SessionServiceImpl implements SessionService {
             participant.setAttendanceReportedBy(null);
             participant.setAttendanceRecordedAt(null);
             participantRepository.save(participant);
+            pilotEventService.recordSessionJoined(profile, sessionId);
 
             long newCount = activeParticipants + 1;
             session.setStatus(newCount >= maxParticipants ? SessionStatus.FULL : SessionStatus.OPEN);
