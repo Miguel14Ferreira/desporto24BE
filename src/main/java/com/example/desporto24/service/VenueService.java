@@ -36,7 +36,7 @@ public class VenueService {
                         || normalize(venue.getCity()).contains(cityQuery))
                 .filter(venue -> sportQuery == null
                         || (venue.getSports() != null
-                        && normalize(venue.getSports()).equals(sportQuery)))
+                        && hasSport(venue.getSports(), sportQuery)))
                 .map(this::toResponse)
                 .toList();
     }
@@ -126,6 +126,13 @@ public class VenueService {
         return venue.getInformationSource() == null
                 ? Venue.InformationSource.COMMUNITY.name()
                 : venue.getInformationSource().name();
+    }
+
+    private boolean hasSport(String sports, String sportQuery) {
+        if (sports == null) return false;
+        return java.util.Arrays.stream(sports.split(";"))
+                .map(this::normalize)
+                .anyMatch(sportQuery::equals);
     }
 
     private String normalize(String value) {

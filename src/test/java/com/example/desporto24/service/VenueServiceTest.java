@@ -117,6 +117,24 @@ class VenueServiceTest {
     }
 
     @Test
+    void matchesAnySportFromMultiSportVenue() {
+        Venue venue = Venue.builder()
+                .name("Complexo Multi")
+                .city("Lisboa")
+                .address("Rua A")
+                .sports("Futsal; Padel; Ténis")
+                .build();
+
+        when(venueRepository.findAllByOrderByNameAsc())
+                .thenReturn(List.of(venue));
+
+        var results = service.search(null, "padel");
+
+        assertEquals(1, results.size());
+        assertEquals("Complexo Multi", results.getFirst().name());
+    }
+
+    @Test
     void excludesVenuesWithoutSportsWhenFilteringBySport() {
         Venue matching = Venue.builder()
                 .name("Campo Padel")
