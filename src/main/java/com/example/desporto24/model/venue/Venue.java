@@ -94,6 +94,9 @@ public class Venue {
     @Column
     private Boolean aed;
 
+    @Column(name = "medical_station")
+    private Boolean medicalStation;
+
     @Column
     private Boolean cafe;
 

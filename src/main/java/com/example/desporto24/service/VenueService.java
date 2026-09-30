@@ -72,6 +72,7 @@ public class VenueService {
                 .accessible(request.accessible())
                 .firstAid(request.firstAid())
                 .aed(request.aed())
+                .medicalStation(request.medicalStation())
                 .cafe(request.cafe())
                 .services(trimToNull(request.services()))
                 .transport(trimToNull(request.transport()))
@@ -117,6 +118,7 @@ public class VenueService {
                 venue.getAccessible(),
                 venue.getFirstAid(),
                 venue.getAed(),
+                venue.getMedicalStation(),
                 venue.getCafe(),
                 venue.getServices(),
                 venue.getTransport(),
