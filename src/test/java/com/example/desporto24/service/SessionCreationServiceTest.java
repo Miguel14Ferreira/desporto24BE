@@ -51,6 +51,7 @@ class SessionCreationServiceTest {
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
+    @Mock private PilotEventService pilotEventService;
     @Mock private MediaStorage mediaStorage;
 
     @Test
@@ -204,7 +205,8 @@ class SessionCreationServiceTest {
                 passwordEncoder,
                 waitlistPromotionService,
                 reliabilityService,
-                sessionNotificationService
+                sessionNotificationService,
+                pilotEventService
         );
         ReflectionTestUtils.setField(service, "mediaStorage", mediaStorage);
         return service;
