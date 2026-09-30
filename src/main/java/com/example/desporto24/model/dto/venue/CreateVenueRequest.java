@@ -35,6 +35,7 @@ public record CreateVenueRequest(
         Boolean vendingMachines,
         Boolean sportsShop,
         Boolean wifi,
+        Boolean phoneCharging,
         Integer nearbyRadiusMeters,
         Boolean nearbyPharmacy,
         Boolean nearbyAtm,

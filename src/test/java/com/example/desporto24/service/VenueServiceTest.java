@@ -72,6 +72,7 @@ class VenueServiceTest {
                         true,
                         true,
                         true,
+                        true,
                         500,
                         true,
                         true,
@@ -113,6 +114,7 @@ class VenueServiceTest {
         assertEquals(Boolean.TRUE, response.vendingMachines());
         assertEquals(Boolean.TRUE, response.sportsShop());
         assertEquals(Boolean.TRUE, response.wifi());
+        assertEquals(Boolean.TRUE, response.phoneCharging());
         assertEquals(500, response.nearbyRadiusMeters());
         assertEquals(Boolean.TRUE, response.nearbyPharmacy());
         assertEquals(Boolean.TRUE, response.nearbyAtm());

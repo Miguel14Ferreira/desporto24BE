@@ -121,6 +121,9 @@ public class Venue {
     @Column
     private Boolean wifi;
 
+    @Column(name = "phone_charging")
+    private Boolean phoneCharging;
+
     @Column(name = "nearby_radius_meters")
     private Integer nearbyRadiusMeters;
 
