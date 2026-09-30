@@ -20,6 +20,7 @@ public record CreateVenueRequest(
         Boolean toilets,
         Boolean lockers,
         Boolean showers,
+        Boolean stands,
         Boolean accessible,
         Boolean firstAid,
         Boolean aed,
