@@ -98,6 +98,9 @@ public class Venue {
     private Boolean medicalStation;
 
     @Column
+    private Boolean lifeguard;
+
+    @Column
     private Boolean cafe;
 
     @Column(length = 500)
