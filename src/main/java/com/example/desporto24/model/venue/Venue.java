@@ -74,6 +74,9 @@ public class Venue {
     private Boolean lockers;
 
     @Column
+    private Boolean showers;
+
+    @Column
     private Boolean accessible;
 
     @Column(name = "first_aid")

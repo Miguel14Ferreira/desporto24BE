@@ -65,6 +65,7 @@ public class VenueService {
                 .changingRooms(request.changingRooms())
                 .toilets(request.toilets())
                 .lockers(request.lockers())
+                .showers(request.showers())
                 .accessible(request.accessible())
                 .firstAid(request.firstAid())
                 .aed(request.aed())
@@ -106,6 +107,7 @@ public class VenueService {
                 venue.isChangingRooms(),
                 venue.getToilets(),
                 venue.getLockers(),
+                venue.getShowers(),
                 venue.getAccessible(),
                 venue.getFirstAid(),
                 venue.getAed(),

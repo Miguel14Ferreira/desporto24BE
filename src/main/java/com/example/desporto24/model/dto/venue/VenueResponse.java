@@ -16,6 +16,7 @@ public record VenueResponse(
         boolean changingRooms,
         Boolean toilets,
         Boolean lockers,
+        Boolean showers,
         Boolean accessible,
         Boolean firstAid,
         Boolean aed,

@@ -60,6 +60,7 @@ class VenueServiceTest {
                         true,
                         true,
                         true,
+                        true,
                         "Bar, aluguer de material",
                         "Metro e autocarros próximos",
                         "Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00",
@@ -82,6 +83,7 @@ class VenueServiceTest {
         assertEquals("BOTH", response.environmentType());
         assertEquals(Boolean.TRUE, response.toilets());
         assertEquals(Boolean.TRUE, response.lockers());
+        assertEquals(Boolean.TRUE, response.showers());
         assertEquals(Boolean.TRUE, response.accessible());
         assertEquals(Boolean.TRUE, response.firstAid());
         assertEquals(Boolean.TRUE, response.aed());
