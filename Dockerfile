@@ -24,6 +24,6 @@ USER desporto24
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
-  CMD curl --fail --silent "http://127.0.0.1:${CONTAINER_PORT:-8080}/actuator/health" >/dev/null || exit 1
+  CMD curl --fail --silent "http://127.0.0.1:${PORT:-${CONTAINER_PORT:-8080}}/actuator/health" >/dev/null || exit 1
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
