@@ -43,6 +43,7 @@ public record VenueResponse(
         String website,
         String contact,
         boolean parking,
+        Boolean freeParking,
         boolean lighting,
         Double latitude,
         Double longitude,

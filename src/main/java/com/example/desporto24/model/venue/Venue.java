@@ -154,6 +154,9 @@ public class Venue {
     @Column(nullable = false)
     private boolean parking;
 
+    @Column(name = "free_parking")
+    private Boolean freeParking;
+
     @Column(nullable = false)
     private boolean lighting;
 

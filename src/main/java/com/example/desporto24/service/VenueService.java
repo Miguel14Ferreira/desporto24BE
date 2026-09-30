@@ -92,6 +92,7 @@ public class VenueService {
                 .website(trimToNull(request.website()))
                 .contact(trimToNull(request.contact()))
                 .parking(request.parking())
+                .freeParking(request.freeParking())
                 .lighting(request.lighting())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
@@ -149,6 +150,7 @@ public class VenueService {
                 venue.getWebsite(),
                 venue.getContact(),
                 venue.isParking(),
+                venue.getFreeParking(),
                 venue.isLighting(),
                 venue.getLatitude(),
                 venue.getLongitude(),

@@ -84,6 +84,7 @@ class VenueServiceTest {
                         "+351 210 000 000",
                         true,
                         true,
+                        true,
                         38.72,
                         -9.14
                 ),
@@ -128,6 +129,7 @@ class VenueServiceTest {
         assertTrue(response.indoor());
         assertTrue(response.changingRooms());
         assertTrue(response.parking());
+        assertEquals(Boolean.TRUE, response.freeParking());
         assertTrue(response.lighting());
     }
     @Test
