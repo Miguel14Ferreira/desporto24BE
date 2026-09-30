@@ -35,8 +35,8 @@ public class VenueService {
                 .filter(venue -> cityQuery == null
                         || normalize(venue.getCity()).contains(cityQuery))
                 .filter(venue -> sportQuery == null
-                        || venue.getSports() == null
-                        || normalize(venue.getSports()).contains(sportQuery))
+                        || (venue.getSports() != null
+                        && normalize(venue.getSports()).contains(sportQuery)))
                 .map(this::toResponse)
                 .toList();
     }

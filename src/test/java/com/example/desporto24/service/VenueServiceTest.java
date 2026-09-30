@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -90,5 +91,28 @@ class VenueServiceTest {
         assertTrue(response.changingRooms());
         assertTrue(response.parking());
         assertTrue(response.lighting());
+    }
+    @Test
+    void excludesVenuesWithoutSportsWhenFilteringBySport() {
+        Venue matching = Venue.builder()
+                .name("Campo Padel")
+                .city("Lisboa")
+                .address("Rua A")
+                .sports("Padel")
+                .build();
+        Venue unspecified = Venue.builder()
+                .name("Recinto sem modalidade")
+                .city("Lisboa")
+                .address("Rua B")
+                .sports(null)
+                .build();
+
+        when(venueRepository.findAllByOrderByNameAsc())
+                .thenReturn(List.of(matching, unspecified));
+
+        var results = service.search("lis", "PADEL");
+
+        assertEquals(1, results.size());
+        assertEquals("Campo Padel", results.getFirst().name());
     }
 }
