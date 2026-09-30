@@ -10,6 +10,7 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -27,6 +28,7 @@ class ProfileServiceImplSecurityTest {
         EmailService emailService = mock(EmailService.class);
         NotificationsRepository notificationsRepository = mock(NotificationsRepository.class);
         PasswordHashService passwordHashService = mock(PasswordHashService.class);
+        UserBlockService userBlockService = mock(UserBlockService.class);
 
         Profile profile = new Profile();
         profile.setId(1L);
@@ -50,7 +52,8 @@ class ProfileServiceImplSecurityTest {
                 mapper,
                 emailService,
                 notificationsRepository,
-                passwordHashService
+                passwordHashService,
+                userBlockService
         );
 
         UpdateProfileRequest request = new UpdateProfileRequest(
@@ -89,6 +92,8 @@ class ProfileServiceImplSecurityTest {
                 mock(NotificationsRepository.class);
         PasswordHashService passwordHashService =
                 mock(PasswordHashService.class);
+        UserBlockService userBlockService =
+                mock(UserBlockService.class);
 
         Profile profile = new Profile();
         profile.setUsername("miguel");
@@ -109,7 +114,8 @@ class ProfileServiceImplSecurityTest {
                 mapper,
                 emailService,
                 notificationsRepository,
-                passwordHashService
+                passwordHashService,
+                userBlockService
         );
 
         service.changeMyPassword(
