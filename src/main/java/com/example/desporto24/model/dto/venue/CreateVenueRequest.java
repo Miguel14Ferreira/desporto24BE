@@ -17,6 +17,7 @@ public record CreateVenueRequest(
         Venue.EnvironmentType environmentType,
         boolean indoor,
         boolean changingRooms,
+        @Size(max = 120) String changingRoomTypes,
         Boolean toilets,
         Boolean lockers,
         Boolean showers,

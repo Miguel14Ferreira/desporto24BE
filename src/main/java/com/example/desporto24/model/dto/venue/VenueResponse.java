@@ -14,6 +14,7 @@ public record VenueResponse(
         String environmentType,
         boolean indoor,
         boolean changingRooms,
+        String changingRoomTypes,
         Boolean toilets,
         Boolean lockers,
         Boolean showers,

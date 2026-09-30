@@ -63,6 +63,7 @@ public class VenueService {
                         || request.environmentType() == Venue.EnvironmentType.BOTH
                         || (request.environmentType() == null && request.indoor()))
                 .changingRooms(request.changingRooms())
+                .changingRoomTypes(request.changingRooms() ? normalizeChangingRoomTypes(request.changingRoomTypes()) : null)
                 .toilets(request.toilets())
                 .lockers(request.lockers())
                 .showers(request.showers())
@@ -107,6 +108,7 @@ public class VenueService {
                 environmentType(venue),
                 venue.isIndoor(),
                 venue.isChangingRooms(),
+                venue.getChangingRoomTypes(),
                 venue.getToilets(),
                 venue.getLockers(),
                 venue.getShowers(),
@@ -130,6 +132,22 @@ public class VenueService {
                 venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername(),
                 venue.getCreatedAt()
         );
+    }
+
+    private String normalizeChangingRoomTypes(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) return null;
+        var allowed = java.util.Set.of("MALE", "FEMALE", "INDIVIDUAL", "ADAPTED");
+        var types = java.util.Arrays.stream(normalized.split(";"))
+                .map(String::trim)
+                .filter(type -> !type.isEmpty())
+                .map(type -> type.toUpperCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        if (types.stream().anyMatch(type -> !allowed.contains(type))) {
+            throw new IllegalArgumentException("Tipo de balneário inválido");
+        }
+        return types.isEmpty() ? null : String.join(";", types);
     }
 
     private String environmentType(Venue venue) {

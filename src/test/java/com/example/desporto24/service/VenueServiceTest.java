@@ -53,7 +53,7 @@ class VenueServiceTest {
                         "Madeira",
                         Venue.EnvironmentType.BOTH,
                         true,
-                        true,
+                        "MALE;FEMALE;ADAPTED",
                         true,
                         true,
                         true,
@@ -83,6 +83,7 @@ class VenueServiceTest {
         assertEquals("PUBLIC", response.ownershipType());
         assertEquals("Madeira", response.surfaceType());
         assertEquals("BOTH", response.environmentType());
+        assertEquals("MALE;FEMALE;ADAPTED", response.changingRoomTypes());
         assertEquals(Boolean.TRUE, response.toilets());
         assertEquals(Boolean.TRUE, response.lockers());
         assertEquals(Boolean.TRUE, response.showers());

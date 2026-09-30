@@ -67,6 +67,9 @@ public class Venue {
     @Column(name = "changing_rooms", nullable = false)
     private boolean changingRooms;
 
+    @Column(name = "changing_room_types", length = 120)
+    private String changingRoomTypes;
+
     @Column
     private Boolean toilets;
 
