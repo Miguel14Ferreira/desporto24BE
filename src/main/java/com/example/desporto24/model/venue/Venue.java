@@ -109,6 +109,9 @@ public class Venue {
     @Column
     private Boolean cafe;
 
+    @Column
+    private Boolean restaurant;
+
     @Column(length = 500)
     private String services;
 
