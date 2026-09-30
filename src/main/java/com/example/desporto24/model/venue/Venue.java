@@ -124,6 +124,9 @@ public class Venue {
     @Column(name = "nearby_pharmacy")
     private Boolean nearbyPharmacy;
 
+    @Column(name = "nearby_atm")
+    private Boolean nearbyAtm;
+
     @Column(length = 500)
     private String services;
 
