@@ -53,6 +53,7 @@ class VenueServiceTest {
                         "Madeira",
                         Venue.EnvironmentType.BOTH,
                         true,
+                        true,
                         "MALE;FEMALE;ADAPTED",
                         true,
                         true,
