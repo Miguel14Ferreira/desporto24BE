@@ -25,6 +25,7 @@ public record VenueResponse(
         Boolean aed,
         Boolean medicalStation,
         Boolean lifeguard,
+        Boolean staffOnSite,
         Boolean cafe,
         String services,
         String transport,

@@ -100,6 +100,9 @@ public class Venue {
     @Column
     private Boolean lifeguard;
 
+    @Column(name = "staff_on_site")
+    private Boolean staffOnSite;
+
     @Column
     private Boolean cafe;
 

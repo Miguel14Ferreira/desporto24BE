@@ -28,6 +28,7 @@ public record CreateVenueRequest(
         Boolean aed,
         Boolean medicalStation,
         Boolean lifeguard,
+        Boolean staffOnSite,
         Boolean cafe,
         @Size(max = 500) String services,
         @Size(max = 500) String transport,
