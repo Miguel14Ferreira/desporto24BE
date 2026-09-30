@@ -30,6 +30,7 @@ public record VenueResponse(
         Boolean cafe,
         Boolean restaurant,
         Boolean vendingMachines,
+        Boolean sportsShop,
         String services,
         String transport,
         String openingHours,

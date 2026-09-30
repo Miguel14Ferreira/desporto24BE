@@ -115,6 +115,9 @@ public class Venue {
     @Column
     private Boolean vendingMachines;
 
+    @Column
+    private Boolean sportsShop;
+
     @Column(length = 500)
     private String services;
 
