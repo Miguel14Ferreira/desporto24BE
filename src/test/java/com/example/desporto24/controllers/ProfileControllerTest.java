@@ -56,14 +56,15 @@ class ProfileControllerTest {
                 null,
                 "2026-09-01"
         );
-        when(profileService.findPublicProfile("ana")).thenReturn(profile);
+        when(authentication.getName()).thenReturn("miguel");
+        when(profileService.findPublicProfile("miguel", "ana")).thenReturn(profile);
 
-        var response = controller.getUserProfile("ana");
+        var response = controller.getUserProfile("ana", authentication);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("ana", response.getBody().username());
         assertEquals("Lisboa", response.getBody().location());
-        verify(profileService).findPublicProfile("ana");
+        verify(profileService).findPublicProfile("miguel", "ana");
     }
 
     @Test
@@ -78,14 +79,31 @@ class ProfileControllerTest {
                 null,
                 "2026-09-01"
         );
-        when(profileService.searchPublicProfiles("ana")).thenReturn(List.of(profile));
+        when(authentication.getName()).thenReturn("miguel");
+        when(profileService.searchPublicProfiles(
+                "miguel",
+                "ana",
+                null,
+                null,
+                null,
+                null,
+                null
+        )).thenReturn(List.of(profile));
 
-        var response = controller.getProfileByName("ana");
+        var response = controller.getProfileByName("ana", authentication);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals(1, response.getBody().size());
         assertEquals("ana", response.getBody().get(0).username());
-        verify(profileService).searchPublicProfiles("ana");
+        verify(profileService).searchPublicProfiles(
+                "miguel",
+                "ana",
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     @Test

@@ -17,6 +17,7 @@ import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final FriendRequestService friendRequestService;
     private final FriendRepository friendRepository;
     private final ProfileRepository profileRepository;
+    private final UserBlockService userBlockService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
@@ -194,6 +196,8 @@ public class NotificationServiceImpl implements NotificationService {
     private void createFriendRelationship(String username1, String username2) {
         Profile profile1 = profileRepository.findUserByUsername(username1).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         Profile profile2 = profileRepository.findUserByUsername(username2).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        userBlockService.ensureInteractionAllowed(profile1, profile2);
 
         Friend friend = new Friend();
         friend.setCreatedAt(new Date());

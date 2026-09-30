@@ -12,6 +12,7 @@ import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.storage.MediaStorage;
@@ -54,6 +55,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
     private final PasswordHashService passwordHashService;
+    private final UserBlockService userBlockService;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -73,6 +75,17 @@ public class ProfileServiceImpl implements ProfileService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         return toPublicProfile(profile);
+    }
+
+    @Override
+    public PublicProfileResponse findPublicProfile(String actorUsername, String username) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(actorUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        Profile target = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        userBlockService.ensureInteractionAllowed(actor, target);
+        return toPublicProfile(target);
     }
 
     @Override
@@ -435,6 +448,8 @@ public class ProfileServiceImpl implements ProfileService {
         String normalizedSport = blankToNull(sport);
         String normalizedLocation = blankToNull(location);
         String normalizedSkillLevel = blankToNull(skillLevel);
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(actorUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         return profileRepository.searchPublicCandidates(
                         actorUsername,
@@ -445,6 +460,7 @@ public class ProfileServiceImpl implements ProfileService {
                         PageRequest.of(0, 100)
                 )
                 .stream()
+                .filter(profile -> !userBlockService.isBlockedBetween(actor, profile))
                 .filter(profile -> matchesAge(profile, minAge, maxAge))
                 .limit(50)
                 .map(this::toPublicProfile)
@@ -458,6 +474,7 @@ public class ProfileServiceImpl implements ProfileService {
 
         return profileRepository.discoverProfiles(username, PageRequest.of(0, 100))
                 .stream()
+                .filter(profile -> !userBlockService.isBlockedBetween(actor, profile))
                 .sorted((left, right) -> {
                     int scoreCompare = Integer.compare(
                             compatibilityScore(actor, right),

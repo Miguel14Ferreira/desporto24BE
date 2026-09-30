@@ -70,9 +70,11 @@ public class ProfileController extends ExceptionHandling {
 
     @GetMapping("/{username}")
     @Operation(summary = "Get Public User Profile", description = "Retrieve the public fields of a user's profile.")
-    public ResponseEntity<PublicProfileResponse> getUserProfile(@PathVariable String username) {
+    public ResponseEntity<PublicProfileResponse> getUserProfile(
+            @PathVariable String username,
+            Authentication authentication) {
         return new ResponseEntity<>(
-                profileService.findPublicProfile(username),
+                profileService.findPublicProfile(authentication.getName(), username),
                 OK
         );
     }
@@ -114,9 +116,19 @@ public class ProfileController extends ExceptionHandling {
 
     @GetMapping("/name/{name}")
     @Operation(summary = "Search Public Profiles by Name", description = "Search public profile fields using a partial or full username.")
-    public ResponseEntity<List<PublicProfileResponse>> getProfileByName(@PathVariable String name) {
+    public ResponseEntity<List<PublicProfileResponse>> getProfileByName(
+            @PathVariable String name,
+            Authentication authentication) {
         return new ResponseEntity<>(
-                profileService.searchPublicProfiles(name),
+                profileService.searchPublicProfiles(
+                        authentication.getName(),
+                        name,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
                 OK
         );
     }

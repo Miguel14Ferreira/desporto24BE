@@ -9,6 +9,7 @@ import com.example.desporto24.register.FriendRequest.FriendRequestService;
 import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,7 @@ class FriendServiceImplTest {
     private FriendRepository friendRepository;
     private NotificationService notificationService;
     private ProfileRepository profileRepository;
+    private UserBlockService userBlockService;
     private FriendServiceImpl service;
 
     @BeforeEach
@@ -46,6 +48,7 @@ class FriendServiceImplTest {
         friendRepository = mock(FriendRepository.class);
         notificationService = mock(NotificationService.class);
         profileRepository = mock(ProfileRepository.class);
+        userBlockService = mock(UserBlockService.class);
 
         service = new FriendServiceImpl(
                 profileService,
@@ -53,7 +56,8 @@ class FriendServiceImplTest {
                 emailService,
                 friendRepository,
                 notificationService,
-                profileRepository
+                profileRepository,
+                userBlockService
         );
     }
 

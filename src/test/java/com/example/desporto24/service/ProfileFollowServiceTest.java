@@ -21,6 +21,7 @@ class ProfileFollowServiceTest {
 
     @Mock private ProfileFollowRepository followRepository;
     @Mock private ProfileRepository profileRepository;
+    @Mock private UserBlockService userBlockService;
 
     @InjectMocks
     private ProfileFollowService service;

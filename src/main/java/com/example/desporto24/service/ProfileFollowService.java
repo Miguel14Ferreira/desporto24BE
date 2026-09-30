@@ -23,6 +23,7 @@ public class ProfileFollowService {
 
     private final ProfileFollowRepository followRepository;
     private final ProfileRepository profileRepository;
+    private final UserBlockService userBlockService;
 
     public FollowStatusResponse follow(String actorUsername, String targetUsername) {
         Profile actor = profile(actorUsername);
@@ -31,6 +32,8 @@ public class ProfileFollowService {
         if (actor.getId().equals(target.getId())) {
             throw new IllegalArgumentException("Não podes seguir o teu próprio perfil");
         }
+
+        userBlockService.ensureInteractionAllowed(actor, target);
 
         if (!followRepository.existsByFollowerIdAndFollowingId(
                 actor.getId(), target.getId())) {
@@ -56,7 +59,10 @@ public class ProfileFollowService {
 
     @Transactional(readOnly = true)
     public FollowStatusResponse status(String actorUsername, String targetUsername) {
-        return status(profile(actorUsername), profile(targetUsername));
+        Profile actor = profile(actorUsername);
+        Profile target = profile(targetUsername);
+        userBlockService.ensureInteractionAllowed(actor, target);
+        return status(actor, target);
     }
 
     @Transactional(readOnly = true)

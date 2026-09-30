@@ -10,6 +10,7 @@ import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.websocket.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class ChatServiceImpl implements ChatService {
     private final ProfileRepository profileRepository;
     private final NotificationsRepository notificationsRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserBlockService userBlockService;
 
     @Override
     @Transactional
@@ -97,6 +99,8 @@ public class ChatServiceImpl implements ChatService {
                 .orElseThrow(() -> new AccessDeniedException("Friendship not found"));
         Profile second = profileRepository.findUserByUsername(secondUsername)
                 .orElseThrow(() -> new AccessDeniedException("Friendship not found"));
+
+        userBlockService.ensureInteractionAllowed(first, second);
 
         return friendRepository.findByProfile1OrProfile2(first, first).stream()
                 .filter(friend ->

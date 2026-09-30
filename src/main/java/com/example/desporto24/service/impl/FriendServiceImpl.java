@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 
 import static com.example.desporto24.constant.UserImplConstant.ALREADY_FRIENDS;
 import static com.example.desporto24.constant.UserImplConstant.FRIEND_REQUEST_ALREADY_PENDING;
@@ -39,6 +40,7 @@ public class FriendServiceImpl implements FriendService {
     private final FriendRepository friendRepository;
     private final NotificationService notificationService;
     private final ProfileRepository profileRepository;
+    private final UserBlockService userBlockService;
 
     @Override
     public void sendFriendRequest(SendFriendRequest friendRequest) {
@@ -48,6 +50,8 @@ public class FriendServiceImpl implements FriendService {
         if (senderUsername != null && senderUsername.equals(recipientUsername)) {
             throw new RequestFriendException(FRIEND_REQUEST_SELF);
         }
+
+        userBlockService.ensureInteractionAllowed(senderUsername, recipientUsername);
 
         ProfileDTO profile1 = profileService.findUserByUsername(senderUsername);
         ProfileDTO profile2 = profileService.findUserByUsername(recipientUsername);
