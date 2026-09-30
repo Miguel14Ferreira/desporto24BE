@@ -36,6 +36,7 @@ public final class SecurityConstant {
             "/api/auth/mfa/confirm",
             "/api/auth/mfa/resend",
             "/api/ideas/submit",
+            "/api/pilot/events/access",
             "/actuator/health",
             "/actuator/health/**",
             "/image/**",
