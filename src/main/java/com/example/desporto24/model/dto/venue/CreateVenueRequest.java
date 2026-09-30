@@ -32,6 +32,7 @@ public record CreateVenueRequest(
         Boolean securitySurveillance,
         Boolean cafe,
         Boolean restaurant,
+        Boolean vendingMachines,
         @Size(max = 500) String services,
         @Size(max = 500) String transport,
         @Size(max = 1000) String openingHours,

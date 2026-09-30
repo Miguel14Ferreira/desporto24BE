@@ -112,6 +112,9 @@ public class Venue {
     @Column
     private Boolean restaurant;
 
+    @Column
+    private Boolean vendingMachines;
+
     @Column(length = 500)
     private String services;
 

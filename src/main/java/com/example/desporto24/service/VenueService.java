@@ -78,6 +78,7 @@ public class VenueService {
                 .securitySurveillance(request.securitySurveillance())
                 .cafe(request.cafe())
                 .restaurant(request.restaurant())
+                .vendingMachines(request.vendingMachines())
                 .services(trimToNull(request.services()))
                 .transport(trimToNull(request.transport()))
                 .openingHours(trimToNull(request.openingHours()))
@@ -128,6 +129,7 @@ public class VenueService {
                 venue.getSecuritySurveillance(),
                 venue.getCafe(),
                 venue.getRestaurant(),
+                venue.getVendingMachines(),
                 venue.getServices(),
                 venue.getTransport(),
                 venue.getOpeningHours(),

@@ -29,6 +29,7 @@ public record VenueResponse(
         Boolean securitySurveillance,
         Boolean cafe,
         Boolean restaurant,
+        Boolean vendingMachines,
         String services,
         String transport,
         String openingHours,
