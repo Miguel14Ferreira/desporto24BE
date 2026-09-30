@@ -204,6 +204,53 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
+    void creatorCanCompleteSessionAfterStart() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        service.complete(session.getId(), creator.getUsername());
+
+        assertEquals(SessionStatus.COMPLETED,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void sessionCannotBeCompletedBeforeStart() {
+        assertThrows(IllegalStateException.class,
+                () -> service.complete(session.getId(), creator.getUsername()));
+
+        assertEquals(SessionStatus.OPEN,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void nonCreatorCannotCompleteSession() {
+        Profile participant = profile("participant");
+        participant(participant);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.complete(session.getId(), participant.getUsername()));
+
+        assertEquals(SessionStatus.OPEN,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void cancelledSessionCannotBeCompleted() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        session.setStatus(SessionStatus.CANCELLED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.complete(session.getId(), creator.getUsername()));
+
+        assertEquals(SessionStatus.CANCELLED,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
     void userWhoLeftCanJoinAgainWithoutViolatingUniqueMembershipConstraint() {
         Profile returning = profile("returning");
         SessionParticipant membership = participant(returning);

@@ -440,6 +440,33 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    public void complete(Long sessionId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        requireCreator(session, actor);
+
+        if (session.getStatus() == SessionStatus.CANCELLED) {
+            throw new IllegalStateException("Cancelled sessions cannot be completed");
+        }
+        if (session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Session is already completed");
+        }
+
+        Instant now = Instant.now();
+        if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
+            throw new IllegalStateException("Session cannot be completed before it starts");
+        }
+
+        session.setStatus(SessionStatus.COMPLETED);
+        session.setUpdatedAt(now);
+        sessionRepository.save(session);
+    }
+
+    @Override
+    @Transactional
     public void removeParticipant(Long sessionId, Long participantId, String username) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));

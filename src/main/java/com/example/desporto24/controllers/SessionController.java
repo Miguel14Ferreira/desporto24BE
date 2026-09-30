@@ -91,6 +91,12 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<Void> complete(@PathVariable Long id, Authentication authentication) {
+        sessionService.complete(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}/participants/{participantId}")
     public ResponseEntity<Void> removeParticipant(
             @PathVariable Long id,
