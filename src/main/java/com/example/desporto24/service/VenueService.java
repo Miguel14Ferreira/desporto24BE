@@ -58,7 +58,10 @@ public class VenueService {
                 .venueType(trimToNull(request.venueType()))
                 .ownershipType(request.ownershipType())
                 .surfaceType(trimToNull(request.surfaceType()))
-                .indoor(request.indoor())
+                .environmentType(request.environmentType())
+                .indoor(request.environmentType() == Venue.EnvironmentType.INDOOR
+                        || request.environmentType() == Venue.EnvironmentType.BOTH
+                        || (request.environmentType() == null && request.indoor()))
                 .changingRooms(request.changingRooms())
                 .toilets(request.toilets())
                 .lockers(request.lockers())
@@ -96,6 +99,7 @@ public class VenueService {
                 venue.getVenueType(),
                 ownershipType(venue),
                 venue.getSurfaceType(),
+                environmentType(venue),
                 venue.isIndoor(),
                 venue.isChangingRooms(),
                 venue.getToilets(),
@@ -116,6 +120,11 @@ public class VenueService {
                 venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername(),
                 venue.getCreatedAt()
         );
+    }
+
+    private String environmentType(Venue venue) {
+        if (venue.getEnvironmentType() != null) return venue.getEnvironmentType().name();
+        return venue.isIndoor() ? Venue.EnvironmentType.INDOOR.name() : Venue.EnvironmentType.OUTDOOR.name();
     }
 
     private String ownershipType(Venue venue) {

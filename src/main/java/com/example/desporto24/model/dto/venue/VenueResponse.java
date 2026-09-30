@@ -11,6 +11,7 @@ public record VenueResponse(
         String venueType,
         String ownershipType,
         String surfaceType,
+        String environmentType,
         boolean indoor,
         boolean changingRooms,
         Boolean toilets,

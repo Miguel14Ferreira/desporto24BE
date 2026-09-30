@@ -25,6 +25,12 @@ public class Venue {
         PRIVATE
     }
 
+    public enum EnvironmentType {
+        INDOOR,
+        OUTDOOR,
+        BOTH
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -53,6 +59,10 @@ public class Venue {
 
     @Column(nullable = false)
     private boolean indoor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "environment_type", length = 20)
+    private EnvironmentType environmentType;
 
     @Column(name = "changing_rooms", nullable = false)
     private boolean changingRooms;

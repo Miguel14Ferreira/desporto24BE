@@ -14,6 +14,7 @@ public record CreateVenueRequest(
         @Size(max = 80) String venueType,
         Venue.OwnershipType ownershipType,
         @Size(max = 80) String surfaceType,
+        Venue.EnvironmentType environmentType,
         boolean indoor,
         boolean changingRooms,
         Boolean toilets,
