@@ -80,6 +80,8 @@ public class VenueService {
                 .restaurant(request.restaurant())
                 .vendingMachines(request.vendingMachines())
                 .sportsShop(request.sportsShop())
+                .nearbyRadiusMeters(request.nearbyRadiusMeters())
+                .nearbyPharmacy(request.nearbyPharmacy())
                 .services(trimToNull(request.services()))
                 .transport(trimToNull(request.transport()))
                 .openingHours(trimToNull(request.openingHours()))
@@ -132,6 +134,8 @@ public class VenueService {
                 venue.getRestaurant(),
                 venue.getVendingMachines(),
                 venue.getSportsShop(),
+                venue.getNearbyRadiusMeters(),
+                venue.getNearbyPharmacy(),
                 venue.getServices(),
                 venue.getTransport(),
                 venue.getOpeningHours(),

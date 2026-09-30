@@ -34,6 +34,8 @@ public record CreateVenueRequest(
         Boolean restaurant,
         Boolean vendingMachines,
         Boolean sportsShop,
+        Integer nearbyRadiusMeters,
+        Boolean nearbyPharmacy,
         @Size(max = 500) String services,
         @Size(max = 500) String transport,
         @Size(max = 1000) String openingHours,

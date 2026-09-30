@@ -118,6 +118,12 @@ public class Venue {
     @Column
     private Boolean sportsShop;
 
+    @Column(name = "nearby_radius_meters")
+    private Integer nearbyRadiusMeters;
+
+    @Column(name = "nearby_pharmacy")
+    private Boolean nearbyPharmacy;
+
     @Column(length = 500)
     private String services;
 

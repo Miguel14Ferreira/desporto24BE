@@ -31,6 +31,8 @@ public record VenueResponse(
         Boolean restaurant,
         Boolean vendingMachines,
         Boolean sportsShop,
+        Integer nearbyRadiusMeters,
+        Boolean nearbyPharmacy,
         String services,
         String transport,
         String openingHours,
