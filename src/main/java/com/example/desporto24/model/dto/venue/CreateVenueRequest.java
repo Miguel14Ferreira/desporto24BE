@@ -21,6 +21,7 @@ public record CreateVenueRequest(
         Boolean lockers,
         Boolean showers,
         Boolean stands,
+        Boolean drinkingFountain,
         Boolean accessible,
         Boolean firstAid,
         Boolean aed,

@@ -79,6 +79,9 @@ public class Venue {
     @Column
     private Boolean stands;
 
+    @Column(name = "drinking_fountain")
+    private Boolean drinkingFountain;
+
     @Column
     private Boolean accessible;
 
