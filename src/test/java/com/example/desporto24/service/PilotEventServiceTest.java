@@ -196,27 +196,46 @@ class PilotEventServiceTest {
     }
 
     @Test
-    void realizationUsesOnlyTrackedSessionsWhoseScheduledDateHasPassed() {
+    void realizationRequiresCompletionAndAtLeastTwoConfirmedParticipants() {
         Instant now = Instant.now();
         when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
                 .thenReturn(List.of(
                         subjectEvent(PilotEventType.SESSION_CREATED, 101L, now.minus(Duration.ofDays(10))),
                         subjectEvent(PilotEventType.SESSION_CREATED, 102L, now.minus(Duration.ofDays(9))),
                         subjectEvent(PilotEventType.SESSION_CREATED, 103L, now.minus(Duration.ofDays(8))),
-                        subjectEvent(PilotEventType.SESSION_CREATED, 104L, now.minus(Duration.ofDays(1)))
+                        subjectEvent(PilotEventType.SESSION_CREATED, 104L, now.minus(Duration.ofDays(1))),
+                        subjectEvent(PilotEventType.SESSION_CREATED, 105L, now.minus(Duration.ofDays(7)))
                 ));
         when(sessionRepository.findAllById(anySet())).thenReturn(List.of(
                 session(101L, SessionStatus.COMPLETED, now.minus(Duration.ofDays(2))),
                 session(102L, SessionStatus.CANCELLED, now.minus(Duration.ofDays(1))),
                 session(103L, SessionStatus.COMPLETED, now.minus(Duration.ofHours(1))),
-                session(104L, SessionStatus.OPEN, now.plus(Duration.ofDays(1)))
+                session(104L, SessionStatus.OPEN, now.plus(Duration.ofDays(1))),
+                session(105L, SessionStatus.COMPLETED, now.minus(Duration.ofHours(2)))
         ));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_COMPLETED))
+                .thenReturn(List.of(
+                        completedSessionEvent(101L, now.minus(Duration.ofDays(2))),
+                        completedSessionEvent(103L, now.minus(Duration.ofHours(1))),
+                        completedSessionEvent(105L, now.minus(Duration.ofHours(2)))
+                ));
+        when(pilotEventRepository.findByEventType(PilotEventType.ATTENDANCE_CONFIRMED))
+                .thenReturn(List.of(
+                        attendanceEvent(1L, 101L, now.minus(Duration.ofDays(2))),
+                        attendanceEvent(2L, 101L, now.minus(Duration.ofDays(2))),
+                        attendanceEvent(3L, 102L, now.minus(Duration.ofDays(1))),
+                        attendanceEvent(4L, 102L, now.minus(Duration.ofDays(1))),
+                        attendanceEvent(5L, 103L, now.minus(Duration.ofHours(1))),
+                        attendanceEvent(6L, 105L, now.minus(Duration.ofHours(2))),
+                        attendanceEvent(7L, 105L, now.minus(Duration.ofHours(2))),
+                        attendanceEvent(7L, 105L, now.minus(Duration.ofHours(2)))
+                ));
 
         var realization = service.realization();
 
         assertEquals(2L, realization.realizedSessions());
-        assertEquals(3L, realization.eligiblePlannedSessions());
-        assertEquals(new BigDecimal("66.67"), realization.realizationRatePercent());
+        assertEquals(4L, realization.eligiblePlannedSessions());
+        assertEquals(new BigDecimal("50.00"), realization.realizationRatePercent());
         assertEquals(new BigDecimal("70.00"), realization.minimumRatePercent());
         assertFalse(realization.targetMet());
     }

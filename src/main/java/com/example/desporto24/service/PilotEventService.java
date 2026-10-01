@@ -189,8 +189,27 @@ public class PilotEventService {
                 .filter(session -> !session.getGameDate().toInstant().isAfter(now))
                 .toList();
 
+        Set<Long> completedSessionIds = pilotEventRepository
+                .findByEventType(PilotEventType.SESSION_COMPLETED)
+                .stream()
+                .map(PilotEvent::getSubjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, Set<Long>> confirmedParticipantsBySession = pilotEventRepository
+                .findByEventType(PilotEventType.ATTENDANCE_CONFIRMED)
+                .stream()
+                .filter(this::hasPersistedProfileTimestampAndSubject)
+                .collect(Collectors.groupingBy(
+                        PilotEvent::getSubjectId,
+                        Collectors.mapping(event -> event.getProfile().getId(), Collectors.toSet())
+                ));
+
         long realizedSessions = eligibleSessions.stream()
-                .filter(session -> session.getStatus() == com.example.desporto24.enumeration.SessionStatus.COMPLETED)
+                .filter(session -> completedSessionIds.contains(session.getId()))
+                .filter(session -> confirmedParticipantsBySession
+                        .getOrDefault(session.getId(), Set.of())
+                        .size() >= 2)
                 .count();
         long eligiblePlannedSessions = eligibleSessions.size();
         BigDecimal ratePercent = eligiblePlannedSessions == 0
