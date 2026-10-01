@@ -2,6 +2,7 @@ package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
+import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.service.PilotEventService;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,25 @@ class AdminPilotMetricsControllerTest {
 
         assertEquals(expected, controller.repetition30d());
         verify(service).repetition30d();
+    }
+
+    @Test
+    void returnsPilotParticipation() {
+        PilotEventService service = mock(PilotEventService.class);
+        var expected = new PilotParticipationResponse(
+                30L,
+                10L,
+                30L,
+                10L,
+                true,
+                true
+        );
+        when(service.participation()).thenReturn(expected);
+
+        var controller = new AdminPilotMetricsController(service);
+
+        assertEquals(expected, controller.participation());
+        verify(service).participation();
     }
 
     @Test

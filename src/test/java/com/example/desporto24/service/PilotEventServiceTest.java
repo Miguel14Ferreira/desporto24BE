@@ -162,6 +162,33 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void participationCountsUniqueConfirmedParticipantsAndCompletedSessions() {
+        Instant now = Instant.now();
+
+        when(pilotEventRepository.findByEventType(PilotEventType.ATTENDANCE_CONFIRMED))
+                .thenReturn(List.of(
+                        attendanceEvent(1L, 101L, now.minus(Duration.ofDays(2))),
+                        attendanceEvent(1L, 102L, now.minus(Duration.ofDays(1))),
+                        attendanceEvent(2L, 103L, now.minus(Duration.ofHours(12)))
+                ));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_COMPLETED))
+                .thenReturn(List.of(
+                        completedSessionEvent(101L, now.minus(Duration.ofDays(2))),
+                        completedSessionEvent(102L, now.minus(Duration.ofDays(1))),
+                        completedSessionEvent(102L, now.minus(Duration.ofHours(6)))
+                ));
+
+        var participation = service.participation();
+
+        assertEquals(2L, participation.confirmedParticipants());
+        assertEquals(2L, participation.completedSessions());
+        assertEquals(30L, participation.minimumConfirmedParticipants());
+        assertEquals(10L, participation.minimumCompletedSessions());
+        assertFalse(participation.participantsTargetMet());
+        assertFalse(participation.completedSessionsTargetMet());
+    }
+
+    @Test
     void recordsOnlyFirstAccessForDevice() {
         when(pilotEventRepository.existsByEventTypeAndDeviceId(
                 PilotEventType.ACCESS,
@@ -345,6 +372,14 @@ class PilotEventServiceTest {
         assertEquals(profile, event.getProfile());
         assertEquals(99L, event.getSubjectId());
         assertNotNull(event.getCreatedAt());
+    }
+
+    private PilotEvent completedSessionEvent(Long sessionId, Instant createdAt) {
+        return PilotEvent.builder()
+                .eventType(PilotEventType.SESSION_COMPLETED)
+                .subjectId(sessionId)
+                .createdAt(createdAt)
+                .build();
     }
 
     private PilotEvent attendanceEvent(Long profileId, Long sessionId, Instant createdAt) {

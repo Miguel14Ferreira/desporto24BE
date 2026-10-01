@@ -5,6 +5,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.analytics.PilotEvent;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
+import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,8 @@ public class PilotEventService {
     private static final long ACTIVATION_MIN_ELIGIBLE = 50L;
     private static final Duration REPETITION_WINDOW = Duration.ofDays(30);
     private static final long REPETITION_MIN_ELIGIBLE = 20L;
+    private static final long PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS = 30L;
+    private static final long PARTICIPATION_MIN_COMPLETED_SESSIONS = 10L;
 
     private final PilotEventRepository pilotEventRepository;
 
@@ -120,6 +123,34 @@ public class PilotEventService {
                 ratePercent,
                 REPETITION_MIN_ELIGIBLE,
                 eligibleParticipants >= REPETITION_MIN_ELIGIBLE
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotParticipationResponse participation() {
+        long confirmedParticipants = pilotEventRepository
+                .findByEventType(PilotEventType.ATTENDANCE_CONFIRMED)
+                .stream()
+                .filter(this::hasPersistedProfileTimestampAndSubject)
+                .map(event -> event.getProfile().getId())
+                .distinct()
+                .count();
+
+        long completedSessions = pilotEventRepository
+                .findByEventType(PilotEventType.SESSION_COMPLETED)
+                .stream()
+                .filter(event -> event.getSubjectId() != null)
+                .map(PilotEvent::getSubjectId)
+                .distinct()
+                .count();
+
+        return new PilotParticipationResponse(
+                confirmedParticipants,
+                completedSessions,
+                PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS,
+                PARTICIPATION_MIN_COMPLETED_SESSIONS,
+                confirmedParticipants >= PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS,
+                completedSessions >= PARTICIPATION_MIN_COMPLETED_SESSIONS
         );
     }
 
