@@ -22,6 +22,7 @@ public class PilotEventService {
         return new PilotEventCountsResponse(
                 pilotEventRepository.countByEventType(PilotEventType.ACCESS),
                 pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED),
+                pilotEventRepository.countByEventType(PilotEventType.SESSION_SEARCHED),
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_CREATED),
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED),
                 pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED),
@@ -62,6 +63,26 @@ public class PilotEventService {
 
         pilotEventRepository.save(PilotEvent.builder()
                 .eventType(PilotEventType.REGISTRATION_COMPLETED)
+                .profile(profile)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
+    public void recordSessionSearched(Profile profile) {
+        if (profile == null || profile.getId() == null) {
+            throw new IllegalArgumentException("Session search event requires a persisted profile");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndProfileId(
+                PilotEventType.SESSION_SEARCHED,
+                profile.getId()
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.SESSION_SEARCHED)
                 .profile(profile)
                 .createdAt(Instant.now())
                 .build());

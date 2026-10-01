@@ -15,6 +15,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,11 +47,20 @@ public class SessionController {
             @RequestParam(required = false) Boolean freeOnly,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String sort) {
-        return sessionService.discover(new SessionSearchCriteria(
+            @RequestParam(required = false) String sort,
+            Authentication authentication) {
+        SessionSearchCriteria criteria = new SessionSearchCriteria(
                 sport, city, from, to, latitude, longitude, radiusKm,
                 availability, privateGame, freeOnly, minPrice, maxPrice, sort
-        ));
+        );
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return sessionService.discover(criteria);
+        }
+
+        return sessionService.discover(criteria, authentication.getName());
     }
 
     @GetMapping("/mine")

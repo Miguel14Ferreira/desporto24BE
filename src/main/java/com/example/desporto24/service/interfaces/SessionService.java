@@ -18,6 +18,7 @@ public interface SessionService {
     SessionDetailResponse create(CreateSessionRequest request, MultipartFile photo, String username);
     SessionDetailResponse getById(Long sessionId, String username);
     List<SessionSummaryResponse> discover(SessionSearchCriteria criteria);
+    List<SessionSummaryResponse> discover(SessionSearchCriteria criteria, String username);
     MySessionsResponse mine(String username);
     List<SessionParticipantResponse> participants(Long sessionId, String username);
     JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username);

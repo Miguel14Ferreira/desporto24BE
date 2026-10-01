@@ -186,6 +186,23 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional(readOnly = true)
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria) {
+        return discoverSessions(criteria);
+    }
+
+    @Override
+    @Transactional
+    public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria, String username) {
+        List<SessionSummaryResponse> result = discoverSessions(criteria);
+
+        if (username != null && !username.isBlank()) {
+            profileRepository.findUserByUsername(username)
+                    .ifPresent(pilotEventService::recordSessionSearched);
+        }
+
+        return result;
+    }
+
+    private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
         List<Session> candidates = sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
                 List.of(SessionStatus.OPEN, SessionStatus.FULL), new Date());
 

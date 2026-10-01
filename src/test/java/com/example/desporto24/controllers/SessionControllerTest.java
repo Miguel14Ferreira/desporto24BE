@@ -31,6 +31,36 @@ class SessionControllerTest {
     @InjectMocks private SessionController controller;
 
     @Test
+    void discoverUsesAuthenticatedIdentityWhenAvailable() {
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionService.discover(any(), eq("miguel"))).thenReturn(List.of());
+
+        List<?> response = controller.discover(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, authentication
+        );
+
+        assertTrue(response.isEmpty());
+        verify(sessionService).discover(any(), eq("miguel"));
+        verify(sessionService, never()).discover(any());
+    }
+
+    @Test
+    void anonymousDiscoverRemainsPublicAndDoesNotRecordIdentity() {
+        when(sessionService.discover(any())).thenReturn(List.of());
+
+        List<?> response = controller.discover(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null
+        );
+
+        assertTrue(response.isEmpty());
+        verify(sessionService).discover(any());
+        verify(sessionService, never()).discover(any(), anyString());
+    }
+
+    @Test
     void createUsesAuthenticatedIdentityInsteadOfClientUsername() {
         Instant gameDate = Instant.parse("2026-10-01T19:00:00Z");
         CreateSessionRequest request = new CreateSessionRequest(

@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -69,6 +70,25 @@ class SessionDiscoveryServiceTest {
                 sessionNotificationService,
                 pilotEventService
         );
+    }
+
+    @Test
+    void authenticatedDiscoveryRecordsPilotSearchAfterSuccessfulDiscovery() {
+        Profile profile = new Profile();
+        profile.setId(7L);
+        profile.setUsername("miguel");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
+        when(sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
+                anyCollection(), any(Date.class))).thenReturn(List.of());
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, null, null, null,
+                null, null, null, null
+        ), "miguel");
+
+        assertTrue(result.isEmpty());
+        verify(pilotEventService).recordSessionSearched(profile);
     }
 
     @Test

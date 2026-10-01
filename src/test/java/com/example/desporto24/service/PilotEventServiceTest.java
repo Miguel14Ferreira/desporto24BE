@@ -31,6 +31,7 @@ class PilotEventServiceTest {
     void returnsCountsForEveryPilotEventType() {
         when(pilotEventRepository.countByEventType(PilotEventType.ACCESS)).thenReturn(200L);
         when(pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED)).thenReturn(100L);
+        when(pilotEventRepository.countByEventType(PilotEventType.SESSION_SEARCHED)).thenReturn(70L);
         when(pilotEventRepository.countByEventType(PilotEventType.SESSION_CREATED)).thenReturn(20L);
         when(pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED)).thenReturn(60L);
         when(pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED)).thenReturn(30L);
@@ -40,6 +41,7 @@ class PilotEventServiceTest {
 
         assertEquals(200L, counts.access());
         assertEquals(100L, counts.registrationCompleted());
+        assertEquals(70L, counts.sessionSearched());
         assertEquals(20L, counts.sessionCreated());
         assertEquals(60L, counts.sessionJoined());
         assertEquals(30L, counts.attendanceConfirmed());
@@ -85,6 +87,29 @@ class PilotEventServiceTest {
 
         PilotEvent event = captor.getValue();
         assertEquals(PilotEventType.REGISTRATION_COMPLETED, event.getEventType());
+        assertEquals(profile, event.getProfile());
+        assertNull(event.getSubjectId());
+        assertNotNull(event.getCreatedAt());
+    }
+
+    @Test
+    void recordsSessionSearchOnlyOncePerProfile() {
+        Profile profile = new Profile();
+        profile.setId(42L);
+
+        when(pilotEventRepository.existsByEventTypeAndProfileId(
+                PilotEventType.SESSION_SEARCHED,
+                42L
+        )).thenReturn(false, true);
+
+        service.recordSessionSearched(profile);
+        service.recordSessionSearched(profile);
+
+        ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
+        verify(pilotEventRepository, times(1)).save(captor.capture());
+
+        PilotEvent event = captor.getValue();
+        assertEquals(PilotEventType.SESSION_SEARCHED, event.getEventType());
         assertEquals(profile, event.getProfile());
         assertNull(event.getSubjectId());
         assertNotNull(event.getCreatedAt());
