@@ -120,6 +120,31 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void recordsSessionCompletionOnlyOncePerSession() {
+        Profile creator = new Profile();
+        creator.setId(42L);
+        Profile anotherProfile = new Profile();
+        anotherProfile.setId(43L);
+
+        when(pilotEventRepository.existsByEventTypeAndSubjectId(
+                PilotEventType.SESSION_COMPLETED,
+                99L
+        )).thenReturn(false, true);
+
+        service.recordSessionCompleted(creator, 99L);
+        service.recordSessionCompleted(anotherProfile, 99L);
+
+        ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
+        verify(pilotEventRepository, times(1)).save(captor.capture());
+
+        PilotEvent event = captor.getValue();
+        assertEquals(PilotEventType.SESSION_COMPLETED, event.getEventType());
+        assertEquals(creator, event.getProfile());
+        assertEquals(99L, event.getSubjectId());
+        assertNotNull(event.getCreatedAt());
+    }
+
+    @Test
     void recordsBusinessEventFromTrustedDomainService() {
         Profile profile = new Profile();
         profile.setId(42L);

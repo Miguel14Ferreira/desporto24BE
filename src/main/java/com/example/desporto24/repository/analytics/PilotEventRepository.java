@@ -12,6 +12,8 @@ public interface PilotEventRepository extends JpaRepository<PilotEvent, Long> {
 
     boolean existsByEventTypeAndProfileId(PilotEventType eventType, Long profileId);
 
+    boolean existsByEventTypeAndSubjectId(PilotEventType eventType, Long subjectId);
+
     boolean existsByEventTypeAndProfileIdAndSubjectId(
             PilotEventType eventType,
             Long profileId,

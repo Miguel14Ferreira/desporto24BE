@@ -466,6 +466,7 @@ public class SessionServiceImpl implements SessionService {
         session.setStatus(SessionStatus.COMPLETED);
         session.setUpdatedAt(now);
         sessionRepository.save(session);
+        pilotEventService.recordSessionCompleted(actor, sessionId);
     }
 
     @Override

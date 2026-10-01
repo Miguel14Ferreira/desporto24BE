@@ -99,6 +99,27 @@ public class PilotEventService {
     }
 
     @Transactional
+    public void recordSessionCompleted(Profile profile, Long sessionId) {
+        if (profile == null || profile.getId() == null || sessionId == null) {
+            throw new IllegalArgumentException("Session completion event requires persisted profile and session");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndSubjectId(
+                PilotEventType.SESSION_COMPLETED,
+                sessionId
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.SESSION_COMPLETED)
+                .profile(profile)
+                .subjectId(sessionId)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
     public void recordBusinessEvent(
             PilotEventType eventType,
             Profile profile,

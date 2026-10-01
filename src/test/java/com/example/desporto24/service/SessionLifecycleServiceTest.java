@@ -220,6 +220,9 @@ class SessionLifecycleServiceTest {
 
         assertEquals(SessionStatus.COMPLETED,
                 sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+        assertTrue(pilotEventRepository.existsByEventTypeAndSubjectId(
+                com.example.desporto24.enumeration.PilotEventType.SESSION_COMPLETED,
+                session.getId()));
     }
 
     @Test
