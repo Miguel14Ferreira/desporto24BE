@@ -1,5 +1,6 @@
 package com.example.desporto24.controllers;
 
+import com.example.desporto24.exception.EmailNotFoundException;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.model.dto.auth.MfaResendRequest;
@@ -70,6 +71,22 @@ class AuthenticationControllerTest {
         assertEquals(OK, response.getStatusCode());
         org.mockito.Mockito.verify(authenticationService)
                 .resetPasswordStepOne("miguel@example.com");
+    }
+
+    @Test
+    void passwordResetInitiateDoesNotRevealUnknownEmail() {
+        PasswordResetInitiateRequest request =
+                new PasswordResetInitiateRequest("unknown@example.com");
+
+        org.mockito.Mockito.doThrow(new EmailNotFoundException("not found"))
+                .when(authenticationService)
+                .resetPasswordStepOne("unknown@example.com");
+
+        var response = controller.initiatePasswordReset(request);
+
+        assertEquals(OK, response.getStatusCode());
+        org.mockito.Mockito.verify(authenticationService)
+                .resetPasswordStepOne("unknown@example.com");
     }
 
     @Test

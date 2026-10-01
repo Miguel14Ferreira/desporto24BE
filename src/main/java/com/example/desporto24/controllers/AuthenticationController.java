@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.domain.HttpResponse;
+import com.example.desporto24.exception.EmailNotFoundException;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
@@ -178,7 +179,11 @@ public class AuthenticationController {
                 request.email(),
                 Duration.ofSeconds(60)
         );
-        authenticationService.resetPasswordStepOne(request.email());
+        try {
+            authenticationService.resetPasswordStepOne(request.email());
+        } catch (EmailNotFoundException ignored) {
+            // Keep a generic response to avoid exposing whether an account exists.
+        }
         return buildResponse(PASSWORD_RESET_INITIATED);
     }
 
