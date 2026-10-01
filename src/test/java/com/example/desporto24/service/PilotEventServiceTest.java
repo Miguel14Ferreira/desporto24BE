@@ -48,6 +48,7 @@ class PilotEventServiceTest {
         when(pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED)).thenReturn(60L);
         when(pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED)).thenReturn(30L);
         when(pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED)).thenReturn(10L);
+        when(pilotEventRepository.countByEventType(PilotEventType.OPERATIONAL_INTERVENTION)).thenReturn(4L);
 
         var counts = service.eventCounts();
 
@@ -58,6 +59,7 @@ class PilotEventServiceTest {
         assertEquals(60L, counts.sessionJoined());
         assertEquals(30L, counts.attendanceConfirmed());
         assertEquals(10L, counts.sessionCompleted());
+        assertEquals(4L, counts.operationalIntervention());
     }
 
     @Test
@@ -422,6 +424,39 @@ class PilotEventServiceTest {
         assertEquals(profile, event.getProfile());
         assertEquals(99L, event.getSubjectId());
         assertNotNull(event.getCreatedAt());
+    }
+
+    @Test
+    void recordsOperationalInterventionOnlyOncePerSession() {
+        when(sessionRepository.existsById(99L)).thenReturn(true);
+        when(pilotEventRepository.existsByEventTypeAndSubjectId(
+                PilotEventType.OPERATIONAL_INTERVENTION,
+                99L
+        )).thenReturn(false, true);
+
+        service.recordOperationalIntervention(99L);
+        service.recordOperationalIntervention(99L);
+
+        ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
+        verify(pilotEventRepository, times(1)).save(captor.capture());
+
+        PilotEvent event = captor.getValue();
+        assertEquals(PilotEventType.OPERATIONAL_INTERVENTION, event.getEventType());
+        assertNull(event.getProfile());
+        assertEquals(99L, event.getSubjectId());
+        assertNotNull(event.getCreatedAt());
+    }
+
+    @Test
+    void operationalInterventionRejectsUnknownSession() {
+        when(sessionRepository.existsById(99L)).thenReturn(false);
+
+        assertThrows(
+                com.example.desporto24.exception.SessionNotFound.class,
+                () -> service.recordOperationalIntervention(99L)
+        );
+
+        verify(pilotEventRepository, never()).save(any());
     }
 
     @Test

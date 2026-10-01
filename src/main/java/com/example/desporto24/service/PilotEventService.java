@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.PilotEventType;
+import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.analytics.PilotEvent;
@@ -52,7 +53,8 @@ public class PilotEventService {
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_CREATED),
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED),
                 pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED),
-                pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED)
+                pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED),
+                pilotEventRepository.countByEventType(PilotEventType.OPERATIONAL_INTERVENTION)
         );
     }
 
@@ -402,6 +404,30 @@ public class PilotEventService {
         pilotEventRepository.save(PilotEvent.builder()
                 .eventType(PilotEventType.ATTENDANCE_CONFIRMED)
                 .profile(profile)
+                .subjectId(sessionId)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
+    public void recordOperationalIntervention(Long sessionId) {
+        if (sessionId == null) {
+            throw new IllegalArgumentException("Operational intervention requires a session");
+        }
+
+        if (!sessionRepository.existsById(sessionId)) {
+            throw new SessionNotFound("Session not found");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndSubjectId(
+                PilotEventType.OPERATIONAL_INTERVENTION,
+                sessionId
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.OPERATIONAL_INTERVENTION)
                 .subjectId(sessionId)
                 .createdAt(Instant.now())
                 .build());

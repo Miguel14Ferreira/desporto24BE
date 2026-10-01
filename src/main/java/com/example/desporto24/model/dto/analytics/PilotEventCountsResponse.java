@@ -7,6 +7,7 @@ public record PilotEventCountsResponse(
         long sessionCreated,
         long sessionJoined,
         long attendanceConfirmed,
-        long sessionCompleted
+        long sessionCompleted,
+        long operationalIntervention
 ) {
 }

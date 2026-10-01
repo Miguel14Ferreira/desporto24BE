@@ -109,9 +109,19 @@ class AdminPilotMetricsControllerTest {
     }
 
     @Test
+    void recordsOperationalIntervention() {
+        PilotEventService service = mock(PilotEventService.class);
+        var controller = new AdminPilotMetricsController(service);
+
+        controller.recordOperationalIntervention(99L);
+
+        verify(service).recordOperationalIntervention(99L);
+    }
+
+    @Test
     void returnsPilotEventCounts() {
         PilotEventService service = mock(PilotEventService.class);
-        var expected = new PilotEventCountsResponse(200L, 100L, 70L, 20L, 60L, 30L, 10L);
+        var expected = new PilotEventCountsResponse(200L, 100L, 70L, 20L, 60L, 30L, 10L, 4L);
         when(service.eventCounts()).thenReturn(expected);
 
         var controller = new AdminPilotMetricsController(service);

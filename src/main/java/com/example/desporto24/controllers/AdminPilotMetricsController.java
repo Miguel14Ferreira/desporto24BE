@@ -8,9 +8,13 @@ import com.example.desporto24.model.dto.analytics.PilotRecurringSupplyResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.service.PilotEventService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -48,6 +52,13 @@ public class AdminPilotMetricsController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public PilotRecurringSupplyResponse recurringSupply() {
         return pilotEventService.recurringSupply();
+    }
+
+    @PostMapping("/sessions/{sessionId}/operational-intervention")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public void recordOperationalIntervention(@PathVariable Long sessionId) {
+        pilotEventService.recordOperationalIntervention(sessionId);
     }
 
     @GetMapping("/event-counts")
