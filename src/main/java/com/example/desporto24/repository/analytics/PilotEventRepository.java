@@ -5,10 +5,14 @@ import com.example.desporto24.model.analytics.PilotEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface PilotEventRepository extends JpaRepository<PilotEvent, Long> {
 
     long countByEventType(PilotEventType eventType);
+
+    List<PilotEvent> findByEventType(PilotEventType eventType);
 
     boolean existsByEventTypeAndDeviceId(PilotEventType eventType, String deviceId);
 

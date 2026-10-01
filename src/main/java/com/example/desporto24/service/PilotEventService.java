@@ -3,17 +3,26 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.PilotEventType;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.analytics.PilotEvent;
+import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class PilotEventService {
+
+    private static final Duration ACTIVATION_WINDOW = Duration.ofDays(7);
+    private static final long ACTIVATION_MIN_ELIGIBLE = 50L;
 
     private final PilotEventRepository pilotEventRepository;
 
@@ -28,6 +37,61 @@ public class PilotEventService {
                 pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED),
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED)
         );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotActivation7dResponse activation7d() {
+        Instant eligibilityCutoff = Instant.now().minus(ACTIVATION_WINDOW);
+
+        List<PilotEvent> eligibleRegistrations = pilotEventRepository
+                .findByEventType(PilotEventType.REGISTRATION_COMPLETED)
+                .stream()
+                .filter(this::hasPersistedProfileAndTimestamp)
+                .filter(event -> !event.getCreatedAt().isAfter(eligibilityCutoff))
+                .toList();
+
+        List<PilotEvent> activationEvents = new ArrayList<>();
+        activationEvents.addAll(pilotEventRepository.findByEventType(PilotEventType.SESSION_SEARCHED));
+        activationEvents.addAll(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED));
+        activationEvents.addAll(pilotEventRepository.findByEventType(PilotEventType.SESSION_JOINED));
+
+        long activatedRegistrations = eligibleRegistrations.stream()
+                .filter(registration -> activationEvents.stream()
+                        .anyMatch(action -> activatesWithinWindow(registration, action)))
+                .count();
+
+        long eligibleCount = eligibleRegistrations.size();
+        BigDecimal ratePercent = eligibleCount == 0
+                ? null
+                : BigDecimal.valueOf(activatedRegistrations)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(eligibleCount), 2, RoundingMode.HALF_UP);
+
+        return new PilotActivation7dResponse(
+                activatedRegistrations,
+                eligibleCount,
+                ratePercent,
+                ACTIVATION_MIN_ELIGIBLE,
+                eligibleCount >= ACTIVATION_MIN_ELIGIBLE
+        );
+    }
+
+    private boolean hasPersistedProfileAndTimestamp(PilotEvent event) {
+        return event.getProfile() != null
+                && event.getProfile().getId() != null
+                && event.getCreatedAt() != null;
+    }
+
+    private boolean activatesWithinWindow(PilotEvent registration, PilotEvent action) {
+        if (!hasPersistedProfileAndTimestamp(action)
+                || !registration.getProfile().getId().equals(action.getProfile().getId())) {
+            return false;
+        }
+
+        Instant windowStart = registration.getCreatedAt();
+        Instant windowEnd = windowStart.plus(ACTIVATION_WINDOW);
+        return !action.getCreatedAt().isBefore(windowStart)
+                && !action.getCreatedAt().isAfter(windowEnd);
     }
 
     @Transactional

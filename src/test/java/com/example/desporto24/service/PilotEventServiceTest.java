@@ -11,6 +11,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -46,6 +51,66 @@ class PilotEventServiceTest {
         assertEquals(60L, counts.sessionJoined());
         assertEquals(30L, counts.attendanceConfirmed());
         assertEquals(10L, counts.sessionCompleted());
+    }
+
+    @Test
+    void calculatesActivationOnlyForEligibleRegistrationsAndFirstSevenDays() {
+        Instant now = Instant.now();
+        PilotEvent registration1 = event(PilotEventType.REGISTRATION_COMPLETED, 1L, now.minus(Duration.ofDays(10)));
+        PilotEvent registration2 = event(PilotEventType.REGISTRATION_COMPLETED, 2L, now.minus(Duration.ofDays(9)));
+        PilotEvent registration3 = event(PilotEventType.REGISTRATION_COMPLETED, 3L, now.minus(Duration.ofDays(8)));
+        PilotEvent registration4 = event(PilotEventType.REGISTRATION_COMPLETED, 4L, now.minus(Duration.ofDays(2)));
+
+        when(pilotEventRepository.findByEventType(PilotEventType.REGISTRATION_COMPLETED))
+                .thenReturn(List.of(registration1, registration2, registration3, registration4));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_SEARCHED))
+                .thenReturn(List.of(
+                        event(PilotEventType.SESSION_SEARCHED, 1L,
+                                registration1.getCreatedAt().plus(Duration.ofDays(1))),
+                        event(PilotEventType.SESSION_SEARCHED, 4L,
+                                registration4.getCreatedAt().plus(Duration.ofHours(1)))
+                ));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
+                .thenReturn(List.of(event(
+                        PilotEventType.SESSION_CREATED,
+                        2L,
+                        registration2.getCreatedAt().plus(Duration.ofDays(7))
+                )));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_JOINED))
+                .thenReturn(List.of(event(
+                        PilotEventType.SESSION_JOINED,
+                        3L,
+                        registration3.getCreatedAt().plus(Duration.ofDays(7)).plusSeconds(1)
+                )));
+
+        var activation = service.activation7d();
+
+        assertEquals(2L, activation.activatedRegistrations());
+        assertEquals(3L, activation.eligibleRegistrations());
+        assertEquals(new BigDecimal("66.67"), activation.activationRatePercent());
+        assertEquals(50L, activation.minimumEligibleRegistrations());
+        assertFalse(activation.sampleSufficient());
+    }
+
+    @Test
+    void activationRateIsUnknownBeforeAnyRegistrationHasSevenCompleteDays() {
+        Instant now = Instant.now();
+        when(pilotEventRepository.findByEventType(PilotEventType.REGISTRATION_COMPLETED))
+                .thenReturn(List.of(event(
+                        PilotEventType.REGISTRATION_COMPLETED,
+                        1L,
+                        now.minus(Duration.ofDays(2))
+                )));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_SEARCHED)).thenReturn(List.of());
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED)).thenReturn(List.of());
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_JOINED)).thenReturn(List.of());
+
+        var activation = service.activation7d();
+
+        assertEquals(0L, activation.activatedRegistrations());
+        assertEquals(0L, activation.eligibleRegistrations());
+        assertNull(activation.activationRatePercent());
+        assertFalse(activation.sampleSufficient());
     }
 
     @Test
@@ -232,6 +297,16 @@ class PilotEventServiceTest {
         assertEquals(profile, event.getProfile());
         assertEquals(99L, event.getSubjectId());
         assertNotNull(event.getCreatedAt());
+    }
+
+    private PilotEvent event(PilotEventType type, Long profileId, Instant createdAt) {
+        Profile profile = new Profile();
+        profile.setId(profileId);
+        return PilotEvent.builder()
+                .eventType(type)
+                .profile(profile)
+                .createdAt(createdAt)
+                .build();
     }
 
     @Test
