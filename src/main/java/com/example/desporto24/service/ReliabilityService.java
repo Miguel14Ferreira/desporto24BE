@@ -44,6 +44,7 @@ public class ReliabilityService {
     private final ProfileRepository profileRepository;
     private final SessionRepository sessionRepository;
     private final NotificationsRepository notificationsRepository;
+    private final PilotEventService pilotEventService;
 
     public AttendanceStatus leaveAttendanceStatus(Instant leaveAt, Instant start) {
         if (!leaveAt.isBefore(start)) {
@@ -178,6 +179,13 @@ public class ReliabilityService {
         participant.setAttendanceReportedBy(creator);
         participant.setAttendanceRecordedAt(now);
         participantRepository.save(participant);
+
+        if (status == AttendanceStatus.ATTENDED) {
+            pilotEventService.recordAttendanceConfirmed(
+                    participant.getProfile(),
+                    sessionId
+            );
+        }
     }
 
     @Transactional(readOnly = true)

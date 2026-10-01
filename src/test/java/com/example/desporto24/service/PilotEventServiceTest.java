@@ -96,6 +96,30 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void recordsAttendanceOnlyOncePerProfileAndSession() {
+        Profile profile = new Profile();
+        profile.setId(42L);
+
+        when(pilotEventRepository.existsByEventTypeAndProfileIdAndSubjectId(
+                PilotEventType.ATTENDANCE_CONFIRMED,
+                42L,
+                99L
+        )).thenReturn(false, true);
+
+        service.recordAttendanceConfirmed(profile, 99L);
+        service.recordAttendanceConfirmed(profile, 99L);
+
+        ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
+        verify(pilotEventRepository, times(1)).save(captor.capture());
+
+        PilotEvent event = captor.getValue();
+        assertEquals(PilotEventType.ATTENDANCE_CONFIRMED, event.getEventType());
+        assertEquals(profile, event.getProfile());
+        assertEquals(99L, event.getSubjectId());
+        assertNotNull(event.getCreatedAt());
+    }
+
+    @Test
     void recordsBusinessEventFromTrustedDomainService() {
         Profile profile = new Profile();
         profile.setId(42L);

@@ -77,6 +77,28 @@ public class PilotEventService {
     }
 
     @Transactional
+    public void recordAttendanceConfirmed(Profile profile, Long sessionId) {
+        if (profile == null || profile.getId() == null || sessionId == null) {
+            throw new IllegalArgumentException("Attendance event requires persisted profile and session");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndProfileIdAndSubjectId(
+                PilotEventType.ATTENDANCE_CONFIRMED,
+                profile.getId(),
+                sessionId
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.ATTENDANCE_CONFIRMED)
+                .profile(profile)
+                .subjectId(sessionId)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
     public void recordBusinessEvent(
             PilotEventType eventType,
             Profile profile,
