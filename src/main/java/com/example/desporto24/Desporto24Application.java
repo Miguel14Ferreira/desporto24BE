@@ -2,6 +2,7 @@ package com.example.desporto24;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.cors.CorsConfiguration;
@@ -15,7 +16,7 @@ import java.util.Collections;
 
 import static com.example.desporto24.constant.FileConstant.USER_FOLDER;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
 public class Desporto24Application {
 
     public static void main(String[] args) throws InterruptedException {
