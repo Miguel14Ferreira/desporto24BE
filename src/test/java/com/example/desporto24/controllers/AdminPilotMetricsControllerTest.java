@@ -6,6 +6,7 @@ import com.example.desporto24.model.dto.analytics.PilotAutonomyResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRegistrationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRecurringSupplyResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.service.PilotEventService;
@@ -35,6 +36,25 @@ class AdminPilotMetricsControllerTest {
 
         assertEquals(expected, controller.acquisition("pilot-lisbon-2026"));
         verify(service).acquisition("pilot-lisbon-2026");
+    }
+
+    @Test
+    void returnsPilotRegistration() {
+        PilotEventService service = mock(PilotEventService.class);
+        var expected = new PilotRegistrationResponse(
+                "pilot-lisbon-2026",
+                100L,
+                200L,
+                new BigDecimal("50.00"),
+                100L,
+                true
+        );
+        when(service.registration("pilot-lisbon-2026")).thenReturn(expected);
+
+        var controller = new AdminPilotMetricsController(service);
+
+        assertEquals(expected, controller.registration("pilot-lisbon-2026"));
+        verify(service).registration("pilot-lisbon-2026");
     }
 
     @Test

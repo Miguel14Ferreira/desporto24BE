@@ -11,6 +11,7 @@ import com.example.desporto24.model.dto.analytics.PilotAutonomyResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRegistrationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRecurringSupplyResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.repository.SessionRepository;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 public class PilotEventService {
 
     private static final long ACQUISITION_MIN_ATTRIBUTED_ACCESSES = 200L;
+    private static final long REGISTRATION_MIN_ATTRIBUTED_REGISTRATIONS = 100L;
     private static final Duration ACTIVATION_WINDOW = Duration.ofDays(7);
     private static final long ACTIVATION_MIN_ELIGIBLE = 50L;
     private static final Duration REPETITION_WINDOW = Duration.ofDays(30);
@@ -65,6 +67,37 @@ public class PilotEventService {
                 attributedAccesses,
                 ACQUISITION_MIN_ATTRIBUTED_ACCESSES,
                 attributedAccesses >= ACQUISITION_MIN_ATTRIBUTED_ACCESSES
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotRegistrationResponse registration(String cohort) {
+        String normalizedCohort = cohort == null ? "" : cohort.trim();
+        if (normalizedCohort.isEmpty()) {
+            throw new IllegalArgumentException("Registration metric requires a cohort");
+        }
+
+        long attributedAccesses = pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                normalizedCohort
+        );
+        long attributedRegistrations = pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.REGISTRATION_COMPLETED,
+                normalizedCohort
+        );
+        BigDecimal conversionRatePercent = attributedAccesses == 0
+                ? null
+                : BigDecimal.valueOf(attributedRegistrations)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(attributedAccesses), 2, RoundingMode.HALF_UP);
+
+        return new PilotRegistrationResponse(
+                normalizedCohort,
+                attributedRegistrations,
+                attributedAccesses,
+                conversionRatePercent,
+                REGISTRATION_MIN_ATTRIBUTED_REGISTRATIONS,
+                attributedRegistrations >= REGISTRATION_MIN_ATTRIBUTED_REGISTRATIONS
         );
     }
 

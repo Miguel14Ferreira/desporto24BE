@@ -75,6 +75,68 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void registrationCalculatesAttributedConversionAndMeetsHundredAccountTarget() {
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                "pilot-lisbon-2026"
+        )).thenReturn(200L);
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.REGISTRATION_COMPLETED,
+                "pilot-lisbon-2026"
+        )).thenReturn(100L);
+
+        var registration = service.registration("  pilot-lisbon-2026  ");
+
+        assertEquals("pilot-lisbon-2026", registration.cohort());
+        assertEquals(100L, registration.attributedRegistrations());
+        assertEquals(200L, registration.attributedAccesses());
+        assertEquals(new BigDecimal("50.00"), registration.conversionRatePercent());
+        assertEquals(100L, registration.minimumAttributedRegistrations());
+        assertTrue(registration.targetMet());
+    }
+
+    @Test
+    void registrationDoesNotMeetTargetBelowHundredAccounts() {
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                "pilot-lisbon-2026"
+        )).thenReturn(200L);
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.REGISTRATION_COMPLETED,
+                "pilot-lisbon-2026"
+        )).thenReturn(99L);
+
+        var registration = service.registration("pilot-lisbon-2026");
+
+        assertFalse(registration.targetMet());
+    }
+
+    @Test
+    void registrationConversionIsUnknownWithoutAttributedAccesses() {
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                "pilot-lisbon-2026"
+        )).thenReturn(0L);
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.REGISTRATION_COMPLETED,
+                "pilot-lisbon-2026"
+        )).thenReturn(0L);
+
+        var registration = service.registration("pilot-lisbon-2026");
+
+        assertNull(registration.conversionRatePercent());
+        assertFalse(registration.targetMet());
+    }
+
+    @Test
+    void registrationRejectsBlankCohort() {
+        assertThrows(IllegalArgumentException.class, () -> service.registration("   "));
+
+        verify(pilotEventRepository, never())
+                .countByEventTypeAndCohortIgnoreCase(any(), anyString());
+    }
+
+    @Test
     void returnsCountsForEveryPilotEventType() {
         when(pilotEventRepository.countByEventType(PilotEventType.ACCESS)).thenReturn(200L);
         when(pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED)).thenReturn(100L);
