@@ -5,6 +5,7 @@ import org.checkerframework.common.aliasing.qual.Unique;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.*;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT;
@@ -69,6 +70,15 @@ public class Profile implements Serializable {
     private String oldEmail;
     private Boolean isFirstTimeLogin;
     private long tokenVersion;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
+    @Column(name = "terms_version", length = 32)
+    private String termsVersion;
+
+    @Column(name = "privacy_version", length = 32)
+    private String privacyVersion;
 
     public Profile(String username, String password) {
         this.username = username;

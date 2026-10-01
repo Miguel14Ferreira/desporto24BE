@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -67,6 +68,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private static final int MFA_CODE_BOUND = 1_000_000;
     private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int USER_ID_LENGTH = 10;
+    private static final String TERMS_VERSION = "2026-10-01";
+    private static final String PRIVACY_VERSION = "2026-10-01";
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -284,7 +287,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         validateNewUsernameEmail(profileDTO);
         profileDTO.setProfilePicUrl(null);
-        Profile savedProfile = profileRepository.saveAndFlush(profileMapper.toEntity(profileDTO));
+
+        Profile profile = profileMapper.toEntity(profileDTO);
+        profile.setTermsAcceptedAt(Instant.now());
+        profile.setTermsVersion(TERMS_VERSION);
+        profile.setPrivacyVersion(PRIVACY_VERSION);
+
+        Profile savedProfile = profileRepository.saveAndFlush(profile);
         saveRegistrationProfileImage(savedProfile, profileDTO, photo);
         if (previewMode) {
             createWelcomeNotification(profileDTO, null);

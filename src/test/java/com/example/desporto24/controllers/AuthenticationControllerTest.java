@@ -49,7 +49,8 @@ class AuthenticationControllerTest {
                 "351",
                 "912345678",
                 "masculino",
-                "miguel@example.com"
+                "miguel@example.com",
+                true
         );
 
         var response = controller.registerUser(request, null, "pilot-lisbon-2026");

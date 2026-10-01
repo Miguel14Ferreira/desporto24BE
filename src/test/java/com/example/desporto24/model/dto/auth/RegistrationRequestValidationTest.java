@@ -27,7 +27,7 @@ class RegistrationRequestValidationTest {
     @Test
     void blankRequiredFieldsAreRejected() {
         RegistrationRequest request = new RegistrationRequest(
-                "", "", null, "", "", "", "", null, ""
+                "", "", null, "", "", "", "", null, "", false
         );
 
         assertFalse(validator.validate(request).isEmpty());
@@ -44,7 +44,8 @@ class RegistrationRequestValidationTest {
                 null,
                 null,
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
 
         assertTrue(validator.validate(request).isEmpty());
@@ -61,7 +62,8 @@ class RegistrationRequestValidationTest {
                 null,
                 "912345678",
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
 
         assertFalse(validator.validate(request).isEmpty());
@@ -78,7 +80,26 @@ class RegistrationRequestValidationTest {
                 "351",
                 null,
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
+        );
+
+        assertFalse(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    void legalAcceptanceIsRequired() {
+        RegistrationRequest request = new RegistrationRequest(
+                "fixture-user",
+                "not-a-real-password",
+                "Fixture",
+                "1995-05-30",
+                "Portugal",
+                "351",
+                "912345678",
+                "outro",
+                "fixture@example.test",
+                false
         );
 
         assertFalse(validator.validate(request).isEmpty());
@@ -149,7 +170,8 @@ class RegistrationRequestValidationTest {
                 "1234",
                 "123456789012",
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
 
         assertFalse(validator.validate(request).isEmpty());
@@ -192,7 +214,8 @@ class RegistrationRequestValidationTest {
                 "351",
                 "912345678",
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
     }
 
@@ -209,7 +232,8 @@ class RegistrationRequestValidationTest {
                 field.equals("indicativePhone") ? value : source.indicativePhone(),
                 field.equals("phone") ? value : source.phone(),
                 field.equals("gender") ? value : source.gender(),
-                field.equals("email") ? value : source.email()
+                field.equals("email") ? value : source.email(),
+                source.acceptedLegalTerms()
         );
     }
 }

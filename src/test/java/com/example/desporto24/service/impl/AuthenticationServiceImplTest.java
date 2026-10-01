@@ -175,7 +175,8 @@ class AuthenticationServiceImplTest {
                 "351",
                 "912345678",
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
@@ -208,6 +209,9 @@ class AuthenticationServiceImplTest {
                         && "ROLE_USER".equals(profile.getRole())
                         && profile.getAuthorities() != null
                         && profile.getAuthorities().length > 0
+                        && profile.getTermsAcceptedAt() != null
+                        && "2026-10-01".equals(profile.getTermsVersion())
+                        && "2026-10-01".equals(profile.getPrivacyVersion())
         ));
         verify(emailService).send(eq("fixture@example.test"), anyString());
     }
@@ -223,7 +227,8 @@ class AuthenticationServiceImplTest {
                 "351",
                 "912345678",
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
