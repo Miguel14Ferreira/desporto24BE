@@ -40,7 +40,7 @@ public class SecurityConfiguration {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    @Value("\${desporto.cors.allowed-origins}")
+    @Value("${desporto.cors.allowed-origins}")
     private String allowedOrigins;
 
     @Bean
