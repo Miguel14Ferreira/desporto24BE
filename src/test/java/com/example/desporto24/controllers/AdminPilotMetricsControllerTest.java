@@ -14,7 +14,7 @@ class AdminPilotMetricsControllerTest {
     @Test
     void returnsPilotEventCounts() {
         PilotEventService service = mock(PilotEventService.class);
-        var expected = new PilotEventCountsResponse(200L, 100L, 60L, 30L, 10L);
+        var expected = new PilotEventCountsResponse(200L, 100L, 20L, 60L, 30L, 10L);
         when(service.eventCounts()).thenReturn(expected);
 
         var controller = new AdminPilotMetricsController(service);

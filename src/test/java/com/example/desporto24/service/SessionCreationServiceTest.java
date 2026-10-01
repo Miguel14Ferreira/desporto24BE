@@ -95,6 +95,38 @@ class SessionCreationServiceTest {
     }
 
     @Test
+    void creationRecordsPilotEventAfterSessionIsPersisted() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(invocation -> {
+            Session saved = invocation.getArgument(0);
+            saved.setId(99L);
+            return saved;
+        });
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futebol",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        service().create(request, "miguel");
+
+        verify(pilotEventService).recordSessionCreated(creator, 99L);
+    }
+
+    @Test
     void savedVenueOverridesManualLocation() {
         Profile creator = new Profile();
         creator.setId(7L);

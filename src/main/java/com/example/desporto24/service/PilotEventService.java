@@ -22,6 +22,7 @@ public class PilotEventService {
         return new PilotEventCountsResponse(
                 pilotEventRepository.countByEventType(PilotEventType.ACCESS),
                 pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED),
+                pilotEventRepository.countByEventType(PilotEventType.SESSION_CREATED),
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED),
                 pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED),
                 pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED)
@@ -62,6 +63,27 @@ public class PilotEventService {
         pilotEventRepository.save(PilotEvent.builder()
                 .eventType(PilotEventType.REGISTRATION_COMPLETED)
                 .profile(profile)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
+    public void recordSessionCreated(Profile profile, Long sessionId) {
+        if (profile == null || profile.getId() == null || sessionId == null) {
+            throw new IllegalArgumentException("Session creation event requires persisted profile and session");
+        }
+
+        if (pilotEventRepository.existsByEventTypeAndSubjectId(
+                PilotEventType.SESSION_CREATED,
+                sessionId
+        )) {
+            return;
+        }
+
+        pilotEventRepository.save(PilotEvent.builder()
+                .eventType(PilotEventType.SESSION_CREATED)
+                .profile(profile)
+                .subjectId(sessionId)
                 .createdAt(Instant.now())
                 .build());
     }

@@ -169,6 +169,7 @@ public class SessionServiceImpl implements SessionService {
             saved = sessionRepository.save(saved);
         }
 
+        pilotEventService.recordSessionCreated(creator, saved.getId());
         return sessionViewMapper.toDetail(saved, creator);
     }
 
