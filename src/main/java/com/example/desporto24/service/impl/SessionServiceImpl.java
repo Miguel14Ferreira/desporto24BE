@@ -1,5 +1,6 @@
 package com.example.desporto24.service.impl;
 
+import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.JoinState;
@@ -105,6 +106,11 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
+        String sport = request.sport() == null ? "" : request.sport().trim();
+        if (!SportsCatalog.ALLOWED.contains(sport)) {
+            throw new IllegalArgumentException("Desporto inválido");
+        }
+
         Venue linkedVenue = null;
         if (request.venueId() != null) {
             linkedVenue = venueRepository.findById(request.venueId())
@@ -122,7 +128,7 @@ public class SessionServiceImpl implements SessionService {
         Session session = new Session();
         session.setProfile(creator);
         session.setUserId(creator.getUserId());
-        session.setSport(request.sport());
+        session.setSport(sport);
         session.setGameDate(Date.from(request.gameDate()));
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());

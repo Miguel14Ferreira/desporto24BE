@@ -222,6 +222,70 @@ class SessionCreationServiceTest {
         );
     }
 
+
+    @Test
+    void creationRejectsSportOutsideCatalog() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Desporto Inventado",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service().create(request, "miguel")
+        );
+
+        assertEquals("Desporto inválido", exception.getMessage());
+        verify(sessionRepository, never()).save(any(Session.class));
+        verify(participantRepository, never()).save(any());
+    }
+
+    @Test
+    void creationTrimsValidCatalogSportBeforePersisting() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "  Futsal  ",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        service().create(request, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository).save(captor.capture());
+        assertEquals("Futsal", captor.getValue().getSport());
+    }
+
     private SessionServiceImpl service() {
         SessionServiceImpl service = new SessionServiceImpl(
                 sessionRepository,
