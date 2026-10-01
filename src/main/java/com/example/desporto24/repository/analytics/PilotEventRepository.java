@@ -12,6 +12,8 @@ public interface PilotEventRepository extends JpaRepository<PilotEvent, Long> {
 
     long countByEventType(PilotEventType eventType);
 
+    long countByEventTypeAndCohortIgnoreCase(PilotEventType eventType, String cohort);
+
     List<PilotEvent> findByEventType(PilotEventType eventType);
 
     boolean existsByEventTypeAndDeviceId(PilotEventType eventType, String deviceId);

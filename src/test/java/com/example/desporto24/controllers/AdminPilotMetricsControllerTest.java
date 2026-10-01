@@ -1,5 +1,6 @@
 package com.example.desporto24.controllers;
 
+import com.example.desporto24.model.dto.analytics.PilotAcquisitionResponse;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotAutonomyResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
@@ -18,6 +19,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AdminPilotMetricsControllerTest {
+
+    @Test
+    void returnsPilotAcquisition() {
+        PilotEventService service = mock(PilotEventService.class);
+        var expected = new PilotAcquisitionResponse(
+                "pilot-lisbon-2026",
+                200L,
+                200L,
+                true
+        );
+        when(service.acquisition("pilot-lisbon-2026")).thenReturn(expected);
+
+        var controller = new AdminPilotMetricsController(service);
+
+        assertEquals(expected, controller.acquisition("pilot-lisbon-2026"));
+        verify(service).acquisition("pilot-lisbon-2026");
+    }
 
     @Test
     void returnsPilotActivation7d() {

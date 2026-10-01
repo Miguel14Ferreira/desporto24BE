@@ -5,6 +5,7 @@ import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.analytics.PilotEvent;
+import com.example.desporto24.model.dto.analytics.PilotAcquisitionResponse;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotAutonomyResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PilotEventService {
 
+    private static final long ACQUISITION_MIN_ATTRIBUTED_ACCESSES = 200L;
     private static final Duration ACTIVATION_WINDOW = Duration.ofDays(7);
     private static final long ACTIVATION_MIN_ELIGIBLE = 50L;
     private static final Duration REPETITION_WINDOW = Duration.ofDays(30);
@@ -45,6 +47,26 @@ public class PilotEventService {
 
     private final PilotEventRepository pilotEventRepository;
     private final SessionRepository sessionRepository;
+
+    @Transactional(readOnly = true)
+    public PilotAcquisitionResponse acquisition(String cohort) {
+        String normalizedCohort = cohort == null ? "" : cohort.trim();
+        if (normalizedCohort.isEmpty()) {
+            throw new IllegalArgumentException("Acquisition metric requires a cohort");
+        }
+
+        long attributedAccesses = pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                normalizedCohort
+        );
+
+        return new PilotAcquisitionResponse(
+                normalizedCohort,
+                attributedAccesses,
+                ACQUISITION_MIN_ATTRIBUTED_ACCESSES,
+                attributedAccesses >= ACQUISITION_MIN_ATTRIBUTED_ACCESSES
+        );
+    }
 
     @Transactional(readOnly = true)
     public PilotEventCountsResponse eventCounts() {

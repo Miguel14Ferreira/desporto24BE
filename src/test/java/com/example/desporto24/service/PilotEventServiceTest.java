@@ -40,6 +40,41 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void acquisitionCountsOnlyAttributedAccessesForRequestedCohort() {
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                "pilot-lisbon-2026"
+        )).thenReturn(199L);
+
+        var acquisition = service.acquisition("  pilot-lisbon-2026  ");
+
+        assertEquals("pilot-lisbon-2026", acquisition.cohort());
+        assertEquals(199L, acquisition.attributedAccesses());
+        assertEquals(200L, acquisition.minimumAttributedAccesses());
+        assertFalse(acquisition.targetMet());
+    }
+
+    @Test
+    void acquisitionMeetsTargetAtTwoHundredAttributedAccesses() {
+        when(pilotEventRepository.countByEventTypeAndCohortIgnoreCase(
+                PilotEventType.ACCESS,
+                "pilot-lisbon-2026"
+        )).thenReturn(200L);
+
+        var acquisition = service.acquisition("pilot-lisbon-2026");
+
+        assertTrue(acquisition.targetMet());
+    }
+
+    @Test
+    void acquisitionRejectsBlankCohort() {
+        assertThrows(IllegalArgumentException.class, () -> service.acquisition("   "));
+
+        verify(pilotEventRepository, never())
+                .countByEventTypeAndCohortIgnoreCase(any(), anyString());
+    }
+
+    @Test
     void returnsCountsForEveryPilotEventType() {
         when(pilotEventRepository.countByEventType(PilotEventType.ACCESS)).thenReturn(200L);
         when(pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED)).thenReturn(100L);
