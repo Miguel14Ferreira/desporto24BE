@@ -243,6 +243,29 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void recurringSupplyCountsOrganizersWithAtLeastTwoDistinctCreatedSessions() {
+        Instant now = Instant.now();
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
+                .thenReturn(List.of(
+                        sessionCreatedEvent(1L, 101L, now.minus(Duration.ofDays(6))),
+                        sessionCreatedEvent(1L, 102L, now.minus(Duration.ofDays(5))),
+                        sessionCreatedEvent(1L, 102L, now.minus(Duration.ofDays(4))),
+                        sessionCreatedEvent(2L, 201L, now.minus(Duration.ofDays(4))),
+                        sessionCreatedEvent(2L, 202L, now.minus(Duration.ofDays(3))),
+                        sessionCreatedEvent(3L, 301L, now.minus(Duration.ofDays(3))),
+                        sessionCreatedEvent(3L, 302L, now.minus(Duration.ofDays(2))),
+                        sessionCreatedEvent(4L, 401L, now.minus(Duration.ofDays(1)))
+                ));
+
+        var supply = service.recurringSupply();
+
+        assertEquals(4L, supply.organizersWithCreatedSessions());
+        assertEquals(3L, supply.recurringOrganizers());
+        assertEquals(3L, supply.minimumRecurringOrganizers());
+        assertTrue(supply.targetMet());
+    }
+
+    @Test
     void recordsOnlyFirstAccessForDevice() {
         when(pilotEventRepository.existsByEventTypeAndDeviceId(
                 PilotEventType.ACCESS,
@@ -447,6 +470,17 @@ class PilotEventServiceTest {
     private PilotEvent completedSessionEvent(Long sessionId, Instant createdAt) {
         return PilotEvent.builder()
                 .eventType(PilotEventType.SESSION_COMPLETED)
+                .subjectId(sessionId)
+                .createdAt(createdAt)
+                .build();
+    }
+
+    private PilotEvent sessionCreatedEvent(Long profileId, Long sessionId, Instant createdAt) {
+        Profile profile = new Profile();
+        profile.setId(profileId);
+        return PilotEvent.builder()
+                .eventType(PilotEventType.SESSION_CREATED)
+                .profile(profile)
                 .subjectId(sessionId)
                 .createdAt(createdAt)
                 .build();

@@ -4,6 +4,7 @@ import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRecurringSupplyResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.service.PilotEventService;
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,23 @@ class AdminPilotMetricsControllerTest {
 
         assertEquals(expected, controller.realization());
         verify(service).realization();
+    }
+
+    @Test
+    void returnsPilotRecurringSupply() {
+        PilotEventService service = mock(PilotEventService.class);
+        var expected = new PilotRecurringSupplyResponse(
+                5L,
+                3L,
+                3L,
+                true
+        );
+        when(service.recurringSupply()).thenReturn(expected);
+
+        var controller = new AdminPilotMetricsController(service);
+
+        assertEquals(expected, controller.recurringSupply());
+        verify(service).recurringSupply();
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRecurringSupplyResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.service.PilotEventService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,12 @@ public class AdminPilotMetricsController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public PilotRealizationResponse realization() {
         return pilotEventService.realization();
+    }
+
+    @GetMapping("/recurring-supply")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public PilotRecurringSupplyResponse recurringSupply() {
+        return pilotEventService.recurringSupply();
     }
 
     @GetMapping("/event-counts")

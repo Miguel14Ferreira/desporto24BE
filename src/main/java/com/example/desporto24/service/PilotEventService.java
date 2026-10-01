@@ -8,6 +8,7 @@ import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRecurringSupplyResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
@@ -37,6 +38,7 @@ public class PilotEventService {
     private static final long PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS = 30L;
     private static final long PARTICIPATION_MIN_COMPLETED_SESSIONS = 10L;
     private static final BigDecimal REALIZATION_MIN_RATE_PERCENT = new BigDecimal("70.00");
+    private static final long RECURRING_SUPPLY_MIN_ORGANIZERS = 3L;
 
     private final PilotEventRepository pilotEventRepository;
     private final SessionRepository sessionRepository;
@@ -203,6 +205,29 @@ public class PilotEventService {
                 ratePercent,
                 REALIZATION_MIN_RATE_PERCENT,
                 ratePercent != null && ratePercent.compareTo(REALIZATION_MIN_RATE_PERCENT) >= 0
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotRecurringSupplyResponse recurringSupply() {
+        Map<Long, Set<Long>> createdSessionsByOrganizer = pilotEventRepository
+                .findByEventType(PilotEventType.SESSION_CREATED)
+                .stream()
+                .filter(this::hasPersistedProfileTimestampAndSubject)
+                .collect(Collectors.groupingBy(
+                        event -> event.getProfile().getId(),
+                        Collectors.mapping(PilotEvent::getSubjectId, Collectors.toSet())
+                ));
+
+        long recurringOrganizers = createdSessionsByOrganizer.values().stream()
+                .filter(sessionIds -> sessionIds.size() >= 2)
+                .count();
+
+        return new PilotRecurringSupplyResponse(
+                createdSessionsByOrganizer.size(),
+                recurringOrganizers,
+                RECURRING_SUPPLY_MIN_ORGANIZERS,
+                recurringOrganizers >= RECURRING_SUPPLY_MIN_ORGANIZERS
         );
     }
 
