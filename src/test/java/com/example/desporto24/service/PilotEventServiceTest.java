@@ -357,8 +357,8 @@ class PilotEventServiceTest {
                 "device-123"
         )).thenReturn(false, true);
 
-        service.recordFirstAccess("  device-123  ");
-        service.recordFirstAccess("device-123");
+        service.recordFirstAccess("  device-123  ", "  pilot-lisbon-2026  ");
+        service.recordFirstAccess("device-123", "other-cohort");
 
         ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
         verify(pilotEventRepository, times(1)).save(captor.capture());
@@ -366,6 +366,7 @@ class PilotEventServiceTest {
         PilotEvent event = captor.getValue();
         assertEquals(PilotEventType.ACCESS, event.getEventType());
         assertEquals("device-123", event.getDeviceId());
+        assertEquals("pilot-lisbon-2026", event.getCohort());
         assertNull(event.getProfile());
         assertNull(event.getSubjectId());
         assertNotNull(event.getCreatedAt());

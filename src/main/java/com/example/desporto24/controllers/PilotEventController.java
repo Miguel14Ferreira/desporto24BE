@@ -17,7 +17,7 @@ public class PilotEventController {
     @PostMapping("/access")
     public ResponseEntity<Void> recordAccess(
             @RequestBody @Valid PilotAccessEventRequest request) {
-        pilotEventService.recordFirstAccess(request.deviceId());
+        pilotEventService.recordFirstAccess(request.deviceId(), request.cohort());
         return ResponseEntity.accepted().build();
     }
 }

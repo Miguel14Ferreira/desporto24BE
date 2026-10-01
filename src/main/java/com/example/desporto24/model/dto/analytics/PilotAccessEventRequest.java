@@ -6,6 +6,9 @@ import jakarta.validation.constraints.Size;
 public record PilotAccessEventRequest(
         @NotBlank
         @Size(max = 128)
-        String deviceId
+        String deviceId,
+
+        @Size(max = 64)
+        String cohort
 ) {
 }

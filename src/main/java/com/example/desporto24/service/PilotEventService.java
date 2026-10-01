@@ -335,8 +335,11 @@ public class PilotEventService {
     }
 
     @Transactional
-    public void recordFirstAccess(String deviceId) {
+    public void recordFirstAccess(String deviceId, String cohort) {
         String normalizedDeviceId = deviceId.trim();
+        String normalizedCohort = cohort == null || cohort.isBlank()
+                ? null
+                : cohort.trim();
 
         if (pilotEventRepository.existsByEventTypeAndDeviceId(
                 PilotEventType.ACCESS,
@@ -348,6 +351,7 @@ public class PilotEventService {
         pilotEventRepository.save(PilotEvent.builder()
                 .eventType(PilotEventType.ACCESS)
                 .deviceId(normalizedDeviceId)
+                .cohort(normalizedCohort)
                 .createdAt(Instant.now())
                 .build());
     }
