@@ -32,22 +32,22 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
              FROM Profile p
              WHERE LOWER(p.username) <> LOWER(:actorUsername)
                AND (
-                    :name IS NULL
-                    OR LOWER(COALESCE(p.username, '')) LIKE LOWER(CONCAT('%', :name, '%'))
-                    OR LOWER(COALESCE(p.fullName, '')) LIKE LOWER(CONCAT('%', :name, '%'))
-                    OR LOWER(COALESCE(p.nickname, '')) LIKE LOWER(CONCAT('%', :name, '%'))
+                    :name = ''
+                    OR LOWER(COALESCE(p.username, '')) LIKE CONCAT('%', :name, '%')
+                    OR LOWER(COALESCE(p.fullName, '')) LIKE CONCAT('%', :name, '%')
+                    OR LOWER(COALESCE(p.nickname, '')) LIKE CONCAT('%', :name, '%')
                )
                AND (
-                    :sport IS NULL
-                    OR LOWER(COALESCE(p.favoriteSports, '')) LIKE LOWER(CONCAT('%', :sport, '%'))
+                    :sport = ''
+                    OR LOWER(COALESCE(p.favoriteSports, '')) LIKE CONCAT('%', :sport, '%')
                )
                AND (
-                    :location IS NULL
-                    OR LOWER(COALESCE(p.location, '')) LIKE LOWER(CONCAT('%', :location, '%'))
+                    :location = ''
+                    OR LOWER(COALESCE(p.location, '')) LIKE CONCAT('%', :location, '%')
                )
                AND (
-                    :skillLevel IS NULL
-                    OR LOWER(COALESCE(p.skillLevel, '')) = LOWER(:skillLevel)
+                    :skillLevel = ''
+                    OR LOWER(COALESCE(p.skillLevel, '')) = :skillLevel
                )
              ORDER BY p.id DESC
              """)

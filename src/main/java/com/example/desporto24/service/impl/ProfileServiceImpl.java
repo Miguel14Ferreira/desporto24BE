@@ -444,10 +444,10 @@ public class ProfileServiceImpl implements ProfileService {
             throw new IllegalArgumentException("A idade mínima não pode ser superior à idade máxima");
         }
 
-        String normalizedName = blankToNull(name);
-        String normalizedSport = blankToNull(sport);
-        String normalizedLocation = blankToNull(location);
-        String normalizedSkillLevel = blankToNull(skillLevel);
+        String normalizedName = normalizeSearchFilter(name);
+        String normalizedSport = normalizeSearchFilter(sport);
+        String normalizedLocation = normalizeSearchFilter(location);
+        String normalizedSkillLevel = normalizeSearchFilter(skillLevel);
         Profile actor = profileRepository.findUserByUsernameIgnoreCase(actorUsername)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
@@ -597,12 +597,10 @@ public class ProfileServiceImpl implements ProfileService {
                 && left.trim().equalsIgnoreCase(right.trim());
     }
 
-    private String blankToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.trim();
-        return normalized.isEmpty() ? null : normalized;
+    private String normalizeSearchFilter(String value) {
+        return value == null
+                ? ""
+                : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String publicJoinDate(Profile profile) {

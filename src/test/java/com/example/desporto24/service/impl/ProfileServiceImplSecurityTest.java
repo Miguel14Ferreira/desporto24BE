@@ -13,7 +13,10 @@ import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.UserBlockService;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -130,4 +133,57 @@ class ProfileServiceImplSecurityTest {
         assertEquals("new-hash", profile.getPassword());
         verify(repository).save(profile);
     }
+
+    @Test
+    void publicSearchNormalizesMissingFiltersBeforeRepositoryQuery() {
+        ProfileRepository repository = mock(ProfileRepository.class);
+        ProfileMapper mapper = mock(ProfileMapper.class);
+        EmailService emailService = mock(EmailService.class);
+        NotificationsRepository notificationsRepository = mock(NotificationsRepository.class);
+        PasswordHashService passwordHashService = mock(PasswordHashService.class);
+        UserBlockService userBlockService = mock(UserBlockService.class);
+
+        Profile actor = new Profile();
+        actor.setUsername("miguel");
+
+        when(repository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(actor));
+        when(repository.searchPublicCandidates(
+                eq("miguel"),
+                eq(""),
+                eq(""),
+                eq("lisboa"),
+                eq(""),
+                any(Pageable.class)
+        )).thenReturn(List.of());
+
+        ProfileServiceImpl service = new ProfileServiceImpl(
+                repository,
+                mapper,
+                emailService,
+                notificationsRepository,
+                passwordHashService,
+                userBlockService
+        );
+
+        service.searchPublicProfiles(
+                "miguel",
+                null,
+                "   ",
+                " Lisboa ",
+                null,
+                null,
+                null
+        );
+
+        verify(repository).searchPublicCandidates(
+                eq("miguel"),
+                eq(""),
+                eq(""),
+                eq("lisboa"),
+                eq(""),
+                any(Pageable.class)
+        );
+    }
+
 }
