@@ -65,11 +65,29 @@ class UpdateProfileRequestValidationTest {
         assertFalse(validator.validate(request).isEmpty());
     }
 
+    @Test
+    void catalogFavoriteSportsAreAccepted() {
+        assertTrue(validator.validate(withFavoriteSports("Futebol, Padel")).isEmpty());
+    }
+
+    @Test
+    void unsupportedFavoriteSportsAreRejected() {
+        assertFalse(validator.validate(withFavoriteSports("vcxzxcvbn")).isEmpty());
+    }
+
     private UpdateProfileRequest validRequest() {
-        return withDateOfBirth("1995-05-30");
+        return createRequest("1995-05-30", "Futebol");
     }
 
     private UpdateProfileRequest withDateOfBirth(String dateOfBirth) {
+        return createRequest(dateOfBirth, "Futebol");
+    }
+
+    private UpdateProfileRequest withFavoriteSports(String favoriteSports) {
+        return createRequest("1995-05-30", favoriteSports);
+    }
+
+    private UpdateProfileRequest createRequest(String dateOfBirth, String favoriteSports) {
         return new UpdateProfileRequest(
                 "Fixture User",
                 "Fixture",
@@ -82,7 +100,7 @@ class UpdateProfileRequestValidationTest {
                 "912345678",
                 "outro",
                 "fixture@example.test",
-                "Futebol",
+                favoriteSports,
                 "Perfil de teste",
                 "INTERMEDIATE",
                 "Fins de semana",

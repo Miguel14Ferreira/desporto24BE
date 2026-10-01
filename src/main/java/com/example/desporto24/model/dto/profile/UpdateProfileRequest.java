@@ -37,7 +37,6 @@ public record UpdateProfileRequest(
         @Size(max = 120) String availability,
         Boolean mfa
 ) {
-    @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
     public UpdateProfileRequest(
             String fullName,
             String nickname,
@@ -84,6 +83,7 @@ public record UpdateProfileRequest(
         }
     }
 
+    @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
     public boolean isFavoriteSportsValid() {
         return SportsCatalog.isValidSelection(favoriteSports);
     }
