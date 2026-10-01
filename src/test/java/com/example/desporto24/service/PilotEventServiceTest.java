@@ -114,6 +114,54 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void calculatesRepetitionOnlyForEligibleParticipantsReturningWithinThirtyDays() {
+        Instant now = Instant.now();
+        PilotEvent first1 = attendanceEvent(1L, 101L, now.minus(Duration.ofDays(40)));
+        PilotEvent first2 = attendanceEvent(2L, 201L, now.minus(Duration.ofDays(35)));
+        PilotEvent first3 = attendanceEvent(3L, 301L, now.minus(Duration.ofDays(31)));
+        PilotEvent first4 = attendanceEvent(4L, 401L, now.minus(Duration.ofDays(10)));
+
+        when(pilotEventRepository.findByEventType(PilotEventType.ATTENDANCE_CONFIRMED))
+                .thenReturn(List.of(
+                        first1,
+                        attendanceEvent(1L, 102L, first1.getCreatedAt().plus(Duration.ofDays(10))),
+                        first2,
+                        attendanceEvent(2L, 202L, first2.getCreatedAt().plus(Duration.ofDays(30))),
+                        first3,
+                        attendanceEvent(3L, 301L, first3.getCreatedAt().plus(Duration.ofDays(1))),
+                        attendanceEvent(3L, 302L, first3.getCreatedAt().plus(Duration.ofDays(30)).plusSeconds(1)),
+                        first4,
+                        attendanceEvent(4L, 402L, first4.getCreatedAt().plus(Duration.ofDays(1)))
+                ));
+
+        var repetition = service.repetition30d();
+
+        assertEquals(2L, repetition.repeatedParticipants());
+        assertEquals(3L, repetition.eligibleParticipants());
+        assertEquals(new BigDecimal("66.67"), repetition.repetitionRatePercent());
+        assertEquals(20L, repetition.minimumEligibleParticipants());
+        assertFalse(repetition.sampleSufficient());
+    }
+
+    @Test
+    void repetitionRateIsUnknownBeforeAnyParticipantHasThirtyCompleteDays() {
+        Instant now = Instant.now();
+        when(pilotEventRepository.findByEventType(PilotEventType.ATTENDANCE_CONFIRMED))
+                .thenReturn(List.of(attendanceEvent(
+                        1L,
+                        101L,
+                        now.minus(Duration.ofDays(10))
+                )));
+
+        var repetition = service.repetition30d();
+
+        assertEquals(0L, repetition.repeatedParticipants());
+        assertEquals(0L, repetition.eligibleParticipants());
+        assertNull(repetition.repetitionRatePercent());
+        assertFalse(repetition.sampleSufficient());
+    }
+
+    @Test
     void recordsOnlyFirstAccessForDevice() {
         when(pilotEventRepository.existsByEventTypeAndDeviceId(
                 PilotEventType.ACCESS,
@@ -297,6 +345,17 @@ class PilotEventServiceTest {
         assertEquals(profile, event.getProfile());
         assertEquals(99L, event.getSubjectId());
         assertNotNull(event.getCreatedAt());
+    }
+
+    private PilotEvent attendanceEvent(Long profileId, Long sessionId, Instant createdAt) {
+        Profile profile = new Profile();
+        profile.setId(profileId);
+        return PilotEvent.builder()
+                .eventType(PilotEventType.ATTENDANCE_CONFIRMED)
+                .profile(profile)
+                .subjectId(sessionId)
+                .createdAt(createdAt)
+                .build();
     }
 
     private PilotEvent event(PilotEventType type, Long profileId, Instant createdAt) {

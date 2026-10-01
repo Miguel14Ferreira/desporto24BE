@@ -5,6 +5,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.analytics.PilotEvent;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
+import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,9 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +26,8 @@ public class PilotEventService {
 
     private static final Duration ACTIVATION_WINDOW = Duration.ofDays(7);
     private static final long ACTIVATION_MIN_ELIGIBLE = 50L;
+    private static final Duration REPETITION_WINDOW = Duration.ofDays(30);
+    private static final long REPETITION_MIN_ELIGIBLE = 20L;
 
     private final PilotEventRepository pilotEventRepository;
 
@@ -74,6 +79,64 @@ public class PilotEventService {
                 ACTIVATION_MIN_ELIGIBLE,
                 eligibleCount >= ACTIVATION_MIN_ELIGIBLE
         );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotRepetition30dResponse repetition30d() {
+        Instant eligibilityCutoff = Instant.now().minus(REPETITION_WINDOW);
+
+        List<PilotEvent> attendanceEvents = pilotEventRepository
+                .findByEventType(PilotEventType.ATTENDANCE_CONFIRMED)
+                .stream()
+                .filter(this::hasPersistedProfileTimestampAndSubject)
+                .sorted((left, right) -> left.getCreatedAt().compareTo(right.getCreatedAt()))
+                .toList();
+
+        Map<Long, PilotEvent> firstAttendanceByProfile = new LinkedHashMap<>();
+        attendanceEvents.forEach(event -> firstAttendanceByProfile.putIfAbsent(
+                event.getProfile().getId(),
+                event
+        ));
+
+        List<PilotEvent> eligibleFirstAttendances = firstAttendanceByProfile.values().stream()
+                .filter(event -> !event.getCreatedAt().isAfter(eligibilityCutoff))
+                .toList();
+
+        long repeatedParticipants = eligibleFirstAttendances.stream()
+                .filter(firstAttendance -> attendanceEvents.stream()
+                        .anyMatch(nextAttendance -> repeatsWithinWindow(firstAttendance, nextAttendance)))
+                .count();
+
+        long eligibleParticipants = eligibleFirstAttendances.size();
+        BigDecimal ratePercent = eligibleParticipants == 0
+                ? null
+                : BigDecimal.valueOf(repeatedParticipants)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(eligibleParticipants), 2, RoundingMode.HALF_UP);
+
+        return new PilotRepetition30dResponse(
+                repeatedParticipants,
+                eligibleParticipants,
+                ratePercent,
+                REPETITION_MIN_ELIGIBLE,
+                eligibleParticipants >= REPETITION_MIN_ELIGIBLE
+        );
+    }
+
+    private boolean hasPersistedProfileTimestampAndSubject(PilotEvent event) {
+        return hasPersistedProfileAndTimestamp(event) && event.getSubjectId() != null;
+    }
+
+    private boolean repeatsWithinWindow(PilotEvent firstAttendance, PilotEvent nextAttendance) {
+        if (!hasPersistedProfileTimestampAndSubject(nextAttendance)
+                || !firstAttendance.getProfile().getId().equals(nextAttendance.getProfile().getId())
+                || firstAttendance.getSubjectId().equals(nextAttendance.getSubjectId())) {
+            return false;
+        }
+
+        Instant windowEnd = firstAttendance.getCreatedAt().plus(REPETITION_WINDOW);
+        return nextAttendance.getCreatedAt().isAfter(firstAttendance.getCreatedAt())
+                && !nextAttendance.getCreatedAt().isAfter(windowEnd);
     }
 
     private boolean hasPersistedProfileAndTimestamp(PilotEvent event) {
