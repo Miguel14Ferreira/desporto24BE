@@ -36,7 +36,10 @@ public record GoogleRegistrationRequest(
                 regexp = "^$|(?i:masculino|feminino|outro)",
                 message = "O género deve ser masculino, feminino ou outro"
         )
-        String gender
+        String gender,
+
+        @AssertTrue(message = "Tens de aceitar os Termos de Utilização e a Política de Privacidade")
+        boolean acceptedLegalTerms
 ) {
     @AssertTrue(message = "Tens de ter pelo menos 18 anos e uma data de nascimento válida")
     public boolean isDateOfBirthValid() {

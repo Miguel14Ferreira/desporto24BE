@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
@@ -42,6 +43,8 @@ public class GoogleAuthenticationService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int USER_ID_LENGTH = 10;
+    private static final String TERMS_VERSION = "2026-10-01";
+    private static final String PRIVACY_VERSION = "2026-10-01";
 
     private final GoogleIdentityService googleIdentityService;
     private final ProfileRepository profileRepository;
@@ -159,6 +162,9 @@ public class GoogleAuthenticationService {
         profile.setLoginAttempts(0);
         profile.setIsFirstTimeLogin(true);
         profile.setTokenVersion(0L);
+        profile.setTermsAcceptedAt(Instant.now());
+        profile.setTermsVersion(TERMS_VERSION);
+        profile.setPrivacyVersion(PRIVACY_VERSION);
         profile.setJoinDate(new Date());
         profile.setJoinDateDisplay(new java.text.SimpleDateFormat("yyyy MMM dd HH:mm").format(new Date()));
 
