@@ -25,4 +25,6 @@ public interface MFAVerificationRepository extends JpaRepository<MFAVerification
             """)
     int confirmIfPending(@Param("challengeId") String challengeId,
                          @Param("confirmedAt") LocalDateTime confirmedAt);
+
+    long deleteByPerfil(String perfil);
 }

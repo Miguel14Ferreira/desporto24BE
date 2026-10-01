@@ -10,4 +10,6 @@ import java.util.List;
 public interface ChatRepository extends JpaRepository<Chat, Long> {
 
     List<Chat> findByUsername1AndUsername2(String sender, String recipient);
+
+    long deleteByUsername1OrUsername2(String username1, String username2);
 }

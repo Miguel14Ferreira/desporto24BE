@@ -6,6 +6,7 @@ import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.profile.UpdateProfileRequest;
 import com.example.desporto24.model.dto.profile.ChangePasswordRequest;
 import com.example.desporto24.model.dto.profile.PublicProfileResponse;
+import com.example.desporto24.service.AccountDeletionService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,13 +15,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.List;
+import static com.example.desporto24.constant.SecurityConstant.REFRESH_TOKEN_COOKIE;
 import static org.springframework.http.HttpStatus.OK;
 
 @RestController
@@ -30,6 +35,7 @@ import static org.springframework.http.HttpStatus.OK;
 public class ProfileController extends ExceptionHandling {
 
     private final ProfileService profileService;
+    private final AccountDeletionService accountDeletionService;
 
     // User Profile Endpoints
     @GetMapping("/me")
@@ -66,6 +72,24 @@ public class ProfileController extends ExceptionHandling {
             Authentication authentication) {
         profileService.changeMyPassword(authentication.getName(), request);
         return buildResponse(OK, com.example.desporto24.constant.UserImplConstant.PASSWORD_RESET_SUCCESS);
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMyAccount(Authentication authentication) {
+        accountDeletionService.deleteMyAccount(authentication.getName());
+
+        ResponseCookie clearRefreshCookie = ResponseCookie
+                .from(REFRESH_TOKEN_COOKIE, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Lax")
+                .path("/api/auth")
+                .maxAge(Duration.ZERO)
+                .build();
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, clearRefreshCookie.toString())
+                .build();
     }
 
     @GetMapping("/{username}")

@@ -6,6 +6,7 @@ import com.example.desporto24.model.dto.profile.ChangePasswordRequest;
 import com.example.desporto24.model.dto.profile.PublicProfileResponse;
 
 import java.util.List;
+import com.example.desporto24.service.AccountDeletionService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,9 @@ class ProfileControllerTest {
 
     @Mock
     private Authentication authentication;
+
+    @Mock
+    private AccountDeletionService accountDeletionService;
 
     @InjectMocks
     private ProfileController controller;
@@ -148,4 +152,18 @@ class ProfileControllerTest {
         assertEquals("miguel", response.getBody().getUsername());
         verify(profileService).updateMyProfile("miguel", request);
     }
+
+    @Test
+    void deleteMyAccountUsesAuthenticatedIdentityAndClearsRefreshCookie() {
+        when(authentication.getName()).thenReturn("miguel");
+
+        var response = controller.deleteMyAccount(authentication);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(accountDeletionService).deleteMyAccount("miguel");
+        String setCookie = response.getHeaders().getFirst("Set-Cookie");
+        org.junit.jupiter.api.Assertions.assertNotNull(setCookie);
+        org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("Max-Age=0"));
+    }
+
 }

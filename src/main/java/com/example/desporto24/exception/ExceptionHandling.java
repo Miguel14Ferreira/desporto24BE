@@ -35,6 +35,12 @@ public class ExceptionHandling {
     protected static final String ERROR_PATH = "/error";
     protected static final String ALREADY_FRIENDS = "Tu já tens este perfil na tua lista de amigos!";
 
+    @ExceptionHandler(AccountDeletionBlockedException.class)
+    public ResponseEntity<HttpResponse> accountDeletionBlocked(
+            AccountDeletionBlockedException exception) {
+        return createHttpResponse(CONFLICT, exception.getMessage());
+    }
+
     @ExceptionHandler(AccountDisabledException.class)
     public ResponseEntity<HttpResponse> accountDisabledException(){
         return createHttpResponse(BAD_REQUEST,ACCOUNT_DISABLED);

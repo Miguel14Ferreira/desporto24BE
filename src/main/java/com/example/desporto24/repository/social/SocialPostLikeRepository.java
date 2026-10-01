@@ -12,4 +12,6 @@ public interface SocialPostLikeRepository extends JpaRepository<SocialPostLike, 
     long deleteByPostIdAndProfileId(Long postId, Long profileId);
 
     long deleteByPostId(Long postId);
+
+    long deleteByProfileId(Long profileId);
 }

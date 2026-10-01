@@ -31,4 +31,6 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, Lo
             "SET c.confirmedAt = ?2 " +
             "WHERE c.token = ?1")
     int updateConfirmedAt(String token, LocalDateTime confirmedAt);
+
+    long deleteByPerfil1OrPerfil2(String perfil1, String perfil2);
 }

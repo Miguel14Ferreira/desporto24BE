@@ -19,4 +19,6 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
                or (block.blocker.id = :secondId and block.blocked.id = :firstId)
             """)
     boolean existsBetween(Long firstId, Long secondId);
+
+    long deleteByBlockerIdOrBlockedId(Long blockerId, Long blockedId);
 }

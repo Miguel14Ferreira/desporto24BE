@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface SessionMessageRepository extends JpaRepository<SessionMessage, Long> {
     List<SessionMessage> findBySessionIdOrderByCreatedAtAsc(Long sessionId);
+
+    long deleteBySenderProfileId(Long senderProfileId);
 }
