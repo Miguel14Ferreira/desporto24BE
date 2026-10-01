@@ -380,9 +380,18 @@ public class PilotEventService {
 
     @Transactional
     public void recordRegistrationCompleted(Profile profile) {
+        recordRegistrationCompleted(profile, null);
+    }
+
+    @Transactional
+    public void recordRegistrationCompleted(Profile profile, String cohort) {
         if (profile == null || profile.getId() == null) {
             throw new IllegalArgumentException("Registration event requires a persisted profile");
         }
+
+        String normalizedCohort = cohort == null || cohort.isBlank()
+                ? null
+                : cohort.trim();
 
         if (pilotEventRepository.existsByEventTypeAndProfileId(
                 PilotEventType.REGISTRATION_COMPLETED,
@@ -394,6 +403,7 @@ public class PilotEventService {
         pilotEventRepository.save(PilotEvent.builder()
                 .eventType(PilotEventType.REGISTRATION_COMPLETED)
                 .profile(profile)
+                .cohort(normalizedCohort)
                 .createdAt(Instant.now())
                 .build());
     }

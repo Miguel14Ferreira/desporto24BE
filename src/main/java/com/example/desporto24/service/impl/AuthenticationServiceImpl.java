@@ -256,6 +256,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     @Transactional
     public void signUpProfile(RegistrationRequest request, MultipartFile photo) {
+        signUpProfile(request, photo, null);
+    }
+
+    @Override
+    @Transactional
+    public void signUpProfile(RegistrationRequest request, MultipartFile photo, String cohort) {
         ProfileDTO profileDTO = new ProfileDTO();
         profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
@@ -282,6 +288,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         saveRegistrationProfileImage(savedProfile, profileDTO, photo);
         if (previewMode) {
             createWelcomeNotification(profileDTO, null);
+            pilotEventService.recordRegistrationCompleted(savedProfile, cohort);
         } else {
             sendSignUpEmail(profileDTO);
         }

@@ -115,6 +115,11 @@ public class GoogleAuthenticationService {
 
     @Transactional
     public GoogleAuthResponse completeRegistration(GoogleRegistrationRequest request) {
+        return completeRegistration(request, null);
+    }
+
+    @Transactional
+    public GoogleAuthResponse completeRegistration(GoogleRegistrationRequest request, String cohort) {
         GoogleIdentityService.GoogleIdentity identity = googleIdentityService.verify(request.credential());
 
         if (profileRepository.findByGoogleSubject(identity.subject()).isPresent()
@@ -159,7 +164,7 @@ public class GoogleAuthenticationService {
 
         Profile saved = profileRepository.save(profile);
         createWelcomeNotification(saved);
-        pilotEventService.recordRegistrationCompleted(saved);
+        pilotEventService.recordRegistrationCompleted(saved, cohort);
 
         return completedLogin(saved, identity);
     }

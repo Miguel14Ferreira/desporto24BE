@@ -417,8 +417,8 @@ class PilotEventServiceTest {
                 42L
         )).thenReturn(false, true);
 
-        service.recordRegistrationCompleted(profile);
-        service.recordRegistrationCompleted(profile);
+        service.recordRegistrationCompleted(profile, "  pilot-lisbon-2026  ");
+        service.recordRegistrationCompleted(profile, "other-cohort");
 
         ArgumentCaptor<PilotEvent> captor = ArgumentCaptor.forClass(PilotEvent.class);
         verify(pilotEventRepository, times(1)).save(captor.capture());
@@ -426,6 +426,7 @@ class PilotEventServiceTest {
         PilotEvent event = captor.getValue();
         assertEquals(PilotEventType.REGISTRATION_COMPLETED, event.getEventType());
         assertEquals(profile, event.getProfile());
+        assertEquals("pilot-lisbon-2026", event.getCohort());
         assertNull(event.getSubjectId());
         assertNotNull(event.getCreatedAt());
     }

@@ -52,10 +52,11 @@ class AuthenticationControllerTest {
                 "miguel@example.com"
         );
 
-        var response = controller.registerUser(request, null);
+        var response = controller.registerUser(request, null, "pilot-lisbon-2026");
 
         assertEquals(OK, response.getStatusCode());
-        org.mockito.Mockito.verify(authenticationService).signUpProfile(request, null);
+        org.mockito.Mockito.verify(authenticationService)
+                .signUpProfile(request, null, "pilot-lisbon-2026");
     }
 
     @Test

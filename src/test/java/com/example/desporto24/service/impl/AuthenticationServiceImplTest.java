@@ -213,6 +213,51 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void previewRegistrationRecordsAttributedPilotEventImmediately() {
+        RegistrationRequest request = new RegistrationRequest(
+                TEST_USERNAME,
+                TEST_PASSWORD,
+                "Fixture",
+                "1990-01-01",
+                "Portugal",
+                "351",
+                "912345678",
+                "outro",
+                "fixture@example.test"
+        );
+
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
+        when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
+        when(profileMapper.toEntity(any(ProfileDTO.class))).thenAnswer(invocation -> {
+            ProfileDTO dto = invocation.getArgument(0);
+            Profile profile = new Profile();
+            profile.setId(42L);
+            profile.setUserId(dto.getUserId());
+            profile.setUsername(dto.getUsername());
+            profile.setPassword(dto.getPassword());
+            profile.setNotLocked(dto.getNotLocked());
+            profile.setEnabled(dto.getEnabled());
+            profile.setMFA(dto.getMFA());
+            profile.setRole(dto.getRole());
+            profile.setAuthorities(dto.getAuthorities());
+            return profile;
+        });
+        when(profileRepository.saveAndFlush(any(Profile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuthenticationServiceImpl service = service();
+        ReflectionTestUtils.setField(service, "previewMode", true);
+
+        service.signUpProfile(request, null, "  pilot-lisbon-2026  ");
+
+        verify(pilotEventService).recordRegistrationCompleted(
+                argThat(profile -> Long.valueOf(42L).equals(profile.getId())),
+                eq("  pilot-lisbon-2026  ")
+        );
+        verify(emailService, never()).send(anyString(), anyString());
+    }
+
+    @Test
     void confirmedRegistrationRecordsPilotEvent() {
         ConfirmationToken token = mock(ConfirmationToken.class);
         Profile profile = activeProfile(false);

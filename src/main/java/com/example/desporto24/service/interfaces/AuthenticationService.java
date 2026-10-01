@@ -14,6 +14,10 @@ public interface AuthenticationService {
     String createRefreshToken(String username);
     void terminateSession(String username);
     void signUpProfile(RegistrationRequest request, MultipartFile photo);
+
+    default void signUpProfile(RegistrationRequest request, MultipartFile photo, String cohort) {
+        signUpProfile(request, photo);
+    }
     void resendRegistrationConfirmation(String username);
     void resetPasswordStepOne(String email);
     void resetPasswordStepTwo(String newPassword, String token);

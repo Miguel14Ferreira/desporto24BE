@@ -75,10 +75,16 @@ public class AuthenticationController {
 
     @PostMapping("/google/register")
     public ResponseEntity<GoogleAuthResponse> googleRegister(
-            @RequestBody @Valid GoogleRegistrationRequest request) {
+            @RequestBody @Valid GoogleRegistrationRequest request,
+            @RequestParam(required = false) String cohort) {
         return withGoogleRefreshCookie(
-                googleAuthenticationService.completeRegistration(request)
+                googleAuthenticationService.completeRegistration(request, cohort)
         );
+    }
+
+    public ResponseEntity<GoogleAuthResponse> googleRegister(
+            GoogleRegistrationRequest request) {
+        return googleRegister(request, null);
     }
 
     @PostMapping("/login")
@@ -131,9 +137,16 @@ public class AuthenticationController {
     @PostMapping(value = "/register", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<HttpResponse> registerUser(
             @RequestPart("profile") @Valid RegistrationRequest request,
-            @RequestPart(value = "photo", required = false) MultipartFile photo) {
-        authenticationService.signUpProfile(request, photo);
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestPart(value = "cohort", required = false) String cohort) {
+        authenticationService.signUpProfile(request, photo, cohort);
         return buildResponse(NEW_USER_REGISTERED);
+    }
+
+    public ResponseEntity<HttpResponse> registerUser(
+            RegistrationRequest request,
+            MultipartFile photo) {
+        return registerUser(request, photo, null);
     }
 
     @GetMapping("/register/confirm")
