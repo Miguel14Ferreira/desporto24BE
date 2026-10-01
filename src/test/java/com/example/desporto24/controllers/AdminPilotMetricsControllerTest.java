@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
+import com.example.desporto24.model.dto.analytics.PilotAutonomyResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
@@ -116,6 +117,24 @@ class AdminPilotMetricsControllerTest {
         controller.recordOperationalIntervention(99L);
 
         verify(service).recordOperationalIntervention(99L);
+    }
+
+    @Test
+    void returnsPilotAutonomy() {
+        PilotEventService service = mock(PilotEventService.class);
+        var expected = new PilotAutonomyResponse(
+                5L,
+                10L,
+                new BigDecimal("50.00"),
+                new BigDecimal("50.00"),
+                true
+        );
+        when(service.autonomy()).thenReturn(expected);
+
+        var controller = new AdminPilotMetricsController(service);
+
+        assertEquals(expected, controller.autonomy());
+        verify(service).autonomy();
     }
 
     @Test

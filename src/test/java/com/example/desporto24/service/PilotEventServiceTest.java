@@ -264,6 +264,70 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void autonomyCountsOnlyRealizedSessionsWithoutOperationalIntervention() {
+        Instant now = Instant.now();
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
+                .thenReturn(List.of(
+                        subjectEvent(PilotEventType.SESSION_CREATED, 101L, now.minus(Duration.ofDays(4))),
+                        subjectEvent(PilotEventType.SESSION_CREATED, 102L, now.minus(Duration.ofDays(3))),
+                        subjectEvent(PilotEventType.SESSION_CREATED, 103L, now.minus(Duration.ofDays(2)))
+                ));
+        when(sessionRepository.findAllById(anySet())).thenReturn(List.of(
+                session(101L, SessionStatus.COMPLETED, now.minus(Duration.ofDays(2))),
+                session(102L, SessionStatus.COMPLETED, now.minus(Duration.ofDays(1))),
+                session(103L, SessionStatus.COMPLETED, now.minus(Duration.ofHours(12)))
+        ));
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_COMPLETED))
+                .thenReturn(List.of(
+                        completedSessionEvent(101L, now.minus(Duration.ofDays(2))),
+                        completedSessionEvent(102L, now.minus(Duration.ofDays(1))),
+                        completedSessionEvent(103L, now.minus(Duration.ofHours(12)))
+                ));
+        when(pilotEventRepository.findByEventType(PilotEventType.ATTENDANCE_CONFIRMED))
+                .thenReturn(List.of(
+                        attendanceEvent(1L, 101L, now.minus(Duration.ofDays(2))),
+                        attendanceEvent(2L, 101L, now.minus(Duration.ofDays(2))),
+                        attendanceEvent(3L, 102L, now.minus(Duration.ofDays(1))),
+                        attendanceEvent(4L, 102L, now.minus(Duration.ofDays(1))),
+                        attendanceEvent(5L, 103L, now.minus(Duration.ofHours(12)))
+                ));
+        when(pilotEventRepository.findByEventType(PilotEventType.OPERATIONAL_INTERVENTION))
+                .thenReturn(List.of(subjectEvent(
+                        PilotEventType.OPERATIONAL_INTERVENTION,
+                        102L,
+                        now.minus(Duration.ofHours(6))
+                )));
+
+        var autonomy = service.autonomy();
+
+        assertEquals(1L, autonomy.autonomousSessions());
+        assertEquals(2L, autonomy.realizedSessions());
+        assertEquals(new BigDecimal("50.00"), autonomy.autonomyRatePercent());
+        assertEquals(new BigDecimal("50.00"), autonomy.minimumRatePercent());
+        assertTrue(autonomy.targetMet());
+    }
+
+    @Test
+    void autonomyRateIsUnknownBeforeAnySessionIsRealized() {
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
+                .thenReturn(List.of());
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_COMPLETED))
+                .thenReturn(List.of());
+        when(pilotEventRepository.findByEventType(PilotEventType.ATTENDANCE_CONFIRMED))
+                .thenReturn(List.of());
+        when(pilotEventRepository.findByEventType(PilotEventType.OPERATIONAL_INTERVENTION))
+                .thenReturn(List.of());
+
+        var autonomy = service.autonomy();
+
+        assertEquals(0L, autonomy.autonomousSessions());
+        assertEquals(0L, autonomy.realizedSessions());
+        assertNull(autonomy.autonomyRatePercent());
+        assertEquals(new BigDecimal("50.00"), autonomy.minimumRatePercent());
+        assertFalse(autonomy.targetMet());
+    }
+
+    @Test
     void recurringSupplyCountsOrganizersWithAtLeastTwoDistinctCreatedSessions() {
         Instant now = Instant.now();
         when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))

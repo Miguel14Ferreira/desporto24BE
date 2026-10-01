@@ -6,6 +6,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.analytics.PilotEvent;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
+import com.example.desporto24.model.dto.analytics.PilotAutonomyResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
@@ -39,6 +40,7 @@ public class PilotEventService {
     private static final long PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS = 30L;
     private static final long PARTICIPATION_MIN_COMPLETED_SESSIONS = 10L;
     private static final BigDecimal REALIZATION_MIN_RATE_PERCENT = new BigDecimal("70.00");
+    private static final BigDecimal AUTONOMY_MIN_RATE_PERCENT = new BigDecimal("50.00");
     private static final long RECURRING_SUPPLY_MIN_ORGANIZERS = 3L;
 
     private final PilotEventRepository pilotEventRepository;
@@ -167,13 +169,7 @@ public class PilotEventService {
 
     @Transactional(readOnly = true)
     public PilotRealizationResponse realization() {
-        Set<Long> trackedSessionIds = pilotEventRepository
-                .findByEventType(PilotEventType.SESSION_CREATED)
-                .stream()
-                .map(PilotEvent::getSubjectId)
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toSet());
-
+        Set<Long> trackedSessionIds = trackedSessionIds();
         if (trackedSessionIds.isEmpty()) {
             return new PilotRealizationResponse(
                     0L,
@@ -184,13 +180,78 @@ public class PilotEventService {
             );
         }
 
+        List<Session> eligibleSessions = eligiblePlannedSessions(trackedSessionIds);
+        Set<Long> realizedSessionIds = realizedSessionIds(eligibleSessions);
+
+        long realizedSessions = realizedSessionIds.size();
+        long eligiblePlannedSessions = eligibleSessions.size();
+        BigDecimal ratePercent = eligiblePlannedSessions == 0
+                ? null
+                : BigDecimal.valueOf(realizedSessions)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(eligiblePlannedSessions), 2, RoundingMode.HALF_UP);
+
+        return new PilotRealizationResponse(
+                realizedSessions,
+                eligiblePlannedSessions,
+                ratePercent,
+                REALIZATION_MIN_RATE_PERCENT,
+                ratePercent != null && ratePercent.compareTo(REALIZATION_MIN_RATE_PERCENT) >= 0
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotAutonomyResponse autonomy() {
+        Set<Long> realizedSessionIds = realizedSessionIds(eligiblePlannedSessions(trackedSessionIds()));
+        Set<Long> intervenedSessionIds = pilotEventRepository
+                .findByEventType(PilotEventType.OPERATIONAL_INTERVENTION)
+                .stream()
+                .map(PilotEvent::getSubjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        long realizedSessions = realizedSessionIds.size();
+        long autonomousSessions = realizedSessionIds.stream()
+                .filter(sessionId -> !intervenedSessionIds.contains(sessionId))
+                .count();
+        BigDecimal ratePercent = realizedSessions == 0
+                ? null
+                : BigDecimal.valueOf(autonomousSessions)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(realizedSessions), 2, RoundingMode.HALF_UP);
+
+        return new PilotAutonomyResponse(
+                autonomousSessions,
+                realizedSessions,
+                ratePercent,
+                AUTONOMY_MIN_RATE_PERCENT,
+                ratePercent != null && ratePercent.compareTo(AUTONOMY_MIN_RATE_PERCENT) >= 0
+        );
+    }
+
+    private Set<Long> trackedSessionIds() {
+        return pilotEventRepository
+                .findByEventType(PilotEventType.SESSION_CREATED)
+                .stream()
+                .map(PilotEvent::getSubjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    private List<Session> eligiblePlannedSessions(Set<Long> trackedSessionIds) {
+        if (trackedSessionIds.isEmpty()) {
+            return List.of();
+        }
+
         Instant now = Instant.now();
-        List<Session> eligibleSessions = sessionRepository.findAllById(trackedSessionIds)
+        return sessionRepository.findAllById(trackedSessionIds)
                 .stream()
                 .filter(session -> session.getGameDate() != null)
                 .filter(session -> !session.getGameDate().toInstant().isAfter(now))
                 .toList();
+    }
 
+    private Set<Long> realizedSessionIds(List<Session> eligibleSessions) {
         Set<Long> completedSessionIds = pilotEventRepository
                 .findByEventType(PilotEventType.SESSION_COMPLETED)
                 .stream()
@@ -207,26 +268,13 @@ public class PilotEventService {
                         Collectors.mapping(event -> event.getProfile().getId(), Collectors.toSet())
                 ));
 
-        long realizedSessions = eligibleSessions.stream()
+        return eligibleSessions.stream()
                 .filter(session -> completedSessionIds.contains(session.getId()))
                 .filter(session -> confirmedParticipantsBySession
                         .getOrDefault(session.getId(), Set.of())
                         .size() >= 2)
-                .count();
-        long eligiblePlannedSessions = eligibleSessions.size();
-        BigDecimal ratePercent = eligiblePlannedSessions == 0
-                ? null
-                : BigDecimal.valueOf(realizedSessions)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(eligiblePlannedSessions), 2, RoundingMode.HALF_UP);
-
-        return new PilotRealizationResponse(
-                realizedSessions,
-                eligiblePlannedSessions,
-                ratePercent,
-                REALIZATION_MIN_RATE_PERCENT,
-                ratePercent != null && ratePercent.compareTo(REALIZATION_MIN_RATE_PERCENT) >= 0
-        );
+                .map(Session::getId)
+                .collect(Collectors.toSet());
     }
 
     @Transactional(readOnly = true)
