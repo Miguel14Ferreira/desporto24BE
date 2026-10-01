@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PilotEventRepository extends JpaRepository<PilotEvent, Long> {
 
+    long countByEventType(PilotEventType eventType);
+
     boolean existsByEventTypeAndDeviceId(PilotEventType eventType, String deviceId);
 
     boolean existsByEventTypeAndProfileId(PilotEventType eventType, Long profileId);

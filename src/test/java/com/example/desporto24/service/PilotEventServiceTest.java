@@ -28,6 +28,23 @@ class PilotEventServiceTest {
     }
 
     @Test
+    void returnsCountsForEveryPilotEventType() {
+        when(pilotEventRepository.countByEventType(PilotEventType.ACCESS)).thenReturn(200L);
+        when(pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED)).thenReturn(100L);
+        when(pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED)).thenReturn(60L);
+        when(pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED)).thenReturn(30L);
+        when(pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED)).thenReturn(10L);
+
+        var counts = service.eventCounts();
+
+        assertEquals(200L, counts.access());
+        assertEquals(100L, counts.registrationCompleted());
+        assertEquals(60L, counts.sessionJoined());
+        assertEquals(30L, counts.attendanceConfirmed());
+        assertEquals(10L, counts.sessionCompleted());
+    }
+
+    @Test
     void recordsOnlyFirstAccessForDevice() {
         when(pilotEventRepository.existsByEventTypeAndDeviceId(
                 PilotEventType.ACCESS,

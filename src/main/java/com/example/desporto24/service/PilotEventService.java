@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.PilotEventType;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.analytics.PilotEvent;
+import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,17 @@ import java.time.Instant;
 public class PilotEventService {
 
     private final PilotEventRepository pilotEventRepository;
+
+    @Transactional(readOnly = true)
+    public PilotEventCountsResponse eventCounts() {
+        return new PilotEventCountsResponse(
+                pilotEventRepository.countByEventType(PilotEventType.ACCESS),
+                pilotEventRepository.countByEventType(PilotEventType.REGISTRATION_COMPLETED),
+                pilotEventRepository.countByEventType(PilotEventType.SESSION_JOINED),
+                pilotEventRepository.countByEventType(PilotEventType.ATTENDANCE_CONFIRMED),
+                pilotEventRepository.countByEventType(PilotEventType.SESSION_COMPLETED)
+        );
+    }
 
     @Transactional
     public void recordFirstAccess(String deviceId) {
