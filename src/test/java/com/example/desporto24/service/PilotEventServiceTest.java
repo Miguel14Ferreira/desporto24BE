@@ -1,8 +1,11 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.PilotEventType;
+import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.Session;
 import com.example.desporto24.model.analytics.PilotEvent;
+import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,11 +29,14 @@ class PilotEventServiceTest {
     @Mock
     private PilotEventRepository pilotEventRepository;
 
+    @Mock
+    private SessionRepository sessionRepository;
+
     private PilotEventService service;
 
     @BeforeEach
     void setUp() {
-        service = new PilotEventService(pilotEventRepository);
+        service = new PilotEventService(pilotEventRepository, sessionRepository);
     }
 
     @Test
@@ -186,6 +193,53 @@ class PilotEventServiceTest {
         assertEquals(10L, participation.minimumCompletedSessions());
         assertFalse(participation.participantsTargetMet());
         assertFalse(participation.completedSessionsTargetMet());
+    }
+
+    @Test
+    void realizationUsesOnlyTrackedSessionsWhoseScheduledDateHasPassed() {
+        Instant now = Instant.now();
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
+                .thenReturn(List.of(
+                        subjectEvent(PilotEventType.SESSION_CREATED, 101L, now.minus(Duration.ofDays(10))),
+                        subjectEvent(PilotEventType.SESSION_CREATED, 102L, now.minus(Duration.ofDays(9))),
+                        subjectEvent(PilotEventType.SESSION_CREATED, 103L, now.minus(Duration.ofDays(8))),
+                        subjectEvent(PilotEventType.SESSION_CREATED, 104L, now.minus(Duration.ofDays(1)))
+                ));
+        when(sessionRepository.findAllById(anySet())).thenReturn(List.of(
+                session(101L, SessionStatus.COMPLETED, now.minus(Duration.ofDays(2))),
+                session(102L, SessionStatus.CANCELLED, now.minus(Duration.ofDays(1))),
+                session(103L, SessionStatus.COMPLETED, now.minus(Duration.ofHours(1))),
+                session(104L, SessionStatus.OPEN, now.plus(Duration.ofDays(1)))
+        ));
+
+        var realization = service.realization();
+
+        assertEquals(2L, realization.realizedSessions());
+        assertEquals(3L, realization.eligiblePlannedSessions());
+        assertEquals(new BigDecimal("66.67"), realization.realizationRatePercent());
+        assertEquals(new BigDecimal("70.00"), realization.minimumRatePercent());
+        assertFalse(realization.targetMet());
+    }
+
+    @Test
+    void realizationRateIsUnknownBeforeAnyTrackedSessionIsEligible() {
+        Instant now = Instant.now();
+        when(pilotEventRepository.findByEventType(PilotEventType.SESSION_CREATED))
+                .thenReturn(List.of(subjectEvent(
+                        PilotEventType.SESSION_CREATED,
+                        101L,
+                        now.minus(Duration.ofHours(1))
+                )));
+        when(sessionRepository.findAllById(anySet())).thenReturn(List.of(
+                session(101L, SessionStatus.OPEN, now.plus(Duration.ofDays(1)))
+        ));
+
+        var realization = service.realization();
+
+        assertEquals(0L, realization.realizedSessions());
+        assertEquals(0L, realization.eligiblePlannedSessions());
+        assertNull(realization.realizationRatePercent());
+        assertFalse(realization.targetMet());
     }
 
     @Test
@@ -372,6 +426,22 @@ class PilotEventServiceTest {
         assertEquals(profile, event.getProfile());
         assertEquals(99L, event.getSubjectId());
         assertNotNull(event.getCreatedAt());
+    }
+
+    private Session session(Long id, SessionStatus status, Instant gameDate) {
+        Session session = new Session();
+        session.setId(id);
+        session.setStatus(status);
+        session.setGameDate(Date.from(gameDate));
+        return session;
+    }
+
+    private PilotEvent subjectEvent(PilotEventType type, Long subjectId, Instant createdAt) {
+        return PilotEvent.builder()
+                .eventType(type)
+                .subjectId(subjectId)
+                .createdAt(createdAt)
+                .build();
     }
 
     private PilotEvent completedSessionEvent(Long sessionId, Instant createdAt) {

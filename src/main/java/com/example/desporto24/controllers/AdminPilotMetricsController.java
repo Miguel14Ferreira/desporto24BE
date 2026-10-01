@@ -3,6 +3,7 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
 import com.example.desporto24.service.PilotEventService;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,12 @@ public class AdminPilotMetricsController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public PilotParticipationResponse participation() {
         return pilotEventService.participation();
+    }
+
+    @GetMapping("/realization")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public PilotRealizationResponse realization() {
+        return pilotEventService.realization();
     }
 
     @GetMapping("/event-counts")

@@ -2,11 +2,14 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.PilotEventType;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.Session;
 import com.example.desporto24.model.analytics.PilotEvent;
 import com.example.desporto24.model.dto.analytics.PilotActivation7dResponse;
 import com.example.desporto24.model.dto.analytics.PilotEventCountsResponse;
 import com.example.desporto24.model.dto.analytics.PilotParticipationResponse;
+import com.example.desporto24.model.dto.analytics.PilotRealizationResponse;
 import com.example.desporto24.model.dto.analytics.PilotRepetition30dResponse;
+import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +23,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +36,10 @@ public class PilotEventService {
     private static final long REPETITION_MIN_ELIGIBLE = 20L;
     private static final long PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS = 30L;
     private static final long PARTICIPATION_MIN_COMPLETED_SESSIONS = 10L;
+    private static final BigDecimal REALIZATION_MIN_RATE_PERCENT = new BigDecimal("70.00");
 
     private final PilotEventRepository pilotEventRepository;
+    private final SessionRepository sessionRepository;
 
     @Transactional(readOnly = true)
     public PilotEventCountsResponse eventCounts() {
@@ -151,6 +158,51 @@ public class PilotEventService {
                 PARTICIPATION_MIN_COMPLETED_SESSIONS,
                 confirmedParticipants >= PARTICIPATION_MIN_CONFIRMED_PARTICIPANTS,
                 completedSessions >= PARTICIPATION_MIN_COMPLETED_SESSIONS
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public PilotRealizationResponse realization() {
+        Set<Long> trackedSessionIds = pilotEventRepository
+                .findByEventType(PilotEventType.SESSION_CREATED)
+                .stream()
+                .map(PilotEvent::getSubjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (trackedSessionIds.isEmpty()) {
+            return new PilotRealizationResponse(
+                    0L,
+                    0L,
+                    null,
+                    REALIZATION_MIN_RATE_PERCENT,
+                    false
+            );
+        }
+
+        Instant now = Instant.now();
+        List<Session> eligibleSessions = sessionRepository.findAllById(trackedSessionIds)
+                .stream()
+                .filter(session -> session.getGameDate() != null)
+                .filter(session -> !session.getGameDate().toInstant().isAfter(now))
+                .toList();
+
+        long realizedSessions = eligibleSessions.stream()
+                .filter(session -> session.getStatus() == com.example.desporto24.enumeration.SessionStatus.COMPLETED)
+                .count();
+        long eligiblePlannedSessions = eligibleSessions.size();
+        BigDecimal ratePercent = eligiblePlannedSessions == 0
+                ? null
+                : BigDecimal.valueOf(realizedSessions)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(eligiblePlannedSessions), 2, RoundingMode.HALF_UP);
+
+        return new PilotRealizationResponse(
+                realizedSessions,
+                eligiblePlannedSessions,
+                ratePercent,
+                REALIZATION_MIN_RATE_PERCENT,
+                ratePercent != null && ratePercent.compareTo(REALIZATION_MIN_RATE_PERCENT) >= 0
         );
     }
 
