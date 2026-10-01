@@ -60,6 +60,35 @@ class UserReportServiceTest {
     }
 
     @Test
+    void listsOpenReportsAndAllowsAdminStatusTransition() {
+        service.reportUser(reporter.getUsername(), reported.getUsername(), "motivo");
+
+        var openReports = service.openReports();
+        assertEquals(1, openReports.size());
+        assertEquals(UserReportStatus.OPEN, openReports.getFirst().status());
+
+        Long reportId = openReports.getFirst().id();
+        var updated = service.updateStatus(reportId, UserReportStatus.REVIEWED);
+
+        assertTrue(updated.isPresent());
+        assertEquals(UserReportStatus.REVIEWED, updated.get().status());
+        assertTrue(service.openReports().isEmpty());
+    }
+
+    @Test
+    void adminCannotSetReportBackToOpen() {
+        service.reportUser(reporter.getUsername(), reported.getUsername(), "motivo");
+        Long reportId = reportRepository.findAll().getFirst().getId();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.updateStatus(reportId, UserReportStatus.OPEN)
+        );
+
+        assertEquals(UserReportStatus.OPEN, reportRepository.findById(reportId).orElseThrow().getStatus());
+    }
+
+    @Test
     void cannotReportSelf() {
         assertThrows(
                 IllegalArgumentException.class,
