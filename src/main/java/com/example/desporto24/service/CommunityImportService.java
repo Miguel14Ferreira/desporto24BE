@@ -5,6 +5,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
 import com.example.desporto24.model.dto.community.CommunityImportMappingValidationResponse;
+import com.example.desporto24.model.dto.community.CommunityImportNormalizedPreviewResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
@@ -166,6 +167,74 @@ public class CommunityImportService {
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
         }
+    }
+
+    public CommunityImportNormalizedPreviewResponse normalizedPreview(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest request) {
+        CommunityImportMappingValidationResponse validation =
+                validateMapping(communityId, username, file, request);
+        if (!validation.valid()) {
+            throw new IllegalArgumentException("Corrige o mapeamento antes de continuar");
+        }
+
+        validateFile(file);
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheet(request.sheetName());
+            DataFormatter formatter = new DataFormatter();
+            List<Row> sourceRows = nonEmptyRows(sheet, formatter);
+            List<CommunityImportNormalizedPreviewResponse.NormalizedRow> normalizedRows =
+                    new ArrayList<>();
+
+            for (int rowIndex = 1; rowIndex < sourceRows.size() && normalizedRows.size() < 50; rowIndex++) {
+                Row row = sourceRows.get(rowIndex);
+                List<String> rowValues = values(row, formatter);
+                java.util.Map<String, String> mapped = new java.util.HashMap<>();
+                for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
+                    String field = mapping.field().trim().toUpperCase(Locale.ROOT);
+                    if (!field.equals("IGNORE")) {
+                        mapped.put(field, valueAt(rowValues, mapping.columnIndex()));
+                    }
+                }
+                if (mapped.getOrDefault("PLAYER", "").isBlank()) continue;
+                if (!numericValuesValid(mapped)) continue;
+
+                normalizedRows.add(new CommunityImportNormalizedPreviewResponse.NormalizedRow(
+                        row.getRowNum() + 1,
+                        mapped.get("PLAYER"),
+                        blankToNull(mapped.get("DATE")),
+                        blankToNull(mapped.get("RESULT")),
+                        numberOrNull(mapped.get("GOALS")),
+                        numberOrNull(mapped.get("ASSISTS")),
+                        numberOrNull(mapped.get("POINTS")),
+                        numberOrNull(mapped.get("MVP"))
+                ));
+            }
+            return new CommunityImportNormalizedPreviewResponse(
+                    request.sheetName(), normalizedRows
+            );
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
+        }
+    }
+
+    private boolean numericValuesValid(java.util.Map<String, String> mapped) {
+        for (String field : Set.of("GOALS", "ASSISTS", "POINTS", "MVP")) {
+            String value = mapped.get(field);
+            if (value != null && !value.isBlank() && !isNumber(value)) return false;
+        }
+        return true;
+    }
+
+    private Double numberOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        return Double.parseDouble(value.replace(',', '.'));
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private String valueAt(List<String> values, int index) {
