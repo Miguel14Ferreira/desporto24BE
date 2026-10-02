@@ -14,15 +14,24 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class CommunityImportService {
 
     private static final int SAMPLE_ROWS = 5;
+    private static final Set<String> PLAYER_HEADERS = Set.of("player", "jogador", "nome", "name", "participante", "atleta");
+    private static final Set<String> DATE_HEADERS = Set.of("data", "date", "dia", "jornada", "gameweek", "round");
+    private static final Set<String> GOALS_HEADERS = Set.of("g", "gol", "golo", "golos", "goal", "goals");
+    private static final Set<String> ASSISTS_HEADERS = Set.of("a", "assist", "assists", "assistencia", "assistencias");
+    private static final Set<String> POINTS_HEADERS = Set.of("p", "pts", "point", "points", "ponto", "pontos");
+    private static final Set<String> MVP_HEADERS = Set.of("mvp", "motm", "manofthematch");
+    private static final Set<String> RESULT_HEADERS = Set.of("resultado", "result", "wdl", "vde", "winloss");
 
     private final ProfileRepository profileRepository;
     private final CommunityMemberRepository memberRepository;
@@ -53,13 +62,79 @@ public class CommunityImportService {
                         rows.size(),
                         detectStructure(rows, formatter),
                         headers,
-                        samples
+                        samples,
+                        suggestColumns(headers, samples)
                 ));
             }
             return new CommunityImportPreviewResponse(file.getOriginalFilename(), sheets);
         } catch (IOException | RuntimeException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
         }
+    }
+
+    private List<CommunityImportPreviewResponse.ColumnSuggestion> suggestColumns(
+            List<String> headers,
+            List<List<String>> samples) {
+        List<CommunityImportPreviewResponse.ColumnSuggestion> suggestions = new ArrayList<>();
+        for (int index = 0; index < headers.size(); index++) {
+            String header = headers.get(index);
+            String normalized = normalize(header);
+            String field = "UNKNOWN";
+            double confidence = 0.0;
+
+            if (PLAYER_HEADERS.contains(normalized)) {
+                field = "PLAYER";
+                confidence = 0.95;
+            } else if (DATE_HEADERS.contains(normalized)) {
+                field = "DATE";
+                confidence = 0.95;
+            } else if (GOALS_HEADERS.contains(normalized)) {
+                field = "GOALS";
+                confidence = 0.90;
+            } else if (ASSISTS_HEADERS.contains(normalized)) {
+                field = "ASSISTS";
+                confidence = 0.90;
+            } else if (POINTS_HEADERS.contains(normalized)) {
+                field = "POINTS";
+                confidence = 0.90;
+            } else if (MVP_HEADERS.contains(normalized)) {
+                field = "MVP";
+                confidence = 0.95;
+            } else if (RESULT_HEADERS.contains(normalized)) {
+                field = "RESULT";
+                confidence = 0.90;
+            } else {
+                List<String> values = columnValues(samples, index);
+                if (!values.isEmpty() && values.stream().allMatch(this::looksLikeDate)) {
+                    field = "DATE";
+                    confidence = 0.65;
+                }
+            }
+            suggestions.add(new CommunityImportPreviewResponse.ColumnSuggestion(
+                    index, header, field, confidence
+            ));
+        }
+        return suggestions;
+    }
+
+    private List<String> columnValues(List<List<String>> rows, int index) {
+        return rows.stream()
+                .filter(row -> index < row.size())
+                .map(row -> row.get(index).trim())
+                .filter(value -> !value.isBlank())
+                .toList();
+    }
+
+    private boolean looksLikeDate(String value) {
+        return value.matches("\\d{1,2}[-/.]\\d{1,2}([-/ .]\\d{2,4})?")
+                || value.matches("\\d{1,2}\\s+[\\p{L}.]+(\\s+\\d{2,4})?");
+    }
+
+    private String normalize(String value) {
+        return Normalizer.normalize(value == null ? "" : value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]", "");
     }
 
     private List<Row> nonEmptyRows(Sheet sheet, DataFormatter formatter) {

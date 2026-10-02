@@ -11,7 +11,16 @@ public record CommunityImportPreviewResponse(
             int nonEmptyRows,
             String structure,
             List<String> headers,
-            List<List<String>> sampleRows
+            List<List<String>> sampleRows,
+            List<ColumnSuggestion> columnSuggestions
+    ) {
+    }
+
+    public record ColumnSuggestion(
+            int columnIndex,
+            String header,
+            String field,
+            double confidence
     ) {
     }
 }
