@@ -224,6 +224,34 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
+    void participantCannotLeaveCompletedSession() {
+        Profile participant = profile("participant");
+        SessionParticipant membership = participant(participant);
+        session.setStatus(SessionStatus.COMPLETED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.leave(session.getId(), participant.getUsername()));
+
+        assertEquals(ParticipantState.ACTIVE,
+                participantRepository.findById(membership.getId()).orElseThrow().getState());
+    }
+
+    @Test
+    void creatorCannotRemoveParticipantFromCancelledSession() {
+        Profile participant = profile("participant");
+        SessionParticipant membership = participant(participant);
+        session.setStatus(SessionStatus.CANCELLED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.removeParticipant(session.getId(), membership.getId(), creator.getUsername()));
+
+        assertEquals(ParticipantState.ACTIVE,
+                participantRepository.findById(membership.getId()).orElseThrow().getState());
+    }
+
+    @Test
     void creatorCanCompleteSessionAfterStart() {
         session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
         sessionRepository.saveAndFlush(session);

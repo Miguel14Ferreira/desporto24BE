@@ -413,6 +413,7 @@ public class SessionServiceImpl implements SessionService {
         if (session.getProfile().getId().equals(actor.getId())) {
             throw new AccessDeniedException("Session creator must cancel the session instead of leaving");
         }
+        requireParticipantChangesAllowed(session);
 
         var activeMembership = participantRepository
                 .findBySessionIdAndProfileIdAndState(
@@ -507,6 +508,7 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireCreator(session, actor);
+        requireParticipantChangesAllowed(session);
 
         SessionParticipant membership = participantRepository.findById(participantId)
                 .orElseThrow(() -> new IllegalStateException("Participant not found"));
@@ -528,6 +530,13 @@ public class SessionServiceImpl implements SessionService {
         sessionNotificationService.notifyParticipantRemoved(session, membership.getProfile());
 
         waitlistPromotionService.promoteNext(session, now);
+    }
+
+    private void requireParticipantChangesAllowed(Session session) {
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Participants cannot be changed after the session ends");
+        }
     }
 
     private void requireCreator(Session session, Profile actor) {
