@@ -244,25 +244,28 @@ public class CommunityCompetitionService {
     }
 
     private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
-        Map<Long, StandingAccumulator> table = new LinkedHashMap<>();
+        Map<String, StandingAccumulator> table = new LinkedHashMap<>();
 
         for (CommunityMember member : memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId())) {
-            table.putIfAbsent(
-                    member.getProfile().getId(),
-                    new StandingAccumulator(member.getProfile())
-            );
+            Profile profile = member.getProfile();
+            CommunityPlayer communityPlayer = playerRepository
+                    .findByCommunityIdAndProfileId(community.getId(), profile.getId())
+                    .orElse(null);
+            table.putIfAbsent(standingKey(communityPlayer, profile), new StandingAccumulator(communityPlayer, profile));
         }
 
         List<CommunityRoundEntry> sourceEntries = seasonId == null
-                ? entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(
-                        community.getId())
-                : entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(
-                        seasonId);
+                ? entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(community.getId())
+                : entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(seasonId);
 
         for (CommunityRoundEntry entry : sourceEntries) {
+            CommunityPlayer communityPlayer = entry.getCommunityPlayer();
+            Profile profile = entry.getProfile() != null
+                    ? entry.getProfile()
+                    : communityPlayer == null ? null : communityPlayer.getProfile();
             StandingAccumulator row = table.computeIfAbsent(
-                    entry.getProfile().getId(),
-                    ignored -> new StandingAccumulator(entry.getProfile())
+                    standingKey(communityPlayer, profile),
+                    ignored -> new StandingAccumulator(communityPlayer, profile)
             );
             row.add(entry);
         }
@@ -273,17 +276,11 @@ public class CommunityCompetitionService {
 
         List<StandingAccumulator> ordered = table.values().stream()
                 .sorted(
-                        Comparator.comparingInt(
-                                        (StandingAccumulator row) -> row.points(winPoints, drawPoints, lossPoints)
-                                )
+                        Comparator.comparingInt((StandingAccumulator row) -> row.points(winPoints, drawPoints, lossPoints))
                                 .reversed()
-                                .thenComparing(
-                                        Comparator.comparingInt(StandingAccumulator::wins).reversed()
-                                )
-                                .thenComparing(
-                                        Comparator.comparingInt(StandingAccumulator::goals).reversed()
-                                )
-                                .thenComparing(row -> row.profile().getUsername(), String.CASE_INSENSITIVE_ORDER)
+                                .thenComparing(Comparator.comparingInt(StandingAccumulator::wins).reversed())
+                                .thenComparing(Comparator.comparingInt(StandingAccumulator::goals).reversed())
+                                .thenComparing(StandingAccumulator::displayName, String.CASE_INSENSITIVE_ORDER)
                 )
                 .toList();
 
@@ -293,10 +290,10 @@ public class CommunityCompetitionService {
             int games = row.games();
             response.add(new CommunityStandingResponse(
                     index + 1,
-                    row.profile().getId(),
-                    row.profile().getUsername(),
-                    row.profile().getFullName(),
-                    row.profile().getProfilePicUrl(),
+                    row.profileId(),
+                    row.username(),
+                    row.displayName(),
+                    row.profilePicUrl(),
                     games,
                     row.wins(),
                     row.draws(),
@@ -311,8 +308,13 @@ public class CommunityCompetitionService {
                     row.bestWinStreak()
             ));
         }
-
         return response;
+    }
+
+    private String standingKey(CommunityPlayer communityPlayer, Profile profile) {
+        if (communityPlayer != null) return "player:" + communityPlayer.getId();
+        if (profile != null) return "profile:" + profile.getId();
+        throw new IllegalStateException("A estatística não tem jogador associado");
     }
 
     private CommunityRoundResponse roundResponse(CommunityRound round) {
@@ -438,6 +440,7 @@ public class CommunityCompetitionService {
     }
 
     private static final class StandingAccumulator {
+        private final CommunityPlayer communityPlayer;
         private final Profile profile;
         private int games;
         private int wins;
@@ -452,7 +455,8 @@ public class CommunityCompetitionService {
         private int currentWinStreak;
         private int bestWinStreak;
 
-        private StandingAccumulator(Profile profile) {
+        private StandingAccumulator(CommunityPlayer communityPlayer, Profile profile) {
+            this.communityPlayer = communityPlayer;
             this.profile = profile;
         }
 
@@ -503,7 +507,15 @@ public class CommunityCompetitionService {
             return code + currentStreakCount;
         }
 
-        private Profile profile() { return profile; }
+        private Long profileId() { return profile == null ? null : profile.getId(); }
+        private String username() { return profile == null ? null : profile.getUsername(); }
+        private String displayName() {
+            if (communityPlayer != null) return communityPlayer.getDisplayName();
+            if (profile == null) return "Jogador";
+            String fullName = profile.getFullName();
+            return fullName == null || fullName.isBlank() ? profile.getUsername() : fullName;
+        }
+        private String profilePicUrl() { return profile == null ? null : profile.getProfilePicUrl(); }
         private int games() { return games; }
         private int wins() { return wins; }
         private int draws() { return draws; }
