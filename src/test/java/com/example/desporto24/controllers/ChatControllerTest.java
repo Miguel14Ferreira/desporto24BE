@@ -44,10 +44,7 @@ class ChatControllerTest {
     @Test
     void legacyChatSendCannotSpoofSender() {
         when(authentication.getName()).thenReturn("miguel");
-        Chat request = new Chat();
-        request.setUsername1("ana");
-        request.setUsername2("joao");
-        request.setText("Olá");
+        ChatMessageRequest request = new ChatMessageRequest("Olá");
         Chat saved = new Chat();
         saved.setUsername1("miguel");
         saved.setUsername2("ana");
