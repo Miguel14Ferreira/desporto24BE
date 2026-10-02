@@ -21,6 +21,7 @@ public class CommunityController {
 
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
+    private final CommunityImportService communityImportService;
     private final CommunitySessionService communitySessionService;
 
     @PostMapping
@@ -124,6 +125,16 @@ public class CommunityController {
             Authentication authentication) {
         return ResponseEntity.ok(
                 competitionService.updateSettings(id, authentication.getName(), request)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/preview", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportPreviewResponse> previewCompetitionImport(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.preview(id, authentication.getName(), file)
         );
     }
 
