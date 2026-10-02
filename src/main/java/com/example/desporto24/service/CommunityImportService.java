@@ -1,11 +1,14 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunitySeason;
+import com.example.desporto24.model.community.CommunityRound;
+import com.example.desporto24.model.community.CommunityRoundEntry;
 import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
 import com.example.desporto24.model.dto.community.CommunityImportMappingValidationResponse;
 import com.example.desporto24.model.dto.community.CommunityImportNormalizedPreviewResponse;
@@ -21,6 +24,7 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
+import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -62,6 +66,7 @@ public class CommunityImportService {
     private final CommunityPlayerRepository communityPlayerRepository;
     private final CommunitySeasonRepository communitySeasonRepository;
     private final CommunityRoundRepository communityRoundRepository;
+    private final CommunityRoundEntryRepository communityRoundEntryRepository;
 
     public CommunityImportContextValidationResponse validateContext(
             Long communityId,
@@ -519,6 +524,131 @@ public class CommunityImportService {
             }
         }
         return new ParsedImportDate(null, false, true);
+    }
+
+    @Transactional
+    public CommunityImportRoundsResultResponse confirmRounds(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest mapping,
+            CommunityImportContextRequest context) {
+        CommunityImportRoundsPlanResponse plan = finalRoundsPlan(
+                communityId, username, file, mapping, context);
+        if (plan.rounds().stream().anyMatch(round -> round.unresolvedResults() > 0)) {
+            throw new IllegalArgumentException(
+                    "Existem jogadores com resultado não resolvido. Corrige o mapeamento antes de importar");
+        }
+
+        Community community = communityRepository.findById(communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
+        CommunitySeason season = communitySeasonRepository.findById(context.seasonId())
+                .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
+                .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
+
+        java.util.Map<String, CommunityImportRoundsPlanResponse.RoundPlan> roundsBySource =
+                plan.rounds().stream().collect(java.util.stream.Collectors.toMap(
+                        CommunityImportRoundsPlanResponse.RoundPlan::sourceDate,
+                        round -> round,
+                        (first, ignored) -> first,
+                        java.util.LinkedHashMap::new));
+
+        int createdRounds = 0;
+        int skippedDuplicates = 0;
+        int createdEntries = 0;
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheet(mapping.sheetName());
+            DataFormatter formatter = new DataFormatter();
+            List<Row> sourceRows = nonEmptyRows(sheet, formatter);
+            Integer dateColumn = mappedColumn(mapping, "DATE", "Seleciona uma coluna DATE");
+            Integer playerColumn = mappedColumn(mapping, "PLAYER", "Seleciona uma coluna PLAYER");
+
+            java.util.Map<String, List<Row>> rowsByRound = new java.util.LinkedHashMap<>();
+            for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
+                List<String> values = values(sourceRows.get(rowIndex), formatter);
+                String player = valueAt(values, playerColumn);
+                String sourceDate = valueAt(values, dateColumn);
+                if (player.isBlank() || sourceDate.isBlank()) continue;
+                java.util.Map<String, String> mapped = mappedValues(mapping, values);
+                if (!numericValuesValid(mapped)) continue;
+                rowsByRound.computeIfAbsent(sourceDate, ignored -> new ArrayList<>())
+                        .add(sourceRows.get(rowIndex));
+            }
+
+            for (java.util.Map.Entry<String, CommunityImportRoundsPlanResponse.RoundPlan> item
+                    : roundsBySource.entrySet()) {
+                CommunityImportRoundsPlanResponse.RoundPlan roundPlan = item.getValue();
+                if (roundPlan.duplicate()) {
+                    skippedDuplicates++;
+                    continue;
+                }
+
+                Instant playedAt = LocalDate.parse(roundPlan.parsedDate())
+                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+                CommunityRound round = communityRoundRepository.save(CommunityRound.builder()
+                        .community(community)
+                        .season(season)
+                        .name("Import " + roundPlan.parsedDate())
+                        .playedAt(playedAt)
+                        .createdAt(Instant.now())
+                        .build());
+                createdRounds++;
+
+                for (Row row : rowsByRound.getOrDefault(item.getKey(), List.of())) {
+                    List<String> values = values(row, formatter);
+                    String displayName = valueAt(values, playerColumn).trim();
+                    String normalizedName = normalizePlayerName(displayName);
+                    CommunityPlayer player = communityPlayerRepository
+                            .findByCommunityIdAndNormalizedName(communityId, normalizedName)
+                            .orElseGet(() -> communityPlayerRepository.save(CommunityPlayer.builder()
+                                    .community(community)
+                                    .displayName(displayName)
+                                    .normalizedName(normalizedName)
+                                    .createdAt(Instant.now())
+                                    .build()));
+
+                    java.util.Map<String, String> mapped = mappedValues(mapping, values);
+                    CommunityMatchResult result = importedResult(mapped);
+                    communityRoundEntryRepository.save(CommunityRoundEntry.builder()
+                            .round(round)
+                            .communityPlayer(player)
+                            .profile(player.getProfile())
+                            .result(result)
+                            .goals(importedInt(mapped.get("GOALS")))
+                            .assists(importedInt(mapped.get("ASSISTS")))
+                            .mvp(importedInt(mapped.get("MVP")) > 0)
+                            .cleanSheet(false)
+                            .build());
+                    createdEntries++;
+                }
+            }
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
+        }
+
+        return new CommunityImportRoundsResultResponse(
+                createdRounds, skippedDuplicates, createdEntries);
+    }
+
+    private CommunityMatchResult importedResult(java.util.Map<String, String> mapped) {
+        if (RoundImportAccumulator.positive(mapped.get("WIN"))) return CommunityMatchResult.WIN;
+        if (RoundImportAccumulator.positive(mapped.get("DRAW"))) return CommunityMatchResult.DRAW;
+        if (RoundImportAccumulator.positive(mapped.get("LOSS"))) return CommunityMatchResult.LOSS;
+        String result = mapped.get("RESULT");
+        if (result != null) {
+            return switch (result.trim().toUpperCase(Locale.ROOT)) {
+                case "W", "WIN", "V", "VITORIA", "VITÓRIA" -> CommunityMatchResult.WIN;
+                case "DRAW", "E", "EMPATE" -> CommunityMatchResult.DRAW;
+                case "L", "LOSS", "DERROTA" -> CommunityMatchResult.LOSS;
+                default -> throw new IllegalArgumentException("Resultado histórico não reconhecido: " + result);
+            };
+        }
+        throw new IllegalArgumentException("Resultado histórico em falta");
+    }
+
+    private int importedInt(String value) {
+        if (value == null || value.isBlank()) return 0;
+        return (int) Math.round(Double.parseDouble(value.replace(',', '.')));
     }
 
     private Integer mappedColumn(

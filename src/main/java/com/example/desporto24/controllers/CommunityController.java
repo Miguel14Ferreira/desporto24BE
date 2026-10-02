@@ -212,6 +212,18 @@ public class CommunityController {
         );
     }
 
+    @PostMapping(value = "/{id}/competition/import/rounds/confirm", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportRoundsResultResponse> confirmCompetitionImportRounds(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityImportContextRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.confirmRounds(id, authentication.getName(), file, mapping, context)
+        );
+    }
+
     @PostMapping(value = "/{id}/competition/import/players/confirm", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommunityImportPlayersResultResponse> confirmCompetitionImportPlayers(
             @PathVariable Long id,
