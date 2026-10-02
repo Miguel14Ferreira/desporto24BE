@@ -112,6 +112,30 @@ public class CommunityManagementService {
         return toResponse(saved, actor);
     }
 
+    public CommunityResponse removePhoto(Long communityId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        Community community = community(communityId);
+        String photoUrl = community.getPhotoUrl();
+        community.setPhotoUrl(null);
+        Community saved = communityRepository.save(community);
+        deleteCommunityPhoto(photoUrl, communityId);
+        return toResponse(saved, actor);
+    }
+
+    private void deleteCommunityPhoto(String photoUrl, Long communityId) {
+        if (mediaStorage == null || photoUrl == null || photoUrl.isBlank()) {
+            return;
+        }
+
+        String prefix = "communities/" + communityId + "/";
+        int keyStart = photoUrl.indexOf(prefix);
+        if (keyStart >= 0) {
+            mediaStorage.delete(photoUrl.substring(keyStart));
+        }
+    }
+
     public CommunityInviteResponse invite(Long communityId, String username, InviteCommunityMemberRequest request) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);

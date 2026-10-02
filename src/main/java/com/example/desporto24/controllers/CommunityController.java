@@ -52,6 +52,13 @@ public class CommunityController {
         return ResponseEntity.ok(service.updatePhoto(id, authentication.getName(), photo));
     }
 
+    @DeleteMapping("/{id}/photo")
+    public ResponseEntity<CommunityResponse> removePhoto(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.removePhoto(id, authentication.getName()));
+    }
+
     @PostMapping("/{id}/invites")
     public ResponseEntity<CommunityInviteResponse> invite(
             @PathVariable Long id,
