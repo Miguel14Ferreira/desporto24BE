@@ -5,6 +5,9 @@ import java.util.List;
 public record CommunityImportMappingValidationResponse(
         String sheetName,
         boolean valid,
-        List<String> errors
+        int dataRows,
+        int validRows,
+        List<String> errors,
+        List<String> warnings
 ) {
 }

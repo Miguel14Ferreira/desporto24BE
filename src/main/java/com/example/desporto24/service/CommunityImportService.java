@@ -85,36 +85,99 @@ public class CommunityImportService {
         validateFile(file);
 
         List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             if (sheet == null) {
                 return new CommunityImportMappingValidationResponse(
-                        request.sheetName(), false, List.of("A folha selecionada não existe")
+                        request.sheetName(), false, 0, 0,
+                        List.of("A folha selecionada não existe"), List.of()
                 );
             }
 
+            DataFormatter formatter = new DataFormatter();
+            List<Row> rows = nonEmptyRows(sheet, formatter);
+            int dataRows = Math.max(rows.size() - 1, 0);
+            int width = rows.isEmpty() ? 0 : values(rows.getFirst(), formatter).size();
             Set<String> allowedFields = Set.of(
                     "PLAYER", "DATE", "RESULT", "GOALS", "ASSISTS", "POINTS", "MVP", "IGNORE"
             );
             Set<String> seenFields = new java.util.HashSet<>();
+            Integer playerColumn = null;
+            List<CommunityImportMappingRequest.ColumnMapping> numericMappings = new ArrayList<>();
+
             for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
                 String field = mapping.field().trim().toUpperCase(Locale.ROOT);
+                if (mapping.columnIndex() >= width) {
+                    errors.add("A coluna " + mapping.columnIndex() + " não existe na folha");
+                    continue;
+                }
                 if (!allowedFields.contains(field)) {
                     errors.add("Campo não suportado: " + mapping.field());
                 } else if (!field.equals("IGNORE") && !seenFields.add(field)) {
                     errors.add("Campo repetido: " + field);
+                } else {
+                    if (field.equals("PLAYER")) playerColumn = mapping.columnIndex();
+                    if (Set.of("GOALS", "ASSISTS", "POINTS", "MVP").contains(field)) {
+                        numericMappings.add(mapping);
+                    }
                 }
             }
 
-            if (!seenFields.contains("PLAYER")) {
+            if (playerColumn == null) {
                 errors.add("Seleciona uma coluna para identificar o jogador");
+            }
+            if (dataRows == 0) {
+                errors.add("A folha não contém linhas de dados");
+            }
+
+            int validRows = 0;
+            if (errors.isEmpty()) {
+                for (int rowIndex = 1; rowIndex < rows.size(); rowIndex++) {
+                    List<String> rowValues = values(rows.get(rowIndex), formatter);
+                    int excelRow = rows.get(rowIndex).getRowNum() + 1;
+                    String player = valueAt(rowValues, playerColumn);
+                    boolean rowValid = true;
+
+                    if (player.isBlank()) {
+                        warnings.add("Linha " + excelRow + ": jogador vazio");
+                        rowValid = false;
+                    }
+                    for (CommunityImportMappingRequest.ColumnMapping mapping : numericMappings) {
+                        String value = valueAt(rowValues, mapping.columnIndex());
+                        if (!value.isBlank() && !isNumber(value)) {
+                            warnings.add("Linha " + excelRow + ": " + mapping.field()
+                                    + " não é numérico ('" + value + "')");
+                            rowValid = false;
+                        }
+                    }
+                    if (rowValid) validRows++;
+                }
             }
 
             return new CommunityImportMappingValidationResponse(
-                    request.sheetName(), errors.isEmpty(), errors
+                    request.sheetName(),
+                    errors.isEmpty() && validRows > 0,
+                    dataRows,
+                    validRows,
+                    errors,
+                    warnings
             );
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
+        }
+    }
+
+    private String valueAt(List<String> values, int index) {
+        return index >= 0 && index < values.size() ? values.get(index).trim() : "";
+    }
+
+    private boolean isNumber(String value) {
+        try {
+            Double.parseDouble(value.replace(',', '.'));
+            return true;
+        } catch (NumberFormatException exception) {
+            return false;
         }
     }
 
