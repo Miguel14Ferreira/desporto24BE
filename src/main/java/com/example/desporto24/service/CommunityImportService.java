@@ -2,24 +2,30 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
 import com.example.desporto24.model.dto.community.CommunityImportMappingValidationResponse;
 import com.example.desporto24.model.dto.community.CommunityImportNormalizedPreviewResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPlanResponse;
+import com.example.desporto24.model.dto.community.CommunityImportPlayersResultResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.text.Normalizer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +46,7 @@ public class CommunityImportService {
 
     private final ProfileRepository profileRepository;
     private final CommunityMemberRepository memberRepository;
+    private final CommunityRepository communityRepository;
     private final CommunityPlayerRepository communityPlayerRepository;
 
     public CommunityImportPreviewResponse preview(
@@ -297,6 +304,40 @@ public class CommunityImportService {
                 playerPlans.size() - existingPlayers,
                 existingPlayers,
                 playerPlans
+        );
+    }
+
+    @Transactional
+    public CommunityImportPlayersResultResponse confirmPlayers(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest request) {
+        CommunityImportPlanResponse plan = importPlan(communityId, username, file, request);
+        Community community = communityRepository.findById(communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
+
+        int createdPlayers = 0;
+        for (CommunityImportPlanResponse.PlayerPlan player : plan.players()) {
+            if (communityPlayerRepository
+                    .findByCommunityIdAndNormalizedName(communityId, player.normalizedName())
+                    .isPresent()) {
+                continue;
+            }
+
+            communityPlayerRepository.save(CommunityPlayer.builder()
+                    .community(community)
+                    .displayName(player.displayName())
+                    .normalizedName(player.normalizedName())
+                    .createdAt(Instant.now())
+                    .build());
+            createdPlayers++;
+        }
+
+        return new CommunityImportPlayersResultResponse(
+                plan.distinctPlayers(),
+                createdPlayers,
+                plan.distinctPlayers() - createdPlayers
         );
     }
 
