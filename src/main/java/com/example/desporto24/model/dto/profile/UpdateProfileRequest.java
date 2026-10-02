@@ -83,6 +83,26 @@ public record UpdateProfileRequest(
         }
     }
 
+    @AssertTrue(message = "Preenche o indicativo apenas quando adicionares um número de telefone")
+    public boolean isPhonePairValid() {
+        boolean hasPhone = phone != null && !phone.isBlank();
+        boolean hasIndicative = indicativePhone != null && !indicativePhone.isBlank();
+        return hasPhone == hasIndicative;
+    }
+
+    @AssertTrue(message = "O número de telefone completo não pode exceder 15 dígitos")
+    public boolean isPhoneLengthValid() {
+        if (phone == null || phone.isBlank()) {
+            return true;
+        }
+        if (indicativePhone == null
+                || !indicativePhone.matches("\\d+")
+                || !phone.matches("\\d+")) {
+            return true;
+        }
+        return indicativePhone.length() + phone.length() <= 15;
+    }
+
     @AssertTrue(message = "Escolhe apenas desportos disponíveis na lista")
     public boolean isFavoriteSportsValid() {
         return SportsCatalog.isValidSelection(favoriteSports);

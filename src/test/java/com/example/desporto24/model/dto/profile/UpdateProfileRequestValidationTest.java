@@ -66,6 +66,21 @@ class UpdateProfileRequestValidationTest {
     }
 
     @Test
+    void phoneWithoutIndicativeIsRejected() {
+        assertFalse(validator.validate(createRequest("1995-05-30", "Futebol", "", "912345678")).isEmpty());
+    }
+
+    @Test
+    void indicativeWithoutPhoneIsRejected() {
+        assertFalse(validator.validate(createRequest("1995-05-30", "Futebol", "351", "")).isEmpty());
+    }
+
+    @Test
+    void phoneWithMoreThanFifteenTotalDigitsIsRejected() {
+        assertFalse(validator.validate(createRequest("1995-05-30", "Futebol", "351", "1234567890123")).isEmpty());
+    }
+
+    @Test
     void catalogFavoriteSportsAreAccepted() {
         assertTrue(validator.validate(withFavoriteSports("Futebol, Padel")).isEmpty());
     }
@@ -88,6 +103,14 @@ class UpdateProfileRequestValidationTest {
     }
 
     private UpdateProfileRequest createRequest(String dateOfBirth, String favoriteSports) {
+        return createRequest(dateOfBirth, favoriteSports, "351", "912345678");
+    }
+
+    private UpdateProfileRequest createRequest(
+            String dateOfBirth,
+            String favoriteSports,
+            String indicativePhone,
+            String phone) {
         return new UpdateProfileRequest(
                 "Fixture User",
                 "Fixture",
@@ -96,8 +119,8 @@ class UpdateProfileRequestValidationTest {
                 "Portugal",
                 "Lisboa",
                 "1000-001",
-                "351",
-                "912345678",
+                indicativePhone,
+                phone,
                 "outro",
                 "fixture@example.test",
                 favoriteSports,
