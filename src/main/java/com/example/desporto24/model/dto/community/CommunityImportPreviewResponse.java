@@ -8,7 +8,10 @@ public record CommunityImportPreviewResponse(
 ) {
     public record SheetPreview(
             String name,
-            int nonEmptyRows
+            int nonEmptyRows,
+            String structure,
+            List<String> headers,
+            List<List<String>> sampleRows
     ) {
     }
 }
