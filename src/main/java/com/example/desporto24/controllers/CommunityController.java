@@ -136,6 +136,16 @@ public class CommunityController {
         );
     }
 
+    @PostMapping("/{id}/competition/import/context/validate")
+    public ResponseEntity<CommunityImportContextValidationResponse> validateCompetitionImportContext(
+            @PathVariable Long id,
+            @RequestBody @Valid CommunityImportContextRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.validateContext(id, authentication.getName(), request)
+        );
+    }
+
     @PostMapping(value = "/{id}/competition/import/preview", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommunityImportPreviewResponse> previewCompetitionImport(
             @PathVariable Long id,

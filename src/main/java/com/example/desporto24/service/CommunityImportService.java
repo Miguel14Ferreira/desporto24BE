@@ -5,6 +5,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityPlayer;
+import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
 import com.example.desporto24.model.dto.community.CommunityImportMappingValidationResponse;
 import com.example.desporto24.model.dto.community.CommunityImportNormalizedPreviewResponse;
@@ -12,10 +13,13 @@ import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse
 import com.example.desporto24.model.dto.community.CommunityImportPlanResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPlayersResultResponse;
 import com.example.desporto24.model.dto.community.CommunityImportRoundsPlanResponse;
+import com.example.desporto24.model.dto.community.CommunityImportContextRequest;
+import com.example.desporto24.model.dto.community.CommunityImportContextValidationResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
+import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -55,6 +59,27 @@ public class CommunityImportService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityRepository communityRepository;
     private final CommunityPlayerRepository communityPlayerRepository;
+    private final CommunitySeasonRepository communitySeasonRepository;
+
+    public CommunityImportContextValidationResponse validateContext(
+            Long communityId,
+            String username,
+            CommunityImportContextRequest request) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new IllegalArgumentException("Utilizador não encontrado"));
+        requireAdmin(communityId, actor);
+
+        CommunitySeason season = communitySeasonRepository.findById(request.seasonId())
+                .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
+                .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
+
+        return new CommunityImportContextValidationResponse(
+                season.getId(),
+                season.getName(),
+                request.defaultYear(),
+                true
+        );
+    }
 
     public CommunityImportPreviewResponse preview(
             Long communityId,
