@@ -8,12 +8,14 @@ public record CommunityImportRoundsPlanResponse(
         int distinctRounds,
         int rowsWithoutRound,
         int roundsNeedingYear,
+        int invalidDates,
         List<RoundPlan> rounds
 ) {
     public record RoundPlan(
             String sourceDate,
             String parsedDate,
             boolean needsYear,
+            boolean invalidDate,
             int players,
             int wins,
             int draws,

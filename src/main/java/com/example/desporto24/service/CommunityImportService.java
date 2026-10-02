@@ -389,15 +389,18 @@ public class CommunityImportService {
         }
 
         int roundsNeedingYear = 0;
+        int invalidDates = 0;
         List<CommunityImportRoundsPlanResponse.RoundPlan> roundPlans = new ArrayList<>();
         for (java.util.Map.Entry<String, RoundImportAccumulator> entry : rounds.entrySet()) {
             ParsedImportDate parsedDate = parseImportDate(entry.getKey());
             if (parsedDate.needsYear()) roundsNeedingYear++;
+            if (parsedDate.invalid()) invalidDates++;
             RoundImportAccumulator round = entry.getValue();
             roundPlans.add(new CommunityImportRoundsPlanResponse.RoundPlan(
                     entry.getKey(),
                     parsedDate.date(),
                     parsedDate.needsYear(),
+                    parsedDate.invalid(),
                     round.players.size(),
                     round.wins,
                     round.draws,
@@ -412,6 +415,7 @@ public class CommunityImportService {
                 roundPlans.size(),
                 rowsWithoutRound,
                 roundsNeedingYear,
+                invalidDates,
                 roundPlans
         );
     }
@@ -448,20 +452,63 @@ public class CommunityImportService {
                 DateTimeFormatter.ofPattern("d.M.uuuu"),
                 DateTimeFormatter.ISO_LOCAL_DATE)) {
             try {
-                return new ParsedImportDate(LocalDate.parse(trimmed, formatter).toString(), false);
+                return new ParsedImportDate(LocalDate.parse(trimmed, formatter).toString(), false, false);
             } catch (DateTimeParseException ignored) {
                 // Try the next supported format.
             }
         }
 
-        if (trimmed.matches("\\d{1,2}[-/.]\\d{1,2}")
-                || trimmed.matches("\\d{1,2}\\s+[\\p{L}.]+")) {
-            return new ParsedImportDate(null, true);
+        if (trimmed.matches("\\d{1,2}[-/.]\\d{1,2}")) {
+            return validDayMonth(trimmed) ? new ParsedImportDate(null, true, false)
+                    : new ParsedImportDate(null, false, true);
         }
-        return new ParsedImportDate(null, true);
+
+        java.util.regex.Matcher monthName = java.util.regex.Pattern
+                .compile("(?iu)^(\\d{1,2})\\s+([\\p{L}.]+)$")
+                .matcher(trimmed);
+        if (monthName.matches()) {
+            Integer month = importMonth(monthName.group(2));
+            if (month != null && validDayMonth(monthName.group(1) + "/" + month)) {
+                return new ParsedImportDate(null, true, false);
+            }
+            return new ParsedImportDate(null, false, true);
+        }
+
+        return new ParsedImportDate(null, false, true);
     }
 
-    private record ParsedImportDate(String date, boolean needsYear) {}
+    private boolean validDayMonth(String value) {
+        String normalized = value.replace('-', '/').replace('.', '/');
+        try {
+            LocalDate.parse(normalized + "/2000", DateTimeFormatter.ofPattern("d/M/uuuu"));
+            return true;
+        } catch (DateTimeParseException exception) {
+            return false;
+        }
+    }
+
+    private Integer importMonth(String value) {
+        String month = Normalizer.normalize(value.replace(".", "").trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+        return switch (month) {
+            case "jan", "janeiro", "january" -> 1;
+            case "fev", "feb", "fevereiro", "february" -> 2;
+            case "mar", "marco", "march" -> 3;
+            case "abr", "apr", "abril", "april" -> 4;
+            case "mai", "may", "maio" -> 5;
+            case "jun", "junho", "june" -> 6;
+            case "jul", "julho", "july" -> 7;
+            case "ago", "aug", "agosto", "august" -> 8;
+            case "set", "sep", "sept", "setembro", "september" -> 9;
+            case "out", "oct", "outubro", "october" -> 10;
+            case "nov", "novembro", "november" -> 11;
+            case "dez", "dec", "dezembro", "december" -> 12;
+            default -> null;
+        };
+    }
+
+    private record ParsedImportDate(String date, boolean needsYear, boolean invalid) {}
 
     private static final class RoundImportAccumulator {
         private final java.util.Set<String> players = new java.util.LinkedHashSet<>();
