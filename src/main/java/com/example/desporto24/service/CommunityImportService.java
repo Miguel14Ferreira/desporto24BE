@@ -20,6 +20,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
+import com.example.desporto24.repository.community.CommunityRoundRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -60,6 +61,7 @@ public class CommunityImportService {
     private final CommunityRepository communityRepository;
     private final CommunityPlayerRepository communityPlayerRepository;
     private final CommunitySeasonRepository communitySeasonRepository;
+    private final CommunityRoundRepository communityRoundRepository;
 
     public CommunityImportContextValidationResponse validateContext(
             Long communityId,
@@ -401,6 +403,7 @@ public class CommunityImportService {
                     parsedDate.date(),
                     parsedDate.needsYear(),
                     parsedDate.invalid(),
+                    false,
                     round.players.size(),
                     round.wins,
                     round.draws,
@@ -416,6 +419,7 @@ public class CommunityImportService {
                 rowsWithoutRound,
                 roundsNeedingYear,
                 invalidDates,
+                0,
                 roundPlans
         );
     }
@@ -436,26 +440,38 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Indica o ano das jornadas que não têm ano no ficheiro");
         }
 
-        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = plan.rounds().stream()
-                .map(round -> {
-                    if (!round.needsYear()) return round;
-                    ParsedImportDate resolved = parseImportDateWithYear(round.sourceDate(), context.defaultYear());
-                    if (resolved.invalid() || resolved.date() == null) {
-                        throw new IllegalArgumentException("Não foi possível resolver a data: " + round.sourceDate());
-                    }
-                    return new CommunityImportRoundsPlanResponse.RoundPlan(
-                            round.sourceDate(),
-                            resolved.date(),
-                            false,
-                            false,
-                            round.players(),
-                            round.wins(),
-                            round.draws(),
-                            round.losses(),
-                            round.unresolvedResults()
-                    );
-                })
-                .toList();
+        int duplicateRounds = 0;
+        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
+        for (CommunityImportRoundsPlanResponse.RoundPlan round : plan.rounds()) {
+            String resolvedDate = round.parsedDate();
+            if (round.needsYear()) {
+                ParsedImportDate resolved = parseImportDateWithYear(round.sourceDate(), context.defaultYear());
+                if (resolved.invalid() || resolved.date() == null) {
+                    throw new IllegalArgumentException("Não foi possível resolver a data: " + round.sourceDate());
+                }
+                resolvedDate = resolved.date();
+            }
+
+            Instant playedAt = LocalDate.parse(resolvedDate)
+                    .atStartOfDay(java.time.ZoneOffset.UTC)
+                    .toInstant();
+            boolean duplicate = communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
+                    communityId, context.seasonId(), playedAt);
+            if (duplicate) duplicateRounds++;
+
+            resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
+                    round.sourceDate(),
+                    resolvedDate,
+                    false,
+                    false,
+                    duplicate,
+                    round.players(),
+                    round.wins(),
+                    round.draws(),
+                    round.losses(),
+                    round.unresolvedResults()
+            ));
+        }
 
         return new CommunityImportRoundsPlanResponse(
                 plan.sheetName(),
@@ -464,6 +480,7 @@ public class CommunityImportService {
                 plan.rowsWithoutRound(),
                 0,
                 0,
+                duplicateRounds,
                 resolvedRounds
         );
     }

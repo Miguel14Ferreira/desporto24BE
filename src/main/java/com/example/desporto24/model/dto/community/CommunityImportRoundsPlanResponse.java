@@ -9,6 +9,7 @@ public record CommunityImportRoundsPlanResponse(
         int rowsWithoutRound,
         int roundsNeedingYear,
         int invalidDates,
+        int duplicateRounds,
         List<RoundPlan> rounds
 ) {
     public record RoundPlan(
@@ -16,6 +17,7 @@ public record CommunityImportRoundsPlanResponse(
             String parsedDate,
             boolean needsYear,
             boolean invalidDate,
+            boolean duplicate,
             int players,
             int wins,
             int draws,
