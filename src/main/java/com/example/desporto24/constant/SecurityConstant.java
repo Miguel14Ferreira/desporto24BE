@@ -39,7 +39,6 @@ public final class SecurityConstant {
             "/api/pilot/events/access",
             "/actuator/health",
             "/actuator/health/**",
-            "/image/**",
             "/media/**",
             "/error"
     };

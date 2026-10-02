@@ -14,6 +14,11 @@ class SecurityConstantTest {
     }
 
     @Test
+    void doesNotExposeLegacyImagePathAnonymously() {
+        assertFalse(Arrays.asList(SecurityConstant.PUBLIC_URLS).contains("/image/**"));
+    }
+
+    @Test
     void exposesOnlyTheDiscoveryCollectionAsPublicSessionGet() {
         assertTrue(Arrays.asList(SecurityConstant.PUBLIC_GET_URLS).contains("/api/sessions"));
         assertFalse(Arrays.asList(SecurityConstant.PUBLIC_GET_URLS).contains("/api/sessions/**"));
