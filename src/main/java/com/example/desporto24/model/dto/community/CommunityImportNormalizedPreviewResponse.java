@@ -4,7 +4,10 @@ import java.util.List;
 
 public record CommunityImportNormalizedPreviewResponse(
         String sheetName,
-        List<NormalizedRow> rows
+        int acceptedRows,
+        int skippedRows,
+        List<NormalizedRow> rows,
+        List<SkippedRow> skipped
 ) {
     public record NormalizedRow(
             int sourceRow,
@@ -15,6 +18,12 @@ public record CommunityImportNormalizedPreviewResponse(
             Double assists,
             Double points,
             Double mvp
+    ) {
+    }
+
+    public record SkippedRow(
+            int sourceRow,
+            String reason
     ) {
     }
 }

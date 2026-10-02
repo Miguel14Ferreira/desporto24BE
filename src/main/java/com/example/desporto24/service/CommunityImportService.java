@@ -187,8 +187,10 @@ public class CommunityImportService {
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
             List<CommunityImportNormalizedPreviewResponse.NormalizedRow> normalizedRows =
                     new ArrayList<>();
+            List<CommunityImportNormalizedPreviewResponse.SkippedRow> skippedRows =
+                    new ArrayList<>();
 
-            for (int rowIndex = 1; rowIndex < sourceRows.size() && normalizedRows.size() < 50; rowIndex++) {
+            for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 Row row = sourceRows.get(rowIndex);
                 List<String> rowValues = values(row, formatter);
                 java.util.Map<String, String> mapped = new java.util.HashMap<>();
@@ -198,22 +200,42 @@ public class CommunityImportService {
                         mapped.put(field, valueAt(rowValues, mapping.columnIndex()));
                     }
                 }
-                if (mapped.getOrDefault("PLAYER", "").isBlank()) continue;
-                if (!numericValuesValid(mapped)) continue;
 
-                normalizedRows.add(new CommunityImportNormalizedPreviewResponse.NormalizedRow(
-                        row.getRowNum() + 1,
-                        mapped.get("PLAYER"),
-                        blankToNull(mapped.get("DATE")),
-                        blankToNull(mapped.get("RESULT")),
-                        numberOrNull(mapped.get("GOALS")),
-                        numberOrNull(mapped.get("ASSISTS")),
-                        numberOrNull(mapped.get("POINTS")),
-                        numberOrNull(mapped.get("MVP"))
-                ));
+                int sourceRow = row.getRowNum() + 1;
+                if (mapped.getOrDefault("PLAYER", "").isBlank()) {
+                    skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
+                            sourceRow, "PLAYER_EMPTY"
+                    ));
+                    continue;
+                }
+                if (!numericValuesValid(mapped)) {
+                    skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
+                            sourceRow, "INVALID_NUMERIC_VALUE"
+                    ));
+                    continue;
+                }
+
+                if (normalizedRows.size() < 50) {
+                    normalizedRows.add(new CommunityImportNormalizedPreviewResponse.NormalizedRow(
+                            sourceRow,
+                            mapped.get("PLAYER"),
+                            blankToNull(mapped.get("DATE")),
+                            blankToNull(mapped.get("RESULT")),
+                            numberOrNull(mapped.get("GOALS")),
+                            numberOrNull(mapped.get("ASSISTS")),
+                            numberOrNull(mapped.get("POINTS")),
+                            numberOrNull(mapped.get("MVP"))
+                    ));
+                }
             }
+
+            int acceptedRows = validation.validRows();
             return new CommunityImportNormalizedPreviewResponse(
-                    request.sheetName(), normalizedRows
+                    request.sheetName(),
+                    acceptedRows,
+                    validation.dataRows() - acceptedRows,
+                    normalizedRows,
+                    skippedRows.stream().limit(50).toList()
             );
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
