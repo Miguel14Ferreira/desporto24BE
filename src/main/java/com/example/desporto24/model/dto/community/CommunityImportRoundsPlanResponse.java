@@ -7,10 +7,17 @@ public record CommunityImportRoundsPlanResponse(
         int acceptedRows,
         int distinctRounds,
         int rowsWithoutRound,
+        int roundsNeedingYear,
         List<RoundPlan> rounds
 ) {
     public record RoundPlan(
             String sourceDate,
-            int players
+            String parsedDate,
+            boolean needsYear,
+            int players,
+            int wins,
+            int draws,
+            int losses,
+            int unresolvedResults
     ) {}
 }

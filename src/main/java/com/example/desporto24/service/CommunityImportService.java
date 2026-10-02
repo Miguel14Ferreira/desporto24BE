@@ -27,6 +27,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.text.Normalizer;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -325,23 +328,12 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Corrige o mapeamento antes de continuar");
         }
 
-        Integer dateColumn = request.columns().stream()
-                .filter(mapping -> mapping.field().trim().equalsIgnoreCase("DATE"))
-                .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Seleciona uma coluna DATE para agrupar as jornadas"
-                ));
+        Integer dateColumn = mappedColumn(request, "DATE",
+                "Seleciona uma coluna DATE para agrupar as jornadas");
+        Integer playerColumn = mappedColumn(request, "PLAYER",
+                "Seleciona uma coluna PLAYER");
 
-        Integer playerColumn = request.columns().stream()
-                .filter(mapping -> mapping.field().trim().equalsIgnoreCase("PLAYER"))
-                .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Seleciona uma coluna PLAYER"
-                ));
-
-        java.util.Map<String, java.util.Set<String>> rounds = new java.util.LinkedHashMap<>();
+        java.util.Map<String, RoundImportAccumulator> rounds = new java.util.LinkedHashMap<>();
         int rowsWithoutRound = 0;
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheet(request.sheetName());
@@ -353,13 +345,7 @@ public class CommunityImportService {
                 String player = valueAt(rowValues, playerColumn);
                 if (player.isBlank()) continue;
 
-                java.util.Map<String, String> mapped = new java.util.HashMap<>();
-                for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
-                    String field = mapping.field().trim().toUpperCase(Locale.ROOT);
-                    if (!field.equals("IGNORE")) {
-                        mapped.put(field, valueAt(rowValues, mapping.columnIndex()));
-                    }
-                }
+                java.util.Map<String, String> mapped = mappedValues(request, rowValues);
                 if (!numericValuesValid(mapped)) continue;
 
                 String sourceDate = valueAt(rowValues, dateColumn);
@@ -368,27 +354,133 @@ public class CommunityImportService {
                     continue;
                 }
 
-                rounds.computeIfAbsent(sourceDate, ignored -> new java.util.LinkedHashSet<>())
-                        .add(normalizePlayerName(player));
+                RoundImportAccumulator round = rounds.computeIfAbsent(
+                        sourceDate, ignored -> new RoundImportAccumulator());
+                round.players.add(normalizePlayerName(player));
+                round.addResult(mapped);
             }
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
         }
 
-        List<CommunityImportRoundsPlanResponse.RoundPlan> roundPlans = rounds.entrySet().stream()
-                .map(entry -> new CommunityImportRoundsPlanResponse.RoundPlan(
-                        entry.getKey(),
-                        entry.getValue().size()
-                ))
-                .toList();
+        int roundsNeedingYear = 0;
+        List<CommunityImportRoundsPlanResponse.RoundPlan> roundPlans = new ArrayList<>();
+        for (java.util.Map.Entry<String, RoundImportAccumulator> entry : rounds.entrySet()) {
+            ParsedImportDate parsedDate = parseImportDate(entry.getKey());
+            if (parsedDate.needsYear()) roundsNeedingYear++;
+            RoundImportAccumulator round = entry.getValue();
+            roundPlans.add(new CommunityImportRoundsPlanResponse.RoundPlan(
+                    entry.getKey(),
+                    parsedDate.date(),
+                    parsedDate.needsYear(),
+                    round.players.size(),
+                    round.wins,
+                    round.draws,
+                    round.losses,
+                    round.unresolvedResults
+            ));
+        }
 
         return new CommunityImportRoundsPlanResponse(
                 request.sheetName(),
                 validation.validRows(),
                 roundPlans.size(),
                 rowsWithoutRound,
+                roundsNeedingYear,
                 roundPlans
         );
+    }
+
+    private Integer mappedColumn(
+            CommunityImportMappingRequest request,
+            String field,
+            String error) {
+        return request.columns().stream()
+                .filter(mapping -> mapping.field().trim().equalsIgnoreCase(field))
+                .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(error));
+    }
+
+    private java.util.Map<String, String> mappedValues(
+            CommunityImportMappingRequest request,
+            List<String> rowValues) {
+        java.util.Map<String, String> mapped = new java.util.HashMap<>();
+        for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
+            String field = mapping.field().trim().toUpperCase(Locale.ROOT);
+            if (!field.equals("IGNORE")) {
+                mapped.put(field, valueAt(rowValues, mapping.columnIndex()));
+            }
+        }
+        return mapped;
+    }
+
+    private ParsedImportDate parseImportDate(String value) {
+        String trimmed = value.trim();
+        for (DateTimeFormatter formatter : List.of(
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("d-M-uuuu"),
+                DateTimeFormatter.ofPattern("d.M.uuuu"),
+                DateTimeFormatter.ISO_LOCAL_DATE)) {
+            try {
+                return new ParsedImportDate(LocalDate.parse(trimmed, formatter).toString(), false);
+            } catch (DateTimeParseException ignored) {
+                // Try the next supported format.
+            }
+        }
+
+        if (trimmed.matches("\\d{1,2}[-/.]\\d{1,2}")
+                || trimmed.matches("\\d{1,2}\\s+[\\p{L}.]+")) {
+            return new ParsedImportDate(null, true);
+        }
+        return new ParsedImportDate(null, true);
+    }
+
+    private record ParsedImportDate(String date, boolean needsYear) {}
+
+    private static final class RoundImportAccumulator {
+        private final java.util.Set<String> players = new java.util.LinkedHashSet<>();
+        private int wins;
+        private int draws;
+        private int losses;
+        private int unresolvedResults;
+
+        private void addResult(java.util.Map<String, String> mapped) {
+            if (positive(mapped.get("WIN"))) {
+                wins++;
+                return;
+            }
+            if (positive(mapped.get("DRAW"))) {
+                draws++;
+                return;
+            }
+            if (positive(mapped.get("LOSS"))) {
+                losses++;
+                return;
+            }
+
+            String result = mapped.get("RESULT");
+            if (result == null || result.isBlank()) {
+                unresolvedResults++;
+                return;
+            }
+
+            switch (result.trim().toUpperCase(Locale.ROOT)) {
+                case "W", "WIN", "V", "VITORIA", "VITÓRIA" -> wins++;
+                case "DRAW", "E", "EMPATE" -> draws++;
+                case "L", "LOSS", "DERROTA" -> losses++;
+                default -> unresolvedResults++;
+            }
+        }
+
+        private static boolean positive(String value) {
+            if (value == null || value.isBlank()) return false;
+            try {
+                return Double.parseDouble(value.replace(',', '.')) > 0;
+            } catch (NumberFormatException exception) {
+                return false;
+            }
+        }
     }
 
     @Transactional
