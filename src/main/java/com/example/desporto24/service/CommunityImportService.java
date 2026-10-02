@@ -11,6 +11,7 @@ import com.example.desporto24.model.dto.community.CommunityImportNormalizedPrevi
 import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPlanResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPlayersResultResponse;
+import com.example.desporto24.model.dto.community.CommunityImportRoundsPlanResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
@@ -310,6 +311,83 @@ public class CommunityImportService {
                 playerPlans.size() - existingPlayers,
                 existingPlayers,
                 playerPlans
+        );
+    }
+
+    public CommunityImportRoundsPlanResponse roundsPlan(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest request) {
+        CommunityImportMappingValidationResponse validation =
+                validateMapping(communityId, username, file, request);
+        if (!validation.valid()) {
+            throw new IllegalArgumentException("Corrige o mapeamento antes de continuar");
+        }
+
+        Integer dateColumn = request.columns().stream()
+                .filter(mapping -> mapping.field().trim().equalsIgnoreCase("DATE"))
+                .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Seleciona uma coluna DATE para agrupar as jornadas"
+                ));
+
+        Integer playerColumn = request.columns().stream()
+                .filter(mapping -> mapping.field().trim().equalsIgnoreCase("PLAYER"))
+                .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Seleciona uma coluna PLAYER"
+                ));
+
+        java.util.Map<String, java.util.Set<String>> rounds = new java.util.LinkedHashMap<>();
+        int rowsWithoutRound = 0;
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheet(request.sheetName());
+            DataFormatter formatter = new DataFormatter();
+            List<Row> sourceRows = nonEmptyRows(sheet, formatter);
+
+            for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
+                List<String> rowValues = values(sourceRows.get(rowIndex), formatter);
+                String player = valueAt(rowValues, playerColumn);
+                if (player.isBlank()) continue;
+
+                java.util.Map<String, String> mapped = new java.util.HashMap<>();
+                for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
+                    String field = mapping.field().trim().toUpperCase(Locale.ROOT);
+                    if (!field.equals("IGNORE")) {
+                        mapped.put(field, valueAt(rowValues, mapping.columnIndex()));
+                    }
+                }
+                if (!numericValuesValid(mapped)) continue;
+
+                String sourceDate = valueAt(rowValues, dateColumn);
+                if (sourceDate.isBlank()) {
+                    rowsWithoutRound++;
+                    continue;
+                }
+
+                rounds.computeIfAbsent(sourceDate, ignored -> new java.util.LinkedHashSet<>())
+                        .add(normalizePlayerName(player));
+            }
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
+        }
+
+        List<CommunityImportRoundsPlanResponse.RoundPlan> roundPlans = rounds.entrySet().stream()
+                .map(entry -> new CommunityImportRoundsPlanResponse.RoundPlan(
+                        entry.getKey(),
+                        entry.getValue().size()
+                ))
+                .toList();
+
+        return new CommunityImportRoundsPlanResponse(
+                request.sheetName(),
+                validation.validRows(),
+                roundPlans.size(),
+                rowsWithoutRound,
+                roundPlans
         );
     }
 
