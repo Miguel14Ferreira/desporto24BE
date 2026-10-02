@@ -6,12 +6,14 @@ import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.model.community.CommunityRoundEntry;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
@@ -31,6 +33,7 @@ public class CommunityCompetitionService {
 
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
+    private final CommunityPlayerRepository playerRepository;
     private final CommunityRoundRepository roundRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
@@ -195,9 +198,20 @@ public class CommunityCompetitionService {
                 );
             }
 
+            CommunityPlayer communityPlayer = playerRepository
+                    .findByCommunityIdAndProfileId(communityId, player.getId())
+                    .orElseGet(() -> playerRepository.save(CommunityPlayer.builder()
+                            .community(community)
+                            .displayName(playerDisplayName(player))
+                            .normalizedName(normalizePlayerName(playerDisplayName(player)))
+                            .profile(player)
+                            .createdAt(Instant.now())
+                            .build()));
+
             entries.add(CommunityRoundEntry.builder()
                     .round(round)
                     .profile(player)
+                    .communityPlayer(communityPlayer)
                     .team(trimToNull(requestEntry.team()))
                     .result(requestEntry.result())
                     .goals(valueOrZero(requestEntry.goals()))
@@ -398,6 +412,19 @@ public class CommunityCompetitionService {
 
     private int pointsOrDefault(Integer value, int fallback) {
         return value == null ? fallback : value;
+    }
+
+    private String playerDisplayName(Profile profile) {
+        String nickname = trimToNull(profile.getNickname());
+        if (nickname != null) {
+            return nickname;
+        }
+        String fullName = trimToNull(profile.getFullName());
+        return fullName != null ? fullName : profile.getUsername();
+    }
+
+    private String normalizePlayerName(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     private int valueOrZero(Integer value) {

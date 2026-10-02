@@ -32,6 +32,10 @@ public class CommunityRoundEntry {
     @JoinColumn(name = "profile_id", nullable = false)
     private Profile profile;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "community_player_id")
+    private CommunityPlayer communityPlayer;
+
     @Column(length = 100)
     private String team;
 
