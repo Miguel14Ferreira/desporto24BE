@@ -459,6 +459,11 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireCreator(session, actor);
+
+        if (session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Completed sessions cannot be cancelled");
+        }
+
         session.setStatus(SessionStatus.CANCELLED);
         session.setUpdatedAt(Instant.now());
         sessionRepository.save(session);

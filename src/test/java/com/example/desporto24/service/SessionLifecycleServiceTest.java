@@ -212,6 +212,18 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
+    void completedSessionCannotBeCancelled() {
+        session.setStatus(SessionStatus.COMPLETED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.cancel(session.getId(), creator.getUsername()));
+
+        assertEquals(SessionStatus.COMPLETED,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
     void creatorCanCompleteSessionAfterStart() {
         session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
         sessionRepository.saveAndFlush(session);
