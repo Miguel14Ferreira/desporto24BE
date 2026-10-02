@@ -73,6 +73,37 @@ public class UserReportService {
                 .build());
     }
 
+    @Transactional
+    public void reportContent(
+            String reporterUsername,
+            String reportedUsername,
+            String contentReference,
+            String reason) {
+        Profile reporter = profileRepository.findUserByUsername(reporterUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        Profile reported = profileRepository.findUserByUsernameIgnoreCase(reportedUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (reporter.getId().equals(reported.getId())) {
+            throw new IllegalArgumentException("Users cannot report their own content");
+        }
+
+        String prefix = contentReference.trim() + ": ";
+        String normalizedReason = reason.trim();
+        int maxReasonLength = Math.max(0, 1000 - prefix.length());
+        if (normalizedReason.length() > maxReasonLength) {
+            normalizedReason = normalizedReason.substring(0, maxReasonLength);
+        }
+
+        userReportRepository.save(UserReport.builder()
+                .reporter(reporter)
+                .reported(reported)
+                .reason(prefix + normalizedReason)
+                .status(UserReportStatus.OPEN)
+                .createdAt(Instant.now())
+                .build());
+    }
+
     private AdminUserReportResponse toAdminResponse(UserReport report) {
         return new AdminUserReportResponse(
                 report.getId(),

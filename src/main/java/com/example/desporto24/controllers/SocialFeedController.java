@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.social.CreateSocialPostRequest;
+import com.example.desporto24.model.dto.moderation.CreateUserReportRequest;
 import com.example.desporto24.model.dto.social.CreateSocialCommentRequest;
 import com.example.desporto24.model.dto.social.PostLikeResponse;
 import com.example.desporto24.model.dto.social.SocialCommentResponse;
@@ -97,6 +98,19 @@ public class SocialFeedController {
                 authentication.getName()
         );
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/posts/{postId}/report")
+    public ResponseEntity<Void> reportPost(
+            @PathVariable Long postId,
+            @RequestBody @Valid CreateUserReportRequest request,
+            Authentication authentication) {
+        interactionService.reportPost(
+                postId,
+                authentication.getName(),
+                request
+        );
+        return ResponseEntity.accepted().build();
     }
 
     @DeleteMapping("/posts/{postId}")
