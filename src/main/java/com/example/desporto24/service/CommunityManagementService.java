@@ -13,6 +13,7 @@ import com.example.desporto24.repository.community.CommunityInviteRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
 import com.example.desporto24.storage.MediaStorage;
@@ -25,6 +26,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -132,7 +134,17 @@ public class CommunityManagementService {
         String prefix = "communities/" + communityId + "/";
         int keyStart = photoUrl.indexOf(prefix);
         if (keyStart >= 0) {
-            mediaStorage.delete(photoUrl.substring(keyStart));
+            String objectKey = photoUrl.substring(keyStart);
+            try {
+                mediaStorage.delete(objectKey);
+            } catch (RuntimeException exception) {
+                log.warn(
+                        "Community {} photo was detached but storage cleanup failed for key {}",
+                        communityId,
+                        objectKey,
+                        exception
+                );
+            }
         }
     }
 
