@@ -420,6 +420,90 @@ public class CommunityImportService {
         );
     }
 
+    public CommunityImportRoundsPlanResponse finalRoundsPlan(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest mapping,
+            CommunityImportContextRequest context) {
+        validateContext(communityId, username, context);
+        CommunityImportRoundsPlanResponse plan = roundsPlan(communityId, username, file, mapping);
+
+        if (plan.invalidDates() > 0) {
+            throw new IllegalArgumentException("Existem datas inválidas no ficheiro. Corrige-as antes de importar");
+        }
+        if (plan.roundsNeedingYear() > 0 && context.defaultYear() == null) {
+            throw new IllegalArgumentException("Indica o ano das jornadas que não têm ano no ficheiro");
+        }
+
+        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = plan.rounds().stream()
+                .map(round -> {
+                    if (!round.needsYear()) return round;
+                    ParsedImportDate resolved = parseImportDateWithYear(round.sourceDate(), context.defaultYear());
+                    if (resolved.invalid() || resolved.date() == null) {
+                        throw new IllegalArgumentException("Não foi possível resolver a data: " + round.sourceDate());
+                    }
+                    return new CommunityImportRoundsPlanResponse.RoundPlan(
+                            round.sourceDate(),
+                            resolved.date(),
+                            false,
+                            false,
+                            round.players(),
+                            round.wins(),
+                            round.draws(),
+                            round.losses(),
+                            round.unresolvedResults()
+                    );
+                })
+                .toList();
+
+        return new CommunityImportRoundsPlanResponse(
+                plan.sheetName(),
+                plan.acceptedRows(),
+                plan.distinctRounds(),
+                plan.rowsWithoutRound(),
+                0,
+                0,
+                resolvedRounds
+        );
+    }
+
+    private ParsedImportDate parseImportDateWithYear(String value, int year) {
+        String trimmed = value.trim();
+        if (trimmed.matches("\\d{1,2}[-/.]\\d{1,2}")) {
+            String normalized = trimmed.replace('-', '/').replace('.', '/');
+            try {
+                return new ParsedImportDate(
+                        LocalDate.parse(normalized + "/" + year,
+                                DateTimeFormatter.ofPattern("d/M/uuuu")).toString(),
+                        false,
+                        false
+                );
+            } catch (DateTimeParseException exception) {
+                return new ParsedImportDate(null, false, true);
+            }
+        }
+
+        java.util.regex.Matcher monthName = java.util.regex.Pattern
+                .compile("(?iu)^(\\d{1,2})\\s+([\\p{L}.]+)$")
+                .matcher(trimmed);
+        if (monthName.matches()) {
+            Integer month = importMonth(monthName.group(2));
+            if (month != null) {
+                try {
+                    return new ParsedImportDate(
+                            LocalDate.of(year, month, Integer.parseInt(monthName.group(1))).toString(),
+                            false,
+                            false
+                    );
+                } catch (java.time.DateTimeException exception) {
+                    return new ParsedImportDate(null, false, true);
+                }
+            }
+        }
+        return new ParsedImportDate(null, false, true);
+    }
+
     private Integer mappedColumn(
             CommunityImportMappingRequest request,
             String field,
