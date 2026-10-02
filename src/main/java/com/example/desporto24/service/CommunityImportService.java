@@ -3,6 +3,8 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
+import com.example.desporto24.model.dto.community.CommunityImportMappingValidationResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
@@ -68,6 +70,50 @@ public class CommunityImportService {
             }
             return new CommunityImportPreviewResponse(file.getOriginalFilename(), sheets);
         } catch (IOException | RuntimeException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
+        }
+    }
+
+    public CommunityImportMappingValidationResponse validateMapping(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest request) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new IllegalArgumentException("Utilizador não encontrado"));
+        requireAdmin(communityId, actor);
+        validateFile(file);
+
+        List<String> errors = new ArrayList<>();
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheet(request.sheetName());
+            if (sheet == null) {
+                return new CommunityImportMappingValidationResponse(
+                        request.sheetName(), false, List.of("A folha selecionada não existe")
+                );
+            }
+
+            Set<String> allowedFields = Set.of(
+                    "PLAYER", "DATE", "RESULT", "GOALS", "ASSISTS", "POINTS", "MVP", "IGNORE"
+            );
+            Set<String> seenFields = new java.util.HashSet<>();
+            for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
+                String field = mapping.field().trim().toUpperCase(Locale.ROOT);
+                if (!allowedFields.contains(field)) {
+                    errors.add("Campo não suportado: " + mapping.field());
+                } else if (!field.equals("IGNORE") && !seenFields.add(field)) {
+                    errors.add("Campo repetido: " + field);
+                }
+            }
+
+            if (!seenFields.contains("PLAYER")) {
+                errors.add("Seleciona uma coluna para identificar o jogador");
+            }
+
+            return new CommunityImportMappingValidationResponse(
+                    request.sheetName(), errors.isEmpty(), errors
+            );
+        } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
         }
     }
