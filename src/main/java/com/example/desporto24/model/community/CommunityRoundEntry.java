@@ -9,8 +9,8 @@ import lombok.*;
 @Table(
         name = "community_round_entry",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_community_round_entry",
-                columnNames = {"round_id", "profile_id"}
+                name = "uk_community_round_entry_player",
+                columnNames = {"round_id", "community_player_id"}
         )
 )
 @Getter
@@ -28,12 +28,12 @@ public class CommunityRoundEntry {
     @JoinColumn(name = "round_id", nullable = false)
     private CommunityRound round;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profile_id")
     private Profile profile;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "community_player_id")
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "community_player_id", nullable = false)
     private CommunityPlayer communityPlayer;
 
     @Column(length = 100)

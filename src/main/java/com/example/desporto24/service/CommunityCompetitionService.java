@@ -321,18 +321,23 @@ public class CommunityCompetitionService {
         List<CommunityRoundEntryResponse> entries = entryRepository
                 .findByRoundIdOrderByIdAsc(round.getId())
                 .stream()
-                .map(entry -> new CommunityRoundEntryResponse(
-                        entry.getProfile().getId(),
-                        entry.getProfile().getUsername(),
-                        entry.getProfile().getFullName(),
-                        entry.getProfile().getProfilePicUrl(),
+                .map(entry -> {
+                    Profile profile = entry.getProfile() != null
+                            ? entry.getProfile()
+                            : entry.getCommunityPlayer().getProfile();
+                    return new CommunityRoundEntryResponse(
+                        profile == null ? null : profile.getId(),
+                        profile == null ? null : profile.getUsername(),
+                        entry.getCommunityPlayer().getDisplayName(),
+                        profile == null ? null : profile.getProfilePicUrl(),
                         entry.getTeam(),
                         entry.getResult(),
                         entry.getGoals(),
                         entry.getAssists(),
                         entry.isMvp(),
                         entry.isCleanSheet()
-                ))
+                    );
+                })
                 .toList();
 
         return new CommunityRoundResponse(
