@@ -16,6 +16,7 @@ import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse
 import com.example.desporto24.model.dto.community.CommunityImportPlanResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPlayersResultResponse;
 import com.example.desporto24.model.dto.community.CommunityImportRoundsPlanResponse;
+import com.example.desporto24.model.dto.community.CommunityImportRoundsResultResponse;
 import com.example.desporto24.model.dto.community.CommunityImportContextRequest;
 import com.example.desporto24.model.dto.community.CommunityImportContextValidationResponse;
 import com.example.desporto24.repository.ProfileRepository;
