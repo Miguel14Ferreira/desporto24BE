@@ -5,6 +5,7 @@ import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -151,6 +152,7 @@ public class SessionServiceImpl implements SessionService {
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
         session.setCommunity(linkedCommunity);
+        session.setAudience(linkedCommunity == null ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
 
         Session saved = sessionRepository.save(session);
@@ -216,6 +218,7 @@ public class SessionServiceImpl implements SessionService {
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
 
         return candidates.stream()
+                .filter(s -> s.getAudience() != SessionAudience.COMMUNITY_ONLY)
                 .filter(s -> criteria.sport() == null
                         || criteria.sport().isBlank()
                         || s.getSport().equalsIgnoreCase(criteria.sport()))
@@ -312,6 +315,12 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() != null
+                && !communityMemberRepository.existsByCommunityIdAndProfileId(
+                        session.getCommunity().getId(), profile.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
         Instant joinAt = Instant.now();
         reliabilityService.requireJoinAllowed(profile, joinAt);
 

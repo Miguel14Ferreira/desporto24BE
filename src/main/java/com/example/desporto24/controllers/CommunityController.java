@@ -96,6 +96,17 @@ public class CommunityController {
         );
     }
 
+    @PostMapping("/{id}/sessions/{sessionId}/open-public")
+    public ResponseEntity<SessionSummaryResponse> openSessionToPublic(
+            @PathVariable Long id,
+            @PathVariable Long sessionId,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communitySessionService.openToPublic(id, sessionId, authentication.getName())
+        );
+    }
+
+
     @GetMapping("/{id}/competition")
     public ResponseEntity<CommunityCompetitionOverviewResponse> competitionOverview(
             @PathVariable Long id,

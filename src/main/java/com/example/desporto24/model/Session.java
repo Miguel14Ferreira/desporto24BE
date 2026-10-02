@@ -1,5 +1,6 @@
 package com.example.desporto24.model;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.venue.Venue;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -59,6 +60,10 @@ public class Session {
 
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "audience")
+    private SessionAudience audience;
     @ManyToOne
     @JoinColumn(nullable = false,
             name = "perfil_id")

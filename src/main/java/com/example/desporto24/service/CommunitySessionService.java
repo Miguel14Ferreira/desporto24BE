@@ -1,6 +1,9 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityVisibility;
+import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.SessionAudience;
+import com.example.desporto24.model.Session;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
@@ -47,4 +50,25 @@ public class CommunitySessionService {
                 .map(session -> sessionViewMapper.toSummary(session, null))
                 .toList();
     }
+    @Transactional
+    public SessionSummaryResponse openToPublic(Long communityId, Long sessionId, String username) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        var membership = memberRepository.findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
+
+        if (membership.getRole() != CommunityRole.OWNER && membership.getRole() != CommunityRole.ADMIN) {
+            throw new AccessDeniedException("Só owner ou admin pode abrir a sessão ao público");
+        }
+
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Sessão não encontrada"));
+        if (session.getCommunity() == null || !communityId.equals(session.getCommunity().getId())) {
+            throw new IllegalArgumentException("A sessão não pertence a esta comunidade");
+        }
+
+        session.setAudience(SessionAudience.PUBLIC);
+        return sessionViewMapper.toSummary(sessionRepository.save(session), null);
+    }
+
 }
