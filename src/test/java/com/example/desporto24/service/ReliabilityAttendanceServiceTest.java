@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.configuration.ReliabilityPolicyProperties;
 import com.example.desporto24.enumeration.AttendanceStatus;
+import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
@@ -67,6 +68,20 @@ class ReliabilityAttendanceServiceTest {
                 service.recordAttendance(10L, 20L, AttendanceStatus.NO_SHOW, "other"));
 
         verify(participantRepository, never()).save(any());
+    }
+
+    @Test
+    void attendanceCannotBeRecordedForCancelledSession() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator, Instant.now().minus(Duration.ofHours(1)));
+        session.setStatus(SessionStatus.CANCELLED);
+
+        when(sessionRepository.findById(10L)).thenReturn(Optional.of(session));
+
+        assertThrows(IllegalStateException.class, () ->
+                service.recordAttendance(10L, 20L, AttendanceStatus.NO_SHOW, "creator"));
+
+        verifyNoInteractions(profileRepository, participantRepository);
     }
 
     @Test
