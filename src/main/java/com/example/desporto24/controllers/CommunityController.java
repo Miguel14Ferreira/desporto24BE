@@ -3,6 +3,7 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
+import com.example.desporto24.service.CommunityImportService;
 import com.example.desporto24.service.CommunityManagementService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
