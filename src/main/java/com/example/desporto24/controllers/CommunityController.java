@@ -161,6 +161,17 @@ public class CommunityController {
         );
     }
 
+    @PostMapping(value = "/{id}/competition/import/plan", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportPlanResponse> planCompetitionImport(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.importPlan(id, authentication.getName(), file, mapping)
+        );
+    }
+
     @PostMapping("/{id}/rounds")
     public ResponseEntity<CommunityRoundResponse> createRound(
             @PathVariable Long id,

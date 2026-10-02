@@ -7,8 +7,10 @@ import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
 import com.example.desporto24.model.dto.community.CommunityImportMappingValidationResponse;
 import com.example.desporto24.model.dto.community.CommunityImportNormalizedPreviewResponse;
 import com.example.desporto24.model.dto.community.CommunityImportPreviewResponse;
+import com.example.desporto24.model.dto.community.CommunityImportPlanResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -38,6 +40,7 @@ public class CommunityImportService {
 
     private final ProfileRepository profileRepository;
     private final CommunityMemberRepository memberRepository;
+    private final CommunityPlayerRepository communityPlayerRepository;
 
     public CommunityImportPreviewResponse preview(
             Long communityId,
@@ -240,6 +243,68 @@ public class CommunityImportService {
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
         }
+    }
+
+    public CommunityImportPlanResponse importPlan(
+            Long communityId,
+            String username,
+            MultipartFile file,
+            CommunityImportMappingRequest request) {
+        CommunityImportNormalizedPreviewResponse preview =
+                normalizedPreview(communityId, username, file, request);
+
+        java.util.Map<String, String> players = new java.util.LinkedHashMap<>();
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheet(request.sheetName());
+            DataFormatter formatter = new DataFormatter();
+            List<Row> sourceRows = nonEmptyRows(sheet, formatter);
+            Integer playerColumn = request.columns().stream()
+                    .filter(mapping -> mapping.field().trim().equalsIgnoreCase("PLAYER"))
+                    .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Seleciona uma coluna para identificar o jogador"));
+
+            for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
+                List<String> rowValues = values(sourceRows.get(rowIndex), formatter);
+                String displayName = valueAt(rowValues, playerColumn);
+                if (!displayName.isBlank()) {
+                    players.putIfAbsent(normalizePlayerName(displayName), displayName);
+                }
+            }
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
+        }
+
+        List<CommunityImportPlanResponse.PlayerPlan> playerPlans = new ArrayList<>();
+        int existingPlayers = 0;
+        for (java.util.Map.Entry<String, String> player : players.entrySet()) {
+            boolean exists = communityPlayerRepository
+                    .findByCommunityIdAndNormalizedName(communityId, player.getKey())
+                    .isPresent();
+            if (exists) existingPlayers++;
+            playerPlans.add(new CommunityImportPlanResponse.PlayerPlan(
+                    player.getValue(),
+                    player.getKey(),
+                    exists ? "EXISTING" : "NEW"
+            ));
+        }
+
+        return new CommunityImportPlanResponse(
+                request.sheetName(),
+                preview.acceptedRows(),
+                preview.skippedRows(),
+                playerPlans.size(),
+                playerPlans.size() - existingPlayers,
+                existingPlayers,
+                playerPlans
+        );
+    }
+
+    private String normalizePlayerName(String value) {
+        return Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("\\s+", " ");
     }
 
     private boolean numericValuesValid(java.util.Map<String, String> mapped) {
