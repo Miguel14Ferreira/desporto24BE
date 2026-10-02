@@ -87,6 +87,21 @@ public class SocialFeedController {
         );
     }
 
+    @PostMapping("/posts/{postId}/comments/{commentId}/report")
+    public ResponseEntity<Void> reportComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody @Valid CreateUserReportRequest request,
+            Authentication authentication) {
+        interactionService.reportComment(
+                postId,
+                commentId,
+                authentication.getName(),
+                request
+        );
+        return ResponseEntity.accepted().build();
+    }
+
     @DeleteMapping("/posts/{postId}/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
             @PathVariable Long postId,

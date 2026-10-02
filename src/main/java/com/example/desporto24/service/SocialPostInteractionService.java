@@ -98,6 +98,26 @@ public class SocialPostInteractionService {
         );
     }
 
+    public void reportComment(
+            Long postId,
+            Long commentId,
+            String username,
+            CreateUserReportRequest request) {
+        SocialPostComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comentário não encontrado"));
+
+        if (!comment.getPost().getId().equals(postId)) {
+            throw new IllegalArgumentException("O comentário não pertence a esta publicação");
+        }
+
+        userReportService.reportContent(
+                username,
+                comment.getAuthor().getUsername(),
+                "COMMENT #" + commentId + " (POST #" + postId + ")",
+                request.reason()
+        );
+    }
+
     public void deleteComment(
             Long postId,
             Long commentId,
