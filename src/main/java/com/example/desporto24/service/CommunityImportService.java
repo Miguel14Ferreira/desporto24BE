@@ -43,6 +43,9 @@ public class CommunityImportService {
     private static final Set<String> POINTS_HEADERS = Set.of("p", "pts", "point", "points", "ponto", "pontos");
     private static final Set<String> MVP_HEADERS = Set.of("mvp", "motm", "manofthematch");
     private static final Set<String> RESULT_HEADERS = Set.of("resultado", "result", "wdl", "vde", "winloss");
+    private static final Set<String> WIN_HEADERS = Set.of("v", "w", "win", "wins", "vitoria", "vitorias");
+    private static final Set<String> DRAW_HEADERS = Set.of("e", "draw", "draws", "empate", "empates");
+    private static final Set<String> LOSS_HEADERS = Set.of("loss", "losses", "derrota", "derrotas");
 
     private final ProfileRepository profileRepository;
     private final CommunityMemberRepository memberRepository;
@@ -111,7 +114,7 @@ public class CommunityImportService {
             int dataRows = Math.max(rows.size() - 1, 0);
             int width = rows.isEmpty() ? 0 : values(rows.getFirst(), formatter).size();
             Set<String> allowedFields = Set.of(
-                    "PLAYER", "DATE", "RESULT", "GOALS", "ASSISTS", "POINTS", "MVP", "IGNORE"
+                    "PLAYER", "DATE", "RESULT", "WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP", "IGNORE"
             );
             Set<String> seenFields = new java.util.HashSet<>();
             Integer playerColumn = null;
@@ -129,7 +132,7 @@ public class CommunityImportService {
                     errors.add("Campo repetido: " + field);
                 } else {
                     if (field.equals("PLAYER")) playerColumn = mapping.columnIndex();
-                    if (Set.of("GOALS", "ASSISTS", "POINTS", "MVP").contains(field)) {
+                    if (Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP").contains(field)) {
                         numericMappings.add(mapping);
                     }
                 }
@@ -349,7 +352,7 @@ public class CommunityImportService {
     }
 
     private boolean numericValuesValid(java.util.Map<String, String> mapped) {
-        for (String field : Set.of("GOALS", "ASSISTS", "POINTS", "MVP")) {
+        for (String field : Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP")) {
             String value = mapped.get(field);
             if (value != null && !value.isBlank() && !isNumber(value)) return false;
         }
@@ -408,6 +411,15 @@ public class CommunityImportService {
                 confidence = 0.95;
             } else if (RESULT_HEADERS.contains(normalized)) {
                 field = "RESULT";
+                confidence = 0.90;
+            } else if (WIN_HEADERS.contains(normalized)) {
+                field = "WIN";
+                confidence = 0.90;
+            } else if (DRAW_HEADERS.contains(normalized)) {
+                field = "DRAW";
+                confidence = 0.90;
+            } else if (LOSS_HEADERS.contains(normalized)) {
+                field = "LOSS";
                 confidence = 0.90;
             } else {
                 List<String> values = columnValues(samples, index);
