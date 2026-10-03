@@ -8,6 +8,7 @@ import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,11 +62,12 @@ public class VenueService {
         String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
         String normalizedAddress = requireText(address, "Morada do recinto obrigatória");
 
-        Venue venue = venueRepository.findAllByOrderByNameAsc()
-                .stream()
-                .filter(candidate -> candidate.getInformationSource() == Venue.InformationSource.OPENSTREETMAP)
-                .filter(candidate -> normalizedSourceReference.equals(candidate.getSourceReference()))
-                .findFirst()
+        Venue sourceIdentity = Venue.builder()
+                .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .sourceReference(normalizedSourceReference)
+                .build();
+
+        Venue venue = venueRepository.findOne(Example.of(sourceIdentity))
                 .orElseGet(() -> Venue.builder()
                         .informationSource(Venue.InformationSource.OPENSTREETMAP)
                         .sourceReference(normalizedSourceReference)
