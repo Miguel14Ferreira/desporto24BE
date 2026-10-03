@@ -62,6 +62,33 @@ class FriendServiceImplTest {
     }
 
     @Test
+    void newFriendRequestSendsBilingualEmailWithSafeSenderAndNotificationsLink() {
+        ProfileDTO senderDto = profileDto("owner<script>", "owner@example.test");
+        ProfileDTO recipientDto = profileDto("recipient", "recipient@example.test");
+        Profile sender = profile(1L, "owner<script>");
+        Profile recipient = profile(2L, "recipient");
+        when(profileService.findUserByUsername("owner<script>")).thenReturn(senderDto);
+        when(profileService.findUserByUsername("recipient")).thenReturn(recipientDto);
+        when(profileRepository.findUserByUsername("owner<script>")).thenReturn(Optional.of(sender));
+        when(profileRepository.findUserByUsername("recipient")).thenReturn(Optional.of(recipient));
+        when(friendRepository.findByProfile1OrProfile2(sender, sender)).thenReturn(List.of());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test/");
+
+        service.sendFriendRequest(request("owner<script>", "recipient"));
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(org.mockito.ArgumentMatchers.eq("recipient@example.test"),
+                org.mockito.ArgumentMatchers.eq("Pedido de amizade | Friend request — Desporto24"), html.capture());
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("owner&lt;script&gt;"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.getValue().contains("<script>"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Ver pedido / View request"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/menu/notifications\""));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("accept or reject the request"));
+        verify(friendRequestService).saveFriendRequest(any());
+        verify(notificationService).save(any());
+    }
+
+    @Test
     void cannotSendFriendRequestToSelf() {
         SendFriendRequest request = request("miguel", "miguel");
 
@@ -98,7 +125,7 @@ class FriendServiceImplTest {
 
         assertEquals(FRIEND_REQUEST_ALREADY_PENDING, exception.getMessage());
         verify(friendRequestService, never()).saveFriendRequest(any());
-        verify(emailService, never()).send(any(), any());
+        org.mockito.Mockito.verifyNoInteractions(emailService);
     }
 
     @Test
