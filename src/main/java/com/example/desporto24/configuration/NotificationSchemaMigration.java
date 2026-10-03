@@ -31,11 +31,12 @@ public class NotificationSchemaMigration {
                 String.class
         );
 
-        if (!definitions.isEmpty() && definitions.getFirst().contains("CHAT_MESSAGE")) {
+        if (!definitions.isEmpty() && definitions.getFirst().contains("CHAT_MESSAGE")
+                && definitions.getFirst().contains("COMMUNITY_INVITE")) {
             return;
         }
 
-        log.info("Updating notifications_type_check to support CHAT_MESSAGE notifications");
+        log.info("Updating notifications_type_check to support CHAT_MESSAGE and COMMUNITY_INVITE notifications");
 
         jdbcTemplate.execute(
                 "alter table desporto24.notifications drop constraint if exists notifications_type_check"
@@ -52,7 +53,8 @@ public class NotificationSchemaMigration {
                         'SESSION_CANCELLED',
                         'ATTENDANCE_DISPUTE_ACCEPTED',
                         'ATTENDANCE_DISPUTE_REJECTED',
-                        'CHAT_MESSAGE'
+                        'CHAT_MESSAGE',
+                        'COMMUNITY_INVITE'
                     )
                 )
                 """

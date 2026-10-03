@@ -10,6 +10,9 @@ import com.example.desporto24.model.community.CommunityInvite;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.NotificationsRepository;
+import com.example.desporto24.register.Notifications.Notifications;
+import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.repository.community.CommunityInviteRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
@@ -37,6 +40,7 @@ public class CommunityManagementService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
     private final ProfileRepository profileRepository;
+    private final NotificationsRepository notificationsRepository;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -187,6 +191,7 @@ public class CommunityManagementService {
                 .createdAt(Instant.now())
                 .build());
 
+        notifyCommunityInvite(invited, actor, community);
         return toInviteResponse(invite);
     }
 
@@ -354,6 +359,26 @@ public class CommunityManagementService {
             case ADMIN -> 1;
             case MEMBER -> 2;
         };
+    }
+
+    private void notifyCommunityInvite(Profile invited, Profile actor, Community community) {
+        Notifications notification = new Notifications();
+        notification.setSubject("Convite para a comunidade " + community.getName());
+        notification.setMessage("@" + actor.getUsername() + " convidou-te para a comunidade "
+                + community.getName() + ". Abre Comunidades para aceitar ou rejeitar o convite.");
+        notification.setGreeting("");
+        notification.setSignature("");
+        notification.setCreatedAt(Instant.now().toString());
+        notification.setFriendRequest(false);
+        notification.setUpdateProfile(false);
+        notification.setSessionInvite(false);
+        notification.setNormalMessage(false);
+        notification.setToken(null);
+        notification.setUsername(invited.getUsername());
+        notification.setRelatedUsername(actor.getUsername());
+        notification.setType(NotificationType.COMMUNITY_INVITE);
+        notification.setRead(false);
+        notificationsRepository.save(notification);
     }
 
     private CommunityInviteResponse toInviteResponse(CommunityInvite invite) {
