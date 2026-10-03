@@ -31,6 +31,7 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
              SELECT p
              FROM Profile p
              WHERE LOWER(p.username) <> LOWER(:actorUsername)
+               AND p.enabled = true
                AND (
                     :name = ''
                     OR LOWER(COALESCE(p.username, '')) LIKE CONCAT('%', :name, '%')
@@ -59,6 +60,6 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
              @Param("skillLevel") String skillLevel,
              Pageable pageable);
 
-     @Query("SELECT p FROM Profile p WHERE LOWER(p.username) <> LOWER(:username) ORDER BY p.id DESC")
+     @Query("SELECT p FROM Profile p WHERE LOWER(p.username) <> LOWER(:username) AND p.enabled = true ORDER BY p.id DESC")
      List<Profile> discoverProfiles(@Param("username") String username, Pageable pageable);
 }
