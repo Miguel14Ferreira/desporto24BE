@@ -55,15 +55,11 @@ public class VenueService {
             String venueType,
             Venue.EnvironmentType environmentType,
             Double latitude,
-            Double longitude,
-            String importedByUsername) {
+            Double longitude) {
         String normalizedSourceReference = requireText(sourceReference, "Referência externa obrigatória");
         String normalizedName = requireText(name, "Nome do recinto obrigatório");
         String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
         String normalizedAddress = requireText(address, "Morada do recinto obrigatória");
-
-        Profile importer = profileRepository.findUserByUsernameIgnoreCase(importedByUsername)
-                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         Venue venue = venueRepository.findAllByOrderByNameAsc()
                 .stream()
@@ -73,7 +69,6 @@ public class VenueService {
                 .orElseGet(() -> Venue.builder()
                         .informationSource(Venue.InformationSource.OPENSTREETMAP)
                         .sourceReference(normalizedSourceReference)
-                        .createdBy(importer)
                         .createdAt(Instant.now())
                         .build());
 
