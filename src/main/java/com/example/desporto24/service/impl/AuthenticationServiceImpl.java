@@ -19,6 +19,7 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.email.TransactionalEmailTemplate;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.interfaces.AuthenticationService;
@@ -350,7 +351,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String link = uiAppUrl.replaceAll("/+$", "")
                 + "/?confirmRegistration=" + token;
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), buildRegistrationEmail(profileDTO.getUsername(), link));
+        emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
+                buildRegistrationEmail(profileDTO.getUsername(), link));
 
         createWelcomeNotification(profileDTO, token);
     }
@@ -567,67 +569,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private String buildRegistrationEmail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Obrigado por te registares na nossa aplicação. Clica neste link para ativar a tua conta: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para finalizar o teu registo</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
+        return TransactionalEmailTemplate.render(
+                "Confirma o teu email",
+                "Olá " + name + ", obrigado por te registares no Desporto24. Confirma o teu email para ativar a conta.",
+                "Confirm your email",
+                "Hi " + name + ", thank you for registering with Desporto24. Confirm your email to activate your account.",
+                "Confirmar email / Confirm email",
+                link,
+                "O link expira em 15 minutos. Se não criaste esta conta, podes ignorar este email.",
+                "This link expires in 15 minutes. If you did not create this account, you can ignore this email."
+        );
     }
 }

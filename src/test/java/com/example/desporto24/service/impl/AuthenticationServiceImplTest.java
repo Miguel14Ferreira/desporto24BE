@@ -213,7 +213,13 @@ class AuthenticationServiceImplTest {
                         && "2026-10-01".equals(profile.getTermsVersion())
                         && "2026-10-01".equals(profile.getPrivacyVersion())
         ));
-        verify(emailService).send(eq("fixture@example.test"), anyString());
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"),
+                eq("Confirma o teu email | Confirm your email — Desporto24"), html.capture());
+        assertTrue(html.getValue().contains("Confirmar email / Confirm email"));
+        assertTrue(html.getValue().contains("15 minutos"));
+        assertTrue(html.getValue().contains("15 minutes"));
+        assertTrue(html.getValue().contains("https://example.test/?confirmRegistration="));
     }
 
     @Test
@@ -260,6 +266,7 @@ class AuthenticationServiceImplTest {
                 eq("  pilot-lisbon-2026  ")
         );
         verify(emailService, never()).send(anyString(), anyString());
+        verify(emailService, never()).send(anyString(), anyString(), anyString());
     }
 
     @Test
