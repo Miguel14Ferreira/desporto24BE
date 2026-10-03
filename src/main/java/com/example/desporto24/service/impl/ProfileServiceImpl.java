@@ -220,13 +220,7 @@ public class ProfileServiceImpl implements ProfileService {
 
         if (!changedFields.isEmpty()) {
             if (emailChanged) {
-                sendProfileSecurityEmail(
-                        previousEmail,
-                        updated.getEmail(),
-                        updated.getUsername(),
-                        "Alteração de email",
-                        "O endereço de email associado à tua conta DESPORTO24 foi alterado."
-                );
+                sendEmailChangedEmail(previousEmail, updated.getEmail(), updated.getUsername());
                 createSecurityNotification(
                         updated.getUsername(),
                         "Alteração de email",
@@ -335,23 +329,19 @@ public class ProfileServiceImpl implements ProfileService {
         notificationsRepository.save(notification);
     }
 
-    private void sendProfileSecurityEmail(
-            String oldEmail,
-            String currentEmail,
-            String username,
-            String title,
-            String description) {
+    private void sendEmailChangedEmail(String oldEmail, String currentEmail, String username) {
         String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
-        String emailBody = buildSecurityEmail(username, title, description, resetLink);
+        String emailBody = buildEmailChangedEmail(username, resetLink);
+        String subject = "Alteração de email | Email address changed — Desporto24";
 
         if (oldEmail != null && !oldEmail.isBlank()) {
-            emailService.send(oldEmail, emailBody);
+            emailService.send(oldEmail, subject, emailBody);
         }
 
         if (currentEmail != null
                 && !currentEmail.isBlank()
                 && !Objects.equals(oldEmail, currentEmail)) {
-            emailService.send(currentEmail, emailBody);
+            emailService.send(currentEmail, subject, emailBody);
         }
     }
 
@@ -631,14 +621,17 @@ public class ProfileServiceImpl implements ProfileService {
         );
     }
 
-    private String buildSecurityEmail(String name, String title, String description, String link) {
-        return "<h2>" + title + "</h2>"
-                + "<p>Olá " + name + ",</p>"
-                + "<p>" + description + "</p>"
-                + "<p>Se foste tu, não precisas de fazer nada.</p>"
-                + "<p>Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe:</p>"
-                + "<p><a href=\"" + link + "\">Redefinir palavra-passe</a></p>"
-                + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
+    private String buildEmailChangedEmail(String name, String link) {
+        return TransactionalEmailTemplate.render(
+                "Alteração de email",
+                "Olá " + name + ", o endereço de email associado à tua conta Desporto24 foi alterado.",
+                "Email address changed",
+                "Hi " + name + ", the email address associated with your Desporto24 account has been changed.",
+                "Redefinir palavra-passe / Reset password",
+                link,
+                "Se foste tu, não precisas de fazer nada. Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe.",
+                "If you made this change, no action is needed. If you do not recognise this change, reset your password immediately."
+        );
     }
 
     @Override
