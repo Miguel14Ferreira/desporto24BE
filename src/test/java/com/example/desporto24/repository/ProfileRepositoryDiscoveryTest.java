@@ -54,6 +54,30 @@ class ProfileRepositoryDiscoveryTest {
                 "actor", "deleted", "", "", "", PageRequest.of(0, 100)).isEmpty());
     }
 
+    @Test
+    void adminSearchIncludesSuspendedAccountsButExcludesDeletedAccounts() {
+        Profile deleted = repository.findUserByUsername("deleted-152-fixture").orElseThrow();
+        deleted.setEmail("deleted-152-fixture@deleted.invalid");
+        repository.saveAndFlush(deleted);
+        assertEquals(List.of("unverified-player"),
+                repository.searchAdminPlayers("unverified", PageRequest.of(0, 20))
+                        .getContent().stream().map(Profile::getUsername).toList());
+        assertTrue(repository.searchAdminPlayers("deleted", PageRequest.of(0, 20)).isEmpty());
+    }
+
+    @Test
+    void adminSearchMatchesNameAndNicknameAndReportsMorePages() {
+        Profile named = repository.findUserByUsername("active-player").orElseThrow();
+        named.setFullName("Ana Silva");
+        named.setNickname("Anita");
+        repository.saveAndFlush(named);
+        assertEquals("active-player", repository.searchAdminPlayers("ana", PageRequest.of(0, 20))
+                .getContent().get(0).getUsername());
+        assertEquals("active-player", repository.searchAdminPlayers("anita", PageRequest.of(0, 20))
+                .getContent().get(0).getUsername());
+        assertTrue(repository.searchAdminPlayers("player", PageRequest.of(0, 1)).hasNext());
+    }
+
     private void save(String username, Boolean enabled) {
         Profile profile = new Profile();
         profile.setUsername(username);

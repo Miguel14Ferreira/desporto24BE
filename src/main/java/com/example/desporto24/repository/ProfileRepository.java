@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +60,18 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
              @Param("location") String location,
              @Param("skillLevel") String skillLevel,
              Pageable pageable);
+
+     @Query("""
+             SELECT p FROM Profile p
+             WHERE (p.email IS NULL OR LOWER(p.email) NOT LIKE '%@deleted.invalid')
+               AND (
+                    LOWER(COALESCE(p.username, '')) LIKE CONCAT('%', :name, '%') ESCAPE '!'
+                    OR LOWER(COALESCE(p.fullName, '')) LIKE CONCAT('%', :name, '%') ESCAPE '!'
+                    OR LOWER(COALESCE(p.nickname, '')) LIKE CONCAT('%', :name, '%') ESCAPE '!'
+               )
+             ORDER BY LOWER(p.username), p.id
+             """)
+     Slice<Profile> searchAdminPlayers(@Param("name") String name, Pageable pageable);
 
      @Query("SELECT p FROM Profile p WHERE LOWER(p.username) <> LOWER(:username) AND p.enabled = true ORDER BY p.id DESC")
      List<Profile> discoverProfiles(@Param("username") String username, Pageable pageable);
