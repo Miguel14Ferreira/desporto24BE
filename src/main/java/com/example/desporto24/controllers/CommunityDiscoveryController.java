@@ -21,6 +21,20 @@ public class CommunityDiscoveryController {
         this.repository = repository;
     }
 
+    @GetMapping("/{id}/presentation")
+    public CommunityDiscoveryResponse presentation(@PathVariable Long id) {
+        var community = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Community not found"));
+        return new CommunityDiscoveryResponse(
+                community.getId(),
+                community.getName(),
+                community.getDescription(),
+                community.getSport(),
+                community.getPhotoUrl(),
+                community.getVisibility()
+        );
+    }
+
     @GetMapping("/search")
     public SearchResponse search(
             @RequestParam(defaultValue = "") String name,
