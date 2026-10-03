@@ -20,6 +20,7 @@ import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.dto.community.InviteCommunityMemberRequest;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityInviteRepository;
+import com.example.desporto24.repository.community.CommunityJoinRequestRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,7 @@ class CommunityManagementServiceTest {
         when(invites.save(any())).thenAnswer(call -> call.getArgument(0));
         ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
         CommunityManagementService service = new CommunityManagementService(
-                communities, members, invites, profiles, notifications, events);
+                communities, members, invites, mock(CommunityJoinRequestRepository.class), profiles, notifications, events);
 
         service.invite(10L, "owner", new InviteCommunityMemberRequest("friend"));
 
@@ -98,7 +99,7 @@ class CommunityManagementServiceTest {
         NotificationsRepository notifications = mock(NotificationsRepository.class);
         ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
         CommunityManagementService service = new CommunityManagementService(
-                communities, members, invites, profiles, notifications, events);
+                communities, members, invites, mock(CommunityJoinRequestRepository.class), profiles, notifications, events);
 
         CommunityInvitePendingException exception = assertThrows(
                 CommunityInvitePendingException.class,
@@ -138,6 +139,7 @@ class CommunityManagementServiceTest {
                 communityRepository,
                 memberRepository,
                 inviteRepository,
+                mock(CommunityJoinRequestRepository.class),
                 profileRepository, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
 
         UserNotFoundException exception = assertThrows(
@@ -174,7 +176,7 @@ class CommunityManagementServiceTest {
             when(members.findByCommunityIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(membership));
             when(communities.save(any(Community.class))).thenAnswer(call -> call.getArgument(0));
             CommunityManagementService service = new CommunityManagementService(
-                    communities, members, mock(CommunityInviteRepository.class), profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+                    communities, members, mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class), profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
 
             var response = service.updateVisibility(10L, "owner",
                     new UpdateCommunityVisibilityRequest(target));
@@ -207,7 +209,7 @@ class CommunityManagementServiceTest {
             when(profiles.findUserByUsernameIgnoreCase("actor")).thenReturn(Optional.of(actor));
             when(members.findByCommunityIdAndProfileId(10L, 2L)).thenReturn(membership);
             CommunityManagementService service = new CommunityManagementService(
-                    communities, members, mock(CommunityInviteRepository.class), profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+                    communities, members, mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class), profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
 
             assertThrows(SecurityException.class, () -> service.updateVisibility(
                     10L, "actor", new UpdateCommunityVisibilityRequest(CommunityVisibility.PUBLIC)));
