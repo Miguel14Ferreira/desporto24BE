@@ -1,6 +1,7 @@
 package com.example.desporto24.model.dto.session;
 
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,6 +16,7 @@ public record SessionSummaryResponse(
         int maxParticipants,
         BigDecimal priceAmount,
         boolean privateGame,
-        SessionStatus status
+        SessionStatus status,
+        SessionAudience audience
 ) {
 }

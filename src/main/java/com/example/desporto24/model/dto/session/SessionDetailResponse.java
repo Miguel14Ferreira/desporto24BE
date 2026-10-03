@@ -1,6 +1,7 @@
 package com.example.desporto24.model.dto.session;
 
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 
 import java.math.BigDecimal;
@@ -24,7 +25,8 @@ public record SessionDetailResponse(
         boolean waitlisted,
         Integer waitlistPosition,
         String gamePhoto,
-        VenueResponse venue
+        VenueResponse venue,
+        SessionAudience audience
 ) {
     public SessionDetailResponse(
             Long id,
@@ -62,6 +64,7 @@ public record SessionDetailResponse(
                 waitlisted,
                 waitlistPosition,
                 gamePhoto,
+                null,
                 null
         );
     }

@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
@@ -36,7 +37,8 @@ public class SessionViewMapper {
                 session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),
-                session.getStatus() == null ? SessionStatus.OPEN : session.getStatus()
+                session.getStatus() == null ? SessionStatus.OPEN : session.getStatus(),
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience()
         );
     }
 
@@ -85,7 +87,8 @@ public class SessionViewMapper {
                 waitlistEntry.isPresent(),
                 waitlistPosition,
                 session.getGamePhoto(),
-                session.getVenue() == null ? null : venueService.toResponse(session.getVenue())
+                session.getVenue() == null ? null : venueService.toResponse(session.getVenue()),
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience()
         );
     }
 }
