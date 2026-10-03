@@ -188,6 +188,12 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile viewer = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() != null
+                && !communityMemberRepository.existsByCommunityIdAndProfileId(
+                        session.getCommunity().getId(), viewer.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
         return sessionViewMapper.toDetail(session, viewer);
     }
 
