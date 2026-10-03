@@ -172,8 +172,8 @@ public class Venue {
     @Column(name = "source_reference", length = 255)
     private String sourceReference;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by_profile_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_profile_id")
     private Profile createdBy;
 
     @Column(name = "created_at", nullable = false)
