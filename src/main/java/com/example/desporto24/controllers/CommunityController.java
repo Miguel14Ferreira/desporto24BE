@@ -65,6 +65,23 @@ public class CommunityController {
         return ResponseEntity.ok(service.pendingJoinRequests(id, authentication.getName()));
     }
 
+    @PostMapping("/{id}/join-requests/{requestId}/accept")
+    public ResponseEntity<CommunityResponse> acceptJoinRequest(
+            @PathVariable Long id,
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.acceptJoinRequest(id, requestId, authentication.getName()));
+    }
+
+    @PostMapping("/{id}/join-requests/{requestId}/reject")
+    public ResponseEntity<Void> rejectJoinRequest(
+            @PathVariable Long id,
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        service.rejectJoinRequest(id, requestId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/visibility")
     public ResponseEntity<CommunityResponse> updateVisibility(
             @PathVariable Long id,

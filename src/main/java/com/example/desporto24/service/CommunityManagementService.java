@@ -160,6 +160,43 @@ public class CommunityManagementService {
                 .toList();
     }
 
+    public CommunityResponse acceptJoinRequest(Long communityId, Long requestId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        CommunityJoinRequest request = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido de adesão não encontrado"));
+        requireJoinRequestCommunity(request, communityId);
+        requireJoinRequestPending(request);
+
+        Profile requester = request.getRequester();
+        if (!memberRepository.existsByCommunityIdAndProfileId(communityId, requester.getId())) {
+            memberRepository.save(CommunityMember.builder()
+                    .community(request.getCommunity())
+                    .profile(requester)
+                    .role(CommunityRole.MEMBER)
+                    .joinedAt(Instant.now())
+                    .build());
+        }
+
+        request.setStatus(CommunityInviteStatus.ACCEPTED);
+        joinRequestRepository.save(request);
+        return toResponse(request.getCommunity(), actor);
+    }
+
+    public void rejectJoinRequest(Long communityId, Long requestId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        CommunityJoinRequest request = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido de adesão não encontrado"));
+        requireJoinRequestCommunity(request, communityId);
+        requireJoinRequestPending(request);
+
+        request.setStatus(CommunityInviteStatus.REJECTED);
+        joinRequestRepository.save(request);
+    }
+
     public CommunityResponse updateVisibility(
             Long communityId, String username, UpdateCommunityVisibilityRequest request) {
         Profile actor = profile(username);
@@ -510,6 +547,18 @@ public class CommunityManagementService {
     private void requirePending(CommunityInvite invite) {
         if (invite.getStatus() != CommunityInviteStatus.PENDING) {
             throw new IllegalArgumentException("Este convite já não está pendente");
+        }
+    }
+
+    private void requireJoinRequestCommunity(CommunityJoinRequest request, Long communityId) {
+        if (!request.getCommunity().getId().equals(communityId)) {
+            throw new IllegalArgumentException("Este pedido não pertence à comunidade");
+        }
+    }
+
+    private void requireJoinRequestPending(CommunityJoinRequest request) {
+        if (request.getStatus() != CommunityInviteStatus.PENDING) {
+            throw new IllegalArgumentException("Este pedido já não está pendente");
         }
     }
 
