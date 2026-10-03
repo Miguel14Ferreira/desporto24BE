@@ -140,7 +140,7 @@ public class GoogleAuthenticationService {
         Profile profile = new Profile();
         profile.setUserId(generateUserId());
         profile.setUsername(request.username().trim());
-        profile.setPassword(passwordHashService.encode(UUID.randomUUID() + "-" + UUID.randomUUID()));
+        profile.setPassword(passwordHashService.encode(UUID.randomUUID().toString() + UUID.randomUUID()));
         profile.setFullName(identity.name() == null || identity.name().isBlank()
                 ? null
                 : identity.name().trim());
