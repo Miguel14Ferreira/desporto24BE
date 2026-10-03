@@ -1,6 +1,7 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.encryption.AES;
+import com.example.desporto24.email.TransactionalEmailTemplate;
 import com.example.desporto24.exception.*;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.model.Profile;
@@ -280,13 +281,7 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setTokenVersion(profile.getTokenVersion() + 1);
         profileRepository.save(profile);
 
-        sendProfileSecurityEmail(
-                profile.getEmail(),
-                profile.getEmail(),
-                profile.getUsername(),
-                "Palavra-passe alterada",
-                "A palavra-passe da tua conta DESPORTO24 foi alterada."
-        );
+        sendPasswordChangedEmail(profile);
         createSecurityNotification(
                 profile.getUsername(),
                 "Palavra-passe alterada",
@@ -612,6 +607,28 @@ public class ProfileServiceImpl implements ProfileService {
                 new java.text.SimpleDateFormat("dd/MM/yyyy, HH:mm", java.util.Locale.forLanguageTag("pt-PT"));
         formatter.setTimeZone(java.util.TimeZone.getTimeZone("Europe/Lisbon"));
         return formatter.format(profile.getJoinDate());
+    }
+
+    private void sendPasswordChangedEmail(Profile profile) {
+        if (profile.getEmail() == null || profile.getEmail().isBlank()) {
+            return;
+        }
+        String link = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
+        emailService.send(profile.getEmail(), "Palavra-passe alterada | Password changed — Desporto24",
+                buildPasswordChangedEmail(profile.getUsername(), link));
+    }
+
+    private String buildPasswordChangedEmail(String name, String link) {
+        return TransactionalEmailTemplate.render(
+                "Palavra-passe alterada",
+                "Olá " + name + ", a palavra-passe da tua conta Desporto24 foi alterada.",
+                "Password changed",
+                "Hi " + name + ", the password for your Desporto24 account has been changed.",
+                "Redefinir palavra-passe / Reset password",
+                link,
+                "Se foste tu, não precisas de fazer nada. Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe.",
+                "If you made this change, no action is needed. If you do not recognise this change, reset your password immediately."
+        );
     }
 
     private String buildSecurityEmail(String name, String title, String description, String link) {

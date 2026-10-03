@@ -100,6 +100,7 @@ class ProfileServiceImplSecurityTest {
 
         Profile profile = new Profile();
         profile.setUsername("miguel");
+        profile.setEmail("fixture@example.test");
         profile.setPassword("old-hash");
         profile.setTokenVersion(8L);
 
@@ -121,6 +122,8 @@ class ProfileServiceImplSecurityTest {
                 userBlockService
         );
 
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test/");
+
         service.changeMyPassword(
                 "miguel",
                 new ChangePasswordRequest(
@@ -132,6 +135,13 @@ class ProfileServiceImplSecurityTest {
         assertEquals(9L, profile.getTokenVersion());
         assertEquals("new-hash", profile.getPassword());
         verify(repository).save(profile);
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"),
+                eq("Palavra-passe alterada | Password changed — Desporto24"), html.capture());
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Password changed"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Redefinir palavra-passe / Reset password"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/login/resetPassword\""));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("If you made this change"));
     }
 
     @Test
