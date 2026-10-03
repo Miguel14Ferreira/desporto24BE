@@ -7,7 +7,7 @@ import lombok.*;
 import java.time.Instant;
 
 @Entity
-@Table(name = "venue")
+@Table(name = "venue", uniqueConstraints = @UniqueConstraint(name = "uk_venue_source_reference", columnNames = {"information_source", "source_reference"}))
 @Getter
 @Setter
 @Builder
@@ -17,7 +17,8 @@ public class Venue {
 
     public enum InformationSource {
         COMMUNITY,
-        OFFICIAL
+        OFFICIAL,
+        OPENSTREETMAP
     }
 
     public enum OwnershipType {
@@ -167,6 +168,9 @@ public class Venue {
     @Column(name = "information_source", length = 20)
     @Builder.Default
     private InformationSource informationSource = InformationSource.COMMUNITY;
+
+    @Column(name = "source_reference", length = 255)
+    private String sourceReference;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_profile_id", nullable = false)
