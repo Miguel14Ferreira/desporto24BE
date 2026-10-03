@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.venue.CreateVenueRequest;
+import com.example.desporto24.model.dto.venue.OpenStreetMapVenueImportRequest;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.ProfileRepository;
@@ -45,6 +46,22 @@ public class VenueService {
     @Transactional(readOnly = true)
     public VenueResponse get(Long id) {
         return toResponse(venue(id));
+    }
+
+    public List<VenueResponse> importOpenStreetMapVenues(
+            List<OpenStreetMapVenueImportRequest> requests) {
+        return requests.stream()
+                .map(request -> upsertOpenStreetMapVenue(
+                        request.sourceReference(),
+                        request.name(),
+                        request.city(),
+                        request.address(),
+                        request.sports(),
+                        request.venueType(),
+                        request.environmentType(),
+                        request.latitude(),
+                        request.longitude()))
+                .toList();
     }
 
     public VenueResponse upsertOpenStreetMapVenue(
