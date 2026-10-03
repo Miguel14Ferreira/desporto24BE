@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -158,6 +159,17 @@ public class CommunityManagementService {
                 .stream()
                 .map(this::toJoinRequestResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<CommunityJoinRequestResponse> myPendingJoinRequest(Long communityId, String username) {
+        Profile current = profile(username);
+        community(communityId);
+
+        return joinRequestRepository
+                .findByCommunityIdAndRequesterIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .map(this::toJoinRequestResponse);
     }
 
     public CommunityResponse acceptJoinRequest(Long communityId, Long requestId, String username) {

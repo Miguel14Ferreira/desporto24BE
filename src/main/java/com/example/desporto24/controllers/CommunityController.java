@@ -65,6 +65,13 @@ public class CommunityController {
         return ResponseEntity.ok(service.pendingJoinRequests(id, authentication.getName()));
     }
 
+    @GetMapping("/{id}/join-requests/me")
+    public ResponseEntity<CommunityJoinRequestResponse> myPendingJoinRequest(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.of(service.myPendingJoinRequest(id, authentication.getName()));
+    }
+
     @PostMapping("/{id}/join-requests/{requestId}/accept")
     public ResponseEntity<CommunityResponse> acceptJoinRequest(
             @PathVariable Long id,
