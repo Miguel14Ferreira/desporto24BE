@@ -5,6 +5,7 @@ import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -16,9 +17,12 @@ public class VenueSeedData implements ApplicationRunner {
     private static final String CNG_SOURCE_REFERENCE = "OFFICIAL:CNG:PAREDE";
 
     private final VenueRepository venueRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(ApplicationArguments args) {
+        jdbcTemplate.execute("ALTER TABLE venue ALTER COLUMN created_by_profile_id DROP NOT NULL");
+
         boolean alreadySeeded = venueRepository.findAllByOrderByNameAsc().stream()
                 .anyMatch(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL
                         && CNG_SOURCE_REFERENCE.equals(venue.getSourceReference()));
