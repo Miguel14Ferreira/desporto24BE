@@ -10,6 +10,7 @@ ADMIN_TOKEN = os.getenv("DESPORTO24_ADMIN_TOKEN")
 BBOX = os.getenv("D24_OSM_BBOX")
 OVERPASS_URL = os.getenv("D24_OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 CHUNK_SIZE = int(os.getenv("D24_IMPORT_CHUNK_SIZE", "100"))
+DRY_RUN = os.getenv("D24_DRY_RUN", "false").lower() in {"1", "true", "yes"}
 
 SPORT_MAP = {
     "soccer": "Futebol",
@@ -37,7 +38,7 @@ VENUE_TYPES = {
 
 
 def require_env():
-    if not ADMIN_TOKEN:
+    if not DRY_RUN and not ADMIN_TOKEN:
         raise SystemExit("Missing DESPORTO24_ADMIN_TOKEN")
     if not BBOX:
         raise SystemExit("Missing D24_OSM_BBOX (south,west,north,east)")
@@ -168,6 +169,11 @@ def main():
 
     if not payload:
         print("No importable venues found. Check bbox/data completeness.")
+        return 0
+
+    if DRY_RUN:
+        print(f"Dry run: {len(payload)} importable venues found.")
+        print(json.dumps(payload[:5], ensure_ascii=False, indent=2))
         return 0
 
     imported = 0
