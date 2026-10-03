@@ -23,6 +23,7 @@ public class EmailService implements EmailSender {
         send(to, DEFAULT_SUBJECT, html);
     }
 
+    @Override
     public void send(String to, String subject, String html) {
         String apiKey = RuntimeSecrets.require("RESEND_API_KEY");
         String from = RuntimeSecrets.require("RESEND_FROM_EMAIL");

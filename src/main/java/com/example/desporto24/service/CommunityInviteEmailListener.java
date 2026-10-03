@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.web.util.HtmlUtils;
+import com.example.desporto24.email.TransactionalEmailTemplate;
 
 @Slf4j
 @Component
@@ -29,7 +29,8 @@ public class CommunityInviteEmailListener {
         }
 
         try {
-            emailSender.send(event.recipientEmail(), buildEmail(event));
+            emailSender.send(event.recipientEmail(), "Convite para uma comunidade | Community invitation — Desporto24",
+                    buildEmail(event));
         } catch (RuntimeException exception) {
             // The invitation and in-app notification have already been committed.
             log.warn("Could not send email for community invitation {}", event.inviteId(), exception);
@@ -37,27 +38,18 @@ public class CommunityInviteEmailListener {
     }
 
     private String buildEmail(CommunityInviteCreatedEvent event) {
-        String inviter = HtmlUtils.htmlEscape(event.inviterUsername());
-        String community = HtmlUtils.htmlEscape(event.communityName());
-        String link = HtmlUtils.htmlEscape(uiAppUrl.replaceAll("/+$", "") + "/menu/communities");
-        return """
-                <!doctype html>
-                <html lang="pt"><head><meta charset="UTF-8"><title>Convite Desporto24</title></head>
-                <body style="margin:0;padding:24px;background:#f3f6fa;font-family:Arial,sans-serif;color:#102033">
-                <div style="max-width:560px;margin:auto;padding:24px;background:#ffffff;border-radius:12px">
-                  <p style="font-weight:bold">Desporto24</p>
-                  <h1 style="font-size:24px">Convite para uma comunidade</h1>
-                  <p style="font-size:16px;line-height:1.6">@%s convidou-te para a comunidade <strong>%s</strong>.</p>
-                  <p style="font-size:16px;line-height:1.6">Entra na tua conta para aceitar ou rejeitar o convite.</p>
-                  <div lang="en">
-                    <h2 style="font-size:20px">Community invitation</h2>
-                    <p style="font-size:16px;line-height:1.6">@%s invited you to the <strong>%s</strong> community.
-                    Sign in to accept or reject the invitation.</p>
-                  </div>
-                  <p><a href="%s" style="display:inline-block;padding:14px 20px;background:#124d72;color:#ffffff;text-decoration:none;border-radius:8px">Ver convite / View invitation</a></p>
-                  <p style="font-size:14px;line-height:1.6">O convite também está disponível em Comunidades na app.<br>
-                  <span lang="en">You can also find the invitation in Communities in the app.</span></p>
-                </div></body></html>
-                """.formatted(inviter, community, inviter, community, link);
+        String link = uiAppUrl.replaceAll("/+$", "") + "/menu/communities";
+        return TransactionalEmailTemplate.render(
+                "Convite para uma comunidade",
+                "@" + event.inviterUsername() + " convidou-te para a comunidade " + event.communityName()
+                        + ". Entra na tua conta para aceitar ou rejeitar o convite.",
+                "Community invitation",
+                "@" + event.inviterUsername() + " invited you to the " + event.communityName()
+                        + " community. Sign in to accept or reject the invitation.",
+                "Ver convite / View invitation",
+                link,
+                "O convite também está disponível em Comunidades na app.",
+                "You can also find the invitation in Communities in the app."
+        );
     }
 }

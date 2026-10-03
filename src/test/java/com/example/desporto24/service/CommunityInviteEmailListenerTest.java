@@ -17,7 +17,8 @@ class CommunityInviteEmailListenerTest {
         listener.onCommunityInviteCreated(new CommunityInviteCreatedEvent(
                 7L, "friend@example.test", "owner<script>", "CNG & Friends"));
         ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
-        verify(sender).send(eq("friend@example.test"), html.capture());
+        verify(sender).send(eq("friend@example.test"),
+                eq("Convite para uma comunidade | Community invitation — Desporto24"), html.capture());
         String body = html.getValue();
         assertTrue(body.contains("owner&lt;script&gt;"));
         assertTrue(body.contains("CNG &amp; Friends"));
@@ -25,16 +26,20 @@ class CommunityInviteEmailListenerTest {
         assertTrue(body.contains("href=\"https://d24sports.com/menu/communities\""));
         assertTrue(body.contains("Ver convite / View invitation"));
         assertTrue(body.contains("lang=\"en\""));
+        assertTrue(body.contains("<table role=\"presentation\""));
+        assertTrue(body.contains("accept or reject the invitation"));
+        assertFalse(body.contains("&amp;lt;"));
     }
 
     @Test
     void emailFailureDoesNotTurnSavedInvitationIntoFailedRequest() {
         EmailSender sender = mock(EmailSender.class);
-        doThrow(new IllegalStateException("Email unavailable")).when(sender).send(anyString(), anyString());
+        doThrow(new IllegalStateException("Email unavailable")).when(sender).send(anyString(), anyString(), anyString());
         CommunityInviteEmailListener listener = new CommunityInviteEmailListener(
                 sender, "https://d24sports.com");
         assertDoesNotThrow(() -> listener.onCommunityInviteCreated(
                 new CommunityInviteCreatedEvent(7L, "friend@example.test", "owner", "CNG")));
+        verify(sender).send(eq("friend@example.test"), anyString(), anyString());
     }
 
     @Test
