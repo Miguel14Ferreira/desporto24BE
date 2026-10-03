@@ -46,6 +46,51 @@ public class VenueService {
         return toResponse(venue(id));
     }
 
+    public VenueResponse upsertOpenStreetMapVenue(
+            String sourceReference,
+            String name,
+            String city,
+            String address,
+            String sports,
+            String venueType,
+            Venue.EnvironmentType environmentType,
+            Double latitude,
+            Double longitude,
+            String importedByUsername) {
+        String normalizedSourceReference = requireText(sourceReference, "Referência externa obrigatória");
+        String normalizedName = requireText(name, "Nome do recinto obrigatório");
+        String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
+        String normalizedAddress = requireText(address, "Morada do recinto obrigatória");
+
+        Profile importer = profileRepository.findUserByUsernameIgnoreCase(importedByUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        Venue venue = venueRepository.findAllByOrderByNameAsc()
+                .stream()
+                .filter(candidate -> candidate.getInformationSource() == Venue.InformationSource.OPENSTREETMAP)
+                .filter(candidate -> normalizedSourceReference.equals(candidate.getSourceReference()))
+                .findFirst()
+                .orElseGet(() -> Venue.builder()
+                        .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                        .sourceReference(normalizedSourceReference)
+                        .createdBy(importer)
+                        .createdAt(Instant.now())
+                        .build());
+
+        venue.setName(normalizedName);
+        venue.setCity(normalizedCity);
+        venue.setAddress(normalizedAddress);
+        venue.setSports(trimToNull(sports));
+        venue.setVenueType(trimToNull(venueType));
+        venue.setEnvironmentType(environmentType);
+        venue.setIndoor(environmentType == Venue.EnvironmentType.INDOOR
+                || environmentType == Venue.EnvironmentType.BOTH);
+        venue.setLatitude(latitude);
+        venue.setLongitude(longitude);
+
+        return toResponse(venueRepository.save(venue));
+    }
+
     public VenueResponse create(CreateVenueRequest request, String username) {
         Profile creator = profileRepository.findUserByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
@@ -201,6 +246,14 @@ public class VenueService {
     private String normalize(String value) {
         String trimmed = trimToNull(value);
         return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    private String requireText(String value, String message) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            throw new IllegalArgumentException(message);
+        }
+        return normalized;
     }
 
     private String trimToNull(String value) {
