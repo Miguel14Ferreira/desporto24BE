@@ -1,6 +1,9 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.CommunityInviteStatus;
+import com.example.desporto24.exception.CommunityInvitePendingException;
+import com.example.desporto24.model.community.CommunityInvite;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.dto.community.UpdateCommunityVisibilityRequest;
@@ -24,6 +27,36 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class CommunityManagementServiceTest {
+
+    @Test
+    void pendingInviteReturnsSpecificConflictWithoutCreatingAnotherInvite() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        CommunityInviteRepository invites = mock(CommunityInviteRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile owner = new Profile();
+        owner.setId(1L);
+        Profile friend = new Profile();
+        friend.setId(2L);
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(profiles.findUserByUsernameIgnoreCase("friend")).thenReturn(Optional.of(friend));
+        when(members.findByCommunityIdAndProfileId(10L, 1L)).thenReturn(Optional.of(
+                CommunityMember.builder().profile(owner).role(CommunityRole.OWNER).build()));
+        when(invites.findByCommunityIdAndInvitedProfileIdAndStatus(
+                10L, 2L, CommunityInviteStatus.PENDING)).thenReturn(Optional.of(
+                CommunityInvite.builder().status(CommunityInviteStatus.PENDING).build()));
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, invites, profiles);
+
+        CommunityInvitePendingException exception = assertThrows(
+                CommunityInvitePendingException.class,
+                () -> service.invite(10L, "owner", new InviteCommunityMemberRequest("friend")));
+
+        assertEquals("Já existe um convite pendente para este utilizador. Aguarda a aceitação.",
+                exception.getMessage());
+        verify(invites, never()).save(any());
+    }
+
 
     @Test
     void inviteUnknownUsernameUsesUserNotFoundExceptionInsteadOfInternalError() {

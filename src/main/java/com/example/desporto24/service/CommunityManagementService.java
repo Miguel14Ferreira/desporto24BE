@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityInviteStatus;
 import com.example.desporto24.exception.UserNotFoundException;
+import com.example.desporto24.exception.CommunityInvitePendingException;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
@@ -174,7 +175,7 @@ public class CommunityManagementService {
         inviteRepository.findByCommunityIdAndInvitedProfileIdAndStatus(
                 communityId, invited.getId(), CommunityInviteStatus.PENDING
         ).ifPresent(existing -> {
-            throw new IllegalArgumentException("Já existe um convite pendente para este utilizador");
+            throw new CommunityInvitePendingException();
         });
 
         Community community = community(communityId);
