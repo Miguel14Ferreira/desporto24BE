@@ -19,4 +19,29 @@ public record SessionSummaryResponse(
         SessionStatus status,
         SessionAudience audience
 ) {
+    public SessionSummaryResponse(
+            Long id,
+            String sport,
+            String city,
+            Instant gameDate,
+            Double distanceKm,
+            int participantCount,
+            int maxParticipants,
+            BigDecimal priceAmount,
+            boolean privateGame,
+            SessionStatus status) {
+        this(
+                id,
+                sport,
+                city,
+                gameDate,
+                distanceKm,
+                participantCount,
+                maxParticipants,
+                priceAmount,
+                privateGame,
+                status,
+                SessionAudience.PUBLIC
+        );
+    }
 }
