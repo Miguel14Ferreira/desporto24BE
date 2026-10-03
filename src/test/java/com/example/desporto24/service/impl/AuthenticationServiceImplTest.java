@@ -83,6 +83,31 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void passwordResetEmailUsesBilingualTemplateAndSavedToken() {
+        ProfileDTO profile = new ProfileDTO();
+        profile.setUsername("<fixture-user>");
+        profile.setEmail("fixture@example.test");
+        when(profileService.findUserByEmail("fixture@example.test")).thenReturn(profile);
+
+        service().resetPasswordStepOne("fixture@example.test");
+
+        org.mockito.ArgumentCaptor<ConfirmationToken> token =
+                org.mockito.ArgumentCaptor.forClass(ConfirmationToken.class);
+        verify(confirmationTokenService).saveConfirmationToken(token.capture());
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"),
+                eq("Recupera a tua palavra-passe | Reset your password — Desporto24"), html.capture());
+        assertEquals("<fixture-user>", token.getValue().getProfile());
+        assertTrue(html.getValue().contains("https://example.test/login/resetPassword/" + token.getValue().getToken()));
+        assertTrue(html.getValue().contains("Definir palavra-passe / Reset password"));
+        assertTrue(html.getValue().contains("15 minutos"));
+        assertTrue(html.getValue().contains("15 minutes"));
+        assertTrue(html.getValue().contains("&lt;fixture-user&gt;"));
+        assertFalse(html.getValue().contains("<fixture-user>"));
+        assertTrue(html.getValue().contains("If you did not make this request"));
+    }
+
+    @Test
     void passwordResetInvalidatesExistingJwtVersion() {
         ConfirmationToken token = mock(ConfirmationToken.class);
         Profile profile = activeProfile(false);
