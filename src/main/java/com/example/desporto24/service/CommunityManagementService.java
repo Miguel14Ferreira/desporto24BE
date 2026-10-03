@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.CommunityInviteStatus;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.exception.CommunityInvitePendingException;
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityInvite;
@@ -94,6 +95,26 @@ public class CommunityManagementService {
 
         if (membership == null && community.getVisibility().name().equals("PRIVATE")) {
             throw new SecurityException("Não tens acesso a esta comunidade");
+        }
+
+        return toResponse(community, current);
+    }
+
+    public CommunityResponse joinPublic(Long communityId, String username) {
+        Profile current = profile(username);
+        Community community = community(communityId);
+
+        if (community.getVisibility() != CommunityVisibility.PUBLIC) {
+            throw new SecurityException("Esta comunidade requer aprovação para aderir");
+        }
+
+        if (!memberRepository.existsByCommunityIdAndProfileId(communityId, current.getId())) {
+            memberRepository.save(CommunityMember.builder()
+                    .community(community)
+                    .profile(current)
+                    .role(CommunityRole.MEMBER)
+                    .joinedAt(Instant.now())
+                    .build());
         }
 
         return toResponse(community, current);
