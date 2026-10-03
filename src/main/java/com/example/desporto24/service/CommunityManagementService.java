@@ -8,6 +8,7 @@ import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityInvite;
+import com.example.desporto24.model.community.CommunityJoinRequest;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
@@ -15,6 +16,7 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.repository.community.CommunityInviteRepository;
+import com.example.desporto24.repository.community.CommunityJoinRequestRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +43,7 @@ public class CommunityManagementService {
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
+    private final CommunityJoinRequestRepository joinRequestRepository;
     private final ProfileRepository profileRepository;
     private final NotificationsRepository notificationsRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -118,6 +121,30 @@ public class CommunityManagementService {
         }
 
         return toResponse(community, current);
+    }
+
+    public CommunityJoinRequestResponse requestJoin(Long communityId, String username) {
+        Profile current = profile(username);
+        Community community = community(communityId);
+
+        if (community.getVisibility() != CommunityVisibility.PRIVATE) {
+            throw new IllegalArgumentException("Comunidades públicas não requerem pedido de adesão");
+        }
+        if (memberRepository.existsByCommunityIdAndProfileId(communityId, current.getId())) {
+            throw new IllegalArgumentException("Já pertences a esta comunidade");
+        }
+
+        CommunityJoinRequest request = joinRequestRepository
+                .findByCommunityIdAndRequesterIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .orElseGet(() -> joinRequestRepository.save(CommunityJoinRequest.builder()
+                        .community(community)
+                        .requester(current)
+                        .status(CommunityInviteStatus.PENDING)
+                        .createdAt(Instant.now())
+                        .build()));
+
+        return toJoinRequestResponse(request);
     }
 
     public CommunityResponse updateVisibility(
@@ -413,6 +440,17 @@ public class CommunityManagementService {
                 invite.getCommunity().getName(),
                 invite.getInvitedBy().getUsername(),
                 invite.getCreatedAt()
+        );
+    }
+
+    private CommunityJoinRequestResponse toJoinRequestResponse(CommunityJoinRequest request) {
+        return new CommunityJoinRequestResponse(
+                request.getId(),
+                request.getCommunity().getId(),
+                request.getCommunity().getName(),
+                request.getRequester().getUsername(),
+                request.getStatus(),
+                request.getCreatedAt()
         );
     }
 

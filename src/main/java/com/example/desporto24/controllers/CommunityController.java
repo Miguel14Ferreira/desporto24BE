@@ -51,6 +51,13 @@ public class CommunityController {
         return ResponseEntity.ok(service.joinPublic(id, authentication.getName()));
     }
 
+    @PostMapping("/{id}/join-requests")
+    public ResponseEntity<CommunityJoinRequestResponse> requestJoin(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.requestJoin(id, authentication.getName()));
+    }
+
     @PutMapping("/{id}/visibility")
     public ResponseEntity<CommunityResponse> updateVisibility(
             @PathVariable Long id,
