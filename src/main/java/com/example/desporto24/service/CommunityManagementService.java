@@ -24,6 +24,7 @@ import com.example.desporto24.storage.MediaStorage;
 
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -41,6 +42,7 @@ public class CommunityManagementService {
     private final CommunityInviteRepository inviteRepository;
     private final ProfileRepository profileRepository;
     private final NotificationsRepository notificationsRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -192,6 +194,8 @@ public class CommunityManagementService {
                 .build());
 
         notifyCommunityInvite(invited, actor, community);
+        eventPublisher.publishEvent(new CommunityInviteCreatedEvent(
+                invite.getId(), invited.getEmail(), actor.getUsername(), community.getName()));
         return toInviteResponse(invite);
     }
 

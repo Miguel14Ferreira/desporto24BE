@@ -5,6 +5,7 @@ import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import com.example.desporto24.enumeration.CommunityInviteStatus;
 import com.example.desporto24.exception.CommunityInvitePendingException;
 import com.example.desporto24.model.community.CommunityInvite;
@@ -45,6 +46,7 @@ class CommunityManagementServiceTest {
         Profile friend = new Profile();
         friend.setId(2L);
         friend.setUsername("friend");
+        friend.setEmail("friend@example.test");
         Community community = Community.builder().id(10L).name("CNG").build();
         when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
         when(profiles.findUserByUsernameIgnoreCase("friend")).thenReturn(Optional.of(friend));
@@ -52,13 +54,19 @@ class CommunityManagementServiceTest {
                 CommunityMember.builder().profile(owner).role(CommunityRole.OWNER).build()));
         when(communities.findById(10L)).thenReturn(Optional.of(community));
         when(invites.save(any())).thenAnswer(call -> call.getArgument(0));
+        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
         CommunityManagementService service = new CommunityManagementService(
-                communities, members, invites, profiles, notifications);
+                communities, members, invites, profiles, notifications, events);
 
         service.invite(10L, "owner", new InviteCommunityMemberRequest("friend"));
 
         ArgumentCaptor<Notifications> notification = ArgumentCaptor.forClass(Notifications.class);
         verify(notifications).save(notification.capture());
+        ArgumentCaptor<CommunityInviteCreatedEvent> event = ArgumentCaptor.forClass(CommunityInviteCreatedEvent.class);
+        verify(events).publishEvent(event.capture());
+        assertEquals("friend@example.test", event.getValue().recipientEmail());
+        assertEquals("owner", event.getValue().inviterUsername());
+        assertEquals("CNG", event.getValue().communityName());
         Notifications saved = notification.getValue();
         assertEquals("friend", saved.getUsername());
         assertEquals(NotificationType.COMMUNITY_INVITE, saved.getType());
@@ -88,8 +96,9 @@ class CommunityManagementServiceTest {
                 10L, 2L, CommunityInviteStatus.PENDING)).thenReturn(Optional.of(
                 CommunityInvite.builder().status(CommunityInviteStatus.PENDING).build()));
         NotificationsRepository notifications = mock(NotificationsRepository.class);
+        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
         CommunityManagementService service = new CommunityManagementService(
-                communities, members, invites, profiles, notifications);
+                communities, members, invites, profiles, notifications, events);
 
         CommunityInvitePendingException exception = assertThrows(
                 CommunityInvitePendingException.class,
@@ -98,7 +107,7 @@ class CommunityManagementServiceTest {
         assertEquals("Já existe um convite pendente para este utilizador. Aguarda a aceitação.",
                 exception.getMessage());
         verify(invites, never()).save(any());
-        verifyNoInteractions(notifications);
+        verifyNoInteractions(notifications, events);
     }
 
 
@@ -129,7 +138,7 @@ class CommunityManagementServiceTest {
                 communityRepository,
                 memberRepository,
                 inviteRepository,
-                profileRepository, mock(NotificationsRepository.class));
+                profileRepository, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
 
         UserNotFoundException exception = assertThrows(
                 UserNotFoundException.class,
@@ -165,7 +174,7 @@ class CommunityManagementServiceTest {
             when(members.findByCommunityIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(membership));
             when(communities.save(any(Community.class))).thenAnswer(call -> call.getArgument(0));
             CommunityManagementService service = new CommunityManagementService(
-                    communities, members, mock(CommunityInviteRepository.class), profiles, mock(NotificationsRepository.class));
+                    communities, members, mock(CommunityInviteRepository.class), profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
 
             var response = service.updateVisibility(10L, "owner",
                     new UpdateCommunityVisibilityRequest(target));
@@ -198,7 +207,7 @@ class CommunityManagementServiceTest {
             when(profiles.findUserByUsernameIgnoreCase("actor")).thenReturn(Optional.of(actor));
             when(members.findByCommunityIdAndProfileId(10L, 2L)).thenReturn(membership);
             CommunityManagementService service = new CommunityManagementService(
-                    communities, members, mock(CommunityInviteRepository.class), profiles, mock(NotificationsRepository.class));
+                    communities, members, mock(CommunityInviteRepository.class), profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
 
             assertThrows(SecurityException.class, () -> service.updateVisibility(
                     10L, "actor", new UpdateCommunityVisibilityRequest(CommunityVisibility.PUBLIC)));
