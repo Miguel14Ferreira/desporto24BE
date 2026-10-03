@@ -2,6 +2,8 @@ package com.example.desporto24.repository;
 import com.example.desporto24.model.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -20,6 +22,10 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      Optional<Profile> findUserByPhone(String phone);
      Optional<Profile> findUserByOldEmail(String email);
      Optional<Profile> findUserByUserId(String userId);
+     @Lock(LockModeType.PESSIMISTIC_WRITE)
+     @Query("SELECT p FROM Profile p WHERE p.id = :id")
+     Optional<Profile> findForRoleChange(@Param("id") Long id);
+
      Optional<Profile> findByGoogleSubject(String googleSubject);
 
      @Query(value = "SELECT p " +
