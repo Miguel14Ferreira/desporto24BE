@@ -97,7 +97,7 @@ public class CommunityManagementService {
                 .findByCommunityIdAndProfileId(communityId, current.getId())
                 .orElse(null);
 
-        if (membership == null && community.getVisibility().name().equals("PRIVATE")) {
+        if (membership == null) {
             throw new SecurityException("Não tens acesso a esta comunidade");
         }
 
