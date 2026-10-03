@@ -44,6 +44,14 @@ public class CommunityController {
         return ResponseEntity.ok(service.get(id, authentication.getName()));
     }
 
+    @PutMapping("/{id}/visibility")
+    public ResponseEntity<CommunityResponse> updateVisibility(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCommunityVisibilityRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateVisibility(id, authentication.getName(), request));
+    }
+
     @PutMapping(value = "/{id}/photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommunityResponse> updatePhoto(
             @PathVariable Long id,

@@ -92,6 +92,20 @@ public class CommunityManagementService {
         return toResponse(community, current);
     }
 
+    public CommunityResponse updateVisibility(
+            Long communityId, String username, UpdateCommunityVisibilityRequest request) {
+        Profile actor = profile(username);
+        CommunityMember membership = requireOwner(communityId, actor);
+        if (request.visibility() == null) {
+            throw new IllegalArgumentException("A visibilidade é obrigatória");
+        }
+
+        Community community = membership.getCommunity();
+        community.setVisibility(request.visibility());
+        Community saved = communityRepository.save(community);
+        return toResponse(saved, actor);
+    }
+
     public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
