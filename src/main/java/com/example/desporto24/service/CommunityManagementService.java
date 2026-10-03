@@ -147,6 +147,19 @@ public class CommunityManagementService {
         return toJoinRequestResponse(request);
     }
 
+    @Transactional(readOnly = true)
+    public List<CommunityJoinRequestResponse> pendingJoinRequests(Long communityId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        return joinRequestRepository
+                .findByCommunityIdAndStatusOrderByCreatedAtAsc(
+                        communityId, CommunityInviteStatus.PENDING)
+                .stream()
+                .map(this::toJoinRequestResponse)
+                .toList();
+    }
+
     public CommunityResponse updateVisibility(
             Long communityId, String username, UpdateCommunityVisibilityRequest request) {
         Profile actor = profile(username);
