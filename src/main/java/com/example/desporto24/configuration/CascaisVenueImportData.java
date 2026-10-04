@@ -304,6 +304,11 @@ public class CascaisVenueImportData implements ApplicationRunner {
             return normalizeSports(official);
         }
 
+        String curated = curatedSports(name);
+        if (curated != null) {
+            return curated;
+        }
+
         String value = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
         java.util.LinkedHashSet<String> sports = new java.util.LinkedHashSet<>();
 
@@ -330,6 +335,35 @@ public class CascaisVenueImportData implements ApplicationRunner {
         addSportIf(value, sports, "ginastica", "Ginástica");
 
         return sports.isEmpty() ? null : String.join(";", sports);
+    }
+
+    private String curatedSports(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        String normalized = name.trim().toLowerCase(java.util.Locale.ROOT);
+
+        if (normalized.contains("adn atividades desportivas náuticas")) {
+            return "Canoagem;Windsurf;Stand Up Paddle";
+        }
+        if (normalized.contains("associação academia sulydance")) {
+            return "Ballet;Dança Contemporânea;Hip Hop;Danças Latinas;Sevilhanas;Dance Fitness";
+        }
+        if (normalized.contains("antigos alunos salesianos estoril")) {
+            return "Judo;Futebol;Ténis;Ballet;Dança";
+        }
+        if (normalized.contains("associação de moradores de atibá")) {
+            return "Futsal;Atletismo;Zumba";
+        }
+        if (normalized.contains("associação de moradores do bairro do junqueiro")) {
+            return "Pickleball";
+        }
+        if (normalized.contains("associação desportiva omael")) {
+            return "Patinagem Artística";
+        }
+
+        return null;
     }
 
     private String normalizeSports(String value) {
