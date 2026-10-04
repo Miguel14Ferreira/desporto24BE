@@ -105,7 +105,8 @@ public class SessionViewMapper {
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 session.getRecurrenceSeriesId(),
                 session.getProblemType(),
-                creator ? session.getProblemDetails() : null
+                creator ? session.getProblemDetails() : null,
+                session.getCommunity() == null ? null : session.getCommunity().getId()
         );
     }
 }
