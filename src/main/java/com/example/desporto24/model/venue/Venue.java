@@ -42,6 +42,9 @@ public class Venue {
     @Column(nullable = false, length = 120)
     private String city;
 
+    @Column(length = 120)
+    private String district;
+
     @Column(nullable = false, length = 255)
     private String address;
 
