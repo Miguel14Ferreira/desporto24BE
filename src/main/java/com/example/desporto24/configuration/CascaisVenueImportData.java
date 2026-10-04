@@ -59,10 +59,17 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 Map<?, ?> properties = asMap(feature.get("properties"));
                 Map<?, ?> geometry = asMap(feature.get("geometry"));
 
-                String fid = text(properties, "FID");
-                String name = text(properties, "nome");
+                String fid = firstText(properties, "FID", "fid", "OBJECTID", "objectid", "id");
+                if (fid == null) {
+                    fid = clean(string(feature.get("id")));
+                }
+                String name = firstText(
+                        properties,
+                        "nome", "NOME",
+                        "designacao", "DESIGNACAO",
+                        "name", "NAME");
 
-                double[] coordinates = pointCoordinates(geometry);
+                double[] coordinates = geometryCoordinates(geometry);
                 if (fid == null || name == null || coordinates == null) {
                     skipped++;
                     continue;
@@ -77,7 +84,9 @@ public class CascaisVenueImportData implements ApplicationRunner {
                     continue;
                 }
 
-                String parish = fallback(text(properties, "freguesia"), "Cascais");
+                String parish = fallback(
+                        firstText(properties, "freguesia", "FREGUESIA", "localidade", "LOCALIDADE"),
+                        "Cascais");
                 String address = buildAddress(properties, parish);
 
                 Venue savedVenue = venueRepository.save(Venue.builder()
@@ -86,7 +95,10 @@ public class CascaisVenueImportData implements ApplicationRunner {
                         .district("Lisboa")
                         .address(limit(address, 255))
                         .venueType("Equipamento desportivo")
-                        .website(limit(text(properties, "endereco_internet"), 255))
+                        .website(limit(firstText(
+                                properties,
+                                "endereco_internet", "ENDERECO_INTERNET",
+                                "website", "WEBSITE", "url", "URL"), 255))
                         .contact(limit(buildContact(properties), 255))
                         .latitude(coordinates[1])
                         .longitude(coordinates[0])
@@ -179,20 +191,21 @@ public class CascaisVenueImportData implements ApplicationRunner {
         return null;
     }
 
-    private double[] pointCoordinates(Map<?, ?> geometry) {
-        if (geometry == null || !"Point".equalsIgnoreCase(string(geometry.get("type")))) {
+    private double[] geometryCoordinates(Map<?, ?> geometry) {
+        if (geometry == null) {
             return null;
         }
 
-        if (!(geometry.get("coordinates") instanceof List<?> coordinates)
-                || coordinates.size() < 2
-                || !(coordinates.get(0) instanceof Number longitude)
-                || !(coordinates.get(1) instanceof Number latitude)) {
+        Object coordinates = geometry.get("coordinates");
+        CoordinateAccumulator accumulator = new CoordinateAccumulator();
+        collectCoordinates(coordinates, accumulator);
+
+        if (accumulator.count == 0) {
             return null;
         }
 
-        double lon = longitude.doubleValue();
-        double lat = latitude.doubleValue();
+        double lon = accumulator.longitudeSum / accumulator.count;
+        double lat = accumulator.latitudeSum / accumulator.count;
 
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
             return null;
@@ -201,10 +214,40 @@ public class CascaisVenueImportData implements ApplicationRunner {
         return new double[]{lon, lat};
     }
 
+    private void collectCoordinates(Object value, CoordinateAccumulator accumulator) {
+        if (!(value instanceof List<?> list) || list.isEmpty()) {
+            return;
+        }
+
+        if (list.size() >= 2
+                && list.get(0) instanceof Number longitude
+                && list.get(1) instanceof Number latitude) {
+            double lon = longitude.doubleValue();
+            double lat = latitude.doubleValue();
+
+            if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                accumulator.longitudeSum += lon;
+                accumulator.latitudeSum += lat;
+                accumulator.count++;
+            }
+            return;
+        }
+
+        for (Object nested : list) {
+            collectCoordinates(nested, accumulator);
+        }
+    }
+
+    private static final class CoordinateAccumulator {
+        private double longitudeSum;
+        private double latitudeSum;
+        private int count;
+    }
+
     private String buildAddress(Map<?, ?> properties, String parish) {
-        String street = text(properties, "rua");
-        String policeNumber = text(properties, "numero_policia");
-        String postalCode = text(properties, "codigo_postal");
+        String street = firstText(properties, "rua", "RUA", "morada", "MORADA", "endereco", "ENDERECO");
+        String policeNumber = firstText(properties, "numero_policia", "NUMERO_POLICIA", "porta", "PORTA");
+        String postalCode = firstText(properties, "codigo_postal", "CODIGO_POSTAL", "cp", "CP");
 
         StringBuilder address = new StringBuilder();
 
@@ -217,8 +260,11 @@ public class CascaisVenueImportData implements ApplicationRunner {
     }
 
     private String buildContact(Map<?, ?> properties) {
-        String phone = text(properties, "telefone");
-        String email = text(properties, "endereco_correio_eletronico");
+        String phone = firstText(properties, "telefone", "TELEFONE", "phone", "PHONE");
+        String email = firstText(
+                properties,
+                "endereco_correio_eletronico", "ENDERECO_CORREIO_ELETRONICO",
+                "email", "EMAIL");
 
         if (phone == null) {
             return email;
@@ -243,8 +289,24 @@ public class CascaisVenueImportData implements ApplicationRunner {
         return value instanceof Map<?, ?> map ? map : null;
     }
 
-    private String text(Map<?, ?> map, String key) {
-        return map == null ? null : clean(string(map.get(key)));
+    private String firstText(Map<?, ?> map, String... keys) {
+        if (map == null) {
+            return null;
+        }
+
+        for (String key : keys) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() != null
+                        && key.equalsIgnoreCase(String.valueOf(entry.getKey()))) {
+                    String value = clean(string(entry.getValue()));
+                    if (value != null) {
+                        return value;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private String string(Object value) {
