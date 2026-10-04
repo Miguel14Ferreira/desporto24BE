@@ -33,6 +33,9 @@ public class SessionViewMapper {
         boolean joinedByViewer = viewer != null && participantRepository
                 .existsBySessionIdAndProfileIdAndState(
                         session.getId(), viewer.getId(), ParticipantState.ACTIVE);
+        boolean waitlistedByViewer = viewer != null && waitlistRepository
+                .findBySessionIdAndProfileId(session.getId(), viewer.getId())
+                .isPresent();
 
         return new SessionSummaryResponse(
                 session.getId(),
@@ -47,7 +50,8 @@ public class SessionViewMapper {
                 Boolean.TRUE.equals(session.getPrivateGame()),
                 session.getStatus() == null ? SessionStatus.OPEN : session.getStatus(),
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
-                joinedByViewer
+                joinedByViewer,
+                waitlistedByViewer
         );
     }
 
