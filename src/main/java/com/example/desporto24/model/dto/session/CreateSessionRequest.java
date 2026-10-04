@@ -93,4 +93,35 @@ public record CreateSessionRequest(
                 null
         );
     }
+
+    public CreateSessionRequest(
+            String sport,
+            Instant gameDate,
+            String city,
+            String address,
+            Integer maxParticipants,
+            BigDecimal priceAmount,
+            boolean privateGame,
+            String password,
+            Double latitude,
+            Double longitude,
+            Long communityId,
+            Long venueId) {
+        this(
+                sport,
+                gameDate,
+                city,
+                address,
+                maxParticipants,
+                priceAmount,
+                privateGame,
+                password,
+                latitude,
+                longitude,
+                communityId,
+                venueId,
+                SessionRecurrence.NONE,
+                null
+        );
+    }
 }
