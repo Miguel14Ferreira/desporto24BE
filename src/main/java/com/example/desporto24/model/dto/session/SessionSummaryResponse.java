@@ -18,7 +18,8 @@ public record SessionSummaryResponse(
         boolean privateGame,
         SessionStatus status,
         SessionAudience audience,
-        boolean joinedByViewer
+        boolean joinedByViewer,
+        boolean waitlistedByViewer
 ) {
     public SessionSummaryResponse(
             Long id,
@@ -44,6 +45,7 @@ public record SessionSummaryResponse(
                 privateGame,
                 status,
                 audience,
+                false,
                 false
         );
     }
@@ -71,6 +73,7 @@ public record SessionSummaryResponse(
                 privateGame,
                 status,
                 SessionAudience.PUBLIC,
+                false,
                 false
         );
     }
