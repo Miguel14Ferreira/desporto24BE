@@ -19,6 +19,7 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.ReferenceCatalogService;
 import com.example.desporto24.email.TransactionalEmailTemplate;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.PilotEventService;
@@ -85,6 +86,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final ProfileMapper profileMapper;
     private final TotpService totpService;
     private final PilotEventService pilotEventService;
+    private final ReferenceCatalogService referenceCatalogService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
@@ -266,6 +268,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     @Transactional
     public void signUpProfile(RegistrationRequest request, MultipartFile photo, String cohort) {
+        if (!referenceCatalogService.isAllowedOrBlank(
+                ReferenceCatalogService.GENDER,
+                request.gender())) {
+            throw new IllegalArgumentException("Género inválido");
+        }
+
         ProfileDTO profileDTO = new ProfileDTO();
         profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
