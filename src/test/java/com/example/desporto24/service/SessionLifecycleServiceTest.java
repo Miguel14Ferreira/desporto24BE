@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionOutcome;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
@@ -299,6 +300,44 @@ class SessionLifecycleServiceTest {
 
         assertEquals(SessionStatus.CANCELLED,
                 sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void creatorCanReportSessionOccurredAfterStart() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        service.reportOutcome(session.getId(), SessionOutcome.OCCURRED, creator.getUsername());
+
+        Session saved = sessionRepository.findById(session.getId()).orElseThrow();
+        assertEquals(SessionOutcome.OCCURRED, saved.getOutcome());
+        assertEquals(SessionStatus.COMPLETED, saved.getStatus());
+        assertTrue(pilotEventRepository.existsByEventTypeAndSubjectId(
+                com.example.desporto24.enumeration.PilotEventType.SESSION_COMPLETED,
+                session.getId()));
+    }
+
+    @Test
+    void creatorCanReportSessionDidNotOccurAfterStart() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        service.reportOutcome(session.getId(), SessionOutcome.NOT_OCCURRED, creator.getUsername());
+
+        Session saved = sessionRepository.findById(session.getId()).orElseThrow();
+        assertEquals(SessionOutcome.NOT_OCCURRED, saved.getOutcome());
+        assertEquals(SessionStatus.CANCELLED, saved.getStatus());
+    }
+
+    @Test
+    void outcomeCannotBeReportedBeforeStart() {
+        assertThrows(IllegalStateException.class,
+                () -> service.reportOutcome(
+                        session.getId(),
+                        SessionOutcome.OCCURRED,
+                        creator.getUsername()));
+
+        assertNull(sessionRepository.findById(session.getId()).orElseThrow().getOutcome());
     }
 
     @Test

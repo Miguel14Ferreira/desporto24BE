@@ -7,6 +7,7 @@ import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionRecurrence;
+import com.example.desporto24.enumeration.SessionOutcome;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -600,6 +601,40 @@ public class SessionServiceImpl implements SessionService {
         session.setUpdatedAt(now);
         sessionRepository.save(session);
         pilotEventService.recordSessionCompleted(actor, sessionId);
+    }
+
+    @Override
+    @Transactional
+    public void reportOutcome(Long sessionId, SessionOutcome outcome, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        requireCreator(session, actor);
+
+        Instant now = Instant.now();
+        if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
+            throw new IllegalStateException("Session outcome cannot be reported before it starts");
+        }
+        if (session.getOutcome() != null) {
+            throw new IllegalStateException("Session outcome has already been reported");
+        }
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Session is already closed");
+        }
+
+        session.setOutcome(outcome);
+        session.setStatus(outcome == SessionOutcome.OCCURRED
+                ? SessionStatus.COMPLETED
+                : SessionStatus.CANCELLED);
+        session.setUpdatedAt(now);
+        sessionRepository.save(session);
+
+        if (outcome == SessionOutcome.OCCURRED) {
+            pilotEventService.recordSessionCompleted(actor, sessionId);
+        }
     }
 
     @Override
