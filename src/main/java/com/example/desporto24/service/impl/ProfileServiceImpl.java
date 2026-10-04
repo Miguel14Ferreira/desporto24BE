@@ -13,6 +13,7 @@ import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.ReferenceCatalogService;
 import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.security.PasswordHashService;
@@ -57,6 +58,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final NotificationsRepository notificationsRepository;
     private final PasswordHashService passwordHashService;
     private final UserBlockService userBlockService;
+    private final ReferenceCatalogService referenceCatalogService;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -163,6 +165,8 @@ public class ProfileServiceImpl implements ProfileService {
 
     @Override
     public ProfileDTO updateMyProfile(String username, UpdateProfileRequest request) {
+        validateProfileCatalogValues(request);
+
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
@@ -233,6 +237,24 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         return updated;
+    }
+
+    private void validateProfileCatalogValues(UpdateProfileRequest request) {
+        if (!referenceCatalogService.areAllowedCsv(
+                ReferenceCatalogService.SPORT,
+                request.favoriteSports())) {
+            throw new IllegalArgumentException("Escolhe apenas desportos disponíveis na lista");
+        }
+        if (!referenceCatalogService.isAllowedOrBlank(
+                ReferenceCatalogService.GENDER,
+                request.gender())) {
+            throw new IllegalArgumentException("Género inválido");
+        }
+        if (!referenceCatalogService.isAllowedOrBlank(
+                ReferenceCatalogService.SKILL_LEVEL,
+                request.skillLevel())) {
+            throw new IllegalArgumentException("Nível desportivo inválido");
+        }
     }
 
     @Override
