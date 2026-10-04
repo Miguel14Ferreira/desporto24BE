@@ -103,7 +103,8 @@ public class SessionViewMapper {
                 session.getGamePhoto(),
                 session.getVenue() == null ? null : venueService.toResponse(session.getVenue()),
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
-                session.getRecurrenceSeriesId()
+                session.getRecurrenceSeriesId(),
+                session.getProblemType()
         );
     }
 }
