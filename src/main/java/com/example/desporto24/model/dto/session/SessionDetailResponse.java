@@ -29,7 +29,8 @@ public record SessionDetailResponse(
         VenueResponse venue,
         SessionAudience audience,
         String recurrenceSeriesId,
-        SessionProblemType problemType
+        SessionProblemType problemType,
+        String problemDetails
 ) {
     public SessionDetailResponse(
             Long id,
@@ -67,6 +68,7 @@ public record SessionDetailResponse(
                 waitlisted,
                 waitlistPosition,
                 gamePhoto,
+                null,
                 null,
                 null,
                 null,

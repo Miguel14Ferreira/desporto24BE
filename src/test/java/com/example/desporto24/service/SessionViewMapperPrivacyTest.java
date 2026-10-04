@@ -77,6 +77,41 @@ class SessionViewMapperPrivacyTest {
     }
 
     @Test
+    void creatorCanSeeReportedProblemDetails() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(creator);
+        session.setProblemType(SessionProblemType.OTHER);
+        session.setProblemDetails("Balneario sem agua quente");
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 1L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, creator);
+
+        assertEquals("Balneario sem agua quente", response.problemDetails());
+    }
+
+    @Test
+    void nonCreatorCannotSeeReportedProblemDetails() {
+        Profile creator = profile(1L, "creator");
+        Profile viewer = profile(2L, "viewer");
+        Session session = session(creator);
+        session.setProblemType(SessionProblemType.OTHER);
+        session.setProblemDetails("Balneario sem agua quente");
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(participantRepository.existsBySessionIdAndProfileIdAndState(
+                10L, 2L, ParticipantState.ACTIVE)).thenReturn(false);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 2L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, viewer);
+
+        assertNull(response.problemDetails());
+    }
+
+    @Test
     void creatorCanSeeExactAddress() {
         Profile creator = profile(1L, "creator");
         Session session = session(creator);
