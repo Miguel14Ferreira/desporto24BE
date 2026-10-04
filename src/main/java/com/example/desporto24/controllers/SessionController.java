@@ -128,7 +128,7 @@ public class SessionController {
             @PathVariable Long id,
             @RequestBody @Valid ReportSessionProblemRequest request,
             Authentication authentication) {
-        sessionService.reportProblem(id, request.type(), authentication.getName());
+        sessionService.reportProblem(id, request.type(), request.details(), authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

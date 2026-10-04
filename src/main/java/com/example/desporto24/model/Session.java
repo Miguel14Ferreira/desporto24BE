@@ -68,6 +68,9 @@ public class Session {
     @Column(name = "problem_type")
     private SessionProblemType problemType;
 
+    @Column(name = "problem_details", length = 500)
+    private String problemDetails;
+
     @Column(name = "updated_at")
     private Instant updatedAt;
 

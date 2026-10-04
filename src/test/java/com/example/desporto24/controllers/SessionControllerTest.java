@@ -128,7 +128,7 @@ class SessionControllerTest {
 
         ResponseEntity<Void> response = controller.reportProblem(
                 1L,
-                new ReportSessionProblemRequest(SessionProblemType.VENUE_PROBLEM),
+                new ReportSessionProblemRequest(SessionProblemType.VENUE_PROBLEM, "Campo sem iluminação"),
                 authentication
         );
 
@@ -136,6 +136,7 @@ class SessionControllerTest {
         verify(sessionService).reportProblem(
                 1L,
                 SessionProblemType.VENUE_PROBLEM,
+                "Campo sem iluminação",
                 "miguel"
         );
     }

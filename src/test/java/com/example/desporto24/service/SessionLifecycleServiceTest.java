@@ -323,11 +323,13 @@ class SessionLifecycleServiceTest {
         service.reportProblem(
                 session.getId(),
                 SessionProblemType.VENUE_PROBLEM,
+                "Balneários sem água quente",
                 creator.getUsername()
         );
 
         Session saved = sessionRepository.findById(session.getId()).orElseThrow();
         assertEquals(SessionProblemType.VENUE_PROBLEM, saved.getProblemType());
+        assertEquals("Balneários sem água quente", saved.getProblemDetails());
         assertEquals(SessionStatus.OPEN, saved.getStatus());
         assertNull(saved.getOutcome());
     }

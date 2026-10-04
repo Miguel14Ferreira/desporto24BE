@@ -607,12 +607,12 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional
     public void reportDidNotOccur(Long sessionId, String username) {
-        reportProblem(sessionId, SessionProblemType.NOT_OCCURRED, username);
+        reportProblem(sessionId, SessionProblemType.NOT_OCCURRED, null, username);
     }
 
     @Override
     @Transactional
-    public void reportProblem(Long sessionId, SessionProblemType type, String username) {
+    public void reportProblem(Long sessionId, SessionProblemType type, String details, String username) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile actor = profileRepository.findUserByUsername(username)
@@ -633,6 +633,7 @@ public class SessionServiceImpl implements SessionService {
         }
 
         session.setProblemType(type);
+        session.setProblemDetails(details == null || details.isBlank() ? null : details.trim());
         session.setUpdatedAt(now);
 
         if (type == SessionProblemType.NOT_OCCURRED) {

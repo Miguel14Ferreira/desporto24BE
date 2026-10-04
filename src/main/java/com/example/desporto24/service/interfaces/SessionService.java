@@ -27,6 +27,6 @@ public interface SessionService {
     void cancel(Long sessionId, String username);
     void complete(Long sessionId, String username);
     void reportDidNotOccur(Long sessionId, String username);
-    void reportProblem(Long sessionId, SessionProblemType type, String username);
+    void reportProblem(Long sessionId, SessionProblemType type, String details, String username);
     void removeParticipant(Long sessionId, Long participantId, String username);
 }
