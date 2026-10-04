@@ -98,6 +98,13 @@ public class SessionController {
         return sessionTeamSuggestionService.suggest(id, authentication.getName());
     }
 
+    @PostMapping("/{id}/teams/confirm")
+    public SessionTeamSuggestionResponse confirmTeams(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return sessionTeamSuggestionService.confirm(id, authentication.getName());
+    }
+
     @PostMapping("/{id}/join")
     public JoinSessionResponse join(
             @PathVariable Long id,

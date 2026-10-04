@@ -410,7 +410,8 @@ public class SessionServiceImpl implements SessionService {
                         participant.getId(),
                         participant.getProfile().getUsername(),
                         participant.getAttendanceStatus(),
-                        participant.getJoinedAt()
+                        participant.getJoinedAt(),
+                        participant.getTeamCode()
                 ))
                 .toList();
     }

@@ -114,6 +114,25 @@ class SessionControllerTest {
     }
 
     @Test
+    void confirmTeamsUsesAuthenticatedIdentity() {
+        SessionTeamSuggestionResponse suggestion = new SessionTeamSuggestionResponse(
+                List.of(new SessionTeamPlayerResponse("a", 2.5, true, 4, 2, 3, 1)),
+                List.of(new SessionTeamPlayerResponse("b", 2.4, true, 4, 2, 2, 2)),
+                2.5,
+                2.4,
+                2,
+                2
+        );
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionTeamSuggestionService.confirm(7L, "miguel")).thenReturn(suggestion);
+
+        SessionTeamSuggestionResponse response = controller.confirmTeams(7L, authentication);
+
+        assertSame(suggestion, response);
+        verify(sessionTeamSuggestionService).confirm(7L, "miguel");
+    }
+
+    @Test
     void teamSuggestionUsesAuthenticatedIdentity() {
         SessionTeamSuggestionResponse suggestion = new SessionTeamSuggestionResponse(
                 List.of(new SessionTeamPlayerResponse("a", 2.5, true, 4, 2, 3, 1)),

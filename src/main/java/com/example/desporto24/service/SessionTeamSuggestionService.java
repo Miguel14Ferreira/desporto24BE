@@ -36,6 +36,25 @@ public class SessionTeamSuggestionService {
     private final SessionParticipantRepository participantRepository;
     private final CommunityRoundEntryRepository roundEntryRepository;
 
+    @Transactional
+    public SessionTeamSuggestionResponse confirm(Long sessionId, String username) {
+        SessionTeamSuggestionResponse suggestion = suggest(sessionId, username);
+
+        List<SessionParticipant> participants = participantRepository
+                .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE);
+
+        Map<String, String> teamByUsername = new HashMap<>();
+        suggestion.teamA().forEach(player -> teamByUsername.put(player.username(), "A"));
+        suggestion.teamB().forEach(player -> teamByUsername.put(player.username(), "B"));
+
+        for (SessionParticipant participant : participants) {
+            participant.setTeamCode(teamByUsername.get(participant.getProfile().getUsername()));
+        }
+        participantRepository.saveAll(participants);
+
+        return suggestion;
+    }
+
     @Transactional(readOnly = true)
     public SessionTeamSuggestionResponse suggest(Long sessionId, String username) {
         Session session = sessionRepository.findById(sessionId)
