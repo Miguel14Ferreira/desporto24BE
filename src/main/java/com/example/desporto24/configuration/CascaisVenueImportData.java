@@ -1,7 +1,9 @@
 package com.example.desporto24.configuration;
 
 import com.example.desporto24.model.venue.Venue;
+import com.example.desporto24.model.venue.VenueSportClassification;
 import com.example.desporto24.repository.venue.VenueRepository;
+import com.example.desporto24.repository.venue.VenueSportClassificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -25,6 +27,9 @@ public class CascaisVenueImportData implements ApplicationRunner {
     private static final String SOURCE_PREFIX = "CASCAIS:SPORTS:";
 
     private final VenueRepository venueRepository;
+    private final VenueSportClassificationRepository venueSportClassificationRepository;
+
+    private List<VenueSportClassification> curatedSportRules;
 
     private final RestClient restClient = RestClient.builder()
             .build();
@@ -352,78 +357,17 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 .replace("&quot;", " ")
                 .replaceAll("\\s+", " ");
 
-        if (normalized.contains("adn atividades desportivas náuticas")) {
-            return "Canoagem;Windsurf;Stand Up Paddle";
-        }
-        if (normalized.contains("associação academia sulydance")) {
-            return "Ballet;Dança Contemporânea;Hip Hop;Danças Latinas;Sevilhanas;Dance Fitness";
-        }
-        if (normalized.contains("antigos alunos salesianos estoril")) {
-            return "Judo;Futebol;Ténis;Ballet;Dança";
-        }
-        if (normalized.contains("associação de moradores de atibá")) {
-            return "Futsal;Atletismo;Zumba";
-        }
-        if (normalized.contains("associação de moradores do bairro do junqueiro")) {
-            return "Pickleball";
-        }
-        if (normalized.contains("associação desportiva omael")) {
-            return "Patinagem Artística";
-        }
-        if (normalized.contains("academia ribeiro dos reis")) {
-            return "Hidroginástica;Karaté;Natação;Pilates;Yoga;Zumba;Musculação;Cycling";
-        }
-        if (normalized.contains("ahoki - hotel penha longa")) {
-            return "Golfe";
-        }
-        if (normalized.contains("associação desportiva da costa do sol")) {
-            return "Futsal";
-        }
-        if (normalized.contains("associação humanitária de bombeiros dos estoris")) {
-            return "Natação;Karaté;Judo;Jiu Jitsu;Ginásio;Yoga;Fitdance";
-        }
-        if (normalized.contains("associação familiar e desportiva da torre")) {
-            return "Futebol";
-        }
-        if (normalized.contains("associação grupo desportivo e recreativo do bairro da tojeira")) {
-            return "Futsal;Patinagem Artística;Judo";
-        }
-        if (normalized.contains("associação humanitária de bombeiros voluntários de cascais")
-                && normalized.contains("complexo desportivo")) {
-            return "Karaté;Judo;Pilates;Yoga;Alongamentos;Hidroginástica;Natação";
-        }
-        if (normalized.contains("bombeiros voluntários dos estoris")) {
-            return "Natação;Karaté;Judo;Jiu Jitsu;Ginásio;Yoga;Fitdance";
-        }
-        if (normalized.contains("bombeiros da parede")
-                || normalized.contains("socorros amadeu duarte")) {
-            return "Natação;Aqua Cross Training;Hidroginástica;Alongamentos;Ginástica Localizada;Kickboxing;Muay Thai;Pilates;Yoga";
-        }
-        if (normalized.contains("bombeiros voluntários de alcabideche")) {
-            return "Musculação;Aikido;Brazilian Jiu Jitsu;Karaté;Krav Maga;Muay Thai;Kickboxing;Cardio Punch;Ginástica Localizada;Pilates;Yoga;Ballet";
-        }
-        if (normalized.contains("associação nacional da espondilite anquilosante")) {
-            return "Natação;Hidroginástica;Ginástica Sénior;Treino Cardiovascular;Pilates;Hidroterapia";
-        }
-        if (normalized.contains("autódromo fernanda pires da silva")) {
-            return "Automobilismo";
-        }
-        if (normalized.contains("bela vista wellness club")) {
-            return "Natação;Hidroginástica;Karaté;Judo;Ginásio";
-        }
-        if (normalized.contains("bodyform gymnasium")) {
-            return "Aeróbica;Musculação;Cardiofitness;Ginástica";
-        }
-        if (normalized.contains("brahmi wellness")
-                || normalized.contains("brahmi oriental")) {
-            return "Yoga;Pilates;Meditação;Tai Chi;Chi Kung;Danças do Médio Oriente";
-        }
-        if (normalized.contains("cam on let's workout fitness studio")
-                || normalized.contains("camon let's workout fitness studio")) {
-            return "Zumba;Bum Bum Brasil";
+        if (curatedSportRules == null) {
+            curatedSportRules = venueSportClassificationRepository.findAllByOrderByPriorityAscIdAsc();
         }
 
-        return null;
+        return curatedSportRules.stream()
+                .filter(rule -> normalized.contains(rule.getMatchText()))
+                .filter(rule -> rule.getRequiredMatchText() == null
+                        || normalized.contains(rule.getRequiredMatchText()))
+                .map(VenueSportClassification::getSports)
+                .findFirst()
+                .orElse(null);
     }
 
     private String normalizeSports(String value) {
