@@ -92,7 +92,10 @@ public class OpenStreetMapDryRun implements ApplicationRunner {
                     bbox, rawCount, importableCount);
             importableSamples.forEach(sample -> log.info("OSM dry run sample: {}", sample));
         } catch (Exception ex) {
-            log.warn("OSM dry run could not be completed: {}", ex.getMessage());
+            log.warn("OSM dry run could not be completed: {} - {}",
+                    ex.getClass().getName(),
+                    ex.getMessage(),
+                    ex);
         }
     }
 
