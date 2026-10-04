@@ -84,7 +84,7 @@ class MfaSetupControllerTest {
     private Profile activeMfaProfile() {
         Profile profile = new Profile();
         profile.setUsername("miguel");
-        profile.setUserId("user-123");
+        profile.setUserId("1234567890");
         profile.setMFA(true);
         profile.setMfaSecret(
                 AES.encryptString("TEST-SECRET", profile.getUserId())

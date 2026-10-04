@@ -300,7 +300,9 @@ class SessionCreationServiceTest {
         Community community = new Community();
         community.setId(12L);
 
-        Instant firstGame = Instant.now().plusSeconds(3600);
+        Instant firstGame = Instant.ofEpochMilli(
+                Instant.now().plusSeconds(3600).toEpochMilli()
+        );
 
         when(profileRepository.findUserByUsername("miguel"))
                 .thenReturn(Optional.of(creator));

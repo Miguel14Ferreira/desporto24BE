@@ -43,15 +43,15 @@ class UserBlockServiceTest {
         );
         miguel = profile(1L, "miguel");
         ana = profile(2L, "ana");
-
-        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
-                .thenReturn(Optional.of(miguel));
-        when(profileRepository.findUserByUsernameIgnoreCase("ana"))
-                .thenReturn(Optional.of(ana));
     }
 
     @Test
     void blocksUserAndRemovesExistingSocialLinks() {
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(miguel));
+        when(profileRepository.findUserByUsernameIgnoreCase("ana"))
+                .thenReturn(Optional.of(ana));
+
         Friend friendship = new Friend();
         friendship.setProfile1(miguel);
         friendship.setProfile2(ana);
@@ -78,6 +78,9 @@ class UserBlockServiceTest {
 
     @Test
     void cannotBlockOwnProfile() {
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(miguel));
+
         assertThrows(
                 IllegalArgumentException.class,
                 () -> service.blockUser("miguel", "miguel")

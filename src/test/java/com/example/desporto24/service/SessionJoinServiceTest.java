@@ -30,6 +30,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +84,7 @@ class SessionJoinServiceTest {
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private BCryptPasswordEncoder passwordEncoder;
+    @MockitoBean private VenueService venueService;
 
     private Profile creator;
 

@@ -48,6 +48,7 @@ class WaitlistPromotionServiceTest {
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @MockitoBean private VenueService venueService;
+    @MockitoBean private PilotEventService pilotEventService;
 
     private Profile creator;
     private Session session;
