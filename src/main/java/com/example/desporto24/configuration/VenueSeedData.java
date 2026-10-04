@@ -15,6 +15,7 @@ import java.time.Instant;
 public class VenueSeedData implements ApplicationRunner {
 
     private static final String CNG_SOURCE_REFERENCE = "OFFICIAL:CNG:PAREDE";
+    private static final String ABOBODA_SOURCE_REFERENCE = "OFFICIAL:CASCAIS:CDM-ABOBODA";
 
     private final VenueRepository venueRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -24,17 +25,21 @@ public class VenueSeedData implements ApplicationRunner {
         jdbcTemplate.execute("ALTER TABLE venue ALTER COLUMN created_by_profile_id DROP NOT NULL");
         jdbcTemplate.execute("ALTER TABLE venue_photo ALTER COLUMN uploaded_by_profile_id DROP NOT NULL");
 
-        boolean alreadySeeded = venueRepository.findAllByOrderByNameAsc().stream()
-                .anyMatch(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL
-                        && CNG_SOURCE_REFERENCE.equals(venue.getSourceReference()));
+        seedCng();
+        seedAboboda();
+    }
 
-        if (alreadySeeded) {
+    private void seedCng() {
+        if (venueRepository.findByInformationSourceAndSourceReference(
+                Venue.InformationSource.OFFICIAL,
+                CNG_SOURCE_REFERENCE).isPresent()) {
             return;
         }
 
         venueRepository.save(Venue.builder()
                 .name("Clube Nacional de Ginástica - Parque Desportivo")
                 .city("Parede")
+                .district("Lisboa")
                 .address("Rua Machado dos Santos, 112, 2775-236 Parede")
                 .sports("Futebol;Futsal;Ginásio;Ginástica;Ginástica Rítmica;Judo;Karaté;Natação;Pilates;Taekwondo;Ténis;Voleibol;Yoga")
                 .venueType("Complexo desportivo")
@@ -51,6 +56,41 @@ public class VenueSeedData implements ApplicationRunner {
                 .openingHours("Segunda a sábado 08:00-23:00; domingo e feriados 08:00-21:00")
                 .informationSource(Venue.InformationSource.OFFICIAL)
                 .sourceReference(CNG_SOURCE_REFERENCE)
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    private void seedAboboda() {
+        if (venueRepository.findByInformationSourceAndSourceReference(
+                Venue.InformationSource.OFFICIAL,
+                ABOBODA_SOURCE_REFERENCE).isPresent()) {
+            return;
+        }
+
+        venueRepository.save(Venue.builder()
+                .name("Complexo Desportivo Municipal da Abóboda")
+                .city("São Domingos de Rana")
+                .district("Lisboa")
+                .address("Rua Mouzinho de Albuquerque, 186, 2785-032 São Domingos de Rana")
+                .sports("Natação;Pólo Aquático;Hidroginástica;Ginásio;Pilates;Yoga;Taekwondo;Jiu-Jitsu;Boxe;Kickboxing")
+                .venueType("Complexo desportivo")
+                .ownershipType(Venue.OwnershipType.PUBLIC)
+                .environmentType(Venue.EnvironmentType.INDOOR)
+                .indoor(true)
+                .changingRooms(true)
+                .toilets(true)
+                .showers(true)
+                .stands(true)
+                .cafe(true)
+                .parking(true)
+                .lighting(true)
+                .latitude(38.7263)
+                .longitude(-9.3307)
+                .website("https://complexodesportivoaboboda.com/")
+                .contact("+351 214 489 720")
+                .openingHours("Segunda a sexta 07:00-22:00; sábado 08:00-20:00; domingo piscina 08:00-14:00")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .sourceReference(ABOBODA_SOURCE_REFERENCE)
                 .createdAt(Instant.now())
                 .build());
     }
