@@ -67,24 +67,18 @@ public class OpenStreetMapDryRun implements ApplicationRunner {
                 JsonNode tags = element.path("tags");
                 String name = text(tags, "name");
                 String city = firstText(tags, "addr:city", "addr:town", "addr:village", "is_in:city");
-                String street = text(tags, "addr:street");
-                String number = text(tags, "addr:housenumber");
-                String postcode = text(tags, "addr:postcode");
+                Double latitude = coordinate(element, "lat");
+                Double longitude = coordinate(element, "lon");
 
-                String streetLine = String.join(" ",
-                        List.of(street, number).stream().filter(value -> !value.isBlank()).toList());
-                String suffix = String.join(" ",
-                        List.of(postcode, city).stream().filter(value -> !value.isBlank()).toList());
-                String address = String.join(", ",
-                        List.of(streetLine, suffix).stream().filter(value -> !value.isBlank()).toList());
-
-                if (name.isBlank() || city.isBlank() || address.isBlank()) {
+                if (name.isBlank() || latitude == null || longitude == null) {
                     continue;
                 }
 
                 importableCount++;
                 if (importableSamples.size() < 5) {
-                    importableSamples.add(name + " | " + city + " | " + address);
+                    String location = city.isBlank() ? "cidade por enriquecer" : city;
+                    importableSamples.add(name + " | " + location
+                            + " | " + latitude + "," + longitude);
                 }
             }
 
@@ -97,6 +91,15 @@ public class OpenStreetMapDryRun implements ApplicationRunner {
                     ex.getMessage(),
                     ex);
         }
+    }
+
+    private Double coordinate(JsonNode element, String field) {
+        JsonNode direct = element.path(field);
+        if (direct.isNumber()) {
+            return direct.asDouble();
+        }
+        JsonNode center = element.path("center").path(field);
+        return center.isNumber() ? center.asDouble() : null;
     }
 
     private String text(JsonNode node, String field) {
