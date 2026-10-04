@@ -19,6 +19,7 @@ import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.GoogleIdentityService;
+import com.example.desporto24.service.ReferenceCatalogService;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.utility.JWTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,8 @@ import static com.example.desporto24.constant.UserImplConstant.*;
 @Service
 @RequiredArgsConstructor
 public class GoogleAuthenticationService {
+
+    private final ReferenceCatalogService referenceCatalogService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -123,6 +126,12 @@ public class GoogleAuthenticationService {
 
     @Transactional
     public GoogleAuthResponse completeRegistration(GoogleRegistrationRequest request, String cohort) {
+        if (!referenceCatalogService.isAllowedOrBlank(
+                ReferenceCatalogService.GENDER,
+                request.gender())) {
+            throw new IllegalArgumentException("Género inválido");
+        }
+
         GoogleIdentityService.GoogleIdentity identity = googleIdentityService.verify(request.credential());
 
         if (profileRepository.findByGoogleSubject(identity.subject()).isPresent()
