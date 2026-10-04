@@ -1,5 +1,7 @@
 package com.example.desporto24.model.dto.session;
 
+import com.example.desporto24.enumeration.SessionRecurrence;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,7 +31,9 @@ public record CreateSessionRequest(
         Double latitude,
         Double longitude,
         Long communityId,
-        Long venueId
+        Long venueId,
+        SessionRecurrence recurrence,
+        @Min(2) @Max(52) Integer recurrenceOccurrences
 ) {
     public CreateSessionRequest(
             String sport,
@@ -54,6 +58,8 @@ public record CreateSessionRequest(
                 latitude,
                 longitude,
                 null,
+                null,
+                SessionRecurrence.NONE,
                 null
         );
     }
@@ -82,6 +88,8 @@ public record CreateSessionRequest(
                 latitude,
                 longitude,
                 communityId,
+                null,
+                SessionRecurrence.NONE,
                 null
         );
     }
