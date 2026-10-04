@@ -73,6 +73,13 @@ public class SessionController {
         return sessionService.getById(id, authentication.getName());
     }
 
+    @GetMapping("/{id}/series")
+    public List<SessionSummaryResponse> series(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return sessionService.series(id, authentication.getName());
+    }
+
     @GetMapping("/{id}/participants")
     public List<SessionParticipantResponse> participants(
             @PathVariable Long id,

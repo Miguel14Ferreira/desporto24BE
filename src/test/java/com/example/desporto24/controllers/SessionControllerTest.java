@@ -80,6 +80,17 @@ class SessionControllerTest {
     }
 
     @Test
+    void seriesUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionService.series(1L, "miguel")).thenReturn(List.of());
+
+        List<?> response = controller.series(1L, authentication);
+
+        assertTrue(response.isEmpty());
+        verify(sessionService).series(1L, "miguel");
+    }
+
+    @Test
     void participantsUsesAuthenticatedIdentity() {
         SessionParticipantResponse participant = new SessionParticipantResponse(
                 5L,

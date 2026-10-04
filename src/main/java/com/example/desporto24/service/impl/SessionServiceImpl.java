@@ -261,6 +261,32 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<SessionSummaryResponse> series(Long sessionId, String username) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile viewer = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() != null
+                && !communityMemberRepository.existsByCommunityIdAndProfileId(
+                        session.getCommunity().getId(), viewer.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
+
+        if (session.getRecurrenceSeriesId() == null || session.getRecurrenceSeriesId().isBlank()) {
+            return List.of(sessionViewMapper.toSummary(session, null, viewer));
+        }
+
+        return sessionRepository
+                .findByRecurrenceSeriesIdOrderByGameDateAsc(session.getRecurrenceSeriesId())
+                .stream()
+                .map(item -> sessionViewMapper.toSummary(item, null, viewer))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria) {
         return discoverSessions(criteria);
     }
