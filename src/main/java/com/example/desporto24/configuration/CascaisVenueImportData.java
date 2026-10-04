@@ -76,10 +76,24 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 }
 
                 String sourceReference = SOURCE_PREFIX + fid;
-                if (venueRepository.findByInformationSourceAndSourceReference(
+                String sports = inferSports(properties, name);
+
+                var existing = venueRepository.findByInformationSourceAndSourceReference(
                         Venue.InformationSource.OFFICIAL,
-                        sourceReference).isPresent()
-                        || isNearExistingVenue(knownVenues, name, coordinates[1], coordinates[0])) {
+                        sourceReference);
+
+                if (existing.isPresent()) {
+                    Venue venue = existing.get();
+                    if ((venue.getSports() == null || venue.getSports().isBlank())
+                            && sports != null) {
+                        venue.setSports(limit(sports, 255));
+                        venueRepository.save(venue);
+                    }
+                    skipped++;
+                    continue;
+                }
+
+                if (isNearExistingVenue(knownVenues, name, coordinates[1], coordinates[0])) {
                     skipped++;
                     continue;
                 }
@@ -94,6 +108,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
                         .city(limit(parish, 120))
                         .district("Lisboa")
                         .address(limit(address, 255))
+                        .sports(limit(sports, 255))
                         .venueType("Equipamento desportivo")
                         .website(limit(firstText(
                                 properties,
@@ -242,6 +257,79 @@ public class CascaisVenueImportData implements ApplicationRunner {
         private double longitudeSum;
         private double latitudeSum;
         private int count;
+    }
+
+    private String inferSports(Map<?, ?> properties, String name) {
+        String official = firstText(
+                properties,
+                "modalidade", "MODALIDADE",
+                "modalidades", "MODALIDADES",
+                "desporto", "DESPORTO",
+                "desportos", "DESPORTOS",
+                "atividade", "ATIVIDADE",
+                "atividades", "ATIVIDADES");
+
+        if (official != null) {
+            return normalizeSports(official);
+        }
+
+        String value = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
+        java.util.LinkedHashSet<String> sports = new java.util.LinkedHashSet<>();
+
+        addSportIf(value, sports, "futebol", "Futebol");
+        addSportIf(value, sports, "futsal", "Futsal");
+        addSportIf(value, sports, "padel", "Padel");
+        addSportIf(value, sports, "ténis", "Ténis");
+        addSportIf(value, sports, "tenis", "Ténis");
+        addSportIf(value, sports, "basquet", "Basquetebol");
+        addSportIf(value, sports, "voleib", "Voleibol");
+        addSportIf(value, sports, "andebol", "Andebol");
+        addSportIf(value, sports, "rugby", "Rugby");
+        addSportIf(value, sports, "hóquei", "Hóquei");
+        addSportIf(value, sports, "hoquei", "Hóquei");
+        addSportIf(value, sports, "natação", "Natação");
+        addSportIf(value, sports, "natacao", "Natação");
+        addSportIf(value, sports, "piscina", "Natação");
+        addSportIf(value, sports, "atlet", "Atletismo");
+        addSportIf(value, sports, "skate", "Skate");
+        addSportIf(value, sports, "bmx", "BMX");
+        addSportIf(value, sports, "ginásio", "Ginásio");
+        addSportIf(value, sports, "ginasio", "Ginásio");
+        addSportIf(value, sports, "ginástica", "Ginástica");
+        addSportIf(value, sports, "ginastica", "Ginástica");
+
+        return sports.isEmpty() ? null : String.join(";", sports);
+    }
+
+    private String normalizeSports(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String normalized = value
+                .replace(",", ";")
+                .replace("/", ";")
+                .replace("|", ";");
+
+        java.util.LinkedHashSet<String> sports = new java.util.LinkedHashSet<>();
+        for (String item : normalized.split(";")) {
+            String trimmed = item.trim();
+            if (!trimmed.isEmpty()) {
+                sports.add(trimmed);
+            }
+        }
+
+        return sports.isEmpty() ? null : String.join(";", sports);
+    }
+
+    private void addSportIf(
+            String value,
+            java.util.Set<String> sports,
+            String token,
+            String sport) {
+        if (value.contains(token)) {
+            sports.add(sport);
+        }
     }
 
     private String buildAddress(Map<?, ?> properties, String parish) {
