@@ -333,6 +333,9 @@ public class CascaisVenueImportData implements ApplicationRunner {
         addSportIf(value, sports, "ginasio", "Ginásio");
         addSportIf(value, sports, "ginástica", "Ginástica");
         addSportIf(value, sports, "ginastica", "Ginástica");
+        addSportIf(value, sports, "street basket", "Basquetebol");
+        addSportIf(value, sports, "golfe", "Golfe");
+        addSportIf(value, sports, "golf", "Golfe");
 
         return sports.isEmpty() ? null : String.join(";", sports);
     }
@@ -408,6 +411,14 @@ public class CascaisVenueImportData implements ApplicationRunner {
         }
         if (normalized.contains("bodyform gymnasium")) {
             return "Aeróbica;Musculação;Cardiofitness;Ginástica";
+        }
+        if (normalized.contains("brahmi wellness")
+                || normalized.contains("brahmi oriental")) {
+            return "Yoga;Pilates;Meditação;Tai Chi;Chi Kung;Danças do Médio Oriente";
+        }
+        if (normalized.contains("cam on let's workout fitness studio")
+                || normalized.contains("camon let's workout fitness studio")) {
+            return "Zumba;Bum Bum Brasil";
         }
 
         return null;
