@@ -362,6 +362,28 @@ public class CascaisVenueImportData implements ApplicationRunner {
         if (normalized.contains("associação desportiva omael")) {
             return "Patinagem Artística";
         }
+        if (normalized.contains("academia ribeiro dos reis")) {
+            return "Hidroginástica;Karaté;Natação;Pilates;Yoga;Zumba;Musculação;Cycling";
+        }
+        if (normalized.contains("ahoki - hotel penha longa")) {
+            return "Golfe";
+        }
+        if (normalized.contains("associação desportiva da costa do sol")) {
+            return "Futsal";
+        }
+        if (normalized.contains("associação humanitária de bombeiros dos estoris")) {
+            return "Natação;Karaté;Judo;Jiu Jitsu;Ginásio;Yoga;Fitdance";
+        }
+        if (normalized.contains("associação familiar e desportiva da torre")) {
+            return "Futebol";
+        }
+        if (normalized.contains("associação grupo desportivo e recreativo do bairro da tojeira")) {
+            return "Futsal;Patinagem Artística;Judo";
+        }
+        if (normalized.contains("associação humanitária de bombeiros voluntários de cascais")
+                && normalized.contains("complexo desportivo")) {
+            return "Karaté;Judo;Pilates;Yoga;Alongamentos;Hidroginástica;Natação";
+        }
 
         return null;
     }
