@@ -473,6 +473,7 @@ public class SessionServiceImpl implements SessionService {
             participant.setAttendanceReportedBy(null);
             participant.setAttendanceRecordedAt(null);
             participantRepository.save(participant);
+            invalidateConfirmedTeams(sessionId);
             pilotEventService.recordSessionJoined(profile, sessionId);
 
             long newCount = activeParticipants + 1;
@@ -568,6 +569,7 @@ public class SessionServiceImpl implements SessionService {
         participantRepository.save(membership);
 
         waitlistPromotionService.promoteNext(session, now);
+        invalidateConfirmedTeams(sessionId);
     }
 
     @Override
@@ -689,6 +691,22 @@ public class SessionServiceImpl implements SessionService {
         sessionNotificationService.notifyParticipantRemoved(session, membership.getProfile());
 
         waitlistPromotionService.promoteNext(session, now);
+        invalidateConfirmedTeams(sessionId);
+    }
+
+    private void invalidateConfirmedTeams(Long sessionId) {
+        List<SessionParticipant> activeParticipants = participantRepository
+                .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE);
+        boolean changed = false;
+        for (SessionParticipant participant : activeParticipants) {
+            if (participant.getTeamCode() != null) {
+                participant.setTeamCode(null);
+                changed = true;
+            }
+        }
+        if (changed) {
+            participantRepository.saveAll(activeParticipants);
+        }
     }
 
     private void requireParticipantChangesAllowed(Session session) {

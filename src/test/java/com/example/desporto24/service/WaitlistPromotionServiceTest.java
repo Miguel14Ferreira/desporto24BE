@@ -125,6 +125,22 @@ class WaitlistPromotionServiceTest {
     }
 
     @Test
+    void promotedReturningParticipantDoesNotKeepOldTeamAssignment() {
+        Profile returning = profile("returning-team");
+        SessionParticipant old = activeParticipant(returning);
+        old.setTeamCode("A");
+        old.setState(ParticipantState.LEFT);
+        old.setExitedAt(Instant.now().minusSeconds(300));
+        participantRepository.saveAndFlush(old);
+        waitlisted(returning, Instant.now().minusSeconds(60));
+
+        SessionParticipant promoted = service.promoteNext(session, Instant.now()).orElseThrow();
+
+        assertEquals(old.getId(), promoted.getId());
+        assertNull(promoted.getTeamCode());
+    }
+
+    @Test
     void cancelledSessionDoesNotPromoteWaitlist() {
         Profile waiting = profile("waiting");
         waitlisted(waiting, Instant.now());

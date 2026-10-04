@@ -49,6 +49,7 @@ public class WaitlistPromotionService {
                     participant.setExitedAt(null);
                     participant.setAttendanceReportedBy(null);
                     participant.setAttendanceRecordedAt(null);
+                    participant.setTeamCode(null);
 
                     SessionParticipant saved = participantRepository.save(participant);
                     pilotEventService.recordSessionJoined(entry.getProfile(), session.getId());
