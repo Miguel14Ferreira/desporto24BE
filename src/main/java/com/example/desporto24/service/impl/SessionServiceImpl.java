@@ -605,7 +605,7 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
-    public void reportOutcome(Long sessionId, SessionOutcome outcome, String username) {
+    public void reportDidNotOccur(Long sessionId, String username) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile actor = profileRepository.findUserByUsername(username)
@@ -615,7 +615,7 @@ public class SessionServiceImpl implements SessionService {
 
         Instant now = Instant.now();
         if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
-            throw new IllegalStateException("Session outcome cannot be reported before it starts");
+            throw new IllegalStateException("Session problem cannot be reported before it starts");
         }
         if (session.getOutcome() != null) {
             throw new IllegalStateException("Session outcome has already been reported");
@@ -625,16 +625,10 @@ public class SessionServiceImpl implements SessionService {
             throw new IllegalStateException("Session is already closed");
         }
 
-        session.setOutcome(outcome);
-        session.setStatus(outcome == SessionOutcome.OCCURRED
-                ? SessionStatus.COMPLETED
-                : SessionStatus.CANCELLED);
+        session.setOutcome(SessionOutcome.NOT_OCCURRED);
+        session.setStatus(SessionStatus.CANCELLED);
         session.setUpdatedAt(now);
         sessionRepository.save(session);
-
-        if (outcome == SessionOutcome.OCCURRED) {
-            pilotEventService.recordSessionCompleted(actor, sessionId);
-        }
     }
 
     @Override

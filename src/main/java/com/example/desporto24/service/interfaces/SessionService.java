@@ -8,8 +8,6 @@ import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
-import com.example.desporto24.enumeration.SessionOutcome;
-
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -27,6 +25,6 @@ public interface SessionService {
     void leave(Long sessionId, String username);
     void cancel(Long sessionId, String username);
     void complete(Long sessionId, String username);
-    void reportOutcome(Long sessionId, SessionOutcome outcome, String username);
+    void reportDidNotOccur(Long sessionId, String username);
     void removeParticipant(Long sessionId, Long participantId, String username);
 }

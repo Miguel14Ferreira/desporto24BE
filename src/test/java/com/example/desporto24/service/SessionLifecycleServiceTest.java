@@ -303,26 +303,11 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
-    void creatorCanReportSessionOccurredAfterStart() {
-        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
-        sessionRepository.saveAndFlush(session);
-
-        service.reportOutcome(session.getId(), SessionOutcome.OCCURRED, creator.getUsername());
-
-        Session saved = sessionRepository.findById(session.getId()).orElseThrow();
-        assertEquals(SessionOutcome.OCCURRED, saved.getOutcome());
-        assertEquals(SessionStatus.COMPLETED, saved.getStatus());
-        assertTrue(pilotEventRepository.existsByEventTypeAndSubjectId(
-                com.example.desporto24.enumeration.PilotEventType.SESSION_COMPLETED,
-                session.getId()));
-    }
-
-    @Test
     void creatorCanReportSessionDidNotOccurAfterStart() {
         session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
         sessionRepository.saveAndFlush(session);
 
-        service.reportOutcome(session.getId(), SessionOutcome.NOT_OCCURRED, creator.getUsername());
+        service.reportDidNotOccur(session.getId(), creator.getUsername());
 
         Session saved = sessionRepository.findById(session.getId()).orElseThrow();
         assertEquals(SessionOutcome.NOT_OCCURRED, saved.getOutcome());
@@ -330,11 +315,10 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
-    void outcomeCannotBeReportedBeforeStart() {
+    void problemCannotBeReportedBeforeStart() {
         assertThrows(IllegalStateException.class,
-                () -> service.reportOutcome(
+                () -> service.reportDidNotOccur(
                         session.getId(),
-                        SessionOutcome.OCCURRED,
                         creator.getUsername()));
 
         assertNull(sessionRepository.findById(session.getId()).orElseThrow().getOutcome());

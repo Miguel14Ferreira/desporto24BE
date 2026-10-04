@@ -8,7 +8,6 @@ import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
-import com.example.desporto24.model.dto.session.ReportSessionOutcomeRequest;
 import com.example.desporto24.service.interfaces.SessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -115,12 +114,11 @@ public class SessionController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/outcome")
-    public ResponseEntity<Void> reportOutcome(
+    @PostMapping("/{id}/problems/not-occurred")
+    public ResponseEntity<Void> reportDidNotOccur(
             @PathVariable Long id,
-            @RequestBody @Valid ReportSessionOutcomeRequest request,
             Authentication authentication) {
-        sessionService.reportOutcome(id, request.outcome(), authentication.getName());
+        sessionService.reportDidNotOccur(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

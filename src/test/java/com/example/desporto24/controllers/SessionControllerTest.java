@@ -1,12 +1,10 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.enumeration.SessionStatus;
-import com.example.desporto24.enumeration.SessionOutcome;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
-import com.example.desporto24.model.dto.session.ReportSessionOutcomeRequest;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.service.interfaces.SessionService;
 import org.junit.jupiter.api.Test;
@@ -110,17 +108,16 @@ class SessionControllerTest {
     }
 
     @Test
-    void reportOutcomeUsesAuthenticatedIdentity() {
+    void reportDidNotOccurUsesAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("miguel");
 
-        ResponseEntity<Void> response = controller.reportOutcome(
+        ResponseEntity<Void> response = controller.reportDidNotOccur(
                 1L,
-                new ReportSessionOutcomeRequest(SessionOutcome.OCCURRED),
                 authentication
         );
 
         assertEquals(204, response.getStatusCode().value());
-        verify(sessionService).reportOutcome(1L, SessionOutcome.OCCURRED, "miguel");
+        verify(sessionService).reportDidNotOccur(1L, "miguel");
     }
 
     @Test
