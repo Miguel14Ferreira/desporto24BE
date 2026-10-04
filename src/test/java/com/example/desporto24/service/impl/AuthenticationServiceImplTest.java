@@ -205,7 +205,6 @@ class AuthenticationServiceImplTest {
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
         when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
-        when(passwordHashService.encode(TEST_PASSWORD)).thenReturn("bcrypt-password");
         when(profileMapper.toEntity(any(ProfileDTO.class))).thenAnswer(invocation -> {
             ProfileDTO dto = invocation.getArgument(0);
             Profile profile = new Profile();
