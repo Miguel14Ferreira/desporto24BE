@@ -6,6 +6,7 @@ import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.enumeration.SessionAudience;
+import com.example.desporto24.enumeration.SessionRecurrence;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -49,6 +50,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashSet;
@@ -125,12 +127,65 @@ public class SessionServiceImpl implements SessionService {
             throw new IllegalArgumentException("Private sessions require a password");
         }
 
+        SessionRecurrence recurrence = request.recurrence() == null
+                ? SessionRecurrence.NONE
+                : request.recurrence();
+        int occurrences = 1;
+        long intervalDays = 0;
+
+        if (recurrence != SessionRecurrence.NONE) {
+            if (linkedCommunity == null) {
+                throw new IllegalArgumentException(
+                        "Recurring sessions must belong to a community"
+                );
+            }
+            if (request.recurrenceOccurrences() == null) {
+                throw new IllegalArgumentException(
+                        "Recurring sessions require recurrenceOccurrences"
+                );
+            }
+
+            occurrences = request.recurrenceOccurrences();
+            intervalDays = recurrence == SessionRecurrence.WEEKLY ? 7 : 14;
+        }
+
+        Session firstSaved = null;
+        for (int occurrence = 0; occurrence < occurrences; occurrence++) {
+            Instant gameDate = request.gameDate().plus(
+                    intervalDays * occurrence,
+                    ChronoUnit.DAYS
+            );
+            Session saved = saveCreatedSession(
+                    request,
+                    photo,
+                    creator,
+                    linkedCommunity,
+                    linkedVenue,
+                    sport,
+                    gameDate
+            );
+            if (firstSaved == null) {
+                firstSaved = saved;
+            }
+        }
+
+        return sessionViewMapper.toDetail(firstSaved, creator);
+    }
+
+    private Session saveCreatedSession(
+            CreateSessionRequest request,
+            MultipartFile photo,
+            Profile creator,
+            Community linkedCommunity,
+            Venue linkedVenue,
+            String sport,
+            Instant gameDate) {
         Instant now = Instant.now();
         Session session = new Session();
         session.setProfile(creator);
         session.setUserId(creator.getUserId());
         session.setSport(sport);
-        session.setGameDate(Date.from(request.gameDate()));
+        session.setGameDate(Date.from(gameDate));
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
         session.setMaxParticipants(request.maxParticipants());
@@ -178,7 +233,7 @@ public class SessionServiceImpl implements SessionService {
         }
 
         pilotEventService.recordSessionCreated(creator, saved.getId());
-        return sessionViewMapper.toDetail(saved, creator);
+        return saved;
     }
 
     @Override

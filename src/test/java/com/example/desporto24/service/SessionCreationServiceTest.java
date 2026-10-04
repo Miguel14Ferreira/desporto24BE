@@ -2,6 +2,8 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionRecurrence;
+import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.venue.Venue;
@@ -284,6 +286,100 @@ class SessionCreationServiceTest {
         ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
         verify(sessionRepository).save(captor.capture());
         assertEquals("Futsal", captor.getValue().getSport());
+    }
+
+
+    @Test
+    void weeklyCommunityRecurrenceCreatesRequestedOccurrences() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        Community community = new Community();
+        community.setId(12L);
+
+        Instant firstGame = Instant.now().plusSeconds(3600);
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+        when(communityRepository.findById(12L))
+                .thenReturn(Optional.of(community));
+        when(communityMemberRepository.existsByCommunityIdAndProfileId(12L, 7L))
+                .thenReturn(true);
+        when(sessionRepository.save(any(Session.class)))
+                .thenAnswer(invocation -> {
+                    Session saved = invocation.getArgument(0);
+                    if (saved.getId() == null) {
+                        saved.setId(100L);
+                    }
+                    return saved;
+                });
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futsal",
+                firstGame,
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254,
+                12L,
+                null,
+                SessionRecurrence.WEEKLY,
+                3
+        );
+
+        service().create(request, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository, times(3)).save(captor.capture());
+        verify(participantRepository, times(3)).save(any());
+
+        assertEquals(firstGame, captor.getAllValues().get(0).getGameDate().toInstant());
+        assertEquals(firstGame.plus(7, java.time.temporal.ChronoUnit.DAYS),
+                captor.getAllValues().get(1).getGameDate().toInstant());
+        assertEquals(firstGame.plus(14, java.time.temporal.ChronoUnit.DAYS),
+                captor.getAllValues().get(2).getGameDate().toInstant());
+    }
+
+    @Test
+    void recurringSessionRequiresCommunity() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futsal",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254,
+                null,
+                null,
+                SessionRecurrence.WEEKLY,
+                3
+        );
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service().create(request, "miguel")
+        );
+
+        assertEquals("Recurring sessions must belong to a community", exception.getMessage());
+        verify(sessionRepository, never()).save(any(Session.class));
     }
 
     private SessionServiceImpl service() {
