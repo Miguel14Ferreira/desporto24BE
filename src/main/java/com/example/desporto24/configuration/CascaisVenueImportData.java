@@ -47,6 +47,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
             }
 
             int inserted = 0;
+            int updatedSports = 0;
             int skipped = 0;
             List<Venue> knownVenues = venueRepository.findAllByOrderByNameAsc();
 
@@ -88,6 +89,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
                             && sports != null) {
                         venue.setSports(limit(sports, 255));
                         venueRepository.save(venue);
+                        updatedSports++;
                     }
                     skipped++;
                     continue;
@@ -126,8 +128,8 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 inserted++;
             }
 
-            log.info("Cascais venue import completed: inserted={}, skipped={}, total={}",
-                    inserted, skipped, features.size());
+            log.info("Cascais venue import completed: inserted={}, sportsUpdated={}, skipped={}, total={}",
+                    inserted, updatedSports, skipped, features.size());
         } catch (Exception ex) {
             log.warn("Cascais venue import failed without blocking startup: {}", ex.getMessage());
         }
