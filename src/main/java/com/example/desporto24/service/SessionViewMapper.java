@@ -26,6 +26,14 @@ public class SessionViewMapper {
     private final VenueService venueService;
 
     public SessionSummaryResponse toSummary(Session session, Double distanceKm) {
+        return toSummary(session, distanceKm, null);
+    }
+
+    public SessionSummaryResponse toSummary(Session session, Double distanceKm, Profile viewer) {
+        boolean joinedByViewer = viewer != null && participantRepository
+                .existsBySessionIdAndProfileIdAndState(
+                        session.getId(), viewer.getId(), ParticipantState.ACTIVE);
+
         return new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
@@ -38,7 +46,8 @@ public class SessionViewMapper {
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),
                 session.getStatus() == null ? SessionStatus.OPEN : session.getStatus(),
-                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience()
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
+                joinedByViewer
         );
     }
 
