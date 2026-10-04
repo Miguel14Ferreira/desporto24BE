@@ -29,8 +29,8 @@ public class VenuePhoto {
     @Column(name = "storage_key", length = 800)
     private String storageKey;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "uploaded_by_profile_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "uploaded_by_profile_id")
     private Profile uploadedBy;
 
     @Column(name = "created_at", nullable = false)
