@@ -35,10 +35,7 @@ public record RegistrationRequest(
         @Pattern(regexp = "^$|\\d{4,15}", message = "O telemóvel deve conter apenas dígitos")
         String phone,
 
-        @Pattern(
-                regexp = "^$|(?i:masculino|feminino|outro)",
-                message = "O género deve ser masculino, feminino ou outro"
-        )
+        @Size(max = 40)
         String gender,
 
         @NotBlank
