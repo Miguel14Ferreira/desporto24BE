@@ -1,6 +1,5 @@
 package com.example.desporto24.service.impl;
 
-import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.JoinState;
@@ -38,6 +37,7 @@ import com.example.desporto24.service.SessionViewMapper;
 import com.example.desporto24.service.SessionNotificationService;
 import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.ReliabilityService;
+import com.example.desporto24.service.ReferenceCatalogService;
 import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.storage.MediaStorage;
@@ -82,6 +82,7 @@ public class SessionServiceImpl implements SessionService {
     private final ReliabilityService reliabilityService;
     private final SessionNotificationService sessionNotificationService;
     private final PilotEventService pilotEventService;
+    private final ReferenceCatalogService referenceCatalogService;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -112,7 +113,7 @@ public class SessionServiceImpl implements SessionService {
         }
 
         String sport = request.sport() == null ? "" : request.sport().trim();
-        if (!SportsCatalog.ALLOWED.contains(sport)) {
+        if (!referenceCatalogService.isAllowed(ReferenceCatalogService.SPORT, sport)) {
             throw new IllegalArgumentException("Desporto inválido");
         }
 
