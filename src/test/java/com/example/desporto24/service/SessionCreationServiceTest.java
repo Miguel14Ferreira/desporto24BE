@@ -88,6 +88,7 @@ class SessionCreationServiceTest {
         assertNull(saved.getPlayers());
         assertNull(saved.getPrice());
         assertNull(saved.getPassword());
+        assertNull(saved.getRecurrenceSeriesId());
 
         var participantCaptor = ArgumentCaptor.forClass(com.example.desporto24.model.session.SessionParticipant.class);
         verify(participantRepository).save(participantCaptor.capture());
@@ -344,6 +345,11 @@ class SessionCreationServiceTest {
                 captor.getAllValues().get(1).getGameDate().toInstant());
         assertEquals(firstGame.plus(14, java.time.temporal.ChronoUnit.DAYS),
                 captor.getAllValues().get(2).getGameDate().toInstant());
+
+        String seriesId = captor.getAllValues().get(0).getRecurrenceSeriesId();
+        assertNotNull(seriesId);
+        assertEquals(seriesId, captor.getAllValues().get(1).getRecurrenceSeriesId());
+        assertEquals(seriesId, captor.getAllValues().get(2).getRecurrenceSeriesId());
     }
 
     @Test

@@ -77,6 +77,9 @@ public class Session {
     @JoinColumn(name = "venue_id")
     private Venue venue;
 
+    @Column(name = "recurrence_series_id", length = 36)
+    private String recurrenceSeriesId;
+
     public Session(String username, String desporto, String jogadores, Date datadejogo, String localidade, Boolean privado, String morada, String preco, String password) {
         this.username = username;
         this.sport = desporto;

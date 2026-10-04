@@ -149,6 +149,10 @@ public class SessionServiceImpl implements SessionService {
             intervalDays = recurrence == SessionRecurrence.WEEKLY ? 7 : 14;
         }
 
+        String recurrenceSeriesId = recurrence == SessionRecurrence.NONE
+                ? null
+                : UUID.randomUUID().toString();
+
         Session firstSaved = null;
         for (int occurrence = 0; occurrence < occurrences; occurrence++) {
             Instant gameDate = request.gameDate().plus(
@@ -162,7 +166,8 @@ public class SessionServiceImpl implements SessionService {
                     linkedCommunity,
                     linkedVenue,
                     sport,
-                    gameDate
+                    gameDate,
+                    recurrenceSeriesId
             );
             if (firstSaved == null) {
                 firstSaved = saved;
@@ -179,7 +184,8 @@ public class SessionServiceImpl implements SessionService {
             Community linkedCommunity,
             Venue linkedVenue,
             String sport,
-            Instant gameDate) {
+            Instant gameDate,
+            String recurrenceSeriesId) {
         Instant now = Instant.now();
         Session session = new Session();
         session.setProfile(creator);
@@ -209,6 +215,7 @@ public class SessionServiceImpl implements SessionService {
         session.setCommunity(linkedCommunity);
         session.setAudience(linkedCommunity == null ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
+        session.setRecurrenceSeriesId(recurrenceSeriesId);
 
         Session saved = sessionRepository.save(session);
 
