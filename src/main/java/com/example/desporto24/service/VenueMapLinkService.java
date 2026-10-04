@@ -113,14 +113,8 @@ public class VenueMapLinkService {
     private double[] coordinates(String url) {
         String decoded = URLDecoder.decode(url, StandardCharsets.UTF_8);
 
-        Matcher matcher = AT_COORDINATES.matcher(decoded);
-        if (!matcher.find()) {
-            matcher = DATA_COORDINATES.matcher(decoded);
-        }
-        if (!matcher.find()) {
-            matcher = QUERY_COORDINATES.matcher(decoded);
-        }
-        if (!matcher.find()) {
+        Matcher matcher = firstMatch(decoded);
+        if (matcher == null) {
             return null;
         }
 
@@ -132,5 +126,15 @@ public class VenueMapLinkService {
         }
 
         return new double[]{latitude, longitude};
+    }
+
+    private Matcher firstMatch(String decoded) {
+        for (Pattern pattern : new Pattern[]{AT_COORDINATES, DATA_COORDINATES, QUERY_COORDINATES}) {
+            Matcher matcher = pattern.matcher(decoded);
+            if (matcher.find()) {
+                return matcher;
+            }
+        }
+        return null;
     }
 }
