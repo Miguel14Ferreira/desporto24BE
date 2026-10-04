@@ -344,7 +344,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
 
         String normalized = name.trim()
                 .toLowerCase(java.util.Locale.ROOT)
-                .replace("&quot;", """)
+                .replace("&quot;", "\"")
                 .replaceAll("\\s+", " ");
 
         if (normalized.contains("adn atividades desportivas náuticas")) {
