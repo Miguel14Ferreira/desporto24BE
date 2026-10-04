@@ -342,7 +342,10 @@ public class CascaisVenueImportData implements ApplicationRunner {
             return null;
         }
 
-        String normalized = name.trim().toLowerCase(java.util.Locale.ROOT);
+        String normalized = name.trim()
+                .toLowerCase(java.util.Locale.ROOT)
+                .replace("&quot;", """)
+                .replaceAll("\\s+", " ");
 
         if (normalized.contains("adn atividades desportivas náuticas")) {
             return "Canoagem;Windsurf;Stand Up Paddle";
@@ -383,6 +386,28 @@ public class CascaisVenueImportData implements ApplicationRunner {
         if (normalized.contains("associação humanitária de bombeiros voluntários de cascais")
                 && normalized.contains("complexo desportivo")) {
             return "Karaté;Judo;Pilates;Yoga;Alongamentos;Hidroginástica;Natação";
+        }
+        if (normalized.contains("bombeiros voluntários dos estoris")) {
+            return "Natação;Karaté;Judo;Jiu Jitsu;Ginásio;Yoga;Fitdance";
+        }
+        if (normalized.contains("bombeiros da parede")
+                || normalized.contains("socorros amadeu duarte")) {
+            return "Natação;Aqua Cross Training;Hidroginástica;Alongamentos;Ginástica Localizada;Kickboxing;Muay Thai;Pilates;Yoga";
+        }
+        if (normalized.contains("bombeiros voluntários de alcabideche")) {
+            return "Musculação;Aikido;Brazilian Jiu Jitsu;Karaté;Krav Maga;Muay Thai;Kickboxing;Cardio Punch;Ginástica Localizada;Pilates;Yoga;Ballet";
+        }
+        if (normalized.contains("associação nacional da espondilite anquilosante")) {
+            return "Natação;Hidroginástica;Ginástica Sénior;Treino Cardiovascular;Pilates;Hidroterapia";
+        }
+        if (normalized.contains("autódromo fernanda pires da silva")) {
+            return "Automobilismo";
+        }
+        if (normalized.contains("bela vista wellness club")) {
+            return "Natação;Hidroginástica;Karaté;Judo;Ginásio";
+        }
+        if (normalized.contains("bodyform gymnasium")) {
+            return "Aeróbica;Musculação;Cardiofitness;Ginástica";
         }
 
         return null;
