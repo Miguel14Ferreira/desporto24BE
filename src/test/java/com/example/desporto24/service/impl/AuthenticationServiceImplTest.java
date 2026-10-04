@@ -49,6 +49,7 @@ class AuthenticationServiceImplTest {
     private static final String TEST_PASSWORD = "not-a-real-password";
     private static final String TEST_CHALLENGE_ID = "challenge-id-fixture";
     private static final String TEST_CHALLENGE_HASH = "$2a$fixture-hash";
+    private static final String TEST_MFA_SECRET = "JBSWY3DPEHPK3PXP";
 
     @Mock private LoginAttemptService loginAttemptService;
     @Mock private ProfileService profileService;
@@ -360,8 +361,11 @@ class AuthenticationServiceImplTest {
     @Test
     void wrongMfaCodeNeverGeneratesJwt() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches("WRONG", TEST_CHALLENGE_HASH)).thenReturn(false);
+        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
+        when(totpService.verify(TEST_MFA_SECRET, "wrong")).thenReturn(false);
 
         assertThrows(
                 BadCredentialsException.class,
@@ -393,7 +397,6 @@ class AuthenticationServiceImplTest {
         profile.setNotLocked(false);
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches(TEST_MFA_CODE, TEST_CHALLENGE_HASH)).thenReturn(true);
         when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
 
         assertThrows(
@@ -412,11 +415,11 @@ class AuthenticationServiceImplTest {
         ProfileDTO safeProfile = safeProfile();
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches(TEST_MFA_CODE, TEST_CHALLENGE_HASH)).thenReturn(true);
+        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
+        when(totpService.verify(TEST_MFA_SECRET, TEST_MFA_CODE)).thenReturn(true);
         when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
                 .thenReturn(true)
                 .thenReturn(false);
-        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
         when(profileRepository.save(profile)).thenReturn(profile);
         when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("jwt-token");
         when(profileMapper.toDto(profile)).thenReturn(safeProfile);
@@ -470,6 +473,9 @@ class AuthenticationServiceImplTest {
         profile.setEnabled(true);
         profile.setNotLocked(true);
         profile.setMFA(mfa);
+        if (mfa) {
+            profile.setMfaSecret(AES.encryptString(TEST_MFA_SECRET, profile.getUserId()));
+        }
         return profile;
     }
 

@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,6 +76,7 @@ class SessionLifecycleServiceTest {
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
+    @MockitoBean private VenueService venueService;
 
     private Profile creator;
     private Session session;
