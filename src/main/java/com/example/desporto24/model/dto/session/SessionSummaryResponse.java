@@ -19,7 +19,8 @@ public record SessionSummaryResponse(
         SessionStatus status,
         SessionAudience audience,
         boolean joinedByViewer,
-        boolean waitlistedByViewer
+        boolean waitlistedByViewer,
+        String recurrenceSeriesId
 ) {
     public SessionSummaryResponse(
             Long id,
@@ -46,7 +47,8 @@ public record SessionSummaryResponse(
                 status,
                 audience,
                 false,
-                false
+                false,
+                null
         );
     }
 
@@ -74,7 +76,8 @@ public record SessionSummaryResponse(
                 status,
                 SessionAudience.PUBLIC,
                 false,
-                false
+                false,
+                null
         );
     }
 }

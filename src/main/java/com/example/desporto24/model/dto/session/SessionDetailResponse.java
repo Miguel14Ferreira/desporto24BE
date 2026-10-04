@@ -26,7 +26,8 @@ public record SessionDetailResponse(
         Integer waitlistPosition,
         String gamePhoto,
         VenueResponse venue,
-        SessionAudience audience
+        SessionAudience audience,
+        String recurrenceSeriesId
 ) {
     public SessionDetailResponse(
             Long id,
@@ -64,6 +65,7 @@ public record SessionDetailResponse(
                 waitlisted,
                 waitlistPosition,
                 gamePhoto,
+                null,
                 null,
                 null
         );

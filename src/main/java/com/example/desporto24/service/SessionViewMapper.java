@@ -51,7 +51,8 @@ public class SessionViewMapper {
                 session.getStatus() == null ? SessionStatus.OPEN : session.getStatus(),
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 joinedByViewer,
-                waitlistedByViewer
+                waitlistedByViewer,
+                session.getRecurrenceSeriesId()
         );
     }
 
@@ -101,7 +102,8 @@ public class SessionViewMapper {
                 waitlistPosition,
                 session.getGamePhoto(),
                 session.getVenue() == null ? null : venueService.toResponse(session.getVenue()),
-                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience()
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
+                session.getRecurrenceSeriesId()
         );
     }
 }

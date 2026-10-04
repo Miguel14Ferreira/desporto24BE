@@ -46,6 +46,21 @@ class SessionViewMapperPrivacyTest {
     }
 
     @Test
+    void detailIncludesRecurrenceSeriesId() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(creator);
+        session.setRecurrenceSeriesId("series-123");
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 1L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, creator);
+
+        assertEquals("series-123", response.recurrenceSeriesId());
+    }
+
+    @Test
     void creatorCanSeeExactAddress() {
         Profile creator = profile(1L, "creator");
         Session session = session(creator);
