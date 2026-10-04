@@ -6,9 +6,12 @@ import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
+import com.example.desporto24.model.dto.session.SessionTeamPlayerResponse;
+import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.service.interfaces.SessionService;
+import com.example.desporto24.service.SessionTeamSuggestionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +31,7 @@ import static org.mockito.Mockito.*;
 class SessionControllerTest {
 
     @Mock private SessionService sessionService;
+    @Mock private SessionTeamSuggestionService sessionTeamSuggestionService;
     @Mock private Authentication authentication;
 
     @InjectMocks private SessionController controller;
@@ -107,6 +111,25 @@ class SessionControllerTest {
 
         assertEquals(List.of(participant), response);
         verify(sessionService).participants(1L, "miguel");
+    }
+
+    @Test
+    void teamSuggestionUsesAuthenticatedIdentity() {
+        SessionTeamSuggestionResponse suggestion = new SessionTeamSuggestionResponse(
+                List.of(new SessionTeamPlayerResponse("a", 2.5, true, 4, 2, 3, 1)),
+                List.of(new SessionTeamPlayerResponse("b", 2.4, true, 4, 2, 2, 2)),
+                2.5,
+                2.4,
+                2,
+                2
+        );
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionTeamSuggestionService.suggest(7L, "miguel")).thenReturn(suggestion);
+
+        SessionTeamSuggestionResponse response = controller.teamSuggestion(7L, authentication);
+
+        assertSame(suggestion, response);
+        verify(sessionTeamSuggestionService).suggest(7L, "miguel");
     }
 
     @Test

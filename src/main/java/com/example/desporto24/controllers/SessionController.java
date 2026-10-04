@@ -8,8 +8,10 @@ import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
+import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
 import com.example.desporto24.service.interfaces.SessionService;
+import com.example.desporto24.service.SessionTeamSuggestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -31,6 +33,7 @@ import java.util.List;
 public class SessionController {
 
     private final SessionService sessionService;
+    private final SessionTeamSuggestionService sessionTeamSuggestionService;
 
     @GetMapping
     public List<SessionSummaryResponse> discover(
@@ -86,6 +89,13 @@ public class SessionController {
             @PathVariable Long id,
             Authentication authentication) {
         return sessionService.participants(id, authentication.getName());
+    }
+
+    @GetMapping("/{id}/teams/suggestion")
+    public SessionTeamSuggestionResponse teamSuggestion(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return sessionTeamSuggestionService.suggest(id, authentication.getName());
     }
 
     @PostMapping("/{id}/join")
