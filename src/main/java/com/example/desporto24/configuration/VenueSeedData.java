@@ -22,6 +22,7 @@ public class VenueSeedData implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         jdbcTemplate.execute("ALTER TABLE venue ALTER COLUMN created_by_profile_id DROP NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE venue_photo ALTER COLUMN uploaded_by_profile_id DROP NOT NULL");
 
         boolean alreadySeeded = venueRepository.findAllByOrderByNameAsc().stream()
                 .anyMatch(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL
