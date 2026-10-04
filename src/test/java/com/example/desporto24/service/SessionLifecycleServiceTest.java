@@ -151,12 +151,32 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
-    void nonCreatorCannotListParticipants() {
+    void activeParticipantCanListParticipants() {
         Profile participant = profile("participant");
         participant(participant);
 
+        var result = service.participants(session.getId(), participant.getUsername());
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(p -> p.username().equals("creator")));
+        assertTrue(result.stream().anyMatch(p -> p.username().equals("participant")));
+    }
+
+    @Test
+    void outsiderCannotListParticipants() {
+        Profile outsider = profile("outsider");
+
         assertThrows(AccessDeniedException.class,
-                () -> service.participants(session.getId(), participant.getUsername()));
+                () -> service.participants(session.getId(), outsider.getUsername()));
+    }
+
+    @Test
+    void waitlistedUserCannotListParticipants() {
+        Profile waiting = profile("waiting");
+        waitlisted(waiting);
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.participants(session.getId(), waiting.getUsername()));
     }
 
     @Test

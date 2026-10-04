@@ -388,7 +388,20 @@ public class SessionServiceImpl implements SessionService {
         Profile actor = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        requireCreator(session, actor);
+        boolean isCreator = session.getProfile() != null
+                && session.getProfile().getId().equals(actor.getId());
+        boolean isActiveParticipant = participantRepository
+                .existsBySessionIdAndProfileIdAndState(
+                        sessionId,
+                        actor.getId(),
+                        ParticipantState.ACTIVE
+                );
+
+        if (!isCreator && !isActiveParticipant) {
+            throw new AccessDeniedException(
+                    "Só participantes da sessão podem ver quem vai participar"
+            );
+        }
 
         return participantRepository
                 .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE)
