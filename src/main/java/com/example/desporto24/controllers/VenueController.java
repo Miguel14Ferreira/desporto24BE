@@ -5,6 +5,9 @@ import com.example.desporto24.model.dto.venue.CreateVenueSportConditionRequest;
 import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.dto.venue.VenueSportConditionResponse;
+import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkRequest;
+import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkResponse;
+import com.example.desporto24.service.VenueMapLinkService;
 import com.example.desporto24.service.VenuePhotoService;
 import com.example.desporto24.service.VenueService;
 import com.example.desporto24.service.VenueSportConditionService;
@@ -25,6 +28,7 @@ import java.util.List;
 public class VenueController {
 
     private final VenueService venueService;
+    private final VenueMapLinkService venueMapLinkService;
     private final VenuePhotoService venuePhotoService;
     private final VenueSportConditionService venueSportConditionService;
 
@@ -33,6 +37,12 @@ public class VenueController {
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String sport) {
         return venueService.search(city, sport);
+    }
+
+    @PostMapping("/resolve-map-link")
+    public ResolveVenueMapLinkResponse resolveMapLink(
+            @RequestBody @Valid ResolveVenueMapLinkRequest request) {
+        return venueMapLinkService.resolve(request.url());
     }
 
     @GetMapping("/{id}")
