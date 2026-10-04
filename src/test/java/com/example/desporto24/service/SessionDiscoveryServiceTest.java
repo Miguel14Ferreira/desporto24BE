@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
@@ -24,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -46,6 +48,7 @@ class SessionDiscoveryServiceTest {
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
+    @Mock private PilotEventService pilotEventService;
 
     private SessionServiceImpl service;
 
@@ -65,8 +68,28 @@ class SessionDiscoveryServiceTest {
                 passwordEncoder,
                 waitlistPromotionService,
                 reliabilityService,
-                sessionNotificationService
+                sessionNotificationService,
+                pilotEventService
         );
+    }
+
+    @Test
+    void authenticatedDiscoveryRecordsPilotSearchAfterSuccessfulDiscovery() {
+        Profile profile = new Profile();
+        profile.setId(7L);
+        profile.setUsername("miguel");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
+        when(sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
+                anyCollection(), any(Date.class))).thenReturn(List.of());
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, null, null, null,
+                null, null, null, null
+        ), "miguel");
+
+        assertTrue(result.isEmpty());
+        verify(pilotEventService).recordSessionSearched(profile);
     }
 
     @Test

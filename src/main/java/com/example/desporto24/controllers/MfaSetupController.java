@@ -72,9 +72,22 @@ public class MfaSetupController {
     }
 
     @DeleteMapping
-    public ResponseEntity<ProfileDTO> disable(Authentication authentication) {
+    public ResponseEntity<ProfileDTO> disable(
+            @RequestBody @Valid MfaSetupConfirmRequest request,
+            Authentication authentication) {
         Profile profile = profileRepository.findUserByUsername(authentication.getName())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (!Boolean.TRUE.equals(profile.getMFA())
+                || profile.getMfaSecret() == null
+                || profile.getMfaSecret().isBlank()) {
+            throw new IllegalStateException("MFA não está ativo");
+        }
+
+        String secret = AES.decryptString(profile.getMfaSecret(), profile.getUserId());
+        if (!totpService.verify(secret, request.code().trim())) {
+            throw new IllegalArgumentException("Código MFA inválido");
+        }
 
         profile.setMFA(false);
         profile.setMfaSecret(null);

@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.configuration.ReliabilityPolicyProperties;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.DisputeStatus;
+import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -44,6 +45,7 @@ public class ReliabilityService {
     private final ProfileRepository profileRepository;
     private final SessionRepository sessionRepository;
     private final NotificationsRepository notificationsRepository;
+    private final PilotEventService pilotEventService;
 
     public AttendanceStatus leaveAttendanceStatus(Instant leaveAt, Instant start) {
         if (!leaveAt.isBefore(start)) {
@@ -147,6 +149,10 @@ public class ReliabilityService {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
 
+        if (session.getStatus() == SessionStatus.CANCELLED) {
+            throw new IllegalStateException("Attendance cannot be recorded for a cancelled session");
+        }
+
         Profile creator = profileRepository.findUserByUsername(creatorUsername)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
@@ -178,6 +184,13 @@ public class ReliabilityService {
         participant.setAttendanceReportedBy(creator);
         participant.setAttendanceRecordedAt(now);
         participantRepository.save(participant);
+
+        if (status == AttendanceStatus.ATTENDED) {
+            pilotEventService.recordAttendanceConfirmed(
+                    participant.getProfile(),
+                    sessionId
+            );
+        }
     }
 
     @Transactional(readOnly = true)

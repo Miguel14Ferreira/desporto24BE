@@ -20,13 +20,12 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
+import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
-import com.example.desporto24.utility.SmsUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -48,6 +47,7 @@ class AuthenticationServiceImplTest {
     private static final String TEST_PASSWORD = "not-a-real-password";
     private static final String TEST_CHALLENGE_ID = "challenge-id-fixture";
     private static final String TEST_CHALLENGE_HASH = "$2a$fixture-hash";
+    private static final String TEST_MFA_SECRET = "JBSWY3DPEHPK3PXP";
 
     @Mock private LoginAttemptService loginAttemptService;
     @Mock private ProfileService profileService;
@@ -61,6 +61,7 @@ class AuthenticationServiceImplTest {
     @Mock private JWTokenProvider jwtTokenProvider;
     @Mock private ProfileMapper profileMapper;
     @Mock private TotpService totpService;
+    @Mock private PilotEventService pilotEventService;
 
     @Test
     void logoutInvalidatesExistingJwtVersion() {
@@ -78,6 +79,31 @@ class AuthenticationServiceImplTest {
                 profile.getStatusId()
         );
         verify(profileRepository).save(profile);
+    }
+
+    @Test
+    void passwordResetEmailUsesBilingualTemplateAndSavedToken() {
+        ProfileDTO profile = new ProfileDTO();
+        profile.setUsername("<fixture-user>");
+        profile.setEmail("fixture@example.test");
+        when(profileService.findUserByEmail("fixture@example.test")).thenReturn(profile);
+
+        service().resetPasswordStepOne("fixture@example.test");
+
+        org.mockito.ArgumentCaptor<ConfirmationToken> token =
+                org.mockito.ArgumentCaptor.forClass(ConfirmationToken.class);
+        verify(confirmationTokenService).saveConfirmationToken(token.capture());
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"),
+                eq("Recupera a tua palavra-passe | Reset your password — Desporto24"), html.capture());
+        assertEquals("<fixture-user>", token.getValue().getProfile());
+        assertTrue(html.getValue().contains("https://example.test/login/resetPassword/" + token.getValue().getToken()));
+        assertTrue(html.getValue().contains("Definir palavra-passe / Reset password"));
+        assertTrue(html.getValue().contains("15 minutos"));
+        assertTrue(html.getValue().contains("15 minutes"));
+        assertTrue(html.getValue().contains("&lt;fixture-user&gt;"));
+        assertFalse(html.getValue().contains("<fixture-user>"));
+        assertTrue(html.getValue().contains("If you did not make this request"));
     }
 
     @Test
@@ -173,18 +199,18 @@ class AuthenticationServiceImplTest {
                 "351",
                 "912345678",
                 "outro",
-                "fixture@example.test"
+                "fixture@example.test",
+        true
         );
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
         when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
-        when(passwordHashService.encode(TEST_PASSWORD)).thenReturn("bcrypt-password");
         when(profileMapper.toEntity(any(ProfileDTO.class))).thenAnswer(invocation -> {
             ProfileDTO dto = invocation.getArgument(0);
             Profile profile = new Profile();
             profile.setUserId(dto.getUserId());
             profile.setUsername(dto.getUsername());
-            profile.setPassword(dto.getPassword());
+            profile.setPassword("bcrypt-password");
             profile.setNotLocked(dto.getNotLocked());
             profile.setEnabled(dto.getEnabled());
             profile.setMFA(dto.getMFA());
@@ -206,8 +232,86 @@ class AuthenticationServiceImplTest {
                         && "ROLE_USER".equals(profile.getRole())
                         && profile.getAuthorities() != null
                         && profile.getAuthorities().length > 0
+                        && profile.getTermsAcceptedAt() != null
+                        && "2026-10-01".equals(profile.getTermsVersion())
+                        && "2026-10-01".equals(profile.getPrivacyVersion())
         ));
-        verify(emailService).send(eq("fixture@example.test"), anyString());
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"),
+                eq("Confirma o teu email | Confirm your email — Desporto24"), html.capture());
+        assertTrue(html.getValue().contains("Confirmar email / Confirm email"));
+        assertTrue(html.getValue().contains("15 minutos"));
+        assertTrue(html.getValue().contains("15 minutes"));
+        assertTrue(html.getValue().contains("https://example.test/?confirmRegistration="));
+    }
+
+    @Test
+    void previewRegistrationRecordsAttributedPilotEventImmediately() {
+        RegistrationRequest request = new RegistrationRequest(
+                TEST_USERNAME,
+                TEST_PASSWORD,
+                "Fixture",
+                "1990-01-01",
+                "Portugal",
+                "351",
+                "912345678",
+                "outro",
+                "fixture@example.test",
+        true
+        );
+
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
+        when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
+        when(profileMapper.toEntity(any(ProfileDTO.class))).thenAnswer(invocation -> {
+            ProfileDTO dto = invocation.getArgument(0);
+            Profile profile = new Profile();
+            profile.setId(42L);
+            profile.setUserId(dto.getUserId());
+            profile.setUsername(dto.getUsername());
+            profile.setPassword(dto.getPassword());
+            profile.setNotLocked(dto.getNotLocked());
+            profile.setEnabled(dto.getEnabled());
+            profile.setMFA(dto.getMFA());
+            profile.setRole(dto.getRole());
+            profile.setAuthorities(dto.getAuthorities());
+            return profile;
+        });
+        when(profileRepository.saveAndFlush(any(Profile.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuthenticationServiceImpl service = service();
+        ReflectionTestUtils.setField(service, "previewMode", true);
+
+        service.signUpProfile(request, null, "  pilot-lisbon-2026  ");
+
+        verify(pilotEventService).recordRegistrationCompleted(
+                argThat(profile -> Long.valueOf(42L).equals(profile.getId())),
+                eq("  pilot-lisbon-2026  ")
+        );
+        verify(emailService, never()).send(anyString(), anyString());
+        verify(emailService, never()).send(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void confirmedRegistrationRecordsPilotEvent() {
+        ConfirmationToken token = mock(ConfirmationToken.class);
+        Profile profile = activeProfile(false);
+        profile.setEnabled(false);
+        profile.setId(42L);
+
+        when(confirmationTokenService.getToken("registration-token"))
+                .thenReturn(Optional.of(token));
+        when(token.getConfirmedAt()).thenReturn(null);
+        when(token.getExpiredAt()).thenReturn(LocalDateTime.now().plusMinutes(5));
+        when(token.getProfile()).thenReturn(TEST_USERNAME);
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(profileRepository.save(profile)).thenReturn(profile);
+
+        service().confirmToken("registration-token");
+
+        assertTrue(profile.getEnabled());
+        verify(pilotEventService).recordRegistrationCompleted(profile);
     }
 
     @Test
@@ -231,31 +335,25 @@ class AuthenticationServiceImplTest {
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
         Profile profile = activeProfile(true);
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.of(profile));
-        when(passwordEncoder.encode(anyString())).thenReturn(TEST_CHALLENGE_HASH);
 
-        try (MockedStatic<SmsUtils> sms = mockStatic(SmsUtils.class)) {
-            LoginResponse response = service().login(credentials());
+        LoginResponse response = service().login(credentials());
 
-            assertTrue(response.mfaRequired());
-            assertNotNull(response.challengeId());
-            assertNull(response.token());
-            assertNull(response.profile());
-            verifyNoInteractions(jwtTokenProvider);
-            verify(mfaVerificationService).saveConfirmationMFA(any());
-            verify(passwordEncoder).encode(argThat(code -> code.toString().matches("\\d{6}")));
-            sms.verify(() -> SmsUtils.sendSMS(
-                    eq("+351"),
-                    eq("912345678"),
-                    argThat(message -> message.matches("(?s).*\\d{6}.*"))
-            ));
-        }
+        assertTrue(response.mfaRequired());
+        assertNotNull(response.challengeId());
+        assertNull(response.token());
+        assertNull(response.profile());
+        verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService).saveConfirmationMFA(any());
     }
 
     @Test
     void wrongMfaCodeNeverGeneratesJwt() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches("WRONG", TEST_CHALLENGE_HASH)).thenReturn(false);
+        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
+        when(totpService.verify(TEST_MFA_SECRET, "wrong")).thenReturn(false);
 
         assertThrows(
                 BadCredentialsException.class,
@@ -287,7 +385,6 @@ class AuthenticationServiceImplTest {
         profile.setNotLocked(false);
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches(TEST_MFA_CODE, TEST_CHALLENGE_HASH)).thenReturn(true);
         when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
 
         assertThrows(
@@ -306,11 +403,11 @@ class AuthenticationServiceImplTest {
         ProfileDTO safeProfile = safeProfile();
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches(TEST_MFA_CODE, TEST_CHALLENGE_HASH)).thenReturn(true);
+        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
+        when(totpService.verify(TEST_MFA_SECRET, TEST_MFA_CODE)).thenReturn(true);
         when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
                 .thenReturn(true)
                 .thenReturn(false);
-        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
         when(profileRepository.save(profile)).thenReturn(profile);
         when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("jwt-token");
         when(profileMapper.toDto(profile)).thenReturn(safeProfile);
@@ -338,7 +435,8 @@ class AuthenticationServiceImplTest {
                 passwordEncoder,
                 jwtTokenProvider,
                 profileMapper,
-                totpService
+                totpService,
+                pilotEventService
         );
         ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test");
         return service;
@@ -363,6 +461,9 @@ class AuthenticationServiceImplTest {
         profile.setEnabled(true);
         profile.setNotLocked(true);
         profile.setMFA(mfa);
+        if (mfa) {
+            profile.setMfaSecret(AES.encryptString(TEST_MFA_SECRET, profile.getUserId()));
+        }
         return profile;
     }
 

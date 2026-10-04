@@ -4,6 +4,8 @@ import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionOutcome;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
@@ -11,6 +13,7 @@ import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -28,6 +31,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +57,7 @@ import static org.junit.jupiter.api.Assertions.*;
         PasswordHashService.class,
         WaitlistPromotionService.class,
         SessionNotificationService.class,
+        PilotEventService.class,
         ReliabilityService.class,
         ReliabilityPolicyProperties.class,
         SessionLifecycleServiceTest.PasswordConfig.class
@@ -70,12 +75,15 @@ class SessionLifecycleServiceTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
+    @Autowired private PilotEventRepository pilotEventRepository;
+    @MockitoBean private VenueService venueService;
 
     private Profile creator;
     private Session session;
 
     @BeforeEach
     void setUp() {
+        pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
         sessionRepository.deleteAll();
@@ -100,6 +108,10 @@ class SessionLifecycleServiceTest {
         assertNotNull(after.getExitedAt());
         assertTrue(participantRepository.existsBySessionIdAndProfileIdAndState(
                 session.getId(), waiting.getId(), ParticipantState.ACTIVE));
+        assertTrue(pilotEventRepository.existsByEventTypeAndProfileIdAndSubjectId(
+                com.example.desporto24.enumeration.PilotEventType.SESSION_JOINED,
+                waiting.getId(),
+                session.getId()));
         assertTrue(waitlistRepository.findBySessionIdAndProfileId(session.getId(), waiting.getId()).isEmpty());
     }
 
@@ -141,12 +153,32 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
-    void nonCreatorCannotListParticipants() {
+    void activeParticipantCanListParticipants() {
         Profile participant = profile("participant");
         participant(participant);
 
+        var result = service.participants(session.getId(), participant.getUsername());
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(p -> p.username().equals("creator")));
+        assertTrue(result.stream().anyMatch(p -> p.username().equals("participant")));
+    }
+
+    @Test
+    void outsiderCannotListParticipants() {
+        Profile outsider = profile("outsider");
+
         assertThrows(AccessDeniedException.class,
-                () -> service.participants(session.getId(), participant.getUsername()));
+                () -> service.participants(session.getId(), outsider.getUsername()));
+    }
+
+    @Test
+    void waitlistedUserCannotListParticipants() {
+        Profile waiting = profile("waiting");
+        waitlisted(waiting);
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.participants(session.getId(), waiting.getUsername()));
     }
 
     @Test
@@ -201,6 +233,137 @@ class SessionLifecycleServiceTest {
         Profile newcomer = profile("newcomer");
         assertThrows(IllegalStateException.class,
                 () -> service.join(session.getId(), new JoinSessionRequest(null), newcomer.getUsername()));
+    }
+
+    @Test
+    void completedSessionCannotBeCancelled() {
+        session.setStatus(SessionStatus.COMPLETED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.cancel(session.getId(), creator.getUsername()));
+
+        assertEquals(SessionStatus.COMPLETED,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void participantCannotLeaveCompletedSession() {
+        Profile participant = profile("participant");
+        SessionParticipant membership = participant(participant);
+        session.setStatus(SessionStatus.COMPLETED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.leave(session.getId(), participant.getUsername()));
+
+        assertEquals(ParticipantState.ACTIVE,
+                participantRepository.findById(membership.getId()).orElseThrow().getState());
+    }
+
+    @Test
+    void creatorCannotRemoveParticipantFromCancelledSession() {
+        Profile participant = profile("participant");
+        SessionParticipant membership = participant(participant);
+        session.setStatus(SessionStatus.CANCELLED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.removeParticipant(session.getId(), membership.getId(), creator.getUsername()));
+
+        assertEquals(ParticipantState.ACTIVE,
+                participantRepository.findById(membership.getId()).orElseThrow().getState());
+    }
+
+    @Test
+    void creatorCanCompleteSessionAfterStart() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        service.complete(session.getId(), creator.getUsername());
+
+        assertEquals(SessionStatus.COMPLETED,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+        assertTrue(pilotEventRepository.existsByEventTypeAndSubjectId(
+                com.example.desporto24.enumeration.PilotEventType.SESSION_COMPLETED,
+                session.getId()));
+    }
+
+    @Test
+    void sessionCannotBeCompletedBeforeStart() {
+        assertThrows(IllegalStateException.class,
+                () -> service.complete(session.getId(), creator.getUsername()));
+
+        assertEquals(SessionStatus.OPEN,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void nonCreatorCannotCompleteSession() {
+        Profile participant = profile("participant");
+        participant(participant);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.complete(session.getId(), participant.getUsername()));
+
+        assertEquals(SessionStatus.OPEN,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void cancelledSessionCannotBeCompleted() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        session.setStatus(SessionStatus.CANCELLED);
+        sessionRepository.saveAndFlush(session);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.complete(session.getId(), creator.getUsername()));
+
+        assertEquals(SessionStatus.CANCELLED,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void creatorCanReportSessionDidNotOccurAfterStart() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        service.reportDidNotOccur(session.getId(), creator.getUsername());
+
+        Session saved = sessionRepository.findById(session.getId()).orElseThrow();
+        assertEquals(SessionOutcome.NOT_OCCURRED, saved.getOutcome());
+        assertEquals(SessionStatus.CANCELLED, saved.getStatus());
+    }
+
+    @Test
+    void venueProblemDoesNotCloseSession() {
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        service.reportProblem(
+                session.getId(),
+                SessionProblemType.VENUE_PROBLEM,
+                "Balneários sem água quente",
+                creator.getUsername()
+        );
+
+        Session saved = sessionRepository.findById(session.getId()).orElseThrow();
+        assertEquals(SessionProblemType.VENUE_PROBLEM, saved.getProblemType());
+        assertEquals("Balneários sem água quente", saved.getProblemDetails());
+        assertEquals(SessionStatus.OPEN, saved.getStatus());
+        assertNull(saved.getOutcome());
+    }
+
+    @Test
+    void problemCannotBeReportedBeforeStart() {
+        assertThrows(IllegalStateException.class,
+                () -> service.reportDidNotOccur(
+                        session.getId(),
+                        creator.getUsername()));
+
+        assertNull(sessionRepository.findById(session.getId()).orElseThrow().getOutcome());
     }
 
     @Test

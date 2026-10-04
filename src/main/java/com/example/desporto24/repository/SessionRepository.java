@@ -30,6 +30,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     long countByProfileId(Long profileId);
 
     List<Session> findByCommunityIdOrderByGameDateDesc(Long communityId);
+    List<Session> findByRecurrenceSeriesIdOrderByGameDateAsc(String recurrenceSeriesId);
 
     @Query("""
             select s

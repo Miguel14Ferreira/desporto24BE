@@ -6,6 +6,7 @@ import com.example.desporto24.model.dto.profile.ChangePasswordRequest;
 import com.example.desporto24.model.dto.profile.PublicProfileResponse;
 
 import java.util.List;
+import com.example.desporto24.service.AccountDeletionService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,9 @@ class ProfileControllerTest {
 
     @Mock
     private Authentication authentication;
+
+    @Mock
+    private AccountDeletionService accountDeletionService;
 
     @InjectMocks
     private ProfileController controller;
@@ -56,14 +60,15 @@ class ProfileControllerTest {
                 null,
                 "2026-09-01"
         );
-        when(profileService.findPublicProfile("ana")).thenReturn(profile);
+        when(authentication.getName()).thenReturn("miguel");
+        when(profileService.findPublicProfile("miguel", "ana")).thenReturn(profile);
 
-        var response = controller.getUserProfile("ana");
+        var response = controller.getUserProfile("ana", authentication);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals("ana", response.getBody().username());
         assertEquals("Lisboa", response.getBody().location());
-        verify(profileService).findPublicProfile("ana");
+        verify(profileService).findPublicProfile("miguel", "ana");
     }
 
     @Test
@@ -78,14 +83,31 @@ class ProfileControllerTest {
                 null,
                 "2026-09-01"
         );
-        when(profileService.searchPublicProfiles("ana")).thenReturn(List.of(profile));
+        when(authentication.getName()).thenReturn("miguel");
+        when(profileService.searchPublicProfiles(
+                "miguel",
+                "ana",
+                null,
+                null,
+                null,
+                null,
+                null
+        )).thenReturn(List.of(profile));
 
-        var response = controller.getProfileByName("ana");
+        var response = controller.getProfileByName("ana", authentication);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals(1, response.getBody().size());
         assertEquals("ana", response.getBody().get(0).username());
-        verify(profileService).searchPublicProfiles("ana");
+        verify(profileService).searchPublicProfiles(
+                "miguel",
+                "ana",
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     @Test
@@ -130,4 +152,18 @@ class ProfileControllerTest {
         assertEquals("miguel", response.getBody().getUsername());
         verify(profileService).updateMyProfile("miguel", request);
     }
+
+    @Test
+    void deleteMyAccountUsesAuthenticatedIdentityAndClearsRefreshCookie() {
+        when(authentication.getName()).thenReturn("miguel");
+
+        var response = controller.deleteMyAccount(authentication);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(accountDeletionService).deleteMyAccount("miguel");
+        String setCookie = response.getHeaders().getFirst("Set-Cookie");
+        org.junit.jupiter.api.Assertions.assertNotNull(setCookie);
+        org.junit.jupiter.api.Assertions.assertTrue(setCookie.contains("Max-Age=0"));
+    }
+
 }

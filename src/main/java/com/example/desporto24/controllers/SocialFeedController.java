@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.social.CreateSocialPostRequest;
+import com.example.desporto24.model.dto.moderation.CreateUserReportRequest;
 import com.example.desporto24.model.dto.social.CreateSocialCommentRequest;
 import com.example.desporto24.model.dto.social.PostLikeResponse;
 import com.example.desporto24.model.dto.social.SocialCommentResponse;
@@ -86,6 +87,21 @@ public class SocialFeedController {
         );
     }
 
+    @PostMapping("/posts/{postId}/comments/{commentId}/report")
+    public ResponseEntity<Void> reportComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestBody @Valid CreateUserReportRequest request,
+            Authentication authentication) {
+        interactionService.reportComment(
+                postId,
+                commentId,
+                authentication.getName(),
+                request
+        );
+        return ResponseEntity.accepted().build();
+    }
+
     @DeleteMapping("/posts/{postId}/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(
             @PathVariable Long postId,
@@ -97,6 +113,19 @@ public class SocialFeedController {
                 authentication.getName()
         );
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/posts/{postId}/report")
+    public ResponseEntity<Void> reportPost(
+            @PathVariable Long postId,
+            @RequestBody @Valid CreateUserReportRequest request,
+            Authentication authentication) {
+        interactionService.reportPost(
+                postId,
+                authentication.getName(),
+                request
+        );
+        return ResponseEntity.accepted().build();
     }
 
     @DeleteMapping("/posts/{postId}")

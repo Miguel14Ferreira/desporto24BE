@@ -2,6 +2,8 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionRecurrence;
+import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.venue.Venue;
@@ -51,6 +53,7 @@ class SessionCreationServiceTest {
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
+    @Mock private PilotEventService pilotEventService;
     @Mock private MediaStorage mediaStorage;
 
     @Test
@@ -85,12 +88,45 @@ class SessionCreationServiceTest {
         assertNull(saved.getPlayers());
         assertNull(saved.getPrice());
         assertNull(saved.getPassword());
+        assertNull(saved.getRecurrenceSeriesId());
 
         var participantCaptor = ArgumentCaptor.forClass(com.example.desporto24.model.session.SessionParticipant.class);
         verify(participantRepository).save(participantCaptor.capture());
         assertSame(creator, participantCaptor.getValue().getProfile());
         assertEquals(ParticipantState.ACTIVE, participantCaptor.getValue().getState());
         assertEquals(AttendanceStatus.PENDING, participantCaptor.getValue().getAttendanceStatus());
+    }
+
+    @Test
+    void creationRecordsPilotEventAfterSessionIsPersisted() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(invocation -> {
+            Session saved = invocation.getArgument(0);
+            saved.setId(99L);
+            return saved;
+        });
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futebol",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        service().create(request, "miguel");
+
+        verify(pilotEventService).recordSessionCreated(creator, 99L);
     }
 
     @Test
@@ -189,6 +225,171 @@ class SessionCreationServiceTest {
         );
     }
 
+
+    @Test
+    void creationRejectsSportOutsideCatalog() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Desporto Inventado",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service().create(request, "miguel")
+        );
+
+        assertEquals("Desporto inválido", exception.getMessage());
+        verify(sessionRepository, never()).save(any(Session.class));
+        verify(participantRepository, never()).save(any());
+    }
+
+    @Test
+    void creationTrimsValidCatalogSportBeforePersisting() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "  Futsal  ",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254
+        );
+
+        service().create(request, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository).save(captor.capture());
+        assertEquals("Futsal", captor.getValue().getSport());
+    }
+
+
+    @Test
+    void weeklyCommunityRecurrenceCreatesRequestedOccurrences() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        Community community = new Community();
+        community.setId(12L);
+
+        Instant firstGame = Instant.ofEpochMilli(
+                Instant.now().plusSeconds(3600).toEpochMilli()
+        );
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+        when(communityRepository.findById(12L))
+                .thenReturn(Optional.of(community));
+        when(communityMemberRepository.existsByCommunityIdAndProfileId(12L, 7L))
+                .thenReturn(true);
+        when(sessionRepository.save(any(Session.class)))
+                .thenAnswer(invocation -> {
+                    Session saved = invocation.getArgument(0);
+                    if (saved.getId() == null) {
+                        saved.setId(100L);
+                    }
+                    return saved;
+                });
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futsal",
+                firstGame,
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254,
+                12L,
+                null,
+                SessionRecurrence.WEEKLY,
+                3
+        );
+
+        service().create(request, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository, times(3)).save(captor.capture());
+        verify(participantRepository, times(3)).save(any());
+
+        assertEquals(firstGame, captor.getAllValues().get(0).getGameDate().toInstant());
+        assertEquals(firstGame.plus(7, java.time.temporal.ChronoUnit.DAYS),
+                captor.getAllValues().get(1).getGameDate().toInstant());
+        assertEquals(firstGame.plus(14, java.time.temporal.ChronoUnit.DAYS),
+                captor.getAllValues().get(2).getGameDate().toInstant());
+
+        String seriesId = captor.getAllValues().get(0).getRecurrenceSeriesId();
+        assertNotNull(seriesId);
+        assertEquals(seriesId, captor.getAllValues().get(1).getRecurrenceSeriesId());
+        assertEquals(seriesId, captor.getAllValues().get(2).getRecurrenceSeriesId());
+    }
+
+    @Test
+    void recurringSessionRequiresCommunity() {
+        Profile creator = new Profile();
+        creator.setId(7L);
+        creator.setUsername("miguel");
+        creator.setUserId("1234567890");
+
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(creator));
+
+        CreateSessionRequest request = new CreateSessionRequest(
+                "Futsal",
+                Instant.now().plusSeconds(3600),
+                "Queluz",
+                "Rua de Teste 1",
+                10,
+                BigDecimal.ZERO,
+                false,
+                null,
+                38.756,
+                -9.254,
+                null,
+                null,
+                SessionRecurrence.WEEKLY,
+                3
+        );
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service().create(request, "miguel")
+        );
+
+        assertEquals("Recurring sessions must belong to a community", exception.getMessage());
+        verify(sessionRepository, never()).save(any(Session.class));
+    }
+
     private SessionServiceImpl service() {
         SessionServiceImpl service = new SessionServiceImpl(
                 sessionRepository,
@@ -204,7 +405,8 @@ class SessionCreationServiceTest {
                 passwordEncoder,
                 waitlistPromotionService,
                 reliabilityService,
-                sessionNotificationService
+                sessionNotificationService,
+                pilotEventService
         );
         ReflectionTestUtils.setField(service, "mediaStorage", mediaStorage);
         return service;

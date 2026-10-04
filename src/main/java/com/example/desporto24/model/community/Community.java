@@ -2,6 +2,7 @@ package com.example.desporto24.model.community;
 
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.venue.Venue;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -39,6 +40,10 @@ public class Community {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_profile_id", nullable = false)
     private Profile owner;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_venue_id")
+    private Venue defaultVenue;
 
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;

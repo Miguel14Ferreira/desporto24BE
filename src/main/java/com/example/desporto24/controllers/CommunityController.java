@@ -3,6 +3,7 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
+import com.example.desporto24.service.CommunityImportService;
 import com.example.desporto24.service.CommunityManagementService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ public class CommunityController {
 
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
+    private final CommunityImportService communityImportService;
     private final CommunitySessionService communitySessionService;
 
     @PostMapping
@@ -42,12 +44,72 @@ public class CommunityController {
         return ResponseEntity.ok(service.get(id, authentication.getName()));
     }
 
+    @PostMapping("/{id}/join")
+    public ResponseEntity<CommunityResponse> joinPublic(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.joinPublic(id, authentication.getName()));
+    }
+
+    @PostMapping("/{id}/join-requests")
+    public ResponseEntity<CommunityJoinRequestResponse> requestJoin(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.requestJoin(id, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/join-requests")
+    public ResponseEntity<List<CommunityJoinRequestResponse>> pendingJoinRequests(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.pendingJoinRequests(id, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/join-requests/me")
+    public ResponseEntity<CommunityJoinRequestResponse> myPendingJoinRequest(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.of(service.myPendingJoinRequest(id, authentication.getName()));
+    }
+
+    @PostMapping("/{id}/join-requests/{requestId}/accept")
+    public ResponseEntity<CommunityResponse> acceptJoinRequest(
+            @PathVariable Long id,
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.acceptJoinRequest(id, requestId, authentication.getName()));
+    }
+
+    @PostMapping("/{id}/join-requests/{requestId}/reject")
+    public ResponseEntity<Void> rejectJoinRequest(
+            @PathVariable Long id,
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        service.rejectJoinRequest(id, requestId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/visibility")
+    public ResponseEntity<CommunityResponse> updateVisibility(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCommunityVisibilityRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateVisibility(id, authentication.getName(), request));
+    }
+
     @PutMapping(value = "/{id}/photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CommunityResponse> updatePhoto(
             @PathVariable Long id,
             @RequestPart("photo") MultipartFile photo,
             Authentication authentication) {
         return ResponseEntity.ok(service.updatePhoto(id, authentication.getName(), photo));
+    }
+
+    @DeleteMapping("/{id}/photo")
+    public ResponseEntity<CommunityResponse> removePhoto(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.removePhoto(id, authentication.getName()));
     }
 
     @PostMapping("/{id}/invites")
@@ -87,6 +149,17 @@ public class CommunityController {
         );
     }
 
+    @PostMapping("/{id}/sessions/{sessionId}/open-public")
+    public ResponseEntity<SessionSummaryResponse> openSessionToPublic(
+            @PathVariable Long id,
+            @PathVariable Long sessionId,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communitySessionService.openToPublic(id, sessionId, authentication.getName())
+        );
+    }
+
+
     @GetMapping("/{id}/competition")
     public ResponseEntity<CommunityCompetitionOverviewResponse> competitionOverview(
             @PathVariable Long id,
@@ -124,6 +197,105 @@ public class CommunityController {
             Authentication authentication) {
         return ResponseEntity.ok(
                 competitionService.updateSettings(id, authentication.getName(), request)
+        );
+    }
+
+    @PostMapping("/{id}/competition/import/context/validate")
+    public ResponseEntity<CommunityImportContextValidationResponse> validateCompetitionImportContext(
+            @PathVariable Long id,
+            @RequestBody @Valid CommunityImportContextRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.validateContext(id, authentication.getName(), request)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/preview", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportPreviewResponse> previewCompetitionImport(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.preview(id, authentication.getName(), file)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/validate", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportMappingValidationResponse> validateCompetitionImport(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.validateMapping(id, authentication.getName(), file, mapping)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/normalized-preview", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportNormalizedPreviewResponse> normalizedCompetitionImportPreview(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.normalizedPreview(id, authentication.getName(), file, mapping)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/plan", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportPlanResponse> planCompetitionImport(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.importPlan(id, authentication.getName(), file, mapping)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/rounds/plan", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportRoundsPlanResponse> planCompetitionImportRounds(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.roundsPlan(id, authentication.getName(), file, mapping)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/rounds/final-plan", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportRoundsPlanResponse> finalCompetitionImportRoundsPlan(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityImportContextRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.finalRoundsPlan(id, authentication.getName(), file, mapping, context)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/rounds/confirm", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportRoundsResultResponse> confirmCompetitionImportRounds(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityImportContextRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.confirmRounds(id, authentication.getName(), file, mapping, context)
+        );
+    }
+
+    @PostMapping(value = "/{id}/competition/import/players/confirm", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityImportPlayersResultResponse> confirmCompetitionImportPlayers(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communityImportService.confirmPlayers(id, authentication.getName(), file, mapping)
         );
     }
 

@@ -35,6 +35,7 @@ class ReliabilityServiceTest {
     private ProfileRepository profileRepository;
     private SessionRepository sessionRepository;
     private NotificationsRepository notificationsRepository;
+    private PilotEventService pilotEventService;
     private Profile profile;
 
     @BeforeEach
@@ -44,6 +45,7 @@ class ReliabilityServiceTest {
         profileRepository = mock(ProfileRepository.class);
         sessionRepository = mock(SessionRepository.class);
         notificationsRepository = mock(NotificationsRepository.class);
+        pilotEventService = mock(PilotEventService.class);
 
         ReliabilityPolicyProperties properties = new ReliabilityPolicyProperties();
         properties.setFreeCancelHours(2);
@@ -62,7 +64,8 @@ class ReliabilityServiceTest {
                 properties,
                 profileRepository,
                 sessionRepository,
-                notificationsRepository);
+                notificationsRepository,
+                pilotEventService);
 
         profile = new Profile();
         profile.setId(7L);

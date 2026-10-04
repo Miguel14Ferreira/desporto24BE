@@ -44,7 +44,10 @@ public record RegistrationRequest(
         @NotBlank
         @Email
         @Size(max = 254)
-        String email
+        String email,
+
+        @AssertTrue(message = "Tens de aceitar os Termos de Utilização e a Política de Privacidade")
+        boolean acceptedLegalTerms
 ) {
 
     @AssertTrue(message = "Tens de ter pelo menos 18 anos e uma data de nascimento válida")

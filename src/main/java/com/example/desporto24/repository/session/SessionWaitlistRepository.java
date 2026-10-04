@@ -17,4 +17,6 @@ public interface SessionWaitlistRepository extends JpaRepository<SessionWaitlist
     List<SessionWaitlist> findBySessionIdOrderByPriorityTierAscCreatedAtAsc(Long sessionId);
 
     List<SessionWaitlist> findByProfileIdOrderByCreatedAtAsc(Long profileId);
+
+    long deleteByProfileId(Long profileId);
 }

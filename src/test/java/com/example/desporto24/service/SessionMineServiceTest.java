@@ -51,6 +51,7 @@ class SessionMineServiceTest {
     @Mock private WaitlistPromotionService waitlistPromotionService;
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
+    @Mock private PilotEventService pilotEventService;
 
     private SessionServiceImpl service;
 
@@ -70,7 +71,8 @@ class SessionMineServiceTest {
                 passwordEncoder,
                 waitlistPromotionService,
                 reliabilityService,
-                sessionNotificationService
+                sessionNotificationService,
+                pilotEventService
         );
     }
 

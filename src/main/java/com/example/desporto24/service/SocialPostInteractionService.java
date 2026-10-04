@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.social.CreateSocialCommentRequest;
+import com.example.desporto24.model.dto.moderation.CreateUserReportRequest;
 import com.example.desporto24.model.dto.social.PostLikeResponse;
 import com.example.desporto24.model.dto.social.SocialCommentResponse;
 import com.example.desporto24.model.social.SocialPost;
@@ -31,6 +32,7 @@ public class SocialPostInteractionService {
     private final SocialPostLikeRepository likeRepository;
     private final SocialPostCommentRepository commentRepository;
     private final ProfileRepository profileRepository;
+    private final UserReportService userReportService;
 
     public PostLikeResponse like(Long postId, String username) {
         SocialPost post = post(postId);
@@ -81,6 +83,39 @@ public class SocialPostInteractionService {
         );
 
         return toResponse(comment);
+    }
+
+    public void reportPost(
+            Long postId,
+            String username,
+            CreateUserReportRequest request) {
+        SocialPost post = post(postId);
+        userReportService.reportContent(
+                username,
+                post.getAuthor().getUsername(),
+                "POST #" + postId,
+                request.reason()
+        );
+    }
+
+    public void reportComment(
+            Long postId,
+            Long commentId,
+            String username,
+            CreateUserReportRequest request) {
+        SocialPostComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comentário não encontrado"));
+
+        if (!comment.getPost().getId().equals(postId)) {
+            throw new IllegalArgumentException("O comentário não pertence a esta publicação");
+        }
+
+        userReportService.reportContent(
+                username,
+                comment.getAuthor().getUsername(),
+                "COMMENT #" + commentId + " (POST #" + postId + ")",
+                request.reason()
+        );
     }
 
     public void deleteComment(

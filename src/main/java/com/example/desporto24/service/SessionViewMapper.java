@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
@@ -25,6 +26,17 @@ public class SessionViewMapper {
     private final VenueService venueService;
 
     public SessionSummaryResponse toSummary(Session session, Double distanceKm) {
+        return toSummary(session, distanceKm, null);
+    }
+
+    public SessionSummaryResponse toSummary(Session session, Double distanceKm, Profile viewer) {
+        boolean joinedByViewer = viewer != null && participantRepository
+                .existsBySessionIdAndProfileIdAndState(
+                        session.getId(), viewer.getId(), ParticipantState.ACTIVE);
+        boolean waitlistedByViewer = viewer != null && waitlistRepository
+                .findBySessionIdAndProfileId(session.getId(), viewer.getId())
+                .isPresent();
+
         return new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
@@ -36,7 +48,11 @@ public class SessionViewMapper {
                 session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),
-                session.getStatus() == null ? SessionStatus.OPEN : session.getStatus()
+                session.getStatus() == null ? SessionStatus.OPEN : session.getStatus(),
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
+                joinedByViewer,
+                waitlistedByViewer,
+                session.getRecurrenceSeriesId()
         );
     }
 
@@ -85,7 +101,12 @@ public class SessionViewMapper {
                 waitlistEntry.isPresent(),
                 waitlistPosition,
                 session.getGamePhoto(),
-                session.getVenue() == null ? null : venueService.toResponse(session.getVenue())
+                session.getVenue() == null ? null : venueService.toResponse(session.getVenue()),
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
+                session.getRecurrenceSeriesId(),
+                session.getProblemType(),
+                creator ? session.getProblemDetails() : null,
+                session.getCommunity() == null ? null : session.getCommunity().getId()
         );
     }
 }

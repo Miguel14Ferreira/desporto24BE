@@ -20,13 +20,18 @@ public class EmailService implements EmailSender {
 
     @Override
     public void send(String to, String html) {
+        send(to, DEFAULT_SUBJECT, html);
+    }
+
+    @Override
+    public void send(String to, String subject, String html) {
         String apiKey = RuntimeSecrets.require("RESEND_API_KEY");
         String from = RuntimeSecrets.require("RESEND_FROM_EMAIL");
 
         Map<String, Object> payload = Map.of(
                 "from", from,
                 "to", new String[]{to},
-                "subject", DEFAULT_SUBJECT,
+                "subject", subject,
                 "html", html
         );
 

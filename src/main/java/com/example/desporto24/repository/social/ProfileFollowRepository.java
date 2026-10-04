@@ -18,4 +18,6 @@ public interface ProfileFollowRepository extends JpaRepository<ProfileFollow, Lo
     List<ProfileFollow> findByFollowerIdOrderByCreatedAtDesc(Long followerId);
 
     List<ProfileFollow> findByFollowingIdOrderByCreatedAtDesc(Long followingId);
+
+    long deleteByFollowerIdOrFollowingId(Long followerId, Long followingId);
 }

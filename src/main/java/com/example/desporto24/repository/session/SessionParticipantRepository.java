@@ -3,6 +3,7 @@ package com.example.desporto24.repository.session;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.model.session.SessionParticipant;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -42,6 +43,21 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     List<SessionParticipant> findBySessionIdAndAttendanceStatusOrderByJoinedAtAsc(
             Long sessionId,
             AttendanceStatus attendanceStatus);
+
+    @Query("""
+            select p
+            from SessionParticipant p
+            join fetch p.session s
+            join fetch p.profile pr
+            where pr.id in :profileIds
+              and p.attendanceStatus = com.example.desporto24.enumeration.AttendanceStatus.ATTENDED
+              and p.attendanceRecordedAt is not null
+              and (s.privateGame = false or s.privateGame is null)
+            order by p.attendanceRecordedAt desc
+            """)
+    List<SessionParticipant> findPublicAttendanceFeed(
+            @Param("profileIds") Collection<Long> profileIds,
+            Pageable pageable);
 
     @Query("""
             select p from SessionParticipant p

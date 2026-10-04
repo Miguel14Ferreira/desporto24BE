@@ -18,6 +18,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +47,8 @@ class WaitlistPromotionServiceTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
+    @MockitoBean private VenueService venueService;
+    @MockitoBean private PilotEventService pilotEventService;
 
     private Profile creator;
     private Session session;
@@ -122,6 +125,22 @@ class WaitlistPromotionServiceTest {
         assertEquals(old.getId(), promoted.getId());
         assertEquals(ParticipantState.ACTIVE, promoted.getState());
         assertNull(promoted.getExitedAt());
+    }
+
+    @Test
+    void promotedReturningParticipantDoesNotKeepOldTeamAssignment() {
+        Profile returning = profile("returning-team");
+        SessionParticipant old = activeParticipant(returning);
+        old.setTeamCode("A");
+        old.setState(ParticipantState.LEFT);
+        old.setExitedAt(Instant.now().minusSeconds(300));
+        participantRepository.saveAndFlush(old);
+        waitlisted(returning, Instant.now().minusSeconds(60));
+
+        SessionParticipant promoted = service.promoteNext(session, Instant.now()).orElseThrow();
+
+        assertEquals(old.getId(), promoted.getId());
+        assertNull(promoted.getTeamCode());
     }
 
     @Test

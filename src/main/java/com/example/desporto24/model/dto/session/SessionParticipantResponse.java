@@ -8,6 +8,15 @@ public record SessionParticipantResponse(
         Long id,
         String username,
         AttendanceStatus attendanceStatus,
-        Instant joinedAt
+        Instant joinedAt,
+        String teamCode
 ) {
+    public SessionParticipantResponse(
+            Long id,
+            String username,
+            AttendanceStatus attendanceStatus,
+            Instant joinedAt
+    ) {
+        this(id, username, attendanceStatus, joinedAt, null);
+    }
 }

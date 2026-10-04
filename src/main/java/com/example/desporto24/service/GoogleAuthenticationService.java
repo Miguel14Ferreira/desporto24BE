@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
@@ -42,6 +43,8 @@ public class GoogleAuthenticationService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int USER_ID_LENGTH = 10;
+    private static final String TERMS_VERSION = "2026-10-01";
+    private static final String PRIVACY_VERSION = "2026-10-01";
 
     private final GoogleIdentityService googleIdentityService;
     private final ProfileRepository profileRepository;
@@ -50,6 +53,7 @@ public class GoogleAuthenticationService {
     private final JWTokenProvider jwtTokenProvider;
     private final MFAVerificationService mfaVerificationService;
     private final NotificationsRepository notificationsRepository;
+    private final PilotEventService pilotEventService;
 
     @Transactional
     public GoogleAuthResponse authenticate(String credential) {
@@ -114,6 +118,11 @@ public class GoogleAuthenticationService {
 
     @Transactional
     public GoogleAuthResponse completeRegistration(GoogleRegistrationRequest request) {
+        return completeRegistration(request, null);
+    }
+
+    @Transactional
+    public GoogleAuthResponse completeRegistration(GoogleRegistrationRequest request, String cohort) {
         GoogleIdentityService.GoogleIdentity identity = googleIdentityService.verify(request.credential());
 
         if (profileRepository.findByGoogleSubject(identity.subject()).isPresent()
@@ -131,7 +140,7 @@ public class GoogleAuthenticationService {
         Profile profile = new Profile();
         profile.setUserId(generateUserId());
         profile.setUsername(request.username().trim());
-        profile.setPassword(passwordHashService.encode(UUID.randomUUID() + "-" + UUID.randomUUID()));
+        profile.setPassword(passwordHashService.encode(UUID.randomUUID().toString() + UUID.randomUUID()));
         profile.setFullName(identity.name() == null || identity.name().isBlank()
                 ? null
                 : identity.name().trim());
@@ -153,11 +162,15 @@ public class GoogleAuthenticationService {
         profile.setLoginAttempts(0);
         profile.setIsFirstTimeLogin(true);
         profile.setTokenVersion(0L);
+        profile.setTermsAcceptedAt(Instant.now());
+        profile.setTermsVersion(TERMS_VERSION);
+        profile.setPrivacyVersion(PRIVACY_VERSION);
         profile.setJoinDate(new Date());
         profile.setJoinDateDisplay(new java.text.SimpleDateFormat("yyyy MMM dd HH:mm").format(new Date()));
 
         Profile saved = profileRepository.save(profile);
         createWelcomeNotification(saved);
+        pilotEventService.recordRegistrationCompleted(saved, cohort);
 
         return completedLogin(saved, identity);
     }

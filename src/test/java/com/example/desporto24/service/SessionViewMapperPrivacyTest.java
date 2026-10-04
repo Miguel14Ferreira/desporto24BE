@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
@@ -43,6 +44,71 @@ class SessionViewMapperPrivacyTest {
         assertNull(response.address());
         assertNotNull(response.city());
         assertFalse(response.canSeeExactAddress());
+    }
+
+    @Test
+    void detailIncludesRecurrenceSeriesId() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(creator);
+        session.setRecurrenceSeriesId("series-123");
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 1L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, creator);
+
+        assertEquals("series-123", response.recurrenceSeriesId());
+    }
+
+    @Test
+    void detailIncludesReportedProblemType() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(creator);
+        session.setProblemType(SessionProblemType.VENUE_PROBLEM);
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 1L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, creator);
+
+        assertEquals(SessionProblemType.VENUE_PROBLEM, response.problemType());
+    }
+
+    @Test
+    void creatorCanSeeReportedProblemDetails() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(creator);
+        session.setProblemType(SessionProblemType.OTHER);
+        session.setProblemDetails("Balneario sem agua quente");
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 1L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, creator);
+
+        assertEquals("Balneario sem agua quente", response.problemDetails());
+    }
+
+    @Test
+    void nonCreatorCannotSeeReportedProblemDetails() {
+        Profile creator = profile(1L, "creator");
+        Profile viewer = profile(2L, "viewer");
+        Session session = session(creator);
+        session.setProblemType(SessionProblemType.OTHER);
+        session.setProblemDetails("Balneario sem agua quente");
+
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE)).thenReturn(1L);
+        when(participantRepository.existsBySessionIdAndProfileIdAndState(
+                10L, 2L, ParticipantState.ACTIVE)).thenReturn(false);
+        when(waitlistRepository.findBySessionIdAndProfileId(10L, 2L))
+                .thenReturn(java.util.Optional.empty());
+
+        SessionDetailResponse response = mapper.toDetail(session, viewer);
+
+        assertNull(response.problemDetails());
     }
 
     @Test

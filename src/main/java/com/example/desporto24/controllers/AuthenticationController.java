@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.domain.HttpResponse;
+import com.example.desporto24.exception.EmailNotFoundException;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
@@ -75,10 +76,16 @@ public class AuthenticationController {
 
     @PostMapping("/google/register")
     public ResponseEntity<GoogleAuthResponse> googleRegister(
-            @RequestBody @Valid GoogleRegistrationRequest request) {
+            @RequestBody @Valid GoogleRegistrationRequest request,
+            @RequestParam(required = false) String cohort) {
         return withGoogleRefreshCookie(
-                googleAuthenticationService.completeRegistration(request)
+                googleAuthenticationService.completeRegistration(request, cohort)
         );
+    }
+
+    public ResponseEntity<GoogleAuthResponse> googleRegister(
+            GoogleRegistrationRequest request) {
+        return googleRegister(request, null);
     }
 
     @PostMapping("/login")
@@ -131,9 +138,16 @@ public class AuthenticationController {
     @PostMapping(value = "/register", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<HttpResponse> registerUser(
             @RequestPart("profile") @Valid RegistrationRequest request,
-            @RequestPart(value = "photo", required = false) MultipartFile photo) {
-        authenticationService.signUpProfile(request, photo);
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestPart(value = "cohort", required = false) String cohort) {
+        authenticationService.signUpProfile(request, photo, cohort);
         return buildResponse(NEW_USER_REGISTERED);
+    }
+
+    public ResponseEntity<HttpResponse> registerUser(
+            RegistrationRequest request,
+            MultipartFile photo) {
+        return registerUser(request, photo, null);
     }
 
     @GetMapping("/register/confirm")
@@ -165,7 +179,11 @@ public class AuthenticationController {
                 request.email(),
                 Duration.ofSeconds(60)
         );
-        authenticationService.resetPasswordStepOne(request.email());
+        try {
+            authenticationService.resetPasswordStepOne(request.email());
+        } catch (EmailNotFoundException ignored) {
+            // Keep a generic response to avoid exposing whether an account exists.
+        }
         return buildResponse(PASSWORD_RESET_INITIATED);
     }
 
@@ -204,7 +222,7 @@ public class AuthenticationController {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/api/auth")
                 .maxAge(Duration.ofMillis(refreshExpirationMs))
                 .build();
@@ -214,7 +232,7 @@ public class AuthenticationController {
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/api/auth")
                 .maxAge(Duration.ZERO)
                 .build();

@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.configuration.ReliabilityPolicyProperties;
 import com.example.desporto24.enumeration.AttendanceStatus;
+import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
@@ -29,6 +30,7 @@ class ReliabilityAttendanceServiceTest {
     private ProfileRepository profileRepository;
     private SessionRepository sessionRepository;
     private NotificationsRepository notificationsRepository;
+    private PilotEventService pilotEventService;
     private ReliabilityService service;
 
     @BeforeEach
@@ -38,6 +40,7 @@ class ReliabilityAttendanceServiceTest {
         profileRepository = mock(ProfileRepository.class);
         sessionRepository = mock(SessionRepository.class);
         notificationsRepository = mock(NotificationsRepository.class);
+        pilotEventService = mock(PilotEventService.class);
 
         ReliabilityPolicyProperties properties = new ReliabilityPolicyProperties();
         properties.setAttendanceMarkingDelayMinutes(30);
@@ -48,7 +51,8 @@ class ReliabilityAttendanceServiceTest {
                 properties,
                 profileRepository,
                 sessionRepository,
-                notificationsRepository);
+                notificationsRepository,
+                pilotEventService);
     }
 
     @Test
@@ -64,6 +68,20 @@ class ReliabilityAttendanceServiceTest {
                 service.recordAttendance(10L, 20L, AttendanceStatus.NO_SHOW, "other"));
 
         verify(participantRepository, never()).save(any());
+    }
+
+    @Test
+    void attendanceCannotBeRecordedForCancelledSession() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator, Instant.now().minus(Duration.ofHours(1)));
+        session.setStatus(SessionStatus.CANCELLED);
+
+        when(sessionRepository.findById(10L)).thenReturn(Optional.of(session));
+
+        assertThrows(IllegalStateException.class, () ->
+                service.recordAttendance(10L, 20L, AttendanceStatus.NO_SHOW, "creator"));
+
+        verifyNoInteractions(profileRepository, participantRepository);
     }
 
     @Test
@@ -113,6 +131,26 @@ class ReliabilityAttendanceServiceTest {
         assertFalse(participant.getAttendanceRecordedAt().isBefore(before));
         assertFalse(participant.getAttendanceRecordedAt().isAfter(after));
         verify(participantRepository).save(participant);
+        verifyNoInteractions(pilotEventService);
+    }
+
+    @Test
+    void attendedParticipantRecordsPilotAttendance() {
+        Profile creator = profile(1L, "creator");
+        Profile attendee = profile(2L, "attendee");
+        Session session = session(10L, creator, Instant.now().minus(Duration.ofMinutes(31)));
+        SessionParticipant participant = participant(20L, session);
+        participant.setProfile(attendee);
+
+        when(sessionRepository.findById(10L)).thenReturn(Optional.of(session));
+        when(profileRepository.findUserByUsername("creator")).thenReturn(Optional.of(creator));
+        when(participantRepository.findById(20L)).thenReturn(Optional.of(participant));
+
+        service.recordAttendance(10L, 20L, AttendanceStatus.ATTENDED, "creator");
+
+        assertEquals(AttendanceStatus.ATTENDED, participant.getAttendanceStatus());
+        verify(participantRepository).save(participant);
+        verify(pilotEventService).recordAttendanceConfirmed(attendee, 10L);
     }
 
     private Profile profile(Long id, String username) {

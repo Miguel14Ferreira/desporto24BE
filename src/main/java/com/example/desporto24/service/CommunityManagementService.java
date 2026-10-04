@@ -1,29 +1,41 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityInviteStatus;
+import com.example.desporto24.exception.UserNotFoundException;
+import com.example.desporto24.exception.CommunityInvitePendingException;
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityInvite;
+import com.example.desporto24.model.community.CommunityJoinRequest;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.NotificationsRepository;
+import com.example.desporto24.register.Notifications.Notifications;
+import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.repository.community.CommunityInviteRepository;
+import com.example.desporto24.repository.community.CommunityJoinRequestRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
 import com.example.desporto24.storage.MediaStorage;
 
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -32,7 +44,10 @@ public class CommunityManagementService {
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
+    private final CommunityJoinRequestRepository joinRequestRepository;
     private final ProfileRepository profileRepository;
+    private final NotificationsRepository notificationsRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -82,11 +97,130 @@ public class CommunityManagementService {
                 .findByCommunityIdAndProfileId(communityId, current.getId())
                 .orElse(null);
 
-        if (membership == null && community.getVisibility().name().equals("PRIVATE")) {
+        if (membership == null) {
             throw new SecurityException("Não tens acesso a esta comunidade");
         }
 
         return toResponse(community, current);
+    }
+
+    public CommunityResponse joinPublic(Long communityId, String username) {
+        Profile current = profile(username);
+        Community community = community(communityId);
+
+        if (community.getVisibility() != CommunityVisibility.PUBLIC) {
+            throw new SecurityException("Esta comunidade requer aprovação para aderir");
+        }
+
+        if (!memberRepository.existsByCommunityIdAndProfileId(communityId, current.getId())) {
+            memberRepository.save(CommunityMember.builder()
+                    .community(community)
+                    .profile(current)
+                    .role(CommunityRole.MEMBER)
+                    .joinedAt(Instant.now())
+                    .build());
+        }
+
+        return toResponse(community, current);
+    }
+
+    public CommunityJoinRequestResponse requestJoin(Long communityId, String username) {
+        Profile current = profile(username);
+        Community community = community(communityId);
+
+        if (community.getVisibility() != CommunityVisibility.PRIVATE) {
+            throw new IllegalArgumentException("Comunidades públicas não requerem pedido de adesão");
+        }
+        if (memberRepository.existsByCommunityIdAndProfileId(communityId, current.getId())) {
+            throw new IllegalArgumentException("Já pertences a esta comunidade");
+        }
+
+        CommunityJoinRequest request = joinRequestRepository
+                .findByCommunityIdAndRequesterIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .orElseGet(() -> joinRequestRepository.save(CommunityJoinRequest.builder()
+                        .community(community)
+                        .requester(current)
+                        .status(CommunityInviteStatus.PENDING)
+                        .createdAt(Instant.now())
+                        .build()));
+
+        return toJoinRequestResponse(request);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityJoinRequestResponse> pendingJoinRequests(Long communityId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        return joinRequestRepository
+                .findByCommunityIdAndStatusOrderByCreatedAtAsc(
+                        communityId, CommunityInviteStatus.PENDING)
+                .stream()
+                .map(this::toJoinRequestResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<CommunityJoinRequestResponse> myPendingJoinRequest(Long communityId, String username) {
+        Profile current = profile(username);
+        community(communityId);
+
+        return joinRequestRepository
+                .findByCommunityIdAndRequesterIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .map(this::toJoinRequestResponse);
+    }
+
+    public CommunityResponse acceptJoinRequest(Long communityId, Long requestId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        CommunityJoinRequest request = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido de adesão não encontrado"));
+        requireJoinRequestCommunity(request, communityId);
+        requireJoinRequestPending(request);
+
+        Profile requester = request.getRequester();
+        if (!memberRepository.existsByCommunityIdAndProfileId(communityId, requester.getId())) {
+            memberRepository.save(CommunityMember.builder()
+                    .community(request.getCommunity())
+                    .profile(requester)
+                    .role(CommunityRole.MEMBER)
+                    .joinedAt(Instant.now())
+                    .build());
+        }
+
+        request.setStatus(CommunityInviteStatus.ACCEPTED);
+        joinRequestRepository.save(request);
+        return toResponse(request.getCommunity(), actor);
+    }
+
+    public void rejectJoinRequest(Long communityId, Long requestId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        CommunityJoinRequest request = joinRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido de adesão não encontrado"));
+        requireJoinRequestCommunity(request, communityId);
+        requireJoinRequestPending(request);
+
+        request.setStatus(CommunityInviteStatus.REJECTED);
+        joinRequestRepository.save(request);
+    }
+
+    public CommunityResponse updateVisibility(
+            Long communityId, String username, UpdateCommunityVisibilityRequest request) {
+        Profile actor = profile(username);
+        CommunityMember membership = requireOwner(communityId, actor);
+        if (request.visibility() == null) {
+            throw new IllegalArgumentException("A visibilidade é obrigatória");
+        }
+
+        Community community = membership.getCommunity();
+        community.setVisibility(request.visibility());
+        Community saved = communityRepository.save(community);
+        return toResponse(saved, actor);
     }
 
     public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
@@ -111,6 +245,40 @@ public class CommunityManagementService {
         return toResponse(saved, actor);
     }
 
+    public CommunityResponse removePhoto(Long communityId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+
+        Community community = community(communityId);
+        String photoUrl = community.getPhotoUrl();
+        community.setPhotoUrl(null);
+        Community saved = communityRepository.save(community);
+        deleteCommunityPhoto(photoUrl, communityId);
+        return toResponse(saved, actor);
+    }
+
+    private void deleteCommunityPhoto(String photoUrl, Long communityId) {
+        if (mediaStorage == null || photoUrl == null || photoUrl.isBlank()) {
+            return;
+        }
+
+        String prefix = "communities/" + communityId + "/";
+        int keyStart = photoUrl.indexOf(prefix);
+        if (keyStart >= 0) {
+            String objectKey = photoUrl.substring(keyStart);
+            try {
+                mediaStorage.delete(objectKey);
+            } catch (RuntimeException exception) {
+                log.warn(
+                        "Community {} photo was detached but storage cleanup failed for key {}",
+                        communityId,
+                        objectKey,
+                        exception
+                );
+            }
+        }
+    }
+
     public CommunityInviteResponse invite(Long communityId, String username, InviteCommunityMemberRequest request) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
@@ -123,7 +291,7 @@ public class CommunityManagementService {
         inviteRepository.findByCommunityIdAndInvitedProfileIdAndStatus(
                 communityId, invited.getId(), CommunityInviteStatus.PENDING
         ).ifPresent(existing -> {
-            throw new IllegalArgumentException("Já existe um convite pendente para este utilizador");
+            throw new CommunityInvitePendingException();
         });
 
         Community community = community(communityId);
@@ -135,6 +303,9 @@ public class CommunityManagementService {
                 .createdAt(Instant.now())
                 .build());
 
+        notifyCommunityInvite(invited, actor, community);
+        eventPublisher.publishEvent(new CommunityInviteCreatedEvent(
+                invite.getId(), invited.getEmail(), actor.getUsername(), community.getName()));
         return toInviteResponse(invite);
     }
 
@@ -304,6 +475,26 @@ public class CommunityManagementService {
         };
     }
 
+    private void notifyCommunityInvite(Profile invited, Profile actor, Community community) {
+        Notifications notification = new Notifications();
+        notification.setSubject("Convite para a comunidade " + community.getName());
+        notification.setMessage("@" + actor.getUsername() + " convidou-te para a comunidade "
+                + community.getName() + ". Abre Comunidades para aceitar ou rejeitar o convite.");
+        notification.setGreeting("");
+        notification.setSignature("");
+        notification.setCreatedAt(Instant.now().toString());
+        notification.setFriendRequest(false);
+        notification.setUpdateProfile(false);
+        notification.setSessionInvite(false);
+        notification.setNormalMessage(false);
+        notification.setToken(null);
+        notification.setUsername(invited.getUsername());
+        notification.setRelatedUsername(actor.getUsername());
+        notification.setType(NotificationType.COMMUNITY_INVITE);
+        notification.setRead(false);
+        notificationsRepository.save(notification);
+    }
+
     private CommunityInviteResponse toInviteResponse(CommunityInvite invite) {
         return new CommunityInviteResponse(
                 invite.getId(),
@@ -314,9 +505,22 @@ public class CommunityManagementService {
         );
     }
 
+    private CommunityJoinRequestResponse toJoinRequestResponse(CommunityJoinRequest request) {
+        return new CommunityJoinRequestResponse(
+                request.getId(),
+                request.getCommunity().getId(),
+                request.getCommunity().getName(),
+                request.getRequester().getUsername(),
+                request.getStatus(),
+                request.getCreatedAt()
+        );
+    }
+
     private Profile profile(String username) {
         return profileRepository.findUserByUsernameIgnoreCase(username)
-                .orElseThrow(() -> new IllegalArgumentException("Utilizador não encontrado"));
+                .orElseThrow(() -> new UserNotFoundException(
+                        com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME
+                ));
     }
 
     private Community community(Long id) {
@@ -355,6 +559,18 @@ public class CommunityManagementService {
     private void requirePending(CommunityInvite invite) {
         if (invite.getStatus() != CommunityInviteStatus.PENDING) {
             throw new IllegalArgumentException("Este convite já não está pendente");
+        }
+    }
+
+    private void requireJoinRequestCommunity(CommunityJoinRequest request, Long communityId) {
+        if (!request.getCommunity().getId().equals(communityId)) {
+            throw new IllegalArgumentException("Este pedido não pertence à comunidade");
+        }
+    }
+
+    private void requireJoinRequestPending(CommunityJoinRequest request) {
+        if (request.getStatus() != CommunityInviteStatus.PENDING) {
+            throw new IllegalArgumentException("Este pedido já não está pendente");
         }
     }
 

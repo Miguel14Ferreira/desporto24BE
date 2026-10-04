@@ -8,13 +8,17 @@ import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
+import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
+import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
 import com.example.desporto24.service.interfaces.SessionService;
+import com.example.desporto24.service.SessionTeamSuggestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +33,7 @@ import java.util.List;
 public class SessionController {
 
     private final SessionService sessionService;
+    private final SessionTeamSuggestionService sessionTeamSuggestionService;
 
     @GetMapping
     public List<SessionSummaryResponse> discover(
@@ -46,11 +51,20 @@ public class SessionController {
             @RequestParam(required = false) Boolean freeOnly,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String sort) {
-        return sessionService.discover(new SessionSearchCriteria(
+            @RequestParam(required = false) String sort,
+            Authentication authentication) {
+        SessionSearchCriteria criteria = new SessionSearchCriteria(
                 sport, city, from, to, latitude, longitude, radiusKm,
                 availability, privateGame, freeOnly, minPrice, maxPrice, sort
-        ));
+        );
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return sessionService.discover(criteria);
+        }
+
+        return sessionService.discover(criteria, authentication.getName());
     }
 
     @GetMapping("/mine")
@@ -63,11 +77,32 @@ public class SessionController {
         return sessionService.getById(id, authentication.getName());
     }
 
+    @GetMapping("/{id}/series")
+    public List<SessionSummaryResponse> series(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return sessionService.series(id, authentication.getName());
+    }
+
     @GetMapping("/{id}/participants")
     public List<SessionParticipantResponse> participants(
             @PathVariable Long id,
             Authentication authentication) {
         return sessionService.participants(id, authentication.getName());
+    }
+
+    @GetMapping("/{id}/teams/suggestion")
+    public SessionTeamSuggestionResponse teamSuggestion(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return sessionTeamSuggestionService.suggest(id, authentication.getName());
+    }
+
+    @PostMapping("/{id}/teams/confirm")
+    public SessionTeamSuggestionResponse confirmTeams(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return sessionTeamSuggestionService.confirm(id, authentication.getName());
     }
 
     @PostMapping("/{id}/join")
@@ -88,6 +123,29 @@ public class SessionController {
     @PostMapping("/{id}/cancel")
     public ResponseEntity<Void> cancel(@PathVariable Long id, Authentication authentication) {
         sessionService.cancel(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<Void> complete(@PathVariable Long id, Authentication authentication) {
+        sessionService.complete(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/problems/not-occurred")
+    public ResponseEntity<Void> reportDidNotOccur(
+            @PathVariable Long id,
+            Authentication authentication) {
+        sessionService.reportDidNotOccur(id, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/problems")
+    public ResponseEntity<Void> reportProblem(
+            @PathVariable Long id,
+            @RequestBody @Valid ReportSessionProblemRequest request,
+            Authentication authentication) {
+        sessionService.reportProblem(id, request.type(), request.details(), authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

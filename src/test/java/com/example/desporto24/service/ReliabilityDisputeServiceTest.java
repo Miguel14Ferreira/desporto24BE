@@ -30,6 +30,7 @@ class ReliabilityDisputeServiceTest {
     private ProfileRepository profileRepository;
     private SessionRepository sessionRepository;
     private NotificationsRepository notificationsRepository;
+    private PilotEventService pilotEventService;
     private ReliabilityService service;
 
     @BeforeEach
@@ -39,6 +40,7 @@ class ReliabilityDisputeServiceTest {
         profileRepository = mock(ProfileRepository.class);
         sessionRepository = mock(SessionRepository.class);
         notificationsRepository = mock(NotificationsRepository.class);
+        pilotEventService = mock(PilotEventService.class);
 
         service = new ReliabilityService(
                 participantRepository,
@@ -46,7 +48,8 @@ class ReliabilityDisputeServiceTest {
                 new ReliabilityPolicyProperties(),
                 profileRepository,
                 sessionRepository,
-                notificationsRepository);
+                notificationsRepository,
+                pilotEventService);
     }
 
     @Test

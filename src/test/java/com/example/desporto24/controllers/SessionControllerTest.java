@@ -1,12 +1,17 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
+import com.example.desporto24.model.dto.session.SessionTeamPlayerResponse;
+import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
+import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.service.interfaces.SessionService;
+import com.example.desporto24.service.SessionTeamSuggestionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,9 +31,40 @@ import static org.mockito.Mockito.*;
 class SessionControllerTest {
 
     @Mock private SessionService sessionService;
+    @Mock private SessionTeamSuggestionService sessionTeamSuggestionService;
     @Mock private Authentication authentication;
 
     @InjectMocks private SessionController controller;
+
+    @Test
+    void discoverUsesAuthenticatedIdentityWhenAvailable() {
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionService.discover(any(), eq("miguel"))).thenReturn(List.of());
+
+        List<?> response = controller.discover(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, authentication
+        );
+
+        assertTrue(response.isEmpty());
+        verify(sessionService).discover(any(), eq("miguel"));
+        verify(sessionService, never()).discover(any());
+    }
+
+    @Test
+    void anonymousDiscoverRemainsPublicAndDoesNotRecordIdentity() {
+        when(sessionService.discover(any())).thenReturn(List.of());
+
+        List<?> response = controller.discover(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null
+        );
+
+        assertTrue(response.isEmpty());
+        verify(sessionService).discover(any());
+        verify(sessionService, never()).discover(any(), anyString());
+    }
 
     @Test
     void createUsesAuthenticatedIdentityInsteadOfClientUsername() {
@@ -50,6 +86,17 @@ class SessionControllerTest {
     }
 
     @Test
+    void seriesUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionService.series(1L, "miguel")).thenReturn(List.of());
+
+        List<?> response = controller.series(1L, authentication);
+
+        assertTrue(response.isEmpty());
+        verify(sessionService).series(1L, "miguel");
+    }
+
+    @Test
     void participantsUsesAuthenticatedIdentity() {
         SessionParticipantResponse participant = new SessionParticipantResponse(
                 5L,
@@ -64,6 +111,76 @@ class SessionControllerTest {
 
         assertEquals(List.of(participant), response);
         verify(sessionService).participants(1L, "miguel");
+    }
+
+    @Test
+    void confirmTeamsUsesAuthenticatedIdentity() {
+        SessionTeamSuggestionResponse suggestion = new SessionTeamSuggestionResponse(
+                List.of(new SessionTeamPlayerResponse("a", 2.5, true, 4, 2, 3, 1)),
+                List.of(new SessionTeamPlayerResponse("b", 2.4, true, 4, 2, 2, 2)),
+                2.5,
+                2.4,
+                2,
+                2
+        );
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionTeamSuggestionService.confirm(7L, "miguel")).thenReturn(suggestion);
+
+        SessionTeamSuggestionResponse response = controller.confirmTeams(7L, authentication);
+
+        assertSame(suggestion, response);
+        verify(sessionTeamSuggestionService).confirm(7L, "miguel");
+    }
+
+    @Test
+    void teamSuggestionUsesAuthenticatedIdentity() {
+        SessionTeamSuggestionResponse suggestion = new SessionTeamSuggestionResponse(
+                List.of(new SessionTeamPlayerResponse("a", 2.5, true, 4, 2, 3, 1)),
+                List.of(new SessionTeamPlayerResponse("b", 2.4, true, 4, 2, 2, 2)),
+                2.5,
+                2.4,
+                2,
+                2
+        );
+        when(authentication.getName()).thenReturn("miguel");
+        when(sessionTeamSuggestionService.suggest(7L, "miguel")).thenReturn(suggestion);
+
+        SessionTeamSuggestionResponse response = controller.teamSuggestion(7L, authentication);
+
+        assertSame(suggestion, response);
+        verify(sessionTeamSuggestionService).suggest(7L, "miguel");
+    }
+
+    @Test
+    void reportDidNotOccurUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+
+        ResponseEntity<Void> response = controller.reportDidNotOccur(
+                1L,
+                authentication
+        );
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(sessionService).reportDidNotOccur(1L, "miguel");
+    }
+
+    @Test
+    void reportProblemUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+
+        ResponseEntity<Void> response = controller.reportProblem(
+                1L,
+                new ReportSessionProblemRequest(SessionProblemType.VENUE_PROBLEM, "Campo sem iluminação"),
+                authentication
+        );
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(sessionService).reportProblem(
+                1L,
+                SessionProblemType.VENUE_PROBLEM,
+                "Campo sem iluminação",
+                "miguel"
+        );
     }
 
     @Test

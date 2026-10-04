@@ -12,4 +12,6 @@ public interface CommunityInviteRepository extends JpaRepository<CommunityInvite
             Long communityId, Long invitedProfileId, CommunityInviteStatus status);
     List<CommunityInvite> findByInvitedProfileIdAndStatusOrderByCreatedAtDesc(
             Long invitedProfileId, CommunityInviteStatus status);
+
+    long deleteByInvitedProfileIdOrInvitedById(Long invitedProfileId, Long invitedById);
 }

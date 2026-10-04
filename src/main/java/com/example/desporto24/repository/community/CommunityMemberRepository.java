@@ -12,4 +12,6 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     long countByProfileId(Long profileId);
     List<CommunityMember> findByCommunityIdOrderByJoinedAtAsc(Long communityId);
     boolean existsByCommunityIdAndProfileId(Long communityId, Long profileId);
+
+    long deleteByProfileId(Long profileId);
 }

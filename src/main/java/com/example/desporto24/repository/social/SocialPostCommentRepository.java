@@ -12,4 +12,6 @@ public interface SocialPostCommentRepository extends JpaRepository<SocialPostCom
     long countByPostId(Long postId);
 
     long deleteByPostId(Long postId);
+
+    long deleteByAuthorId(Long authorId);
 }

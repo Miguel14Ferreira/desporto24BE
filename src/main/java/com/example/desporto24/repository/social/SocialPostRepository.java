@@ -22,4 +22,6 @@ public interface SocialPostRepository extends JpaRepository<SocialPost, Long> {
             Pageable pageable);
 
     List<SocialPost> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    List<SocialPost> findByAuthorId(Long authorId);
 }

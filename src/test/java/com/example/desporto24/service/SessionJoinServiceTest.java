@@ -11,6 +11,7 @@ import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
@@ -29,6 +30,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +60,7 @@ import static org.junit.jupiter.api.Assertions.*;
         SessionDistanceCalculator.class,
         WaitlistPromotionService.class,
         SessionNotificationService.class,
+        PilotEventService.class,
         ReliabilityService.class,
         ReliabilityPolicyProperties.class,
         PasswordHashService.class,
@@ -79,12 +82,15 @@ class SessionJoinServiceTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
+    @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private BCryptPasswordEncoder passwordEncoder;
+    @MockitoBean private VenueService venueService;
 
     private Profile creator;
 
     @BeforeEach
     void setUp() {
+        pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
         sessionRepository.deleteAll();
@@ -105,6 +111,10 @@ class SessionJoinServiceTest {
         assertNull(response.waitlistPosition());
         assertTrue(participantRepository.existsBySessionIdAndProfileIdAndState(
                 session.getId(), joiner.getId(), ParticipantState.ACTIVE));
+        assertTrue(pilotEventRepository.existsByEventTypeAndProfileIdAndSubjectId(
+                com.example.desporto24.enumeration.PilotEventType.SESSION_JOINED,
+                joiner.getId(),
+                session.getId()));
         assertEquals(SessionStatus.FULL, sessionRepository.findById(session.getId()).orElseThrow().getStatus());
     }
 
@@ -173,6 +183,10 @@ class SessionJoinServiceTest {
         assertEquals(1, response.waitlistPosition());
         assertTrue(waitlistRepository.findBySessionIdAndProfileId(
                 session.getId(), joiner.getId()).isPresent());
+        assertFalse(pilotEventRepository.existsByEventTypeAndProfileIdAndSubjectId(
+                com.example.desporto24.enumeration.PilotEventType.SESSION_JOINED,
+                joiner.getId(),
+                session.getId()));
     }
 
     @Test

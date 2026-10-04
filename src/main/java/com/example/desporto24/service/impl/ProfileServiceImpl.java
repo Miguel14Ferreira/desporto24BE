@@ -1,6 +1,7 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.encryption.AES;
+import com.example.desporto24.email.TransactionalEmailTemplate;
 import com.example.desporto24.exception.*;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.model.Profile;
@@ -12,6 +13,7 @@ import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.storage.MediaStorage;
@@ -31,6 +33,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.*;
 
 import static com.example.desporto24.constant.FileConstant.*;
@@ -52,6 +56,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
     private final PasswordHashService passwordHashService;
+    private final UserBlockService userBlockService;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -71,6 +76,17 @@ public class ProfileServiceImpl implements ProfileService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         return toPublicProfile(profile);
+    }
+
+    @Override
+    public PublicProfileResponse findPublicProfile(String actorUsername, String username) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(actorUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        Profile target = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        userBlockService.ensureInteractionAllowed(actor, target);
+        return toPublicProfile(target);
     }
 
     @Override
@@ -204,13 +220,7 @@ public class ProfileServiceImpl implements ProfileService {
 
         if (!changedFields.isEmpty()) {
             if (emailChanged) {
-                sendProfileSecurityEmail(
-                        previousEmail,
-                        updated.getEmail(),
-                        updated.getUsername(),
-                        "Alteração de email",
-                        "O endereço de email associado à tua conta DESPORTO24 foi alterado."
-                );
+                sendEmailChangedEmail(previousEmail, updated.getEmail(), updated.getUsername());
                 createSecurityNotification(
                         updated.getUsername(),
                         "Alteração de email",
@@ -265,13 +275,7 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setTokenVersion(profile.getTokenVersion() + 1);
         profileRepository.save(profile);
 
-        sendProfileSecurityEmail(
-                profile.getEmail(),
-                profile.getEmail(),
-                profile.getUsername(),
-                "Palavra-passe alterada",
-                "A palavra-passe da tua conta DESPORTO24 foi alterada."
-        );
+        sendPasswordChangedEmail(profile);
         createSecurityNotification(
                 profile.getUsername(),
                 "Palavra-passe alterada",
@@ -325,23 +329,19 @@ public class ProfileServiceImpl implements ProfileService {
         notificationsRepository.save(notification);
     }
 
-    private void sendProfileSecurityEmail(
-            String oldEmail,
-            String currentEmail,
-            String username,
-            String title,
-            String description) {
+    private void sendEmailChangedEmail(String oldEmail, String currentEmail, String username) {
         String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
-        String emailBody = buildSecurityEmail(username, title, description, resetLink);
+        String emailBody = buildEmailChangedEmail(username, resetLink);
+        String subject = "Alteração de email | Email address changed — Desporto24";
 
         if (oldEmail != null && !oldEmail.isBlank()) {
-            emailService.send(oldEmail, emailBody);
+            emailService.send(oldEmail, subject, emailBody);
         }
 
         if (currentEmail != null
                 && !currentEmail.isBlank()
                 && !Objects.equals(oldEmail, currentEmail)) {
-            emailService.send(currentEmail, emailBody);
+            emailService.send(currentEmail, subject, emailBody);
         }
     }
 
@@ -417,8 +417,60 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public List<PublicProfileResponse> searchPublicProfiles(
+            String actorUsername,
+            String name,
+            String sport,
+            String location,
+            Integer minAge,
+            Integer maxAge,
+            String skillLevel) {
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw new IllegalArgumentException("A idade mínima não pode ser superior à idade máxima");
+        }
+
+        String normalizedName = normalizeSearchFilter(name);
+        String normalizedSport = normalizeSearchFilter(sport);
+        String normalizedLocation = normalizeSearchFilter(location);
+        String normalizedSkillLevel = normalizeSearchFilter(skillLevel);
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(actorUsername)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        return profileRepository.searchPublicCandidates(
+                        actorUsername,
+                        normalizedName,
+                        normalizedSport,
+                        normalizedLocation,
+                        normalizedSkillLevel,
+                        PageRequest.of(0, 100)
+                )
+                .stream()
+                .filter(profile -> !userBlockService.isBlockedBetween(actor, profile))
+                .filter(profile -> matchesAge(profile, minAge, maxAge))
+                .limit(50)
+                .map(this::toPublicProfile)
+                .toList();
+    }
+
+    @Override
     public List<PublicProfileResponse> discoverPublicProfiles(String username) {
-        return profileRepository.discoverProfiles(username, PageRequest.of(0, 12)).stream()
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        return profileRepository.discoverProfiles(username, PageRequest.of(0, 100))
+                .stream()
+                .filter(profile -> !userBlockService.isBlockedBetween(actor, profile))
+                .sorted((left, right) -> {
+                    int scoreCompare = Integer.compare(
+                            compatibilityScore(actor, right),
+                            compatibilityScore(actor, left)
+                    );
+                    if (scoreCompare != 0) {
+                        return scoreCompare;
+                    }
+                    return Long.compare(right.getId(), left.getId());
+                })
+                .limit(12)
                 .map(this::toPublicProfile)
                 .toList();
     }
@@ -435,9 +487,105 @@ public class ProfileServiceImpl implements ProfileService {
                 dto.getBio(),
                 dto.getSkillLevel(),
                 dto.getAvailability(),
+                ageOf(profile.getDateOfBirth()),
                 dto.getProfilePicUrl(),
                 publicJoinDate(profile)
         );
+    }
+
+    private int compatibilityScore(Profile actor, Profile candidate) {
+        int score = 0;
+
+        Set<String> actorSports = normalizedSports(actor.getFavoriteSports());
+        Set<String> candidateSports = normalizedSports(candidate.getFavoriteSports());
+        long sharedSports = actorSports.stream()
+                .filter(candidateSports::contains)
+                .count();
+        score += (int) sharedSports * 5;
+
+        if (sameNormalized(actor.getLocation(), candidate.getLocation())) {
+            score += 4;
+        }
+
+        if (sameNormalized(actor.getSkillLevel(), candidate.getSkillLevel())) {
+            score += 2;
+        }
+
+        Integer actorAge = ageOf(actor.getDateOfBirth());
+        Integer candidateAge = ageOf(candidate.getDateOfBirth());
+        if (actorAge != null && candidateAge != null) {
+            int difference = Math.abs(actorAge - candidateAge);
+            if (difference <= 5) {
+                score += 2;
+            } else if (difference <= 10) {
+                score += 1;
+            }
+        }
+
+        if (sameNormalized(actor.getAvailability(), candidate.getAvailability())) {
+            score += 1;
+        }
+
+        return score;
+    }
+
+    private boolean matchesAge(Profile profile, Integer minAge, Integer maxAge) {
+        if (minAge == null && maxAge == null) {
+            return true;
+        }
+
+        Integer age = ageOf(profile.getDateOfBirth());
+        if (age == null) {
+            return false;
+        }
+
+        return (minAge == null || age >= minAge)
+                && (maxAge == null || age <= maxAge);
+    }
+
+    private Integer ageOf(String dateOfBirth) {
+        if (dateOfBirth == null || dateOfBirth.isBlank()) {
+            return null;
+        }
+
+        try {
+            LocalDate birthDate = LocalDate.parse(dateOfBirth.trim());
+            LocalDate today = LocalDate.now(java.time.ZoneId.of("Europe/Lisbon"));
+            if (birthDate.isAfter(today)) {
+                return null;
+            }
+            return Period.between(birthDate, today).getYears();
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private Set<String> normalizedSports(String sports) {
+        if (sports == null || sports.isBlank()) {
+            return Set.of();
+        }
+
+        Set<String> values = new HashSet<>();
+        for (String sport : sports.split(",")) {
+            String normalized = sport.trim().toLowerCase(Locale.ROOT);
+            if (!normalized.isBlank()) {
+                values.add(normalized);
+            }
+        }
+        return values;
+    }
+
+    private boolean sameNormalized(String left, String right) {
+        return left != null
+                && right != null
+                && !left.isBlank()
+                && left.trim().equalsIgnoreCase(right.trim());
+    }
+
+    private String normalizeSearchFilter(String value) {
+        return value == null
+                ? ""
+                : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String publicJoinDate(Profile profile) {
@@ -451,14 +599,39 @@ public class ProfileServiceImpl implements ProfileService {
         return formatter.format(profile.getJoinDate());
     }
 
-    private String buildSecurityEmail(String name, String title, String description, String link) {
-        return "<h2>" + title + "</h2>"
-                + "<p>Olá " + name + ",</p>"
-                + "<p>" + description + "</p>"
-                + "<p>Se foste tu, não precisas de fazer nada.</p>"
-                + "<p>Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe:</p>"
-                + "<p><a href=\"" + link + "\">Redefinir palavra-passe</a></p>"
-                + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
+    private void sendPasswordChangedEmail(Profile profile) {
+        if (profile.getEmail() == null || profile.getEmail().isBlank()) {
+            return;
+        }
+        String link = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
+        emailService.send(profile.getEmail(), "Palavra-passe alterada | Password changed — Desporto24",
+                buildPasswordChangedEmail(profile.getUsername(), link));
+    }
+
+    private String buildPasswordChangedEmail(String name, String link) {
+        return TransactionalEmailTemplate.render(
+                "Palavra-passe alterada",
+                "Olá " + name + ", a palavra-passe da tua conta Desporto24 foi alterada.",
+                "Password changed",
+                "Hi " + name + ", the password for your Desporto24 account has been changed.",
+                "Redefinir palavra-passe / Reset password",
+                link,
+                "Se foste tu, não precisas de fazer nada. Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe.",
+                "If you made this change, no action is needed. If you do not recognise this change, reset your password immediately."
+        );
+    }
+
+    private String buildEmailChangedEmail(String name, String link) {
+        return TransactionalEmailTemplate.render(
+                "Alteração de email",
+                "Olá " + name + ", o endereço de email associado à tua conta Desporto24 foi alterado.",
+                "Email address changed",
+                "Hi " + name + ", the email address associated with your Desporto24 account has been changed.",
+                "Redefinir palavra-passe / Reset password",
+                link,
+                "Se foste tu, não precisas de fazer nada. Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe.",
+                "If you made this change, no action is needed. If you do not recognise this change, reset your password immediately."
+        );
     }
 
     @Override

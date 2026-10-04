@@ -22,4 +22,6 @@ public interface NotificationsRepository extends JpaRepository<Notifications, Lo
     @Modifying
     @Query("DELETE FROM Notifications n WHERE n.username = ?1")
     void deleteByUsername(String username);
+
+    long deleteByUsernameOrRelatedUsername(String username, String relatedUsername);
 }

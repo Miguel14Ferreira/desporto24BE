@@ -9,6 +9,7 @@ import com.example.desporto24.register.FriendRequest.FriendRequestService;
 import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.UserBlockService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,7 @@ class FriendServiceImplTest {
     private FriendRepository friendRepository;
     private NotificationService notificationService;
     private ProfileRepository profileRepository;
+    private UserBlockService userBlockService;
     private FriendServiceImpl service;
 
     @BeforeEach
@@ -46,6 +48,7 @@ class FriendServiceImplTest {
         friendRepository = mock(FriendRepository.class);
         notificationService = mock(NotificationService.class);
         profileRepository = mock(ProfileRepository.class);
+        userBlockService = mock(UserBlockService.class);
 
         service = new FriendServiceImpl(
                 profileService,
@@ -53,8 +56,36 @@ class FriendServiceImplTest {
                 emailService,
                 friendRepository,
                 notificationService,
-                profileRepository
+                profileRepository,
+                userBlockService
         );
+    }
+
+    @Test
+    void newFriendRequestSendsBilingualEmailWithSafeSenderAndNotificationsLink() {
+        ProfileDTO senderDto = profileDto("owner<script>", "owner@example.test");
+        ProfileDTO recipientDto = profileDto("recipient", "recipient@example.test");
+        Profile sender = profile(1L, "owner<script>");
+        Profile recipient = profile(2L, "recipient");
+        when(profileService.findUserByUsername("owner<script>")).thenReturn(senderDto);
+        when(profileService.findUserByUsername("recipient")).thenReturn(recipientDto);
+        when(profileRepository.findUserByUsername("owner<script>")).thenReturn(Optional.of(sender));
+        when(profileRepository.findUserByUsername("recipient")).thenReturn(Optional.of(recipient));
+        when(friendRepository.findByProfile1OrProfile2(sender, sender)).thenReturn(List.of());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test/");
+
+        service.sendFriendRequest(request("owner<script>", "recipient"));
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(org.mockito.ArgumentMatchers.eq("recipient@example.test"),
+                org.mockito.ArgumentMatchers.eq("Pedido de amizade | Friend request — Desporto24"), html.capture());
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("owner&lt;script&gt;"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.getValue().contains("<script>"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Ver pedido / View request"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/menu/notifications\""));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("accept or reject the request"));
+        verify(friendRequestService).saveFriendRequest(any());
+        verify(notificationService).save(any());
     }
 
     @Test
@@ -94,7 +125,7 @@ class FriendServiceImplTest {
 
         assertEquals(FRIEND_REQUEST_ALREADY_PENDING, exception.getMessage());
         verify(friendRequestService, never()).saveFriendRequest(any());
-        verify(emailService, never()).send(any(), any());
+        org.mockito.Mockito.verifyNoInteractions(emailService);
     }
 
     @Test

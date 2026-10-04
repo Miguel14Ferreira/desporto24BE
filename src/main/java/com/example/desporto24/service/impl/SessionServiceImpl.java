@@ -1,9 +1,14 @@
 package com.example.desporto24.service.impl;
 
+import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
+import com.example.desporto24.enumeration.SessionRecurrence;
+import com.example.desporto24.enumeration.SessionOutcome;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -31,6 +36,7 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
 import com.example.desporto24.service.SessionNotificationService;
+import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.ReliabilityService;
 import com.example.desporto24.service.WaitlistPromotionService;
 import com.example.desporto24.service.interfaces.SessionService;
@@ -46,6 +52,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashSet;
@@ -74,6 +81,7 @@ public class SessionServiceImpl implements SessionService {
     private final WaitlistPromotionService waitlistPromotionService;
     private final ReliabilityService reliabilityService;
     private final SessionNotificationService sessionNotificationService;
+    private final PilotEventService pilotEventService;
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
@@ -103,6 +111,11 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
+        String sport = request.sport() == null ? "" : request.sport().trim();
+        if (!SportsCatalog.ALLOWED.contains(sport)) {
+            throw new IllegalArgumentException("Desporto inválido");
+        }
+
         Venue linkedVenue = null;
         if (request.venueId() != null) {
             linkedVenue = venueRepository.findById(request.venueId())
@@ -116,12 +129,71 @@ public class SessionServiceImpl implements SessionService {
             throw new IllegalArgumentException("Private sessions require a password");
         }
 
+        SessionRecurrence recurrence = request.recurrence() == null
+                ? SessionRecurrence.NONE
+                : request.recurrence();
+        int occurrences = 1;
+        long intervalDays = 0;
+
+        if (recurrence != SessionRecurrence.NONE) {
+            if (linkedCommunity == null) {
+                throw new IllegalArgumentException(
+                        "Recurring sessions must belong to a community"
+                );
+            }
+            if (request.recurrenceOccurrences() == null) {
+                throw new IllegalArgumentException(
+                        "Recurring sessions require recurrenceOccurrences"
+                );
+            }
+
+            occurrences = request.recurrenceOccurrences();
+            intervalDays = recurrence == SessionRecurrence.WEEKLY ? 7 : 14;
+        }
+
+        String recurrenceSeriesId = recurrence == SessionRecurrence.NONE
+                ? null
+                : UUID.randomUUID().toString();
+
+        Session firstSaved = null;
+        for (int occurrence = 0; occurrence < occurrences; occurrence++) {
+            Instant gameDate = request.gameDate().plus(
+                    intervalDays * occurrence,
+                    ChronoUnit.DAYS
+            );
+            Session saved = saveCreatedSession(
+                    request,
+                    photo,
+                    creator,
+                    linkedCommunity,
+                    linkedVenue,
+                    sport,
+                    gameDate,
+                    recurrenceSeriesId
+            );
+            if (firstSaved == null) {
+                firstSaved = saved;
+            }
+        }
+
+        return sessionViewMapper.toDetail(firstSaved, creator);
+    }
+
+    private Session saveCreatedSession(
+            CreateSessionRequest request,
+            MultipartFile photo,
+            Profile creator,
+            Community linkedCommunity,
+            Venue linkedVenue,
+            String sport,
+            Instant gameDate,
+            String recurrenceSeriesId) {
         Instant now = Instant.now();
         Session session = new Session();
         session.setProfile(creator);
         session.setUserId(creator.getUserId());
-        session.setSport(request.sport());
-        session.setGameDate(Date.from(request.gameDate()));
+        session.setSport(sport);
+        session.setGameDate(Date.from(gameDate));
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
         session.setMaxParticipants(request.maxParticipants());
@@ -143,7 +215,9 @@ public class SessionServiceImpl implements SessionService {
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
         session.setCommunity(linkedCommunity);
+        session.setAudience(linkedCommunity == null ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
+        session.setRecurrenceSeriesId(recurrenceSeriesId);
 
         Session saved = sessionRepository.save(session);
 
@@ -167,7 +241,8 @@ public class SessionServiceImpl implements SessionService {
             saved = sessionRepository.save(saved);
         }
 
-        return sessionViewMapper.toDetail(saved, creator);
+        pilotEventService.recordSessionCreated(creator, saved.getId());
+        return saved;
     }
 
     @Override
@@ -177,12 +252,61 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile viewer = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() != null
+                && !communityMemberRepository.existsByCommunityIdAndProfileId(
+                        session.getCommunity().getId(), viewer.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
         return sessionViewMapper.toDetail(session, viewer);
     }
 
     @Override
     @Transactional(readOnly = true)
+    public List<SessionSummaryResponse> series(Long sessionId, String username) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile viewer = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() != null
+                && !communityMemberRepository.existsByCommunityIdAndProfileId(
+                        session.getCommunity().getId(), viewer.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
+
+        if (session.getRecurrenceSeriesId() == null || session.getRecurrenceSeriesId().isBlank()) {
+            return List.of(sessionViewMapper.toSummary(session, null, viewer));
+        }
+
+        return sessionRepository
+                .findByRecurrenceSeriesIdOrderByGameDateAsc(session.getRecurrenceSeriesId())
+                .stream()
+                .map(item -> sessionViewMapper.toSummary(item, null, viewer))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria) {
+        return discoverSessions(criteria);
+    }
+
+    @Override
+    @Transactional
+    public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria, String username) {
+        List<SessionSummaryResponse> result = discoverSessions(criteria);
+
+        if (username != null && !username.isBlank()) {
+            profileRepository.findUserByUsername(username)
+                    .ifPresent(pilotEventService::recordSessionSearched);
+        }
+
+        return result;
+    }
+
+    private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
         List<Session> candidates = sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
                 List.of(SessionStatus.OPEN, SessionStatus.FULL), new Date());
 
@@ -190,6 +314,7 @@ public class SessionServiceImpl implements SessionService {
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
 
         return candidates.stream()
+                .filter(s -> s.getAudience() != SessionAudience.COMMUNITY_ONLY)
                 .filter(s -> criteria.sport() == null
                         || criteria.sport().isBlank()
                         || s.getSport().equalsIgnoreCase(criteria.sport()))
@@ -263,7 +388,20 @@ public class SessionServiceImpl implements SessionService {
         Profile actor = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        requireCreator(session, actor);
+        boolean isCreator = session.getProfile() != null
+                && session.getProfile().getId().equals(actor.getId());
+        boolean isActiveParticipant = participantRepository
+                .existsBySessionIdAndProfileIdAndState(
+                        sessionId,
+                        actor.getId(),
+                        ParticipantState.ACTIVE
+                );
+
+        if (!isCreator && !isActiveParticipant) {
+            throw new AccessDeniedException(
+                    "Só participantes da sessão podem ver quem vai participar"
+            );
+        }
 
         return participantRepository
                 .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE)
@@ -272,7 +410,8 @@ public class SessionServiceImpl implements SessionService {
                         participant.getId(),
                         participant.getProfile().getUsername(),
                         participant.getAttendanceStatus(),
-                        participant.getJoinedAt()
+                        participant.getJoinedAt(),
+                        participant.getTeamCode()
                 ))
                 .toList();
     }
@@ -286,6 +425,12 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() != null
+                && !communityMemberRepository.existsByCommunityIdAndProfileId(
+                        session.getCommunity().getId(), profile.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
         Instant joinAt = Instant.now();
         reliabilityService.requireJoinAllowed(profile, joinAt);
 
@@ -328,6 +473,8 @@ public class SessionServiceImpl implements SessionService {
             participant.setAttendanceReportedBy(null);
             participant.setAttendanceRecordedAt(null);
             participantRepository.save(participant);
+            invalidateConfirmedTeams(sessionId);
+            pilotEventService.recordSessionJoined(profile, sessionId);
 
             long newCount = activeParticipants + 1;
             session.setStatus(newCount >= maxParticipants ? SessionStatus.FULL : SessionStatus.OPEN);
@@ -386,6 +533,7 @@ public class SessionServiceImpl implements SessionService {
         if (session.getProfile().getId().equals(actor.getId())) {
             throw new AccessDeniedException("Session creator must cancel the session instead of leaving");
         }
+        requireParticipantChangesAllowed(session);
 
         var activeMembership = participantRepository
                 .findBySessionIdAndProfileIdAndState(
@@ -421,6 +569,7 @@ public class SessionServiceImpl implements SessionService {
         participantRepository.save(membership);
 
         waitlistPromotionService.promoteNext(session, now);
+        invalidateConfirmedTeams(sessionId);
     }
 
     @Override
@@ -432,10 +581,83 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireCreator(session, actor);
+
+        if (session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Completed sessions cannot be cancelled");
+        }
+
         session.setStatus(SessionStatus.CANCELLED);
         session.setUpdatedAt(Instant.now());
         sessionRepository.save(session);
         sessionNotificationService.notifySessionCancelled(session);
+    }
+
+    @Override
+    @Transactional
+    public void complete(Long sessionId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        requireCreator(session, actor);
+
+        if (session.getStatus() == SessionStatus.CANCELLED) {
+            throw new IllegalStateException("Cancelled sessions cannot be completed");
+        }
+        if (session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Session is already completed");
+        }
+
+        Instant now = Instant.now();
+        if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
+            throw new IllegalStateException("Session cannot be completed before it starts");
+        }
+
+        session.setStatus(SessionStatus.COMPLETED);
+        session.setUpdatedAt(now);
+        sessionRepository.save(session);
+        pilotEventService.recordSessionCompleted(actor, sessionId);
+    }
+
+    @Override
+    @Transactional
+    public void reportDidNotOccur(Long sessionId, String username) {
+        reportProblem(sessionId, SessionProblemType.NOT_OCCURRED, null, username);
+    }
+
+    @Override
+    @Transactional
+    public void reportProblem(Long sessionId, SessionProblemType type, String details, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        requireCreator(session, actor);
+
+        Instant now = Instant.now();
+        if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
+            throw new IllegalStateException("Session problem cannot be reported before it starts");
+        }
+        if (session.getProblemType() != null) {
+            throw new IllegalStateException("A session problem has already been reported");
+        }
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Session is already closed");
+        }
+
+        session.setProblemType(type);
+        session.setProblemDetails(details == null || details.isBlank() ? null : details.trim());
+        session.setUpdatedAt(now);
+
+        if (type == SessionProblemType.NOT_OCCURRED) {
+            session.setOutcome(SessionOutcome.NOT_OCCURRED);
+            session.setStatus(SessionStatus.CANCELLED);
+        }
+
+        sessionRepository.save(session);
     }
 
     @Override
@@ -447,6 +669,7 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireCreator(session, actor);
+        requireParticipantChangesAllowed(session);
 
         SessionParticipant membership = participantRepository.findById(participantId)
                 .orElseThrow(() -> new IllegalStateException("Participant not found"));
@@ -468,6 +691,29 @@ public class SessionServiceImpl implements SessionService {
         sessionNotificationService.notifyParticipantRemoved(session, membership.getProfile());
 
         waitlistPromotionService.promoteNext(session, now);
+        invalidateConfirmedTeams(sessionId);
+    }
+
+    private void invalidateConfirmedTeams(Long sessionId) {
+        List<SessionParticipant> activeParticipants = participantRepository
+                .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE);
+        boolean changed = false;
+        for (SessionParticipant participant : activeParticipants) {
+            if (participant.getTeamCode() != null) {
+                participant.setTeamCode(null);
+                changed = true;
+            }
+        }
+        if (changed) {
+            participantRepository.saveAll(activeParticipants);
+        }
+    }
+
+    private void requireParticipantChangesAllowed(Session session) {
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED) {
+            throw new IllegalStateException("Participants cannot be changed after the session ends");
+        }
     }
 
     private void requireCreator(Session session, Profile actor) {

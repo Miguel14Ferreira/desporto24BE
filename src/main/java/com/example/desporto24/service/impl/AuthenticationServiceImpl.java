@@ -19,7 +19,9 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.email.TransactionalEmailTemplate;
 import com.example.desporto24.service.LoginAttemptService;
+import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
@@ -38,6 +40,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -66,6 +69,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private static final int MFA_CODE_BOUND = 1_000_000;
     private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int USER_ID_LENGTH = 10;
+    private static final String TERMS_VERSION = "2026-10-01";
+    private static final String PRIVACY_VERSION = "2026-10-01";
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -79,6 +84,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileMapper profileMapper;
     private final TotpService totpService;
+    private final PilotEventService pilotEventService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
@@ -254,6 +260,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     @Transactional
     public void signUpProfile(RegistrationRequest request, MultipartFile photo) {
+        signUpProfile(request, photo, null);
+    }
+
+    @Override
+    @Transactional
+    public void signUpProfile(RegistrationRequest request, MultipartFile photo, String cohort) {
         ProfileDTO profileDTO = new ProfileDTO();
         profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
@@ -276,10 +288,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         validateNewUsernameEmail(profileDTO);
         profileDTO.setProfilePicUrl(null);
-        Profile savedProfile = profileRepository.saveAndFlush(profileMapper.toEntity(profileDTO));
+
+        Profile profile = profileMapper.toEntity(profileDTO);
+        profile.setTermsAcceptedAt(Instant.now());
+        profile.setTermsVersion(TERMS_VERSION);
+        profile.setPrivacyVersion(PRIVACY_VERSION);
+
+        Profile savedProfile = profileRepository.saveAndFlush(profile);
         saveRegistrationProfileImage(savedProfile, profileDTO, photo);
         if (previewMode) {
             createWelcomeNotification(profileDTO, null);
+            pilotEventService.recordRegistrationCompleted(savedProfile, cohort);
         } else {
             sendSignUpEmail(profileDTO);
         }
@@ -332,7 +351,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String link = uiAppUrl.replaceAll("/+$", "")
                 + "/?confirmRegistration=" + token;
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), buildRegistrationEmail(profileDTO.getUsername(), link));
+        emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
+                buildRegistrationEmail(profileDTO.getUsername(), link));
 
         createWelcomeNotification(profileDTO, token);
     }
@@ -399,7 +419,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String link = uiAppUrl.replaceAll("/+$", "")
                 + "/login/resetPassword/" + token;
         log.info("Password reset link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), buildResetPasswordEmail(profileDTO.getUsername(), link));
+        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Desporto24",
+                buildResetPasswordEmail(profileDTO.getUsername(), link));
     }
 
     private String createAndSaveConfirmationToken(String username) {
@@ -468,7 +489,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         Profile profile = profileRepository.findUserByUsername(confirmationToken.getProfile()).orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         profile.setEnabled(true);
-        profileRepository.save(profile);
+        Profile saved = profileRepository.save(profile);
+        pilotEventService.recordRegistrationCompleted(saved);
     }
 
     private String generateVerificationCode() {
@@ -483,132 +505,28 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return userId.toString();
     }
     private String buildResetPasswordEmail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Face ao teu pedido para definir uma palavra-passe, aqui tens o link para defini-la </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
+        return TransactionalEmailTemplate.render(
+                "Recupera a tua palavra-passe",
+                "Olá " + name + ", recebemos um pedido para definir uma nova palavra-passe para a tua conta Desporto24.",
+                "Reset your password",
+                "Hi " + name + ", we received a request to set a new password for your Desporto24 account.",
+                "Definir palavra-passe / Reset password",
+                link,
+                "O link expira em 15 minutos. Se não fizeste este pedido, podes ignorar este email. A tua palavra-passe só será alterada quando definires uma nova.",
+                "This link expires in 15 minutes. If you did not make this request, you can ignore this email. Your password will only change when you set a new one."
+        );
     }
 
     private String buildRegistrationEmail(String name, String link) {
-        return
-                "<span style=\"display:none;font-size:1px;color:#fff;max-height:0\"></span>\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;min-width:100%;width:100%!important\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">\n" +
-                        "    <tbody><tr>\n" +
-                        "        \n" +
-                        "        <table role=\"presentation\" width=\"100%\" style=\"border-collapse:collapse;max-width:580px\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" align=\"center\">\n" +
-                        "          <tbody><tr>\n" +
-                        "                <table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                    <td style=\"padding-left:10px\">\n" +
-                        "                  \n" +
-                        "                    </td>\n" +
-                        "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Registo no Desporto24!</span>\n" +
-                        "                    </td>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "              </a>\n" +
-                        "            </td>\n" +
-                        "          </tr>\n" +
-                        "        </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td width=\"10\" height=\"10\" valign=\"middle\"></td>\n" +
-                        "      <td>\n" +
-                        "        \n" +
-                        "                <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse\">\n" +
-                        "                  <tbody><tr>\n" +
-                        "                  </tr>\n" +
-                        "                </tbody></table>\n" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\" height=\"10\"></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table>\n" +
-                        "\n" +
-                        "\n" +
-                        "\n" +
-                        "  <table role=\"presentation\" class=\"m_-6186904992287805515content\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;max-width:580px;width:100%!important\" width=\"100%\">\n" +
-                        "    <tbody><tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
-                        "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + ",</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Obrigado por te registares na nossa aplicação. Clica neste link para ativar a tua conta: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para finalizar o teu registo</a> </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
-                        "        \n" +
-                        "      </td>\n" +
-                        "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "    <tr>\n" +
-                        "      <td height=\"30\"><br></td>\n" +
-                        "    </tr>\n" +
-                        "  </tbody></table><div class=\"yj6qo\"></div><div class=\"adL\">\n" +
-                        "\n" +
-                        "</div></div>";
+        return TransactionalEmailTemplate.render(
+                "Confirma o teu email",
+                "Olá " + name + ", obrigado por te registares no Desporto24. Confirma o teu email para ativar a conta.",
+                "Confirm your email",
+                "Hi " + name + ", thank you for registering with Desporto24. Confirm your email to activate your account.",
+                "Confirmar email / Confirm email",
+                link,
+                "O link expira em 15 minutos. Se não criaste esta conta, podes ignorar este email.",
+                "This link expires in 15 minutes. If you did not create this account, you can ignore this email."
+        );
     }
 }

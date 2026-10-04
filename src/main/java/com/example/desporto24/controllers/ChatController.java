@@ -96,13 +96,13 @@ public class ChatController {
     public ResponseEntity<Chat> sendChatMessage(
             @PathVariable("senderId") String sender,
             @PathVariable("recipientId") String recipient,
-            @RequestBody Chat chat,
+            @RequestBody @Valid ChatMessageRequest request,
             Authentication authentication) {
         String other = resolveOtherParticipant(sender, recipient, authentication.getName());
         Chat authenticatedMessage = new Chat();
         authenticatedMessage.setUsername1(authentication.getName());
         authenticatedMessage.setUsername2(other);
-        authenticatedMessage.setText(chat.getText());
+        authenticatedMessage.setText(request.text().trim());
         return new ResponseEntity<>(
                 chatService.sendMessage(authenticatedMessage),
                 OK

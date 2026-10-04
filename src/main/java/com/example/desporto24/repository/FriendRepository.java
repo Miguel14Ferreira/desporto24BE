@@ -12,4 +12,6 @@ public interface FriendRepository extends JpaRepository<Friend, Integer> {
     Friend findByProfile1AndProfile2(ProfileDTO p1, ProfileDTO p2);
     List<Profile> findByProfile1(Profile profile);
     List<Friend> findByProfile1OrProfile2(Profile profile1, Profile profile2);
+
+    long deleteByProfile1IdOrProfile2Id(Long profile1Id, Long profile2Id);
 }
