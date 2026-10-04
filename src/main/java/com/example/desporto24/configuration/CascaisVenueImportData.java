@@ -48,6 +48,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
 
             int inserted = 0;
             int skipped = 0;
+            List<Venue> knownVenues = venueRepository.findAllByOrderByNameAsc();
 
             for (Object featureValue : features) {
                 if (!(featureValue instanceof Map<?, ?> feature)) {
@@ -70,7 +71,8 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 String sourceReference = SOURCE_PREFIX + fid;
                 if (venueRepository.findByInformationSourceAndSourceReference(
                         Venue.InformationSource.OFFICIAL,
-                        sourceReference).isPresent()) {
+                        sourceReference).isPresent()
+                        || isNearExistingVenue(knownVenues, name, coordinates[1], coordinates[0])) {
                     skipped++;
                     continue;
                 }
@@ -78,7 +80,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 String parish = fallback(text(properties, "freguesia"), "Cascais");
                 String address = buildAddress(properties, parish);
 
-                venueRepository.save(Venue.builder()
+                Venue savedVenue = venueRepository.save(Venue.builder()
                         .name(limit(name, 140))
                         .city(limit(parish, 120))
                         .district("Lisboa")
@@ -93,6 +95,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
                         .createdAt(Instant.now())
                         .build());
 
+                knownVenues.add(savedVenue);
                 inserted++;
             }
 
@@ -101,6 +104,49 @@ public class CascaisVenueImportData implements ApplicationRunner {
         } catch (Exception ex) {
             log.warn("Cascais venue import failed without blocking startup: {}", ex.getMessage());
         }
+    }
+
+    private boolean isNearExistingVenue(List<Venue> venues, String name, double latitude, double longitude) {
+        String normalizedName = name.trim().toLowerCase();
+
+        for (Venue venue : venues) {
+            if (venue.getLatitude() == null || venue.getLongitude() == null) {
+                continue;
+            }
+
+            double distance = distanceMeters(
+                    latitude,
+                    longitude,
+                    venue.getLatitude(),
+                    venue.getLongitude());
+
+            if (distance <= 35.0) {
+                return true;
+            }
+
+            if (distance <= 100.0
+                    && venue.getName() != null
+                    && venue.getName().trim().toLowerCase().equals(normalizedName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        double earthRadiusMeters = 6_371_000.0;
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2)
+                * Math.sin(lonDistance / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusMeters * c;
     }
 
     private String findGeoJsonUrl() {
