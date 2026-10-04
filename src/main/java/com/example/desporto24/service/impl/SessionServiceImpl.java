@@ -8,6 +8,7 @@ import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionRecurrence;
 import com.example.desporto24.enumeration.SessionOutcome;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -606,6 +607,12 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional
     public void reportDidNotOccur(Long sessionId, String username) {
+        reportProblem(sessionId, SessionProblemType.NOT_OCCURRED, username);
+    }
+
+    @Override
+    @Transactional
+    public void reportProblem(Long sessionId, SessionProblemType type, String username) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile actor = profileRepository.findUserByUsername(username)
@@ -617,17 +624,22 @@ public class SessionServiceImpl implements SessionService {
         if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
             throw new IllegalStateException("Session problem cannot be reported before it starts");
         }
-        if (session.getOutcome() != null) {
-            throw new IllegalStateException("Session outcome has already been reported");
+        if (session.getProblemType() != null) {
+            throw new IllegalStateException("A session problem has already been reported");
         }
         if (session.getStatus() == SessionStatus.CANCELLED
                 || session.getStatus() == SessionStatus.COMPLETED) {
             throw new IllegalStateException("Session is already closed");
         }
 
-        session.setOutcome(SessionOutcome.NOT_OCCURRED);
-        session.setStatus(SessionStatus.CANCELLED);
+        session.setProblemType(type);
         session.setUpdatedAt(now);
+
+        if (type == SessionProblemType.NOT_OCCURRED) {
+            session.setOutcome(SessionOutcome.NOT_OCCURRED);
+            session.setStatus(SessionStatus.CANCELLED);
+        }
+
         sessionRepository.save(session);
     }
 

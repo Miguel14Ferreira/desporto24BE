@@ -2,6 +2,7 @@ package com.example.desporto24.model;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionOutcome;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.venue.Venue;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -62,6 +63,10 @@ public class Session {
     @Enumerated(EnumType.STRING)
     @Column(name = "outcome")
     private SessionOutcome outcome;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "problem_type")
+    private SessionProblemType problemType;
 
     @Column(name = "updated_at")
     private Instant updatedAt;
