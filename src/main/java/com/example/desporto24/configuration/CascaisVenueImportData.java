@@ -141,14 +141,24 @@ public class CascaisVenueImportData implements ApplicationRunner {
                     .filter(venue -> venue.getSports() != null && !venue.getSports().isBlank())
                     .count();
 
+            List<String> unclassifiedSamples = venueRepository.findAllByOrderByNameAsc().stream()
+                    .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
+                    .filter(venue -> venue.getSourceReference() != null
+                            && venue.getSourceReference().startsWith(SOURCE_PREFIX))
+                    .filter(venue -> venue.getSports() == null || venue.getSports().isBlank())
+                    .map(Venue::getName)
+                    .limit(12)
+                    .toList();
+
             log.info(
-                    "Cascais venue import completed: inserted={}, sportsUpdated={}, skipped={}, total={}, classified={}, unclassified={}",
+                    "Cascais venue import completed: inserted={}, sportsUpdated={}, skipped={}, total={}, classified={}, unclassified={}, sampleUnclassified={}",
                     inserted,
                     updatedSports,
                     skipped,
                     features.size(),
                     cascaisClassified,
-                    cascaisTotal - cascaisClassified);
+                    cascaisTotal - cascaisClassified,
+                    unclassifiedSamples);
         } catch (Exception ex) {
             log.warn("Cascais venue import failed without blocking startup: {}", ex.getMessage());
         }
