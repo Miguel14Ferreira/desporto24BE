@@ -2,7 +2,6 @@ package com.example.desporto24.configuration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
@@ -19,13 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class OpenStreetMapDryRun implements ApplicationRunner {
 
     private static final String OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-
-    private final ObjectMapper objectMapper;
 
     @Value("${d24.osm.dry-run-bbox:}")
     private String bbox;
@@ -62,7 +58,7 @@ public class OpenStreetMapDryRun implements ApplicationRunner {
                 return;
             }
 
-            JsonNode elements = objectMapper.readTree(response.body()).path("elements");
+            JsonNode elements = new ObjectMapper().readTree(response.body()).path("elements");
             int rawCount = elements.isArray() ? elements.size() : 0;
             List<String> importableSamples = new ArrayList<>();
             int importableCount = 0;
