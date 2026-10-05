@@ -180,7 +180,15 @@ public class ProfileServiceImpl implements ProfileService {
 
         String currentPhone = AES.decryptString(profile.getPhone(), profile.getUserId());
         if (request.phone() != null && !Objects.equals(currentPhone, request.phone())) {
-            for (Profile existing : profileRepository.findAll()) {
+            String phoneHash = AES.hashLookupValue(request.phone());
+
+            profileRepository.findByPhoneHash(phoneHash)
+                    .filter(existing -> !existing.getId().equals(profile.getId()))
+                    .ifPresent(existing -> {
+                        throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+                    });
+
+            for (Profile existing : profileRepository.findAllByPhoneHashIsNull()) {
                 if (existing.getId().equals(profile.getId()) || existing.getPhone() == null) {
                     continue;
                 }
