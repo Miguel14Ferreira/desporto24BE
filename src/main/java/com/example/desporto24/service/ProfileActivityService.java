@@ -89,16 +89,19 @@ public class ProfileActivityService {
                 sessionRepository.findByProfileIdOrderByGameDateAsc(profile.getId());
 
         int mobilized = 0;
-        for (Session session : createdSessions) {
-            mobilized += (int) participantRepository
-                    .findBySessionIdAndAttendanceStatusOrderByJoinedAtAsc(
-                            session.getId(),
-                            AttendanceStatus.ATTENDED
-                    )
-                    .stream()
-                    .map(SessionParticipant::getProfile)
-                    .filter(other -> other != null && !other.getId().equals(profile.getId()))
-                    .count();
+        if (!createdSessions.isEmpty()) {
+            Set<Long> createdSessionIds = createdSessions.stream()
+                    .map(Session::getId)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            mobilized = Math.toIntExact(
+                    participantRepository
+                            .countBySessionIdsAndAttendanceStatusExcludingProfile(
+                                    createdSessionIds,
+                                    AttendanceStatus.ATTENDED,
+                                    profile.getId()
+                            )
+            );
         }
 
         long eventsCreated = sessionRepository.countByProfileId(profile.getId());
