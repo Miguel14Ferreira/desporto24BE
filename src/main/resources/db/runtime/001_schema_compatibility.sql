@@ -136,3 +136,22 @@ CREATE INDEX IF NOT EXISTS idx_session_participant_session_attendance
 CREATE INDEX IF NOT EXISTS idx_session_creator
     ON session (perfil_id);
 
+-- Performance indexes for community competition queries.
+CREATE INDEX IF NOT EXISTS idx_community_round_community_played
+    ON community_round (community_id, played_at, id);
+
+CREATE INDEX IF NOT EXISTS idx_community_round_season_played
+    ON community_round (season_id, played_at, id);
+
+CREATE INDEX IF NOT EXISTS idx_community_round_entry_round
+    ON community_round_entry (round_id, id);
+
+CREATE INDEX IF NOT EXISTS idx_community_member_profile_joined
+    ON community_member (profile_id, joined_at);
+
+CREATE INDEX IF NOT EXISTS idx_community_member_community_joined
+    ON community_member (community_id, joined_at);
+
+CREATE INDEX IF NOT EXISTS idx_community_player_community_display
+    ON community_player (community_id, display_name);
+
