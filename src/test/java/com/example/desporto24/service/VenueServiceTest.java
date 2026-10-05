@@ -7,6 +7,8 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -147,8 +149,8 @@ class VenueServiceTest {
                 .sports("Padelball")
                 .build();
 
-        when(venueRepository.findAllByOrderByNameAsc())
-                .thenReturn(List.of(matching, partial));
+        when(venueRepository.search(eq(""), eq("padel"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(matching)));
 
         var results = service.search(null, " PADEL ");
 
@@ -165,8 +167,8 @@ class VenueServiceTest {
                 .sports("Futsal; Padel; Ténis")
                 .build();
 
-        when(venueRepository.findAllByOrderByNameAsc())
-                .thenReturn(List.of(venue));
+        when(venueRepository.search(eq(""), eq("padel"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(venue)));
 
         var results = service.search(null, "padel");
 
@@ -189,12 +191,25 @@ class VenueServiceTest {
                 .sports(null)
                 .build();
 
-        when(venueRepository.findAllByOrderByNameAsc())
-                .thenReturn(List.of(matching, unspecified));
+        when(venueRepository.search(eq("lis"), eq("padel"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(matching)));
 
         var results = service.search("lis", "PADEL");
 
         assertEquals(1, results.size());
         assertEquals("Campo Padel", results.getFirst().name());
+    }
+
+    @Test
+    void capsVenuePageSizeAtOneHundred() {
+        when(venueRepository.search(eq(""), eq(""), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.search(null, null, -5, 500);
+
+        var pageableCaptor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        org.mockito.Mockito.verify(venueRepository).search(eq(""), eq(""), pageableCaptor.capture());
+        assertEquals(0, pageableCaptor.getValue().getPageNumber());
+        assertEquals(100, pageableCaptor.getValue().getPageSize());
     }
 }
