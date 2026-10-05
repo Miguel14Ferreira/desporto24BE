@@ -15,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -58,8 +57,8 @@ class UserBlockServiceTest {
 
         when(userBlockRepository.existsByBlockerIdAndBlockedId(1L, 2L))
                 .thenReturn(false);
-        when(friendRepository.findByProfile1OrProfile2(miguel, miguel))
-                .thenReturn(List.of(friendship));
+        when(friendRepository.findBetweenProfileIds(1L, 2L))
+                .thenReturn(Optional.of(friendship));
 
         var result = service.blockUser("miguel", "ana");
 
