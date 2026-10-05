@@ -126,3 +126,13 @@ CREATE INDEX IF NOT EXISTS idx_friend_profile2_profile1
 CREATE INDEX IF NOT EXISTS idx_user_block_blocked_blocker
     ON user_block (blocked_profile_id, blocker_profile_id);
 
+-- Performance indexes for profile activity aggregates.
+CREATE INDEX IF NOT EXISTS idx_session_participant_profile_attendance
+    ON session_participant (profile_id, attendance_status);
+
+CREATE INDEX IF NOT EXISTS idx_session_participant_session_attendance
+    ON session_participant (session_id, attendance_status);
+
+CREATE INDEX IF NOT EXISTS idx_session_creator
+    ON session (perfil_id);
+
