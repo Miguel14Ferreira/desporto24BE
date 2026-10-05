@@ -26,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.example.desporto24.storage.MediaStorage;
 
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
@@ -180,7 +181,9 @@ public class CommunityManagementService {
 
         return joinRequestRepository
                 .findByCommunityIdAndStatusOrderByCreatedAtAsc(
-                        communityId, CommunityInviteStatus.PENDING)
+                        communityId,
+                        CommunityInviteStatus.PENDING,
+                        PageRequest.of(0, 200))
                 .stream()
                 .map(this::toJoinRequestResponse)
                 .toList();
@@ -338,7 +341,9 @@ public class CommunityManagementService {
     public List<CommunityInviteResponse> myInvites(String username) {
         Profile current = profile(username);
         return inviteRepository.findByInvitedProfileIdAndStatusOrderByCreatedAtDesc(
-                        current.getId(), CommunityInviteStatus.PENDING)
+                        current.getId(),
+                        CommunityInviteStatus.PENDING,
+                        PageRequest.of(0, 200))
                 .stream()
                 .map(this::toInviteResponse)
                 .toList();
