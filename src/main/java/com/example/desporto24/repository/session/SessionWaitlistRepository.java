@@ -29,6 +29,23 @@ public interface SessionWaitlistRepository extends JpaRepository<SessionWaitlist
 
     List<SessionWaitlist> findBySessionIdOrderByPriorityTierAscCreatedAtAsc(Long sessionId);
 
+    @Query("""
+            select count(w.id)
+            from SessionWaitlist w
+            where w.session.id = :sessionId
+              and (
+                    w.priorityTier < :priorityTier
+                    or (
+                        w.priorityTier = :priorityTier
+                        and w.createdAt < :createdAt
+                    )
+              )
+            """)
+    long countEntriesAhead(
+            @Param("sessionId") Long sessionId,
+            @Param("priorityTier") Integer priorityTier,
+            @Param("createdAt") java.time.Instant createdAt);
+
     List<SessionWaitlist> findByProfileIdOrderByCreatedAtAsc(Long profileId);
 
     long deleteByProfileId(Long profileId);
