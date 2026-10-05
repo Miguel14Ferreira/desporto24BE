@@ -65,6 +65,33 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
             Long profileId,
             AttendanceStatus attendanceStatus);
 
+    long countByProfileIdAndAttendanceStatus(
+            Long profileId,
+            AttendanceStatus attendanceStatus);
+
+    @Query("""
+            select distinct lower(trim(p.session.sport))
+            from SessionParticipant p
+            where p.profile.id = :profileId
+              and p.attendanceStatus = :attendanceStatus
+              and p.session.sport is not null
+              and trim(p.session.sport) <> ''
+            """)
+    List<String> findDistinctSportsByProfileIdAndAttendanceStatus(
+            @Param("profileId") Long profileId,
+            @Param("attendanceStatus") AttendanceStatus attendanceStatus);
+
+    @Query("""
+            select p.session.gameDate
+            from SessionParticipant p
+            where p.profile.id = :profileId
+              and p.attendanceStatus = :attendanceStatus
+              and p.session.gameDate is not null
+            """)
+    List<java.util.Date> findGameDatesByProfileIdAndAttendanceStatus(
+            @Param("profileId") Long profileId,
+            @Param("attendanceStatus") AttendanceStatus attendanceStatus);
+
     List<SessionParticipant> findBySessionIdAndAttendanceStatusOrderByJoinedAtAsc(
             Long sessionId,
             AttendanceStatus attendanceStatus);
