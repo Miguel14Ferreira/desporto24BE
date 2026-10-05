@@ -2,6 +2,7 @@ package com.example.desporto24.repository.community;
 
 import com.example.desporto24.model.community.CommunityMember;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.Collection;
@@ -12,6 +13,11 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     Optional<CommunityMember> findByCommunityIdAndProfileId(Long communityId, Long profileId);
     @EntityGraph(attributePaths = {"profile", "community"})
     List<CommunityMember> findByProfileIdOrderByJoinedAtDesc(Long profileId);
+
+    @EntityGraph(attributePaths = {"profile", "community"})
+    List<CommunityMember> findByProfileIdOrderByJoinedAtDesc(
+            Long profileId,
+            Pageable pageable);
     long countByProfileId(Long profileId);
     @EntityGraph(attributePaths = {"profile", "community"})
     List<CommunityMember> findByCommunityIdOrderByJoinedAtAsc(Long communityId);
