@@ -338,36 +338,23 @@ public class SessionServiceImpl implements SessionService {
     }
 
     private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
-        List<Session> candidates = sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
-                List.of(SessionStatus.OPEN, SessionStatus.FULL), new Date());
+        String sport = criteria.sport() == null ? "" : criteria.sport().trim().toLowerCase(Locale.ROOT);
+        String city = criteria.city() == null ? "" : criteria.city().trim().toLowerCase(Locale.ROOT);
+
+        List<Session> filteredCandidates = sessionRepository.searchDiscoverable(
+                List.of(SessionStatus.OPEN, SessionStatus.FULL),
+                new Date(),
+                sport,
+                city,
+                criteria.from() == null ? null : Date.from(criteria.from()),
+                criteria.to() == null ? null : Date.from(criteria.to()),
+                criteria.privateGame(),
+                Boolean.TRUE.equals(criteria.freeOnly()),
+                criteria.minPrice(),
+                criteria.maxPrice());
 
         double effectiveRadius = criteria.radiusKm() == null ? 25.0 : criteria.radiusKm();
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
-
-        List<Session> filteredCandidates = candidates.stream()
-                .filter(s -> s.getAudience() != SessionAudience.COMMUNITY_ONLY)
-                .filter(s -> criteria.sport() == null
-                        || criteria.sport().isBlank()
-                        || s.getSport().equalsIgnoreCase(criteria.sport()))
-                .filter(s -> criteria.city() == null
-                        || criteria.city().isBlank()
-                        || (s.getCity() != null
-                        && s.getCity().toLowerCase(Locale.ROOT)
-                        .contains(criteria.city().toLowerCase(Locale.ROOT))))
-                .filter(s -> criteria.from() == null
-                        || !s.getGameDate().toInstant().isBefore(criteria.from()))
-                .filter(s -> criteria.to() == null
-                        || !s.getGameDate().toInstant().isAfter(criteria.to()))
-                .filter(s -> criteria.privateGame() == null
-                        || Boolean.TRUE.equals(s.getPrivateGame()) == criteria.privateGame())
-                .filter(s -> !Boolean.TRUE.equals(criteria.freeOnly())
-                        || s.getPriceAmount() == null
-                        || s.getPriceAmount().compareTo(BigDecimal.ZERO) == 0)
-                .filter(s -> criteria.minPrice() == null
-                        || effectivePrice(s).compareTo(criteria.minPrice()) >= 0)
-                .filter(s -> criteria.maxPrice() == null
-                        || effectivePrice(s).compareTo(criteria.maxPrice()) <= 0)
-                .toList();
 
         var participantCounts = new HashMap<Long, Integer>();
         if (!filteredCandidates.isEmpty()) {
