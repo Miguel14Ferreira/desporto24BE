@@ -46,7 +46,20 @@ public class SessionViewMapper {
         boolean waitlistedByViewer = viewer != null && waitlistRepository
                 .findBySessionIdAndProfileId(session.getId(), viewer.getId())
                 .isPresent();
+        return toSummary(
+                session,
+                distanceKm,
+                participantCount,
+                joinedByViewer,
+                waitlistedByViewer);
+    }
 
+    public SessionSummaryResponse toSummary(
+            Session session,
+            Double distanceKm,
+            int participantCount,
+            boolean joinedByViewer,
+            boolean waitlistedByViewer) {
         return new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
