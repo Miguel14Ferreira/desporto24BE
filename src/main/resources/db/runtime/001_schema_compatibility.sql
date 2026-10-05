@@ -172,3 +172,10 @@ CREATE INDEX IF NOT EXISTS idx_attendance_dispute_participant_status
 CREATE INDEX IF NOT EXISTS idx_user_report_status_created
     ON user_report (status, created_at);
 
+-- Performance indexes for pending community queues.
+CREATE INDEX IF NOT EXISTS idx_community_join_request_community_status_created
+    ON community_join_request (community_id, status, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_community_invite_profile_status_created
+    ON community_invite (invited_profile_id, status, created_at);
+
