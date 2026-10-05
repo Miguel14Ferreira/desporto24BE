@@ -35,6 +35,9 @@ public class Profile implements Serializable {
     private String postalCode;
     private String indicativePhone;
     private String phone;
+
+    @Column(name = "phone_hash", length = 64)
+    private String phoneHash;
     private String gender;
     @Unique
     private String email;
