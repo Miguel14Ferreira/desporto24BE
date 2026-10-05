@@ -162,11 +162,16 @@ public class SocialFeedService {
                 );
 
         var likeCounts = new HashMap<Long, Long>();
+        var commentCounts = new HashMap<Long, Long>();
         Set<Long> likedPostIds = new HashSet<>();
         if (!posts.isEmpty()) {
             List<Long> postIds = posts.stream().map(SocialPost::getId).toList();
             likeRepository.countByPostIds(postIds)
                     .forEach(row -> likeCounts.put(
+                            ((Number) row[0]).longValue(),
+                            ((Number) row[1]).longValue()));
+            commentRepository.countByPostIds(postIds)
+                    .forEach(row -> commentCounts.put(
                             ((Number) row[0]).longValue(),
                             ((Number) row[1]).longValue()));
             likedPostIds.addAll(likeRepository.findPostIdsLikedByProfile(
@@ -180,7 +185,8 @@ public class SocialFeedService {
                         post,
                         actor,
                         likeCounts.getOrDefault(post.getId(), 0L),
-                        likedPostIds.contains(post.getId())))
+                        likedPostIds.contains(post.getId()),
+                        commentCounts.getOrDefault(post.getId(), 0L)))
                 .forEach(items::add);
         sessions.stream().map(this::sessionItem).forEach(items::add);
         attendedSessions.stream().map(this::attendanceItem).forEach(items::add);
@@ -208,6 +214,20 @@ public class SocialFeedService {
             Profile viewer,
             long likeCount,
             boolean likedByViewer) {
+        return postItem(
+                post,
+                viewer,
+                likeCount,
+                likedByViewer,
+                commentRepository.countByPostId(post.getId()));
+    }
+
+    private FeedItemResponse postItem(
+            SocialPost post,
+            Profile viewer,
+            long likeCount,
+            boolean likedByViewer,
+            long commentCount) {
         Profile author = post.getAuthor();
 
         return new FeedItemResponse(
@@ -225,7 +245,7 @@ public class SocialFeedService {
                 null,
                 likeCount,
                 likedByViewer,
-                commentRepository.countByPostId(post.getId())
+                commentCount
         );
     }
 
