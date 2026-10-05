@@ -325,12 +325,16 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
         }
 
+        Set<String> existingPlayerNames = communityPlayerRepository
+                .findByCommunityIdOrderByDisplayNameAsc(communityId)
+                .stream()
+                .map(CommunityPlayer::getNormalizedName)
+                .collect(java.util.stream.Collectors.toSet());
+
         List<CommunityImportPlanResponse.PlayerPlan> playerPlans = new ArrayList<>();
         int existingPlayers = 0;
         for (java.util.Map.Entry<String, String> player : players.entrySet()) {
-            boolean exists = communityPlayerRepository
-                    .findByCommunityIdAndNormalizedName(communityId, player.getKey())
-                    .isPresent();
+            boolean exists = existingPlayerNames.contains(player.getKey());
             if (exists) existingPlayers++;
             playerPlans.add(new CommunityImportPlanResponse.PlayerPlan(
                     player.getValue(),
