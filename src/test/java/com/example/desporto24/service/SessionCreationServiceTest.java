@@ -54,6 +54,7 @@ class SessionCreationServiceTest {
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
     @Mock private PilotEventService pilotEventService;
+    @Mock private ReferenceCatalogService referenceCatalogService;
     @Mock private MediaStorage mediaStorage;
 
     @Test
@@ -391,6 +392,11 @@ class SessionCreationServiceTest {
     }
 
     private SessionServiceImpl service() {
+        lenient().when(referenceCatalogService.isAllowed(
+                eq(ReferenceCatalogService.SPORT),
+                anyString()
+        )).thenAnswer(invocation -> !"Desporto Inventado".equals(invocation.getArgument(1)));
+
         SessionServiceImpl service = new SessionServiceImpl(
                 sessionRepository,
                 profileRepository,
@@ -406,7 +412,8 @@ class SessionCreationServiceTest {
                 waitlistPromotionService,
                 reliabilityService,
                 sessionNotificationService,
-                pilotEventService
+                pilotEventService,
+                referenceCatalogService
         );
         ReflectionTestUtils.setField(service, "mediaStorage", mediaStorage);
         return service;
