@@ -3,9 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
-import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.profile.ProfileActivityResponse;
-import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
@@ -37,37 +35,33 @@ public class ProfileActivityService {
         Profile profile = profileRepository.findUserByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        List<SessionParticipant> attended = participantRepository
-                .findByProfileIdAndAttendanceStatusOrderByAttendanceRecordedAtDesc(
+        long attendedCount = participantRepository.countByProfileIdAndAttendanceStatus(
+                profile.getId(),
+                AttendanceStatus.ATTENDED
+        );
+
+        Set<String> sports = new HashSet<>(
+                participantRepository.findDistinctSportsByProfileIdAndAttendanceStatus(
                         profile.getId(),
                         AttendanceStatus.ATTENDED
-                );
+                )
+        );
 
-        Set<String> sports = new HashSet<>();
         Set<String> activeWeeks = new HashSet<>();
-
-        for (SessionParticipant ownAttendance : attended) {
-            Session session = ownAttendance.getSession();
-            if (session == null) {
-                continue;
-            }
-
-            if (session.getSport() != null && !session.getSport().isBlank()) {
-                sports.add(session.getSport().trim().toLowerCase(Locale.ROOT));
-            }
-
-            if (session.getGameDate() != null) {
-                var localDate = session.getGameDate().toInstant()
-                        .atZone(java.time.ZoneId.of("Europe/Lisbon"))
-                        .toLocalDate();
-                var weekFields = WeekFields.ISO;
-                activeWeeks.add(
-                        localDate.get(weekFields.weekBasedYear())
-                                + "-"
-                                + localDate.get(weekFields.weekOfWeekBasedYear())
-                );
-            }
-
+        for (java.util.Date gameDate :
+                participantRepository.findGameDatesByProfileIdAndAttendanceStatus(
+                        profile.getId(),
+                        AttendanceStatus.ATTENDED
+                )) {
+            var localDate = gameDate.toInstant()
+                    .atZone(java.time.ZoneId.of("Europe/Lisbon"))
+                    .toLocalDate();
+            var weekFields = WeekFields.ISO;
+            activeWeeks.add(
+                    localDate.get(weekFields.weekBasedYear())
+                            + "-"
+                            + localDate.get(weekFields.weekOfWeekBasedYear())
+            );
         }
 
         long peopleCount = participantRepository.countDistinctProfilesAttendedWith(
@@ -86,15 +80,15 @@ public class ProfileActivityService {
         long communitiesJoined = communityMemberRepository.countByProfileId(profile.getId());
 
         LinkedHashSet<String> achievements = new LinkedHashSet<>();
-        if (!attended.isEmpty()) achievements.add("FIRST_ACTIVITY");
-        if (attended.size() >= 10) achievements.add("TEN_ACTIVITIES");
+        if (attendedCount > 0) achievements.add("FIRST_ACTIVITY");
+        if (attendedCount >= 10) achievements.add("TEN_ACTIVITIES");
         if (sports.size() >= 5) achievements.add("EXPLORER");
         if (eventsCreated > 0) achievements.add("ORGANIZER");
         if (mobilized >= 10) achievements.add("COMMUNITY_BUILDER");
         if (activeWeeks.size() >= 3) achievements.add("REGULAR");
 
         return new ProfileActivityResponse(
-                attended.size(),
+                Math.toIntExact(attendedCount),
                 Math.toIntExact(peopleCount),
                 sports.size(),
                 eventsCreated,
