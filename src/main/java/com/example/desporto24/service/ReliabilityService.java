@@ -217,7 +217,8 @@ public class ReliabilityService {
                                 AttendanceStatus.ATTENDED,
                                 AttendanceStatus.NO_SHOW,
                                 AttendanceStatus.LATE_CANCELLED
-                        )
+                        ),
+                        PageRequest.of(0, 200)
                 );
 
         java.util.Map<Long, AttendanceDispute> latestDisputesByParticipant =
