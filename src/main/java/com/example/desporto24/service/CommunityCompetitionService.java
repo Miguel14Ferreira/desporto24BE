@@ -186,7 +186,7 @@ public class CommunityCompetitionService {
                 ));
 
         if (profilesByUsername.size() != usernames.size()) {
-            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
+            throw new IllegalArgumentException("Utilizador não encontrado");
         }
 
         CommunitySeason activeSeason = seasonRepository
