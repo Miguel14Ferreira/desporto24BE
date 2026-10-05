@@ -13,5 +13,6 @@ public interface AttendanceDisputeRepository extends JpaRepository<AttendanceDis
     boolean existsByParticipantIdAndStatusIn(Long participantId, Collection<DisputeStatus> statuses);
     boolean existsByParticipantIdAndStatus(Long participantId, DisputeStatus status);
     Optional<AttendanceDispute> findTopByParticipantIdOrderByCreatedAtDesc(Long participantId);
+    java.util.List<AttendanceDispute> findByParticipantIdInOrderByCreatedAtDesc(Collection<Long> participantIds);
     java.util.List<AttendanceDispute> findByStatusOrderByCreatedAtAsc(DisputeStatus status);
 }
