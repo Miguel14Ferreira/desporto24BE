@@ -22,7 +22,7 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      Optional<Profile> findUserByPhone(String phone);
      Optional<Profile> findByPhoneHash(String phoneHash);
      List<Profile> findAllByPhoneHashIsNull();
-     List<Profile> findTop100ByPhoneHashIsNullOrderByIdAsc();
+     List<Profile> findTop100ByPhoneHashIsNullAndIdGreaterThanOrderByIdAsc(Long id);
      Optional<Profile> findUserByOldEmail(String email);
      Optional<Profile> findUserByUserId(String userId);
      @Lock(LockModeType.PESSIMISTIC_WRITE)
