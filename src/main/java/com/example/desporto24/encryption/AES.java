@@ -1,11 +1,13 @@
 package com.example.desporto24.encryption;
 
 import javax.crypto.*;
+import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Map;
 
 public class AES {
@@ -25,6 +27,22 @@ public class AES {
             return Base64.getEncoder().encodeToString(encryptedBytes);
         } catch (NoSuchPaddingException | IllegalBlockSizeException | NoSuchAlgorithmException |
                  BadPaddingException | InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String hashLookupValue(String plainText) {
+        if (plainText == null) {
+            return null;
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(
+                    resolveBaseKey(System.getenv()).getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA256"));
+            return HexFormat.of().formatHex(
+                    mac.doFinal(plainText.trim().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException(e);
         }
     }
