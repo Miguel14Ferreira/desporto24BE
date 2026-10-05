@@ -300,13 +300,19 @@ public class SessionServiceImpl implements SessionService {
                         seriesIds,
                         viewer.getId()));
 
+        var participantCounts = new HashMap<Long, Integer>();
+        participantRepository.countBySessionIdsAndState(
+                        seriesIds,
+                        ParticipantState.ACTIVE)
+                .forEach(row -> participantCounts.put(
+                        ((Number) row[0]).longValue(),
+                        ((Number) row[1]).intValue()));
+
         return seriesSessions.stream()
                 .map(item -> sessionViewMapper.toSummary(
                         item,
                         null,
-                        Math.toIntExact(participantRepository.countBySessionIdAndState(
-                                item.getId(),
-                                ParticipantState.ACTIVE)),
+                        participantCounts.getOrDefault(item.getId(), 0),
                         joinedSessionIds.contains(item.getId()),
                         waitlistedSessionIds.contains(item.getId())))
                 .toList();
