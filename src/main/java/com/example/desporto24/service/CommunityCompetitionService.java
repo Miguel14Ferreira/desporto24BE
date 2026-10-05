@@ -246,11 +246,19 @@ public class CommunityCompetitionService {
     private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
         Map<String, StandingAccumulator> table = new LinkedHashMap<>();
 
+        Map<Long, CommunityPlayer> playersByProfileId = playerRepository
+                .findByCommunityIdOrderByDisplayNameAsc(community.getId())
+                .stream()
+                .filter(player -> player.getProfile() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        player -> player.getProfile().getId(),
+                        player -> player,
+                        (left, right) -> left
+                ));
+
         for (CommunityMember member : memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId())) {
             Profile profile = member.getProfile();
-            CommunityPlayer communityPlayer = playerRepository
-                    .findByCommunityIdAndProfileId(community.getId(), profile.getId())
-                    .orElse(null);
+            CommunityPlayer communityPlayer = playersByProfileId.get(profile.getId());
             table.putIfAbsent(standingKey(communityPlayer, profile), new StandingAccumulator(communityPlayer, profile));
         }
 
