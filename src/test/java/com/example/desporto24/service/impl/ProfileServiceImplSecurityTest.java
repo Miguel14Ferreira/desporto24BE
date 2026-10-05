@@ -187,6 +187,8 @@ class ProfileServiceImplSecurityTest {
                 mock(PasswordHashService.class);
         UserBlockService userBlockService =
                 mock(UserBlockService.class);
+        ReferenceCatalogService referenceCatalogService =
+                mock(ReferenceCatalogService.class);
 
         Profile profile = new Profile();
         profile.setUsername("miguel");
