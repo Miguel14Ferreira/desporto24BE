@@ -26,6 +26,35 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     List<Session> findByStatusInAndGameDateAfterOrderByGameDateAsc(
             Collection<SessionStatus> statuses, Date gameDate);
 
+
+    @Query("""
+            select s
+            from Session s
+            where s.status in :statuses
+              and s.gameDate > :now
+              and (s.audience is null or s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY)
+              and (:sport = '' or lower(s.sport) = :sport)
+              and (:city = '' or lower(s.city) like concat('%', :city, '%'))
+              and (:fromDate is null or s.gameDate >= :fromDate)
+              and (:toDate is null or s.gameDate <= :toDate)
+              and (:privateGame is null or coalesce(s.privateGame, false) = :privateGame)
+              and (:freeOnly = false or coalesce(s.priceAmount, 0) = 0)
+              and (:minPrice is null or coalesce(s.priceAmount, 0) >= :minPrice)
+              and (:maxPrice is null or coalesce(s.priceAmount, 0) <= :maxPrice)
+            order by s.gameDate asc
+            """)
+    List<Session> searchDiscoverable(
+            @Param("statuses") Collection<SessionStatus> statuses,
+            @Param("now") Date now,
+            @Param("sport") String sport,
+            @Param("city") String city,
+            @Param("fromDate") Date fromDate,
+            @Param("toDate") Date toDate,
+            @Param("privateGame") Boolean privateGame,
+            @Param("freeOnly") boolean freeOnly,
+            @Param("minPrice") java.math.BigDecimal minPrice,
+            @Param("maxPrice") java.math.BigDecimal maxPrice);
+
     List<Session> findByProfileIdOrderByGameDateAsc(Long profileId);
     long countByProfileId(Long profileId);
 
