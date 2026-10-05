@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +39,7 @@ class GoogleAuthenticationServiceTest {
     @Mock private MFAVerificationService mfaVerificationService;
     @Mock private NotificationsRepository notificationsRepository;
     @Mock private PilotEventService pilotEventService;
+    @Mock private ReferenceCatalogService referenceCatalogService;
 
     @Test
     void googleRegistrationPersistsLegalAcceptanceEvidence() {
@@ -79,6 +82,11 @@ class GoogleAuthenticationServiceTest {
     }
 
     private GoogleAuthenticationService service() {
+        lenient().when(referenceCatalogService.isAllowedOrBlank(
+                eq(ReferenceCatalogService.GENDER),
+                any()
+        )).thenReturn(true);
+
         return new GoogleAuthenticationService(
                 googleIdentityService,
                 profileRepository,
@@ -87,7 +95,8 @@ class GoogleAuthenticationServiceTest {
                 jwtTokenProvider,
                 mfaVerificationService,
                 notificationsRepository,
-                pilotEventService
+                pilotEventService,
+                referenceCatalogService
         );
     }
 }
