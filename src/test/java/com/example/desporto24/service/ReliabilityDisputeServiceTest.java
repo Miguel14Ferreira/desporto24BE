@@ -157,8 +157,10 @@ class ReliabilityDisputeServiceTest {
         dispute.setStatus(DisputeStatus.OPEN);
         dispute.setCreatedAt(java.time.Instant.parse("2026-09-20T21:00:00Z"));
 
-        when(disputeRepository.findByStatusOrderByCreatedAtAsc(DisputeStatus.OPEN))
-                .thenReturn(List.of(dispute));
+        when(disputeRepository.findByStatusOrderByCreatedAtAsc(
+                eq(DisputeStatus.OPEN),
+                any(org.springframework.data.domain.Pageable.class)
+        )).thenReturn(List.of(dispute));
 
         var disputes = service.disputes(DisputeStatus.OPEN);
 
