@@ -95,10 +95,19 @@ class SessionMineServiceTest {
         SessionWaitlist waitlistEntry = waitlist(waitlisted, miguel);
 
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(miguel));
-        when(sessionRepository.findByProfileIdOrderByGameDateAsc(7L)).thenReturn(List.of(created));
-        when(participantRepository.findByProfileIdAndStateOrderByJoinedAtAsc(7L, ParticipantState.ACTIVE))
+        when(sessionRepository.findByProfileIdOrderByGameDateAsc(
+                eq(7L),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of(created));
+        when(participantRepository.findByProfileIdAndStateOrderByJoinedAtAsc(
+                eq(7L),
+                eq(ParticipantState.ACTIVE),
+                any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(List.of(creatorMembership, joinedMembership));
-        when(waitlistRepository.findByProfileIdOrderByCreatedAtAsc(7L)).thenReturn(List.of(waitlistEntry));
+        when(waitlistRepository.findByProfileIdOrderByCreatedAtAsc(
+                eq(7L),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of(waitlistEntry));
 
         SessionSummaryResponse createdSummary = summary(created);
         SessionSummaryResponse joinedSummary = summary(joined);
