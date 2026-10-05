@@ -211,6 +211,7 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setPostalCode(request.postalCode());
         profile.setIndicativePhone(request.indicativePhone());
         profile.setPhone(AES.encryptString(request.phone(), profile.getUserId()));
+        profile.setPhoneHash(AES.hashLookupValue(request.phone()));
         profile.setGender(request.gender());
         profile.setEmail(request.email());
         profile.setFavoriteSports(request.favoriteSports());
