@@ -91,7 +91,9 @@ class ReliabilityServiceTest {
                 .thenReturn(java.util.Optional.of(profile));
         when(participantRepository
                 .findByProfileIdAndAttendanceStatusInOrderByAttendanceRecordedAtDesc(
-                        eq(7L), any()))
+                        eq(7L),
+                        any(),
+                        any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(List.of(participant));
         when(disputeRepository.findTopByParticipantIdOrderByCreatedAtDesc(20L))
                 .thenReturn(java.util.Optional.empty());
