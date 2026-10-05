@@ -187,21 +187,6 @@ public class ProfileServiceImpl implements ProfileService {
                     .ifPresent(existing -> {
                         throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
                     });
-
-            for (Profile existing : profileRepository.findAllByPhoneHashIsNull()) {
-                if (existing.getId().equals(profile.getId()) || existing.getPhone() == null) {
-                    continue;
-                }
-
-                try {
-                    String existingPhone = AES.decryptString(existing.getPhone(), existing.getUserId());
-                    if (Objects.equals(existingPhone, request.phone())) {
-                        throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                    }
-                } catch (RuntimeException ignored) {
-                    // Ignore legacy/corrupted phone values here; they must not block the update.
-                }
-            }
         }
 
         String previousEmail = profile.getEmail();
