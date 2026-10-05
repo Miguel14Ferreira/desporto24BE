@@ -110,3 +110,19 @@ CREATE INDEX IF NOT EXISTS idx_session_message_session_created
 CREATE INDEX IF NOT EXISTS idx_notifications_username_id
     ON notifications (username, id);
 
+-- Performance indexes for social graph lookups.
+CREATE INDEX IF NOT EXISTS idx_profile_follow_follower_created
+    ON profile_follow (follower_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_profile_follow_following_created
+    ON profile_follow (following_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_friend_profile1_profile2
+    ON friend (profile1, profile2);
+
+CREATE INDEX IF NOT EXISTS idx_friend_profile2_profile1
+    ON friend (profile2, profile1);
+
+CREATE INDEX IF NOT EXISTS idx_user_block_blocked_blocker
+    ON user_block (blocked_profile_id, blocker_profile_id);
+
