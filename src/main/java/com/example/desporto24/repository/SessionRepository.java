@@ -53,7 +53,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("privateGame") Boolean privateGame,
             @Param("freeOnly") boolean freeOnly,
             @Param("minPrice") java.math.BigDecimal minPrice,
-            @Param("maxPrice") java.math.BigDecimal maxPrice);
+            @Param("maxPrice") java.math.BigDecimal maxPrice,
+            Pageable pageable);
 
     List<Session> findByProfileIdOrderByGameDateAsc(Long profileId);
     long countByProfileId(Long profileId);
