@@ -99,3 +99,14 @@ CREATE INDEX IF NOT EXISTS idx_session_waitlist_session_priority
 
 CREATE INDEX IF NOT EXISTS idx_profile_phone_hash
     ON profile (phone_hash);
+
+-- Performance indexes for paged chat and notification history.
+CREATE INDEX IF NOT EXISTS idx_chat_participants_date
+    ON chat (username1, username2, date);
+
+CREATE INDEX IF NOT EXISTS idx_session_message_session_created
+    ON session_message (session_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_username_id
+    ON notifications (username, id);
+
