@@ -17,6 +17,24 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             Venue.InformationSource informationSource,
             String sourceReference);
 
+    boolean existsByInformationSourceAndSourceReference(
+            Venue.InformationSource informationSource,
+            String sourceReference);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END
+            FROM Venue v
+            WHERE LOWER(v.name) = LOWER(:name)
+              AND v.latitude BETWEEN :minLatitude AND :maxLatitude
+              AND v.longitude BETWEEN :minLongitude AND :maxLongitude
+            """)
+    boolean existsNearNameAndCoordinates(
+            @Param("name") String name,
+            @Param("minLatitude") double minLatitude,
+            @Param("maxLatitude") double maxLatitude,
+            @Param("minLongitude") double minLongitude,
+            @Param("maxLongitude") double maxLongitude);
+
     @Query("""
             SELECT v
             FROM Venue v
