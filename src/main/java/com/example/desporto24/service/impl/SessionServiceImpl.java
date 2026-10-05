@@ -43,6 +43,7 @@ import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
@@ -351,7 +352,8 @@ public class SessionServiceImpl implements SessionService {
                 criteria.privateGame(),
                 Boolean.TRUE.equals(criteria.freeOnly()),
                 criteria.minPrice(),
-                criteria.maxPrice());
+                criteria.maxPrice(),
+                PageRequest.of(0, 500));
 
         double effectiveRadius = criteria.radiusKm() == null ? 25.0 : criteria.radiusKm();
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
