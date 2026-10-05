@@ -52,6 +52,7 @@ class SessionMineServiceTest {
     @Mock private ReliabilityService reliabilityService;
     @Mock private SessionNotificationService sessionNotificationService;
     @Mock private PilotEventService pilotEventService;
+    @Mock private ReferenceCatalogService referenceCatalogService;
 
     private SessionServiceImpl service;
 
@@ -72,7 +73,8 @@ class SessionMineServiceTest {
                 waitlistPromotionService,
                 reliabilityService,
                 sessionNotificationService,
-                pilotEventService
+                pilotEventService,
+                referenceCatalogService
         );
     }
 
