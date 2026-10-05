@@ -609,6 +609,7 @@ public class CommunityImportService {
                         .build());
                 createdRounds++;
 
+                List<CommunityRoundEntry> roundEntries = new ArrayList<>();
                 for (Row row : rowsByRound.getOrDefault(item.getKey(), List.of())) {
                     List<String> values = values(row, formatter);
                     String displayName = valueAt(values, playerColumn).trim();
@@ -626,7 +627,7 @@ public class CommunityImportService {
 
                     java.util.Map<String, String> mapped = mappedValues(mapping, values);
                     CommunityMatchResult result = importedResult(mapped);
-                    communityRoundEntryRepository.save(CommunityRoundEntry.builder()
+                    roundEntries.add(CommunityRoundEntry.builder()
                             .round(round)
                             .communityPlayer(player)
                             .profile(player.getProfile())
@@ -636,8 +637,10 @@ public class CommunityImportService {
                             .mvp(importedInt(mapped.get("MVP")) > 0)
                             .cleanSheet(false)
                             .build());
-                    createdEntries++;
                 }
+
+                communityRoundEntryRepository.saveAll(roundEntries);
+                createdEntries += roundEntries.size();
             }
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
