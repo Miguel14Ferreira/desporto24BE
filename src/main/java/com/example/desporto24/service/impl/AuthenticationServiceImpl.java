@@ -295,6 +295,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         profileDTO.setIsFirstTimeLogin(true);
 
         validateNewUsernameEmail(profileDTO);
+        validatePhoneAvailability(profileDTO.getPhone());
         profileDTO.setProfilePicUrl(null);
 
         Profile profile = profileMapper.toEntity(profileDTO);
@@ -415,6 +416,34 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
             if (userByNewEmail.isPresent()) {
                 throw new EmailExistException(EMAIL_ALREADY_EXIST);
+            }
+        }
+    }
+
+    private void validatePhoneAvailability(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return;
+        }
+
+        String phoneHash = com.example.desporto24.encryption.AES.hashLookupValue(phone);
+        if (profileRepository.findByPhoneHash(phoneHash).isPresent()) {
+            throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+        }
+
+        for (Profile existing : profileRepository.findAllByPhoneHashIsNull()) {
+            if (existing.getPhone() == null || existing.getUserId() == null) {
+                continue;
+            }
+
+            try {
+                String existingPhone = decryptString(existing.getPhone(), existing.getUserId());
+                if (java.util.Objects.equals(existingPhone, phone)) {
+                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+                }
+            } catch (PhoneExistException exception) {
+                throw exception;
+            } catch (RuntimeException ignored) {
+                // Legacy/corrupted values must not block a new registration.
             }
         }
     }
