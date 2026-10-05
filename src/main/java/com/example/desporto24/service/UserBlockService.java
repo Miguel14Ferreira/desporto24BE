@@ -1,7 +1,6 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.exception.UserNotFoundException;
-import com.example.desporto24.model.Friend;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.moderation.UserBlockStatusResponse;
 import com.example.desporto24.model.moderation.UserBlock;
@@ -106,17 +105,8 @@ public class UserBlockService {
         followRepository.deleteByFollowerIdAndFollowingId(actor.getId(), target.getId());
         followRepository.deleteByFollowerIdAndFollowingId(target.getId(), actor.getId());
 
-        friendRepository.findByProfile1OrProfile2(actor, actor).stream()
-                .filter(friend -> connects(friend, actor, target))
-                .findFirst()
+        friendRepository.findBetweenProfileIds(actor.getId(), target.getId())
                 .ifPresent(friendRepository::delete);
-    }
-
-    private boolean connects(Friend friend, Profile first, Profile second) {
-        return (friend.getProfile1().getId().equals(first.getId())
-                && friend.getProfile2().getId().equals(second.getId()))
-                || (friend.getProfile1().getId().equals(second.getId())
-                && friend.getProfile2().getId().equals(first.getId()));
     }
 
     private Profile profile(String username) {
