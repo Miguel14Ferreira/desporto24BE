@@ -243,23 +243,6 @@ public class GoogleAuthenticationService {
         if (profileRepository.findByPhoneHash(phoneHash).isPresent()) {
             throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
         }
-
-        for (Profile existing : profileRepository.findAllByPhoneHashIsNull()) {
-            if (existing.getPhone() == null || existing.getUserId() == null) {
-                continue;
-            }
-
-            try {
-                String existingPhone = AES.decryptString(existing.getPhone(), existing.getUserId());
-                if (Objects.equals(existingPhone, phone)) {
-                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                }
-            } catch (PhoneExistException exception) {
-                throw exception;
-            } catch (RuntimeException ignored) {
-                // Legacy/corrupted values must not block a new registration.
-            }
-        }
     }
 
     private String generateUserId() {
