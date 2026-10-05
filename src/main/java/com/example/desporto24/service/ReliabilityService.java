@@ -198,7 +198,7 @@ public class ReliabilityService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        return participantRepository
+        List<SessionParticipant> history = participantRepository
                 .findByProfileIdAndAttendanceStatusInOrderByAttendanceRecordedAtDesc(
                         profile.getId(),
                         Set.of(
@@ -206,12 +206,26 @@ public class ReliabilityService {
                                 AttendanceStatus.NO_SHOW,
                                 AttendanceStatus.LATE_CANCELLED
                         )
-                )
-                .stream()
+                );
+
+        java.util.Map<Long, AttendanceDispute> latestDisputesByParticipant =
+                new java.util.HashMap<>();
+        if (!history.isEmpty()) {
+            disputeRepository.findByParticipantIdInOrderByCreatedAtDesc(
+                            history.stream()
+                                    .map(SessionParticipant::getId)
+                                    .toList()
+                    )
+                    .forEach(dispute -> latestDisputesByParticipant.putIfAbsent(
+                            dispute.getParticipant().getId(),
+                            dispute
+                    ));
+        }
+
+        return history.stream()
                 .map(participant -> {
-                    AttendanceDispute latestDispute = disputeRepository
-                            .findTopByParticipantIdOrderByCreatedAtDesc(participant.getId())
-                            .orElse(null);
+                    AttendanceDispute latestDispute =
+                            latestDisputesByParticipant.get(participant.getId());
 
                     Session session = participant.getSession();
                     return new AttendanceHistoryResponse(
