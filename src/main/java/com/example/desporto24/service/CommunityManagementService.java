@@ -85,7 +85,10 @@ public class CommunityManagementService {
     public List<CommunityResponse> mine(String username) {
         Profile current = profile(username);
         List<CommunityMember> ownMemberships =
-                memberRepository.findByProfileIdOrderByJoinedAtDesc(current.getId());
+                memberRepository.findByProfileIdOrderByJoinedAtDesc(
+                        current.getId(),
+                        PageRequest.of(0, 200)
+                );
 
         if (ownMemberships.isEmpty()) {
             return List.of();
