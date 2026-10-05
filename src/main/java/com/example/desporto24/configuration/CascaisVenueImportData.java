@@ -56,8 +56,6 @@ public class CascaisVenueImportData implements ApplicationRunner {
             int inserted = 0;
             int updatedSports = 0;
             int skipped = 0;
-            List<Venue> knownVenues = venueRepository.findAllByOrderByNameAsc();
-
             for (Object featureValue : features) {
                 if (!(featureValue instanceof Map<?, ?> feature)) {
                     skipped++;
@@ -102,7 +100,7 @@ public class CascaisVenueImportData implements ApplicationRunner {
                     continue;
                 }
 
-                if (isNearExistingVenue(knownVenues, name, coordinates[1], coordinates[0])) {
+                if (isNearExistingVenue(name, coordinates[1], coordinates[0])) {
                     skipped++;
                     continue;
                 }
@@ -131,30 +129,25 @@ public class CascaisVenueImportData implements ApplicationRunner {
                         .createdAt(Instant.now())
                         .build());
 
-                knownVenues.add(savedVenue);
                 inserted++;
             }
 
-            long cascaisTotal = venueRepository.findAllByOrderByNameAsc().stream()
-                    .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
-                    .filter(venue -> venue.getSourceReference() != null
-                            && venue.getSourceReference().startsWith(SOURCE_PREFIX))
-                    .count();
+            long cascaisTotal = venueRepository
+                    .countByInformationSourceAndSourceReferenceStartingWith(
+                            Venue.InformationSource.OFFICIAL,
+                            SOURCE_PREFIX);
 
-            long cascaisClassified = venueRepository.findAllByOrderByNameAsc().stream()
-                    .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
-                    .filter(venue -> venue.getSourceReference() != null
-                            && venue.getSourceReference().startsWith(SOURCE_PREFIX))
-                    .filter(venue -> venue.getSports() != null && !venue.getSports().isBlank())
-                    .count();
+            long cascaisClassified = venueRepository
+                    .countByInformationSourceAndSourceReferenceStartingWithAndSportsIsNotNull(
+                            Venue.InformationSource.OFFICIAL,
+                            SOURCE_PREFIX);
 
-            List<String> unclassifiedSamples = venueRepository.findAllByOrderByNameAsc().stream()
-                    .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
-                    .filter(venue -> venue.getSourceReference() != null
-                            && venue.getSourceReference().startsWith(SOURCE_PREFIX))
-                    .filter(venue -> venue.getSports() == null || venue.getSports().isBlank())
+            List<String> unclassifiedSamples = venueRepository
+                    .findTop12ByInformationSourceAndSourceReferenceStartingWithAndSportsIsNullOrderByNameAsc(
+                            Venue.InformationSource.OFFICIAL,
+                            SOURCE_PREFIX)
+                    .stream()
                     .map(Venue::getName)
-                    .limit(12)
                     .toList();
 
             log.info(
@@ -171,47 +164,28 @@ public class CascaisVenueImportData implements ApplicationRunner {
         }
     }
 
-    private boolean isNearExistingVenue(List<Venue> venues, String name, double latitude, double longitude) {
-        String normalizedName = name.trim().toLowerCase();
+    private boolean isNearExistingVenue(String name, double latitude, double longitude) {
+        double latitudeDelta35m = 35.0 / 111_320.0;
+        double longitudeScale = Math.max(Math.cos(Math.toRadians(latitude)), 0.01);
+        double longitudeDelta35m = 35.0 / (111_320.0 * longitudeScale);
 
-        for (Venue venue : venues) {
-            if (venue.getLatitude() == null || venue.getLongitude() == null) {
-                continue;
-            }
-
-            double distance = distanceMeters(
-                    latitude,
-                    longitude,
-                    venue.getLatitude(),
-                    venue.getLongitude());
-
-            if (distance <= 35.0) {
-                return true;
-            }
-
-            if (distance <= 100.0
-                    && venue.getName() != null
-                    && venue.getName().trim().toLowerCase().equals(normalizedName)) {
-                return true;
-            }
+        if (venueRepository.existsWithinCoordinateBox(
+                latitude - latitudeDelta35m,
+                latitude + latitudeDelta35m,
+                longitude - longitudeDelta35m,
+                longitude + longitudeDelta35m)) {
+            return true;
         }
 
-        return false;
-    }
+        double latitudeDelta100m = 100.0 / 111_320.0;
+        double longitudeDelta100m = 100.0 / (111_320.0 * longitudeScale);
 
-    private double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
-        double earthRadiusMeters = 6_371_000.0;
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1))
-                * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2)
-                * Math.sin(lonDistance / 2);
-
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return earthRadiusMeters * c;
+        return venueRepository.existsNearNameAndCoordinates(
+                name,
+                latitude - latitudeDelta100m,
+                latitude + latitudeDelta100m,
+                longitude - longitudeDelta100m,
+                longitude + longitudeDelta100m);
     }
 
     private String findGeoJsonUrl() {
