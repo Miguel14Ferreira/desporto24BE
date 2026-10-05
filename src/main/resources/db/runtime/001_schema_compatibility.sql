@@ -75,3 +75,10 @@ CREATE INDEX IF NOT EXISTS idx_session_city
 
 CREATE INDEX IF NOT EXISTS idx_session_price_amount
     ON session (price_amount);
+
+
+CREATE INDEX IF NOT EXISTS idx_social_post_like_post
+    ON social_post_like (post_id);
+
+CREATE INDEX IF NOT EXISTS idx_social_post_comment_post
+    ON social_post_comment (post_id);
