@@ -5,6 +5,7 @@ import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.model.session.SessionParticipant;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -57,6 +58,7 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     List<SessionParticipant> findByProfileIdAndStateOrderByJoinedAtAsc(
             Long profileId, ParticipantState state);
 
+    @EntityGraph(attributePaths = {"session"})
     List<SessionParticipant> findByProfileIdAndAttendanceStatusInOrderByAttendanceRecordedAtDesc(
             Long profileId,
             Collection<AttendanceStatus> attendanceStatuses);
