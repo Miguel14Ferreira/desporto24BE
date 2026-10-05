@@ -12,6 +12,17 @@ public interface SocialPostLikeRepository extends JpaRepository<SocialPostLike, 
 
     boolean existsByPostIdAndProfileId(Long postId, Long profileId);
 
+
+    @Query("""
+            select l.post.id
+            from SocialPostLike l
+            where l.post.id in :postIds
+              and l.profile.id = :profileId
+            """)
+    List<Long> findPostIdsLikedByProfile(
+            @Param("postIds") Collection<Long> postIds,
+            @Param("profileId") Long profileId);
+
     long countByPostId(Long postId);
 
 
