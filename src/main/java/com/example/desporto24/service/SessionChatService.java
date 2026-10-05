@@ -13,6 +13,7 @@ import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,8 +46,14 @@ public class SessionChatService {
 
         requireChatAccess(session, actor);
 
-        return messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
-                .stream()
+        List<SessionMessage> recentMessages =
+                messageRepository.findBySessionIdOrderByCreatedAtDesc(
+                        sessionId,
+                        PageRequest.of(0, 200)
+                );
+
+        java.util.Collections.reverse(recentMessages);
+        return recentMessages.stream()
                 .map(this::toResponse)
                 .toList();
     }
