@@ -11,7 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -24,6 +26,7 @@ public class ProfilePhoneHashBackfill implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         long lastSeenId = 0L;
+        Map<String, Long> hashesSeenInRun = new HashMap<>();
         while (true) {
             List<Profile> candidates =
                     profileRepository.findTop100ByPhoneHashIsNullAndIdGreaterThanOrderByIdAsc(lastSeenId);
@@ -48,7 +51,25 @@ public class ProfilePhoneHashBackfill implements ApplicationRunner {
                         continue;
                     }
 
-                    profile.setPhoneHash(AES.hashLookupValue(phone));
+                    String phoneHash = AES.hashLookupValue(phone);
+                    Long duplicateProfileId = hashesSeenInRun.get(phoneHash);
+                    if (duplicateProfileId == null) {
+                        duplicateProfileId = profileRepository.findByPhoneHash(phoneHash)
+                                .filter(existing -> !existing.getId().equals(profile.getId()))
+                                .map(Profile::getId)
+                                .orElse(null);
+                    }
+
+                    if (duplicateProfileId != null) {
+                        log.warn(
+                                "Skipping duplicate phone hash for profile {} because profile {} already uses it",
+                                profile.getId(),
+                                duplicateProfileId);
+                        continue;
+                    }
+
+                    hashesSeenInRun.put(phoneHash, profile.getId());
+                    profile.setPhoneHash(phoneHash);
                     updated.add(profile);
                 } catch (RuntimeException exception) {
                     log.warn(
