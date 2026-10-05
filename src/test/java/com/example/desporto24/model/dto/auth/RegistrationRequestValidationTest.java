@@ -178,12 +178,12 @@ class RegistrationRequestValidationTest {
     }
 
     @Test
-    void unsupportedGenderIsRejected() {
+    void catalogSpecificGenderValidationIsHandledByService() {
         RegistrationRequest request = copyWith(
                 validRequest(), "gender", "valor-inventado"
         );
 
-        assertFalse(validator.validate(request).isEmpty());
+        assertTrue(validator.validate(request).isEmpty());
     }
 
     @Test
