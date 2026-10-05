@@ -86,8 +86,8 @@ class UpdateProfileRequestValidationTest {
     }
 
     @Test
-    void unsupportedFavoriteSportsAreRejected() {
-        assertFalse(validator.validate(withFavoriteSports("vcxzxcvbn")).isEmpty());
+    void catalogSpecificFavoriteSportsValidationIsHandledByService() {
+        assertTrue(validator.validate(withFavoriteSports("vcxzxcvbn")).isEmpty());
     }
 
     private UpdateProfileRequest validRequest() {
