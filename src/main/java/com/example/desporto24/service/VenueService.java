@@ -254,8 +254,7 @@ public class VenueService {
     }
 
     private String normalizeSportForQuery(String value) {
-        String normalized = normalize(value);
-        return normalized == null ? null : normalized.replace(" ", "");
+        return normalize(value);
     }
 
     private String normalize(String value) {
