@@ -23,12 +23,15 @@ public class ProfilePhoneHashBackfill implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        long lastSeenId = 0L;
         while (true) {
             List<Profile> candidates =
-                    profileRepository.findTop100ByPhoneHashIsNullOrderByIdAsc();
+                    profileRepository.findTop100ByPhoneHashIsNullAndIdGreaterThanOrderByIdAsc(lastSeenId);
             if (candidates.isEmpty()) {
                 return;
             }
+
+            lastSeenId = candidates.get(candidates.size() - 1).getId();
 
             List<Profile> updated = new ArrayList<>();
             for (Profile profile : candidates) {
@@ -54,12 +57,10 @@ public class ProfilePhoneHashBackfill implements ApplicationRunner {
                 }
             }
 
-            if (updated.isEmpty()) {
-                return;
+            if (!updated.isEmpty()) {
+                profileRepository.saveAll(updated);
+                profileRepository.flush();
             }
-
-            profileRepository.saveAll(updated);
-            profileRepository.flush();
         }
     }
 }
