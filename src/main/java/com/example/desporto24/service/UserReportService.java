@@ -8,6 +8,7 @@ import com.example.desporto24.model.moderation.UserReport;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.moderation.UserReportRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +27,10 @@ public class UserReportService {
 
     @Transactional(readOnly = true)
     public List<AdminUserReportResponse> openReports() {
-        return userReportRepository.findAllByStatusOrderByCreatedAtAsc(UserReportStatus.OPEN)
+        return userReportRepository.findAllByStatusOrderByCreatedAtAsc(
+                UserReportStatus.OPEN,
+                PageRequest.of(0, 200)
+        )
                 .stream()
                 .map(this::toAdminResponse)
                 .toList();
