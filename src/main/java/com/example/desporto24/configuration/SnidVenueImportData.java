@@ -54,22 +54,8 @@ public class SnidVenueImportData implements ApplicationRunner {
                 return;
             }
 
-            List<Venue> existingVenues = venueRepository.findAllByOrderByNameAsc();
             Set<String> sourceReferences = new HashSet<>();
             Set<String> venueKeys = new HashSet<>();
-
-            for (Venue venue : existingVenues) {
-                if (venue.getSourceReference() != null) {
-                    sourceReferences.add(venue.getSourceReference());
-                }
-                String key = venueKey(
-                        venue.getName(),
-                        venue.getLatitude(),
-                        venue.getLongitude());
-                if (key != null) {
-                    venueKeys.add(key);
-                }
-            }
 
             int inserted = 0;
             int skipped = 0;
@@ -138,8 +124,21 @@ public class SnidVenueImportData implements ApplicationRunner {
 
                 String key = venueKey(name, coordinates[1], coordinates[0]);
 
-                if (sourceReferences.contains(sourceReference)
-                        || (key != null && venueKeys.contains(key))) {
+                boolean duplicateSource = sourceReferences.contains(sourceReference)
+                        || venueRepository.existsByInformationSourceAndSourceReference(
+                                Venue.InformationSource.OFFICIAL,
+                                sourceReference);
+
+                boolean duplicateVenue = key != null
+                        && (venueKeys.contains(key)
+                        || venueRepository.existsNearNameAndCoordinates(
+                                name,
+                                coordinates[1] - 0.00005,
+                                coordinates[1] + 0.00005,
+                                coordinates[0] - 0.00005,
+                                coordinates[0] + 0.00005));
+
+                if (duplicateSource || duplicateVenue) {
                     skipped++;
                     continue;
                 }
