@@ -483,7 +483,7 @@ public class SessionServiceImpl implements SessionService {
         if (existingWaitlist.isPresent()) {
             return new JoinSessionResponse(
                     JoinState.WAITLISTED,
-                    waitlistPosition(sessionId, existingWaitlist.get().getId())
+                    waitlistPosition(sessionId, existingWaitlist.get())
             );
         }
 
@@ -536,7 +536,7 @@ public class SessionServiceImpl implements SessionService {
 
         return new JoinSessionResponse(
                 JoinState.WAITLISTED,
-                waitlistPosition(sessionId, waitlistEntry.getId())
+                waitlistPosition(sessionId, waitlistEntry)
         );
     }
 
@@ -550,15 +550,14 @@ public class SessionServiceImpl implements SessionService {
         }
     }
 
-    private int waitlistPosition(Long sessionId, Long entryId) {
-        List<SessionWaitlist> ordered = waitlistRepository
-                .findBySessionIdOrderByPriorityTierAscCreatedAtAsc(sessionId);
-        for (int i = 0; i < ordered.size(); i++) {
-            if (ordered.get(i).getId().equals(entryId)) {
-                return i + 1;
-            }
-        }
-        throw new IllegalStateException("Waitlist entry not found after save");
+    private int waitlistPosition(Long sessionId, SessionWaitlist entry) {
+        return Math.toIntExact(
+                waitlistRepository.countEntriesAhead(
+                        sessionId,
+                        entry.getPriorityTier(),
+                        entry.getCreatedAt()
+                ) + 1
+        );
     }
 
 
