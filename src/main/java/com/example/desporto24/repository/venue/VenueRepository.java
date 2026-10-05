@@ -35,6 +35,31 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             @Param("minLongitude") double minLongitude,
             @Param("maxLongitude") double maxLongitude);
 
+
+    @Query("""
+            SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END
+            FROM Venue v
+            WHERE v.latitude BETWEEN :minLatitude AND :maxLatitude
+              AND v.longitude BETWEEN :minLongitude AND :maxLongitude
+            """)
+    boolean existsWithinCoordinateBox(
+            @Param("minLatitude") double minLatitude,
+            @Param("maxLatitude") double maxLatitude,
+            @Param("minLongitude") double minLongitude,
+            @Param("maxLongitude") double maxLongitude);
+
+    long countByInformationSourceAndSourceReferenceStartingWith(
+            Venue.InformationSource informationSource,
+            String sourceReferencePrefix);
+
+    long countByInformationSourceAndSourceReferenceStartingWithAndSportsIsNotNull(
+            Venue.InformationSource informationSource,
+            String sourceReferencePrefix);
+
+    List<Venue> findTop12ByInformationSourceAndSourceReferenceStartingWithAndSportsIsNullOrderByNameAsc(
+            Venue.InformationSource informationSource,
+            String sourceReferencePrefix);
+
     @Query("""
             SELECT v
             FROM Venue v
