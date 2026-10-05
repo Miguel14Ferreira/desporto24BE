@@ -22,6 +22,8 @@ import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,7 +56,10 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public List<Notifications> getNotificationsFromProfile(String username) {
-        return notificationsRepository.findByUsername(username);
+        return notificationsRepository.findByUsername(
+                username,
+                PageRequest.of(0, 200, Sort.by(Sort.Direction.DESC, "id"))
+        );
     }
 
     @Override
