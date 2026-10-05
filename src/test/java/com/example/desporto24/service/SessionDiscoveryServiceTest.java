@@ -217,7 +217,17 @@ class SessionDiscoveryServiceTest {
     }
 
     private void stubCandidates(Session... sessions) {
-        when(sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(anyCollection(), any(Date.class)))
+        when(sessionRepository.searchDiscoverable(
+                anyCollection(),
+                any(Date.class),
+                anyString(),
+                anyString(),
+                nullable(Date.class),
+                nullable(Date.class),
+                nullable(Boolean.class),
+                anyBoolean(),
+                nullable(BigDecimal.class),
+                nullable(BigDecimal.class)))
                 .thenReturn(List.of(sessions));
         when(participantRepository.countBySessionIdsAndState(anyCollection(), eq(com.example.desporto24.enumeration.ParticipantState.ACTIVE)))
                 .thenAnswer(invocation -> {
