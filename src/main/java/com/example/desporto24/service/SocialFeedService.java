@@ -26,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -159,8 +160,22 @@ public class SocialFeedService {
                         PageRequest.of(0, FEED_LIMIT)
                 );
 
+        var likeCounts = new HashMap<Long, Long>();
+        if (!posts.isEmpty()) {
+            likeRepository.countByPostIds(
+                            posts.stream().map(SocialPost::getId).toList())
+                    .forEach(row -> likeCounts.put(
+                            ((Number) row[0]).longValue(),
+                            ((Number) row[1]).longValue()));
+        }
+
         List<FeedItemResponse> items = new ArrayList<>();
-        posts.stream().map(post -> postItem(post, actor)).forEach(items::add);
+        posts.stream()
+                .map(post -> postItem(
+                        post,
+                        actor,
+                        likeCounts.getOrDefault(post.getId(), 0L)))
+                .forEach(items::add);
         sessions.stream().map(this::sessionItem).forEach(items::add);
         attendedSessions.stream().map(this::attendanceItem).forEach(items::add);
 
@@ -171,6 +186,10 @@ public class SocialFeedService {
     }
 
     private FeedItemResponse postItem(SocialPost post, Profile viewer) {
+        return postItem(post, viewer, likeRepository.countByPostId(post.getId()));
+    }
+
+    private FeedItemResponse postItem(SocialPost post, Profile viewer, long likeCount) {
         Profile author = post.getAuthor();
 
         return new FeedItemResponse(
@@ -186,7 +205,7 @@ public class SocialFeedService {
                 null,
                 null,
                 null,
-                likeRepository.countByPostId(post.getId()),
+                likeCount,
                 likeRepository.existsByPostIdAndProfileId(
                         post.getId(),
                         viewer.getId()
