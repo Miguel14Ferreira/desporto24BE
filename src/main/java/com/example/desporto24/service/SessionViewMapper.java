@@ -30,6 +30,16 @@ public class SessionViewMapper {
     }
 
     public SessionSummaryResponse toSummary(Session session, Double distanceKm, Profile viewer) {
+        int participantCount = Math.toIntExact(participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
+        return toSummary(session, distanceKm, viewer, participantCount);
+    }
+
+    public SessionSummaryResponse toSummary(
+            Session session,
+            Double distanceKm,
+            Profile viewer,
+            int participantCount) {
         boolean joinedByViewer = viewer != null && participantRepository
                 .existsBySessionIdAndProfileIdAndState(
                         session.getId(), viewer.getId(), ParticipantState.ACTIVE);
@@ -43,8 +53,7 @@ public class SessionViewMapper {
                 session.getCity(),
                 session.getGameDate().toInstant(),
                 distanceKm,
-                Math.toIntExact(participantRepository.countBySessionIdAndState(
-                        session.getId(), ParticipantState.ACTIVE)),
+                participantCount,
                 session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),
