@@ -54,6 +54,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -314,7 +315,7 @@ public class SessionServiceImpl implements SessionService {
         double effectiveRadius = criteria.radiusKm() == null ? 25.0 : criteria.radiusKm();
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
 
-        return candidates.stream()
+        List<Session> filteredCandidates = candidates.stream()
                 .filter(s -> s.getAudience() != SessionAudience.COMMUNITY_ONLY)
                 .filter(s -> criteria.sport() == null
                         || criteria.sport().isBlank()
@@ -337,7 +338,24 @@ public class SessionServiceImpl implements SessionService {
                         || effectivePrice(s).compareTo(criteria.minPrice()) >= 0)
                 .filter(s -> criteria.maxPrice() == null
                         || effectivePrice(s).compareTo(criteria.maxPrice()) <= 0)
-                .map(s -> toDiscoveryView(s, criteria, hasCoordinates))
+                .toList();
+
+        var participantCounts = new HashMap<Long, Integer>();
+        if (!filteredCandidates.isEmpty()) {
+            participantRepository.countBySessionIdsAndState(
+                            filteredCandidates.stream().map(Session::getId).toList(),
+                            ParticipantState.ACTIVE)
+                    .forEach(row -> participantCounts.put(
+                            ((Number) row[0]).longValue(),
+                            ((Number) row[1]).intValue()));
+        }
+
+        return filteredCandidates.stream()
+                .map(s -> toDiscoveryView(
+                        s,
+                        criteria,
+                        hasCoordinates,
+                        participantCounts.getOrDefault(s.getId(), 0)))
                 .filter(v -> !hasCoordinates
                         || (v.distanceKm() != null && v.distanceKm() <= effectiveRadius))
                 .filter(v -> !"available".equalsIgnoreCase(criteria.availability())
@@ -351,14 +369,17 @@ public class SessionServiceImpl implements SessionService {
     }
 
     private SessionSummaryResponse toDiscoveryView(
-            Session session, SessionSearchCriteria criteria, boolean hasCoordinates) {
+            Session session,
+            SessionSearchCriteria criteria,
+            boolean hasCoordinates,
+            int participantCount) {
         Double distanceKm = null;
         if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
                     session.getLatitude(), session.getLongitude());
         }
-        return sessionViewMapper.toSummary(session, distanceKm);
+        return sessionViewMapper.toSummary(session, distanceKm, null, participantCount);
     }
 
     private Comparator<SessionSummaryResponse> discoveryComparator(String sort) {
