@@ -104,6 +104,9 @@ CREATE INDEX IF NOT EXISTS idx_profile_phone_hash
 CREATE INDEX IF NOT EXISTS idx_chat_participants_date
     ON chat (username1, username2, date);
 
+CREATE INDEX IF NOT EXISTS idx_chat_participants_reverse_date
+    ON chat (username2, username1, date);
+
 CREATE INDEX IF NOT EXISTS idx_session_message_session_created
     ON session_message (session_id, created_at);
 
