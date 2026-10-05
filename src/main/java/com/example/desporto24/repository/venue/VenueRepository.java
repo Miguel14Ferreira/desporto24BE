@@ -26,10 +26,13 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             )
               AND (
                 :sport = ''
-                OR REPLACE(LOWER(COALESCE(v.sports, '')), ' ', '') = :sport
-                OR REPLACE(LOWER(COALESCE(v.sports, '')), ' ', '') LIKE CONCAT(:sport, ';%')
-                OR REPLACE(LOWER(COALESCE(v.sports, '')), ' ', '') LIKE CONCAT('%;', :sport, ';%')
-                OR REPLACE(LOWER(COALESCE(v.sports, '')), ' ', '') LIKE CONCAT('%;', :sport)
+                OR EXISTS (
+                    SELECT sc
+                    FROM Venue v2
+                    JOIN v2.sportCodes sc
+                    WHERE v2 = v
+                      AND LOWER(sc) = :sport
+                )
               )
             ORDER BY LOWER(v.name), v.id
             """)
