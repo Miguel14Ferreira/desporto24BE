@@ -176,6 +176,19 @@ public class CommunityCompetitionService {
             }
         }
 
+        Map<String, Profile> profilesByUsername = profileRepository
+                .findByUsernamesIgnoreCase(new ArrayList<>(usernames))
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        profile -> profile.getUsername().trim().toLowerCase(Locale.ROOT),
+                        profile -> profile,
+                        (left, right) -> left
+                ));
+
+        if (profilesByUsername.size() != usernames.size()) {
+            throw new UserNotFoundException(NO_USER_FOUND_BY_USERNAME);
+        }
+
         CommunitySeason activeSeason = seasonRepository
                 .findByCommunityIdAndActiveTrue(communityId)
                 .orElse(null);
@@ -206,7 +219,9 @@ public class CommunityCompetitionService {
 
         List<CommunityRoundEntry> entries = new ArrayList<>();
         for (CommunityRoundEntryRequest requestEntry : request.entries()) {
-            Profile player = profile(requestEntry.username().trim());
+            Profile player = profilesByUsername.get(
+                    requestEntry.username().trim().toLowerCase(Locale.ROOT)
+            );
 
             if (!memberProfileIds.contains(player.getId())) {
                 throw new IllegalArgumentException(
