@@ -3,6 +3,7 @@ package com.example.desporto24.repository.moderation;
 import com.example.desporto24.enumeration.UserReportStatus;
 import com.example.desporto24.model.moderation.UserReport;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,5 +17,5 @@ public interface UserReportRepository extends JpaRepository<UserReport, Long> {
             UserReportStatus status
     );
 
-    List<UserReport> findAllByStatusOrderByCreatedAtAsc(UserReportStatus status);
+    List<UserReport> findAllByStatusOrderByCreatedAtAsc(UserReportStatus status, Pageable pageable);
 }
