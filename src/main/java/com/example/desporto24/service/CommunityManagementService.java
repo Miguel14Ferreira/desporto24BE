@@ -83,8 +83,33 @@ public class CommunityManagementService {
     @Transactional(readOnly = true)
     public List<CommunityResponse> mine(String username) {
         Profile current = profile(username);
-        return memberRepository.findByProfileIdOrderByJoinedAtDesc(current.getId()).stream()
-                .map(member -> toResponse(member.getCommunity(), current))
+        List<CommunityMember> ownMemberships =
+                memberRepository.findByProfileIdOrderByJoinedAtDesc(current.getId());
+
+        if (ownMemberships.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> communityIds = ownMemberships.stream()
+                .map(member -> member.getCommunity().getId())
+                .toList();
+
+        java.util.Map<Long, List<CommunityMember>> membersByCommunity =
+                memberRepository.findByCommunityIdIn(communityIds)
+                        .stream()
+                        .collect(java.util.stream.Collectors.groupingBy(
+                                member -> member.getCommunity().getId()
+                        ));
+
+        return ownMemberships.stream()
+                .map(member -> toResponse(
+                        member.getCommunity(),
+                        current,
+                        membersByCommunity.getOrDefault(
+                                member.getCommunity().getId(),
+                                List.of()
+                        )
+                ))
                 .toList();
     }
 
@@ -433,7 +458,17 @@ public class CommunityManagementService {
     }
 
     private CommunityResponse toResponse(Community community, Profile current) {
-        List<CommunityMember> memberships = memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId());
+        return toResponse(
+                community,
+                current,
+                memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId())
+        );
+    }
+
+    private CommunityResponse toResponse(
+            Community community,
+            Profile current,
+            List<CommunityMember> memberships) {
         CommunityRole myRole = memberships.stream()
                 .filter(m -> m.getProfile().getId().equals(current.getId()))
                 .map(CommunityMember::getRole)
