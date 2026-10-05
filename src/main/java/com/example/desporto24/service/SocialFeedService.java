@@ -134,10 +134,7 @@ public class SocialFeedService {
 
         Set<Long> authorIds = new LinkedHashSet<>();
         authorIds.add(actor.getId());
-        followRepository.findByFollowerIdOrderByCreatedAtDesc(actor.getId())
-                .stream()
-                .map(follow -> follow.getFollowing().getId())
-                .forEach(authorIds::add);
+        authorIds.addAll(followRepository.findFollowingProfileIds(actor.getId()));
 
         boolean discoveryFallback = authorIds.size() == 1;
 
