@@ -188,25 +188,43 @@ public class CommunityCompetitionService {
                 .createdAt(Instant.now())
                 .build());
 
+        Set<Long> memberProfileIds = memberRepository
+                .findByCommunityIdOrderByJoinedAtAsc(communityId)
+                .stream()
+                .map(member -> member.getProfile().getId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        Map<Long, CommunityPlayer> communityPlayersByProfileId = playerRepository
+                .findByCommunityIdOrderByDisplayNameAsc(communityId)
+                .stream()
+                .filter(player -> player.getProfile() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        player -> player.getProfile().getId(),
+                        player -> player,
+                        (left, right) -> left
+                ));
+
         List<CommunityRoundEntry> entries = new ArrayList<>();
         for (CommunityRoundEntryRequest requestEntry : request.entries()) {
             Profile player = profile(requestEntry.username().trim());
 
-            if (!memberRepository.existsByCommunityIdAndProfileId(communityId, player.getId())) {
+            if (!memberProfileIds.contains(player.getId())) {
                 throw new IllegalArgumentException(
                         "O jogador @" + player.getUsername() + " não pertence à comunidade"
                 );
             }
 
-            CommunityPlayer communityPlayer = playerRepository
-                    .findByCommunityIdAndProfileId(communityId, player.getId())
-                    .orElseGet(() -> playerRepository.save(CommunityPlayer.builder()
-                            .community(community)
-                            .displayName(playerDisplayName(player))
-                            .normalizedName(normalizePlayerName(playerDisplayName(player)))
-                            .profile(player)
-                            .createdAt(Instant.now())
-                            .build()));
+            CommunityPlayer communityPlayer = communityPlayersByProfileId.get(player.getId());
+            if (communityPlayer == null) {
+                communityPlayer = playerRepository.save(CommunityPlayer.builder()
+                        .community(community)
+                        .displayName(playerDisplayName(player))
+                        .normalizedName(normalizePlayerName(playerDisplayName(player)))
+                        .profile(player)
+                        .createdAt(Instant.now())
+                        .build());
+                communityPlayersByProfileId.put(player.getId(), communityPlayer);
+            }
 
             entries.add(CommunityRoundEntry.builder()
                     .round(round)
