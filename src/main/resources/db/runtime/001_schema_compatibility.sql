@@ -158,3 +158,13 @@ CREATE INDEX IF NOT EXISTS idx_community_member_community_joined
 CREATE INDEX IF NOT EXISTS idx_community_player_community_display
     ON community_player (community_id, display_name);
 
+-- Performance indexes for reliability dispute queries.
+CREATE INDEX IF NOT EXISTS idx_attendance_dispute_status_created
+    ON attendance_dispute (status, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_attendance_dispute_participant_created
+    ON attendance_dispute (participant_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_attendance_dispute_participant_status
+    ON attendance_dispute (participant_id, status);
+
