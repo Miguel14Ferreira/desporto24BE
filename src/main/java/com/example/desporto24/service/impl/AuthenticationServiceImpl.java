@@ -431,6 +431,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
     }
 
+    @Override
+    public void resetPasswordStepOne(String email) {
+        ProfileDTO profileDTO = profileService.findUserByEmail(email);
+        String token = createAndSaveConfirmationToken(profileDTO.getUsername());
+
+        String link = uiAppUrl.replaceAll("/+$", "")
+                + "/login/resetPassword/" + token;
+        log.info("Password reset link created for {}", profileDTO.getUsername());
+        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Desporto24",
+                buildResetPasswordEmail(profileDTO.getUsername(), link));
+    }
+
     private String createAndSaveConfirmationToken(String username) {
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(
