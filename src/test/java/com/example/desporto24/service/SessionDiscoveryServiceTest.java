@@ -52,9 +52,11 @@ class SessionDiscoveryServiceTest {
     @Mock private ReferenceCatalogService referenceCatalogService;
 
     private SessionServiceImpl service;
+    private final java.util.Map<Long, Integer> participantCounts = new java.util.HashMap<>();
 
     @BeforeEach
     void setUp() {
+        participantCounts.clear();
         service = new SessionServiceImpl(
                 sessionRepository,
                 profileRepository,
@@ -217,10 +219,19 @@ class SessionDiscoveryServiceTest {
     private void stubCandidates(Session... sessions) {
         when(sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(anyCollection(), any(Date.class)))
                 .thenReturn(List.of(sessions));
+        when(participantRepository.countBySessionIdsAndState(anyCollection(), eq(com.example.desporto24.enumeration.ParticipantState.ACTIVE)))
+                .thenAnswer(invocation -> {
+                    java.util.Collection<Long> sessionIds = invocation.getArgument(0);
+                    return sessionIds.stream()
+                            .filter(participantCounts::containsKey)
+                            .map(id -> new Object[]{id, participantCounts.get(id).longValue()})
+                            .toList();
+                });
     }
 
     private void stubSummary(Session session, Double distance, int participants) {
-        when(sessionViewMapper.toSummary(session, distance)).thenReturn(new SessionSummaryResponse(
+        participantCounts.put(session.getId(), participants);
+        when(sessionViewMapper.toSummary(session, distance, null, participants)).thenReturn(new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
                 session.getCity(),
