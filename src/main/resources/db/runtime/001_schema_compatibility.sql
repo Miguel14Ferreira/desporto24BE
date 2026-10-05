@@ -95,3 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_session_waitlist_profile_created
 
 CREATE INDEX IF NOT EXISTS idx_session_waitlist_session_priority
     ON session_waitlist (session_id, priority_tier, created_at);
+
+
+CREATE INDEX IF NOT EXISTS idx_profile_phone_hash
+    ON profile (phone_hash);
