@@ -95,6 +95,18 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
             @Param("attendanceStatus") AttendanceStatus attendanceStatus,
             @Param("excludedProfileId") Long excludedProfileId);
 
+
+    @Query("""
+            select count(p.id)
+            from SessionParticipant p
+            where p.session.profile.id = :creatorProfileId
+              and p.attendanceStatus = :attendanceStatus
+              and p.profile.id <> :creatorProfileId
+            """)
+    long countAttendedParticipantsForCreatedSessions(
+            @Param("creatorProfileId") Long creatorProfileId,
+            @Param("attendanceStatus") AttendanceStatus attendanceStatus);
+
     @Query("""
             select p
             from SessionParticipant p
