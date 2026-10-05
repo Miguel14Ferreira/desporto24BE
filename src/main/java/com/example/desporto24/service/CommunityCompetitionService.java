@@ -70,6 +70,11 @@ public class CommunityCompetitionService {
                 : roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
                         communityId, seasonId);
 
+        List<CommunitySeason> seasons =
+                seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId);
+        Map<Long, SeasonChampion> championsBySeason =
+                championsBySeason(community, seasons);
+
         Map<Long, List<CommunityRoundEntry>> entriesByRound = rounds.isEmpty()
                 ? Map.of()
                 : entryRepository.findByRoundIdInOrderByRoundIdAscIdAsc(
@@ -84,9 +89,12 @@ public class CommunityCompetitionService {
 
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
-                seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
-                        .stream()
-                        .map(season -> seasonResponse(community, season))
+                seasons.stream()
+                        .map(season -> seasonResponse(
+                                community,
+                                season,
+                                championsBySeason.get(season.getId())
+                        ))
                         .toList(),
                 seasonId,
                 activeSeasonId,
@@ -417,31 +425,108 @@ public class CommunityCompetitionService {
     private CommunitySeasonResponse seasonResponse(
             Community community,
             CommunitySeason season) {
-        String championUsername = null;
-        String championDisplayName = null;
-        Integer championPoints = null;
-
+        SeasonChampion champion = null;
         if (!season.isActive()) {
             List<CommunityStandingResponse> seasonStandings = standings(
                     community, season.getId());
             if (!seasonStandings.isEmpty() && seasonStandings.get(0).games() > 0) {
-                CommunityStandingResponse champion = seasonStandings.get(0);
-                championUsername = champion.username();
-                championDisplayName = champion.fullName();
-                championPoints = champion.points();
+                CommunityStandingResponse standing = seasonStandings.get(0);
+                champion = new SeasonChampion(
+                        standing.username(),
+                        standing.fullName(),
+                        standing.points()
+                );
             }
         }
+        return seasonResponse(community, season, champion);
+    }
 
+    private CommunitySeasonResponse seasonResponse(
+            Community community,
+            CommunitySeason season,
+            SeasonChampion champion) {
         return new CommunitySeasonResponse(
                 season.getId(),
                 season.getName(),
                 season.getStartsAt(),
                 season.getEndedAt(),
                 season.isActive(),
-                championUsername,
-                championDisplayName,
-                championPoints
+                champion == null ? null : champion.username(),
+                champion == null ? null : champion.displayName(),
+                champion == null ? null : champion.points()
         );
+    }
+
+    private Map<Long, SeasonChampion> championsBySeason(
+            Community community,
+            List<CommunitySeason> seasons) {
+        List<Long> closedSeasonIds = seasons.stream()
+                .filter(season -> !season.isActive())
+                .map(CommunitySeason::getId)
+                .toList();
+
+        if (closedSeasonIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Map<String, StandingAccumulator>> tables = new HashMap<>();
+        for (CommunityRoundEntry entry :
+                entryRepository.findByRoundSeasonIdInOrderByRoundPlayedAtAscRoundIdAscIdAsc(
+                        closedSeasonIds
+                )) {
+            if (entry.getRound().getSeason() == null) {
+                continue;
+            }
+
+            Long entrySeasonId = entry.getRound().getSeason().getId();
+            CommunityPlayer communityPlayer = entry.getCommunityPlayer();
+            Profile profile = entry.getProfile() != null
+                    ? entry.getProfile()
+                    : communityPlayer == null ? null : communityPlayer.getProfile();
+
+            Map<String, StandingAccumulator> table =
+                    tables.computeIfAbsent(entrySeasonId, ignored -> new LinkedHashMap<>());
+            StandingAccumulator row = table.computeIfAbsent(
+                    standingKey(communityPlayer, profile),
+                    ignored -> new StandingAccumulator(communityPlayer, profile)
+            );
+            row.add(entry);
+        }
+
+        int winPoints = pointsOrDefault(community.getWinPoints(), 3);
+        int drawPoints = pointsOrDefault(community.getDrawPoints(), 1);
+        int lossPoints = pointsOrDefault(community.getLossPoints(), 0);
+
+        Comparator<StandingAccumulator> comparator =
+                Comparator.comparingInt(
+                                (StandingAccumulator row) ->
+                                        row.points(winPoints, drawPoints, lossPoints)
+                        )
+                        .reversed()
+                        .thenComparing(
+                                Comparator.comparingInt(StandingAccumulator::wins).reversed()
+                        )
+                        .thenComparing(
+                                Comparator.comparingInt(StandingAccumulator::goals).reversed()
+                        )
+                        .thenComparing(
+                                StandingAccumulator::displayName,
+                                String.CASE_INSENSITIVE_ORDER
+                        );
+
+        Map<Long, SeasonChampion> champions = new HashMap<>();
+        tables.forEach((entrySeasonId, table) -> table.values().stream()
+                .min(comparator)
+                .filter(row -> row.games() > 0)
+                .ifPresent(row -> champions.put(
+                        entrySeasonId,
+                        new SeasonChampion(
+                                row.username(),
+                                row.displayName(),
+                                row.points(winPoints, drawPoints, lossPoints)
+                        )
+                )));
+        return champions;
     }
 
     private CommunityCompetitionSettingsResponse settings(Community community) {
@@ -508,6 +593,12 @@ public class CommunityCompetitionService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private record SeasonChampion(
+            String username,
+            String displayName,
+            Integer points) {
     }
 
     private static final class StandingAccumulator {
