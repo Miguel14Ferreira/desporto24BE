@@ -69,6 +69,19 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
             Long sessionId,
             AttendanceStatus attendanceStatus);
 
+
+    @Query("""
+            select distinct p.profile.id
+            from SessionParticipant p
+            where p.session.id in :sessionIds
+              and p.attendanceStatus = :attendanceStatus
+              and p.profile.id <> :excludedProfileId
+            """)
+    List<Long> findDistinctProfileIdsBySessionIdsAndAttendanceStatusExcludingProfile(
+            @Param("sessionIds") Collection<Long> sessionIds,
+            @Param("attendanceStatus") AttendanceStatus attendanceStatus,
+            @Param("excludedProfileId") Long excludedProfileId);
+
     @Query("""
             select p
             from SessionParticipant p
