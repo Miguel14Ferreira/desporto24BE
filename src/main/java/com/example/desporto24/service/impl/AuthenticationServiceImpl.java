@@ -429,35 +429,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (profileRepository.findByPhoneHash(phoneHash).isPresent()) {
             throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
         }
-
-        for (Profile existing : profileRepository.findAllByPhoneHashIsNull()) {
-            if (existing.getPhone() == null || existing.getUserId() == null) {
-                continue;
-            }
-
-            try {
-                String existingPhone = decryptString(existing.getPhone(), existing.getUserId());
-                if (java.util.Objects.equals(existingPhone, phone)) {
-                    throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
-                }
-            } catch (PhoneExistException exception) {
-                throw exception;
-            } catch (RuntimeException ignored) {
-                // Legacy/corrupted values must not block a new registration.
-            }
-        }
-    }
-
-    @Override
-    public void resetPasswordStepOne(String email) {
-        ProfileDTO profileDTO = profileService.findUserByEmail(email);
-        String token = createAndSaveConfirmationToken(profileDTO.getUsername());
-
-        String link = uiAppUrl.replaceAll("/+$", "")
-                + "/login/resetPassword/" + token;
-        log.info("Password reset link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Desporto24",
-                buildResetPasswordEmail(profileDTO.getUsername(), link));
     }
 
     private String createAndSaveConfirmationToken(String username) {
