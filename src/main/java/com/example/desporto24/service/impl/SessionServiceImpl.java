@@ -780,27 +780,70 @@ public class SessionServiceImpl implements SessionService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        List<SessionSummaryResponse> created = sessionRepository
-                .findByProfileIdOrderByGameDateAsc(profile.getId()).stream()
-                .map(s -> sessionViewMapper.toSummary(s, null))
-                .toList();
+        List<Session> createdSessions = sessionRepository
+                .findByProfileIdOrderByGameDateAsc(profile.getId());
 
-        Set<Long> createdIds = created.stream()
-                .map(SessionSummaryResponse::id)
+        Set<Long> createdIds = createdSessions.stream()
+                .map(Session::getId)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 
-        List<SessionSummaryResponse> joined = participantRepository
+        List<Session> joinedSessions = participantRepository
                 .findByProfileIdAndStateOrderByJoinedAtAsc(profile.getId(), ParticipantState.ACTIVE)
                 .stream()
                 .map(SessionParticipant::getSession)
                 .filter(s -> !createdIds.contains(s.getId()))
-                .map(s -> sessionViewMapper.toSummary(s, null))
                 .toList();
 
-        List<SessionSummaryResponse> waitlisted = waitlistRepository
+        List<Session> waitlistedSessions = waitlistRepository
                 .findByProfileIdOrderByCreatedAtAsc(profile.getId())
                 .stream()
-                .map(entry -> sessionViewMapper.toSummary(entry.getSession(), null))
+                .map(SessionWaitlist::getSession)
+                .toList();
+
+        List<Long> sessionIds = java.util.stream.Stream.of(
+                        createdSessions,
+                        joinedSessions,
+                        waitlistedSessions)
+                .flatMap(List::stream)
+                .map(Session::getId)
+                .distinct()
+                .toList();
+
+        var participantCounts = new HashMap<Long, Integer>();
+        if (!sessionIds.isEmpty()) {
+            participantRepository.countBySessionIdsAndState(
+                            sessionIds,
+                            ParticipantState.ACTIVE)
+                    .forEach(row -> participantCounts.put(
+                            ((Number) row[0]).longValue(),
+                            ((Number) row[1]).intValue()));
+        }
+
+        List<SessionSummaryResponse> created = createdSessions.stream()
+                .map(s -> sessionViewMapper.toSummary(
+                        s,
+                        null,
+                        participantCounts.getOrDefault(s.getId(), 0),
+                        false,
+                        false))
+                .toList();
+
+        List<SessionSummaryResponse> joined = joinedSessions.stream()
+                .map(s -> sessionViewMapper.toSummary(
+                        s,
+                        null,
+                        participantCounts.getOrDefault(s.getId(), 0),
+                        false,
+                        false))
+                .toList();
+
+        List<SessionSummaryResponse> waitlisted = waitlistedSessions.stream()
+                .map(s -> sessionViewMapper.toSummary(
+                        s,
+                        null,
+                        participantCounts.getOrDefault(s.getId(), 0),
+                        false,
+                        false))
                 .toList();
 
         return new MySessionsResponse(created, joined, waitlisted);
