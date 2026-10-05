@@ -47,11 +47,11 @@ ALTER TABLE IF EXISTS pilot_event
 
 
 -- Performance indexes for growing venue and session datasets.
-CREATE INDEX IF NOT EXISTS idx_venue_city_lower
-    ON venue (LOWER(city) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS idx_venue_city
+    ON venue (city);
 
-CREATE INDEX IF NOT EXISTS idx_venue_name_lower
-    ON venue (LOWER(name) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS idx_venue_name
+    ON venue (name);
 
 CREATE INDEX IF NOT EXISTS idx_venue_coordinates
     ON venue (latitude, longitude);
