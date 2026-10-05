@@ -57,6 +57,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             Pageable pageable);
 
     List<Session> findByProfileIdOrderByGameDateAsc(Long profileId);
+    List<Session> findByProfileIdOrderByGameDateAsc(Long profileId, Pageable pageable);
     long countByProfileId(Long profileId);
 
     List<Session> findByCommunityIdOrderByGameDateDesc(Long communityId);
