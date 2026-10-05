@@ -85,6 +85,7 @@ class SessionJoinServiceTest {
     @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private BCryptPasswordEncoder passwordEncoder;
     @MockitoBean private VenueService venueService;
+    @MockitoBean private ReferenceCatalogService referenceCatalogService;
 
     private Profile creator;
 
