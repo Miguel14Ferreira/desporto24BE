@@ -94,7 +94,8 @@ class SessionDiscoveryServiceTest {
                 nullable(Boolean.class),
                 anyBoolean(),
                 nullable(BigDecimal.class),
-                nullable(BigDecimal.class)))
+                nullable(BigDecimal.class),
+                any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(List.of());
 
         List<SessionSummaryResponse> result = service.discover(criteria(
@@ -237,7 +238,8 @@ class SessionDiscoveryServiceTest {
                 nullable(Boolean.class),
                 anyBoolean(),
                 nullable(BigDecimal.class),
-                nullable(BigDecimal.class)))
+                nullable(BigDecimal.class),
+                any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(List.of(sessions));
         when(participantRepository.countBySessionIdsAndState(anyCollection(), eq(com.example.desporto24.enumeration.ParticipantState.ACTIVE)))
                 .thenAnswer(invocation -> {
