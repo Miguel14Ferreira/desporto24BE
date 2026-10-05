@@ -157,6 +157,7 @@ public class GoogleAuthenticationService {
         profile.setCountry(request.country().trim());
         profile.setIndicativePhone(phone == null ? null : trimToNull(request.indicativePhone()));
         profile.setPhone(phone == null ? null : AES.encryptString(phone, profile.getUserId()));
+        profile.setPhoneHash(phone == null ? null : AES.hashLookupValue(phone));
         profile.setGender(trimToNull(request.gender()));
         profile.setEmail(identity.email().trim());
         profile.setProfilePicUrl(identity.picture());
@@ -238,7 +239,12 @@ public class GoogleAuthenticationService {
             return;
         }
 
-        for (Profile existing : profileRepository.findAll()) {
+        String phoneHash = AES.hashLookupValue(phone);
+        if (profileRepository.findByPhoneHash(phoneHash).isPresent()) {
+            throw new PhoneExistException(PHONE_ALREADY_REGISTRED);
+        }
+
+        for (Profile existing : profileRepository.findAllByPhoneHashIsNull()) {
             if (existing.getPhone() == null || existing.getUserId() == null) {
                 continue;
             }
