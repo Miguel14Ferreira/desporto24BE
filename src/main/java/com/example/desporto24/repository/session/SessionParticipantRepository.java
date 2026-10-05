@@ -58,6 +58,9 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     List<SessionParticipant> findByProfileIdAndStateOrderByJoinedAtAsc(
             Long profileId, ParticipantState state);
 
+    List<SessionParticipant> findByProfileIdAndStateOrderByJoinedAtAsc(
+            Long profileId, ParticipantState state, Pageable pageable);
+
     @EntityGraph(attributePaths = {"session"})
     List<SessionParticipant> findByProfileIdAndAttendanceStatusInOrderByAttendanceRecordedAtDesc(
             Long profileId,
