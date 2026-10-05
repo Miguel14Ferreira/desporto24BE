@@ -20,6 +20,8 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      Optional<Profile> findUserByUsername(String username);
      Optional<Profile> findUserByUsernameIgnoreCase(String username);
      Optional<Profile> findUserByPhone(String phone);
+     Optional<Profile> findByPhoneHash(String phoneHash);
+     List<Profile> findAllByPhoneHashIsNull();
      Optional<Profile> findUserByOldEmail(String email);
      Optional<Profile> findUserByUserId(String userId);
      @Lock(LockModeType.PESSIMISTIC_WRITE)
