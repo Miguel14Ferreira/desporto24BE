@@ -3,6 +3,8 @@ package com.example.desporto24.repository.social;
 import com.example.desporto24.model.social.ProfileFollow;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -15,6 +17,14 @@ public interface ProfileFollowRepository extends JpaRepository<ProfileFollow, Lo
     long countByFollowerId(Long followerId);
 
     long deleteByFollowerIdAndFollowingId(Long followerId, Long followingId);
+
+    @Query("""
+            select follow.following.id
+            from ProfileFollow follow
+            where follow.follower.id = :followerId
+            order by follow.createdAt desc
+            """)
+    List<Long> findFollowingProfileIds(@Param("followerId") Long followerId);
 
     List<ProfileFollow> findByFollowerIdOrderByCreatedAtDesc(Long followerId);
     List<ProfileFollow> findByFollowerIdOrderByCreatedAtDesc(Long followerId, Pageable pageable);
