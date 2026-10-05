@@ -38,6 +38,19 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     boolean existsBySessionIdAndProfileIdAndState(
             Long sessionId, Long profileId, ParticipantState state);
 
+
+    @Query("""
+            select p.session.id
+            from SessionParticipant p
+            where p.session.id in :sessionIds
+              and p.profile.id = :profileId
+              and p.state = :state
+            """)
+    List<Long> findSessionIdsBySessionIdsAndProfileIdAndState(
+            @Param("sessionIds") Collection<Long> sessionIds,
+            @Param("profileId") Long profileId,
+            @Param("state") ParticipantState state);
+
     List<SessionParticipant> findBySessionIdAndStateOrderByJoinedAtAsc(
             Long sessionId, ParticipantState state);
 
