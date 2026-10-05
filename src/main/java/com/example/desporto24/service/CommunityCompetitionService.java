@@ -70,6 +70,18 @@ public class CommunityCompetitionService {
                 : roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
                         communityId, seasonId);
 
+        Map<Long, List<CommunityRoundEntry>> entriesByRound = rounds.isEmpty()
+                ? Map.of()
+                : entryRepository.findByRoundIdInOrderByRoundIdAscIdAsc(
+                                rounds.stream().map(CommunityRound::getId).toList()
+                        )
+                        .stream()
+                        .collect(java.util.stream.Collectors.groupingBy(
+                                entry -> entry.getRound().getId(),
+                                LinkedHashMap::new,
+                                java.util.stream.Collectors.toList()
+                        ));
+
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
                 seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
@@ -78,7 +90,12 @@ public class CommunityCompetitionService {
                         .toList(),
                 seasonId,
                 activeSeasonId,
-                rounds.stream().map(this::roundResponse).toList(),
+                rounds.stream()
+                        .map(round -> roundResponse(
+                                round,
+                                entriesByRound.getOrDefault(round.getId(), List.of())
+                        ))
+                        .toList(),
                 standings(community, seasonId)
         );
     }
@@ -359,8 +376,16 @@ public class CommunityCompetitionService {
     }
 
     private CommunityRoundResponse roundResponse(CommunityRound round) {
-        List<CommunityRoundEntryResponse> entries = entryRepository
-                .findByRoundIdOrderByIdAsc(round.getId())
+        return roundResponse(
+                round,
+                entryRepository.findByRoundIdOrderByIdAsc(round.getId())
+        );
+    }
+
+    private CommunityRoundResponse roundResponse(
+            CommunityRound round,
+            List<CommunityRoundEntry> roundEntries) {
+        List<CommunityRoundEntryResponse> entries = roundEntries
                 .stream()
                 .map(entry -> {
                     Profile profile = entry.getProfile() != null
