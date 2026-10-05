@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "venue", uniqueConstraints = @UniqueConstraint(name = "uk_venue_source_reference", columnNames = {"information_source", "source_reference"}))
@@ -50,6 +52,19 @@ public class Venue {
 
     @Column(length = 255)
     private String sports;
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "venue_sport",
+            joinColumns = @JoinColumn(name = "venue_id"),
+            uniqueConstraints = @UniqueConstraint(
+                    name = "uk_venue_sport_venue_code",
+                    columnNames = {"venue_id", "sport_code"}
+            )
+    )
+    @Column(name = "sport_code", nullable = false, length = 120)
+    @Builder.Default
+    private Set<String> sportCodes = new LinkedHashSet<>();
 
     @Column(name = "venue_type", length = 80)
     private String venueType;
@@ -181,4 +196,28 @@ public class Venue {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    public void setSports(String sports) {
+        this.sports = sports;
+        syncSportCodes();
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void syncSportCodes() {
+        if (sportCodes == null) {
+            sportCodes = new LinkedHashSet<>();
+        }
+        sportCodes.clear();
+        if (sports == null || sports.isBlank()) {
+            return;
+        }
+        for (String value : sports.split(";")) {
+            String trimmed = value.trim();
+            if (!trimmed.isEmpty()) {
+                sportCodes.add(trimmed);
+            }
+        }
+    }
+
 }
