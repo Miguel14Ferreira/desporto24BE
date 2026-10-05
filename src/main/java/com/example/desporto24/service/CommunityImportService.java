@@ -558,6 +558,16 @@ public class CommunityImportService {
                         (first, ignored) -> first,
                         java.util.LinkedHashMap::new));
 
+        java.util.Map<String, CommunityPlayer> playersByNormalizedName =
+                communityPlayerRepository.findByCommunityIdOrderByDisplayNameAsc(communityId)
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                CommunityPlayer::getNormalizedName,
+                                player -> player,
+                                (left, right) -> left,
+                                java.util.LinkedHashMap::new
+                        ));
+
         int createdRounds = 0;
         int skippedDuplicates = 0;
         int createdEntries = 0;
@@ -603,14 +613,16 @@ public class CommunityImportService {
                     List<String> values = values(row, formatter);
                     String displayName = valueAt(values, playerColumn).trim();
                     String normalizedName = normalizePlayerName(displayName);
-                    CommunityPlayer player = communityPlayerRepository
-                            .findByCommunityIdAndNormalizedName(communityId, normalizedName)
-                            .orElseGet(() -> communityPlayerRepository.save(CommunityPlayer.builder()
-                                    .community(community)
-                                    .displayName(displayName)
-                                    .normalizedName(normalizedName)
-                                    .createdAt(Instant.now())
-                                    .build()));
+                    CommunityPlayer player = playersByNormalizedName.get(normalizedName);
+                    if (player == null) {
+                        player = communityPlayerRepository.save(CommunityPlayer.builder()
+                                .community(community)
+                                .displayName(displayName)
+                                .normalizedName(normalizedName)
+                                .createdAt(Instant.now())
+                                .build());
+                        playersByNormalizedName.put(normalizedName, player);
+                    }
 
                     java.util.Map<String, String> mapped = mappedValues(mapping, values);
                     CommunityMatchResult result = importedResult(mapped);
