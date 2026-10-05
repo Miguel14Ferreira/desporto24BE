@@ -41,8 +41,6 @@ import static com.example.desporto24.constant.UserImplConstant.*;
 @RequiredArgsConstructor
 public class GoogleAuthenticationService {
 
-    private final ReferenceCatalogService referenceCatalogService;
-
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String USER_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int USER_ID_LENGTH = 10;
@@ -57,6 +55,7 @@ public class GoogleAuthenticationService {
     private final MFAVerificationService mfaVerificationService;
     private final NotificationsRepository notificationsRepository;
     private final PilotEventService pilotEventService;
+    private final ReferenceCatalogService referenceCatalogService;
 
     @Transactional
     public GoogleAuthResponse authenticate(String credential) {
