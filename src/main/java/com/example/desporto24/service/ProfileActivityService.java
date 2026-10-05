@@ -45,6 +45,7 @@ public class ProfileActivityService {
 
         Set<String> sports = new HashSet<>();
         Set<Long> people = new HashSet<>();
+        Set<Long> attendedSessionIds = new HashSet<>();
         Set<String> activeWeeks = new HashSet<>();
 
         for (SessionParticipant ownAttendance : attended) {
@@ -52,6 +53,8 @@ public class ProfileActivityService {
             if (session == null) {
                 continue;
             }
+
+            attendedSessionIds.add(session.getId());
 
             if (session.getSport() != null && !session.getSport().isBlank()) {
                 sports.add(session.getSport().trim().toLowerCase(Locale.ROOT));
@@ -69,16 +72,17 @@ public class ProfileActivityService {
                 );
             }
 
-            participantRepository
-                    .findBySessionIdAndAttendanceStatusOrderByJoinedAtAsc(
-                            session.getId(),
-                            AttendanceStatus.ATTENDED
-                    )
-                    .stream()
-                    .map(SessionParticipant::getProfile)
-                    .filter(other -> other != null && !other.getId().equals(profile.getId()))
-                    .map(Profile::getId)
-                    .forEach(people::add);
+        }
+
+        if (!attendedSessionIds.isEmpty()) {
+            people.addAll(
+                    participantRepository
+                            .findDistinctProfileIdsBySessionIdsAndAttendanceStatusExcludingProfile(
+                                    attendedSessionIds,
+                                    AttendanceStatus.ATTENDED,
+                                    profile.getId()
+                            )
+            );
         }
 
         List<Session> createdSessions =
