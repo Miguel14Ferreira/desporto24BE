@@ -23,6 +23,18 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
 
     long countBySessionIdAndState(Long sessionId, ParticipantState state);
 
+
+    @Query("""
+            select p.session.id, count(p.id)
+            from SessionParticipant p
+            where p.session.id in :sessionIds
+              and p.state = :state
+            group by p.session.id
+            """)
+    List<Object[]> countBySessionIdsAndState(
+            @Param("sessionIds") Collection<Long> sessionIds,
+            @Param("state") ParticipantState state);
+
     boolean existsBySessionIdAndProfileIdAndState(
             Long sessionId, Long profileId, ParticipantState state);
 
