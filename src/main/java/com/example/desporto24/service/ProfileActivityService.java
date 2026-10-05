@@ -85,24 +85,12 @@ public class ProfileActivityService {
             );
         }
 
-        List<Session> createdSessions =
-                sessionRepository.findByProfileIdOrderByGameDateAsc(profile.getId());
-
-        int mobilized = 0;
-        if (!createdSessions.isEmpty()) {
-            Set<Long> createdSessionIds = createdSessions.stream()
-                    .map(Session::getId)
-                    .collect(java.util.stream.Collectors.toSet());
-
-            mobilized = Math.toIntExact(
-                    participantRepository
-                            .countBySessionIdsAndAttendanceStatusExcludingProfile(
-                                    createdSessionIds,
-                                    AttendanceStatus.ATTENDED,
-                                    profile.getId()
-                            )
-            );
-        }
+        int mobilized = Math.toIntExact(
+                participantRepository.countAttendedParticipantsForCreatedSessions(
+                        profile.getId(),
+                        AttendanceStatus.ATTENDED
+                )
+        );
 
         long eventsCreated = sessionRepository.countByProfileId(profile.getId());
         long communitiesJoined = communityMemberRepository.countByProfileId(profile.getId());
