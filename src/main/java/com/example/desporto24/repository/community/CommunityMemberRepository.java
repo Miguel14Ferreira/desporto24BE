@@ -3,6 +3,7 @@ package com.example.desporto24.repository.community;
 import com.example.desporto24.model.community.CommunityMember;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,6 +12,7 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     List<CommunityMember> findByProfileIdOrderByJoinedAtDesc(Long profileId);
     long countByProfileId(Long profileId);
     List<CommunityMember> findByCommunityIdOrderByJoinedAtAsc(Long communityId);
+    List<CommunityMember> findByCommunityIdIn(Collection<Long> communityIds);
     boolean existsByCommunityIdAndProfileId(Long communityId, Long profileId);
 
     long deleteByProfileId(Long profileId);
