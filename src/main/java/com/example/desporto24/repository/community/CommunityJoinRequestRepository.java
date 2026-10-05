@@ -3,6 +3,7 @@ package com.example.desporto24.repository.community;
 import com.example.desporto24.enumeration.CommunityInviteStatus;
 import com.example.desporto24.model.community.CommunityJoinRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public interface CommunityJoinRequestRepository extends JpaRepository<CommunityJ
     @EntityGraph(attributePaths = {"community", "requester"})
     List<CommunityJoinRequest> findByCommunityIdAndStatusOrderByCreatedAtAsc(
             Long communityId,
-            CommunityInviteStatus status
+            CommunityInviteStatus status,
+            Pageable pageable
     );
 }
