@@ -44,8 +44,6 @@ public class ProfileActivityService {
                 );
 
         Set<String> sports = new HashSet<>();
-        Set<Long> people = new HashSet<>();
-        Set<Long> attendedSessionIds = new HashSet<>();
         Set<String> activeWeeks = new HashSet<>();
 
         for (SessionParticipant ownAttendance : attended) {
@@ -53,8 +51,6 @@ public class ProfileActivityService {
             if (session == null) {
                 continue;
             }
-
-            attendedSessionIds.add(session.getId());
 
             if (session.getSport() != null && !session.getSport().isBlank()) {
                 sports.add(session.getSport().trim().toLowerCase(Locale.ROOT));
@@ -74,16 +70,10 @@ public class ProfileActivityService {
 
         }
 
-        if (!attendedSessionIds.isEmpty()) {
-            people.addAll(
-                    participantRepository
-                            .findDistinctProfileIdsBySessionIdsAndAttendanceStatusExcludingProfile(
-                                    attendedSessionIds,
-                                    AttendanceStatus.ATTENDED,
-                                    profile.getId()
-                            )
-            );
-        }
+        long peopleCount = participantRepository.countDistinctProfilesAttendedWith(
+                profile.getId(),
+                AttendanceStatus.ATTENDED
+        );
 
         int mobilized = Math.toIntExact(
                 participantRepository.countAttendedParticipantsForCreatedSessions(
@@ -105,7 +95,7 @@ public class ProfileActivityService {
 
         return new ProfileActivityResponse(
                 attended.size(),
-                people.size(),
+                Math.toIntExact(peopleCount),
                 sports.size(),
                 eventsCreated,
                 mobilized,
