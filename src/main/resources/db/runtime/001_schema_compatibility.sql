@@ -82,3 +82,16 @@ CREATE INDEX IF NOT EXISTS idx_social_post_like_post
 
 CREATE INDEX IF NOT EXISTS idx_social_post_comment_post
     ON social_post_comment (post_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_session_participant_session_state
+    ON session_participant (session_id, state);
+
+CREATE INDEX IF NOT EXISTS idx_session_participant_profile_state
+    ON session_participant (profile_id, state);
+
+CREATE INDEX IF NOT EXISTS idx_session_waitlist_profile_created
+    ON session_waitlist (profile_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_session_waitlist_session_priority
+    ON session_waitlist (session_id, priority_tier, created_at);
