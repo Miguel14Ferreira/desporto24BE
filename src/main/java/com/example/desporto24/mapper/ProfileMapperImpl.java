@@ -67,6 +67,7 @@ public class ProfileMapperImpl implements ProfileMapper {
 
     private void mapCommonFields(Profile profile, ProfileDTO profileDTO) {
         profile.setPhone(AES.encryptString(profileDTO.getPhone(), profile.getUserId()));
+        profile.setPhoneHash(AES.hashLookupValue(profileDTO.getPhone()));
         profile.setAddress(AES.encryptString(profileDTO.getAddress(), profile.getUserId()));
         profile.setEmail(profileDTO.getEmail());
         profile.setCountry(profileDTO.getCountry());
