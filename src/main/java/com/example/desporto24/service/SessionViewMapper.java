@@ -92,11 +92,7 @@ public class SessionViewMapper {
 
         Integer waitlistPosition = waitlistEntry
                 .map(entry -> Math.toIntExact(
-                        waitlistRepository.countEntriesAhead(
-                                session.getId(),
-                                entry.getPriorityTier(),
-                                entry.getCreatedAt()
-                        ) + 1
+                        waitlistRepository.countEntriesAhead(entry.getId()) + 1
                 ))
                 .orElse(null);
 
