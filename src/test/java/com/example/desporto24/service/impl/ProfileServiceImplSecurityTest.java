@@ -10,6 +10,7 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.EmailService;
+import com.example.desporto24.service.ReferenceCatalogService;
 import com.example.desporto24.service.UserBlockService;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,13 @@ class ProfileServiceImplSecurityTest {
         NotificationsRepository notificationsRepository = mock(NotificationsRepository.class);
         PasswordHashService passwordHashService = mock(PasswordHashService.class);
         UserBlockService userBlockService = mock(UserBlockService.class);
+        ReferenceCatalogService referenceCatalogService = mock(ReferenceCatalogService.class);
+        when(referenceCatalogService.areAllowedCsv(eq(ReferenceCatalogService.SPORT), any()))
+                .thenReturn(true);
+        when(referenceCatalogService.isAllowedOrBlank(eq(ReferenceCatalogService.GENDER), any()))
+                .thenReturn(true);
+        when(referenceCatalogService.isAllowedOrBlank(eq(ReferenceCatalogService.SKILL_LEVEL), any()))
+                .thenReturn(true);
 
         Profile profile = new Profile();
         profile.setId(1L);
@@ -56,7 +64,8 @@ class ProfileServiceImplSecurityTest {
                 emailService,
                 notificationsRepository,
                 passwordHashService,
-                userBlockService
+                userBlockService,
+                referenceCatalogService
         );
 
         UpdateProfileRequest request = new UpdateProfileRequest(
@@ -92,6 +101,13 @@ class ProfileServiceImplSecurityTest {
         NotificationsRepository notificationsRepository = mock(NotificationsRepository.class);
         PasswordHashService passwordHashService = mock(PasswordHashService.class);
         UserBlockService userBlockService = mock(UserBlockService.class);
+        ReferenceCatalogService referenceCatalogService = mock(ReferenceCatalogService.class);
+        when(referenceCatalogService.areAllowedCsv(eq(ReferenceCatalogService.SPORT), any()))
+                .thenReturn(true);
+        when(referenceCatalogService.isAllowedOrBlank(eq(ReferenceCatalogService.GENDER), any()))
+                .thenReturn(true);
+        when(referenceCatalogService.isAllowedOrBlank(eq(ReferenceCatalogService.SKILL_LEVEL), any()))
+                .thenReturn(true);
 
         Profile profile = new Profile();
         profile.setId(1L);
@@ -116,7 +132,8 @@ class ProfileServiceImplSecurityTest {
                 emailService,
                 notificationsRepository,
                 passwordHashService,
-                userBlockService
+                userBlockService,
+                referenceCatalogService
         );
 
         UpdateProfileRequest request = new UpdateProfileRequest(
@@ -192,7 +209,8 @@ class ProfileServiceImplSecurityTest {
                 emailService,
                 notificationsRepository,
                 passwordHashService,
-                userBlockService
+                userBlockService,
+                referenceCatalogService
         );
 
         org.springframework.test.util.ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test/");
@@ -225,6 +243,7 @@ class ProfileServiceImplSecurityTest {
         NotificationsRepository notificationsRepository = mock(NotificationsRepository.class);
         PasswordHashService passwordHashService = mock(PasswordHashService.class);
         UserBlockService userBlockService = mock(UserBlockService.class);
+        ReferenceCatalogService referenceCatalogService = mock(ReferenceCatalogService.class);
 
         Profile actor = new Profile();
         actor.setUsername("miguel");
@@ -246,7 +265,8 @@ class ProfileServiceImplSecurityTest {
                 emailService,
                 notificationsRepository,
                 passwordHashService,
-                userBlockService
+                userBlockService,
+                referenceCatalogService
         );
 
         service.searchPublicProfiles(
