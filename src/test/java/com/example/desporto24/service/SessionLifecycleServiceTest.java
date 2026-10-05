@@ -77,6 +77,7 @@ class SessionLifecycleServiceTest {
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
     @MockitoBean private VenueService venueService;
+    @MockitoBean private ReferenceCatalogService referenceCatalogService;
 
     private Profile creator;
     private Session session;
