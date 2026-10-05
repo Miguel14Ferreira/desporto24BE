@@ -77,10 +77,15 @@ public class SessionTeamSuggestionService {
             throw new IllegalStateException("A sessão tem de estar cheia para gerar equipas");
         }
 
+        List<Long> participantProfileIds = participants.stream()
+                .map(participant -> participant.getProfile().getId())
+                .toList();
+
         Map<Long, PlayerStats> statsByProfile = new HashMap<>();
         for (CommunityRoundEntry entry : roundEntryRepository
-                .findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(
-                        session.getCommunity().getId())) {
+                .findByCommunityIdAndProfileIds(
+                        session.getCommunity().getId(),
+                        participantProfileIds)) {
             Profile profile = entry.getProfile() != null
                     ? entry.getProfile()
                     : entry.getCommunityPlayer() == null ? null : entry.getCommunityPlayer().getProfile();
