@@ -19,7 +19,8 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      Optional<Profile> findUserByEmail(String email);
      Optional<Profile> findUserByUsername(String username);
      Optional<Profile> findUserByUsernameIgnoreCase(String username);
-     List<Profile> findByUsernameInIgnoreCase(List<String> usernames);
+     @Query("SELECT p FROM Profile p WHERE LOWER(p.username) IN :usernames")
+     List<Profile> findByUsernamesIgnoreCase(@Param("usernames") List<String> usernames);
      Optional<Profile> findUserByPhone(String phone);
      Optional<Profile> findByPhoneHash(String phoneHash);
      List<Profile> findAllByPhoneHashIsNull();
