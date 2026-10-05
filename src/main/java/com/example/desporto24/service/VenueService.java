@@ -9,6 +9,7 @@ import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,16 +29,22 @@ public class VenueService {
 
     @Transactional(readOnly = true)
     public List<VenueResponse> search(String city, String sport) {
-        String cityQuery = normalize(city);
-        String sportQuery = normalize(sport);
+        return search(city, sport, 0, 100);
+    }
 
-        return venueRepository.findAllByOrderByNameAsc()
+    @Transactional(readOnly = true)
+    public List<VenueResponse> search(String city, String sport, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+
+        String cityQuery = normalize(city);
+        String sportQuery = normalizeSportForQuery(sport);
+
+        return venueRepository.search(
+                        cityQuery == null ? "" : cityQuery,
+                        sportQuery == null ? "" : sportQuery,
+                        PageRequest.of(safePage, safeSize))
                 .stream()
-                .filter(venue -> cityQuery == null
-                        || normalize(venue.getCity()).contains(cityQuery))
-                .filter(venue -> sportQuery == null
-                        || (venue.getSports() != null
-                        && hasSport(venue.getSports(), sportQuery)))
                 .map(this::toResponse)
                 .toList();
     }
@@ -246,11 +253,9 @@ public class VenueService {
                 : venue.getInformationSource().name();
     }
 
-    private boolean hasSport(String sports, String sportQuery) {
-        if (sports == null) return false;
-        return java.util.Arrays.stream(sports.split(";"))
-                .map(this::normalize)
-                .anyMatch(sportQuery::equals);
+    private String normalizeSportForQuery(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : normalized.replace(" ", "");
     }
 
     private String normalize(String value) {
