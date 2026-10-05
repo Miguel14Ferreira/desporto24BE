@@ -68,8 +68,19 @@ public class ReliabilityService {
         List<SessionParticipant> history =
                 participantRepository.findReliabilityHistory(profile.getId(), from, now);
 
+        Set<Long> excludedParticipantIds = history.isEmpty()
+                ? Set.of()
+                : new java.util.HashSet<>(
+                        disputeRepository.findParticipantIdsByParticipantIdsAndStatusIn(
+                                history.stream()
+                                        .map(SessionParticipant::getId)
+                                        .toList(),
+                                EXCLUDED_DISPUTE_STATUSES
+                        )
+                );
+
         List<SessionParticipant> effective = history.stream()
-                .filter(p -> !isExcludedByDispute(p))
+                .filter(p -> !excludedParticipantIds.contains(p.getId()))
                 .toList();
 
         double score = effective.stream()
@@ -370,12 +381,6 @@ public class ReliabilityService {
         notification.setSessionId(session.getId());
         notification.setRead(false);
         notificationsRepository.save(notification);
-    }
-
-    private boolean isExcludedByDispute(SessionParticipant participant) {
-        return participant.getAttendanceStatus() == AttendanceStatus.NO_SHOW
-                && disputeRepository.existsByParticipantIdAndStatusIn(
-                participant.getId(), EXCLUDED_DISPUTE_STATUSES);
     }
 
     private boolean isPenalty(SessionParticipant participant) {
