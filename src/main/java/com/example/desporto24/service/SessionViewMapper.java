@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -91,15 +90,15 @@ public class SessionViewMapper {
                 ? Optional.empty()
                 : waitlistRepository.findBySessionIdAndProfileId(session.getId(), viewer.getId());
 
-        Integer waitlistPosition = waitlistEntry.map(entry -> {
-            List<SessionWaitlist> ordered = waitlistRepository
-                    .findBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId());
-            int index = ordered.stream()
-                    .map(SessionWaitlist::getId)
-                    .toList()
-                    .indexOf(entry.getId());
-            return index < 0 ? null : index + 1;
-        }).orElse(null);
+        Integer waitlistPosition = waitlistEntry
+                .map(entry -> Math.toIntExact(
+                        waitlistRepository.countEntriesAhead(
+                                session.getId(),
+                                entry.getPriorityTier(),
+                                entry.getCreatedAt()
+                        ) + 1
+                ))
+                .orElse(null);
 
         boolean canSeeExactAddress = creator || participant;
         int participantCount = Math.toIntExact(participantRepository.countBySessionIdAndState(
