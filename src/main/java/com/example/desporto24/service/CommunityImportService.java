@@ -816,23 +816,21 @@ public class CommunityImportService {
         Community community = communityRepository.findById(communityId)
                 .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
 
-        int createdPlayers = 0;
-        for (CommunityImportPlanResponse.PlayerPlan player : plan.players()) {
-            if (communityPlayerRepository
-                    .findByCommunityIdAndNormalizedName(communityId, player.normalizedName())
-                    .isPresent()) {
-                continue;
-            }
+        List<CommunityPlayer> playersToCreate = plan.players().stream()
+                .filter(player -> "NEW".equals(player.action()))
+                .map(player -> CommunityPlayer.builder()
+                        .community(community)
+                        .displayName(player.displayName())
+                        .normalizedName(player.normalizedName())
+                        .createdAt(Instant.now())
+                        .build())
+                .toList();
 
-            communityPlayerRepository.save(CommunityPlayer.builder()
-                    .community(community)
-                    .displayName(player.displayName())
-                    .normalizedName(player.normalizedName())
-                    .createdAt(Instant.now())
-                    .build());
-            createdPlayers++;
+        if (!playersToCreate.isEmpty()) {
+            communityPlayerRepository.saveAll(playersToCreate);
         }
 
+        int createdPlayers = playersToCreate.size();
         return new CommunityImportPlayersResultResponse(
                 plan.distinctPlayers(),
                 createdPlayers,
