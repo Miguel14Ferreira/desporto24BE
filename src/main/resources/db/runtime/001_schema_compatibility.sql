@@ -62,3 +62,16 @@ CREATE INDEX IF NOT EXISTS idx_venue_sport_code
 
 CREATE INDEX IF NOT EXISTS idx_venue_sport_venue
     ON venue_sport (venue_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_session_status_game_date
+    ON session (status, game_date);
+
+CREATE INDEX IF NOT EXISTS idx_session_sport
+    ON session (sport);
+
+CREATE INDEX IF NOT EXISTS idx_session_city
+    ON session (city);
+
+CREATE INDEX IF NOT EXISTS idx_session_price_amount
+    ON session (price_amount);
