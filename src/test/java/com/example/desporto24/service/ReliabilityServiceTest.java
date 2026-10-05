@@ -243,12 +243,10 @@ class ReliabilityServiceTest {
 
         when(participantRepository.findReliabilityHistory(eq(7L), any(), eq(now)))
                 .thenReturn(List.of(open, accepted, rejected));
-        when(disputeRepository.existsByParticipantIdAndStatusIn(
-                eq(1L), eq(Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED)))).thenReturn(true);
-        when(disputeRepository.existsByParticipantIdAndStatusIn(
-                eq(2L), eq(Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED)))).thenReturn(true);
-        when(disputeRepository.existsByParticipantIdAndStatusIn(
-                eq(3L), eq(Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED)))).thenReturn(false);
+        when(disputeRepository.findParticipantIdsByParticipantIdsAndStatusIn(
+                anyCollection(),
+                eq(Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED))
+        )).thenReturn(List.of(1L, 2L));
 
         ReliabilitySummaryResponse summary = service.summary(profile, now);
 
@@ -305,10 +303,9 @@ class ReliabilityServiceTest {
     }
 
     private void noDisputes(Long... ids) {
-        for (Long id : ids) {
-            when(disputeRepository.existsByParticipantIdAndStatusIn(
-                    eq(id), eq(Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED))))
-                    .thenReturn(false);
-        }
+        when(disputeRepository.findParticipantIdsByParticipantIdsAndStatusIn(
+                anyCollection(),
+                eq(Set.of(DisputeStatus.OPEN, DisputeStatus.ACCEPTED))
+        )).thenReturn(List.of());
     }
 }
