@@ -55,3 +55,10 @@ CREATE INDEX IF NOT EXISTS idx_venue_name
 
 CREATE INDEX IF NOT EXISTS idx_venue_coordinates
     ON venue (latitude, longitude);
+
+
+CREATE INDEX IF NOT EXISTS idx_venue_sport_code
+    ON venue_sport (sport_code);
+
+CREATE INDEX IF NOT EXISTS idx_venue_sport_venue
+    ON venue_sport (venue_id);
