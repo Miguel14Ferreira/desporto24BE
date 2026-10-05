@@ -15,6 +15,7 @@ import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.websocket.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,10 +83,14 @@ public class ChatServiceImpl implements ChatService {
     public List<Chat> findChatMessages(String sender, String recipient) {
         requireFriendship(sender, recipient);
 
-        List<Chat> chats = new ArrayList<>();
-        chats.addAll(chatRepository.findByUsername1AndUsername2(sender, recipient));
-        chats.addAll(chatRepository.findByUsername1AndUsername2(recipient, sender));
-        chats.sort(Comparator.comparing(Chat::getDate));
+        List<Chat> chats = new ArrayList<>(
+                chatRepository.findConversation(
+                        sender,
+                        recipient,
+                        PageRequest.of(0, 200)
+                )
+        );
+        java.util.Collections.reverse(chats);
         return chats;
     }
 
