@@ -27,6 +27,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -161,12 +162,16 @@ public class SocialFeedService {
                 );
 
         var likeCounts = new HashMap<Long, Long>();
+        Set<Long> likedPostIds = new HashSet<>();
         if (!posts.isEmpty()) {
-            likeRepository.countByPostIds(
-                            posts.stream().map(SocialPost::getId).toList())
+            List<Long> postIds = posts.stream().map(SocialPost::getId).toList();
+            likeRepository.countByPostIds(postIds)
                     .forEach(row -> likeCounts.put(
                             ((Number) row[0]).longValue(),
                             ((Number) row[1]).longValue()));
+            likedPostIds.addAll(likeRepository.findPostIdsLikedByProfile(
+                    postIds,
+                    actor.getId()));
         }
 
         List<FeedItemResponse> items = new ArrayList<>();
@@ -174,7 +179,8 @@ public class SocialFeedService {
                 .map(post -> postItem(
                         post,
                         actor,
-                        likeCounts.getOrDefault(post.getId(), 0L)))
+                        likeCounts.getOrDefault(post.getId(), 0L),
+                        likedPostIds.contains(post.getId())))
                 .forEach(items::add);
         sessions.stream().map(this::sessionItem).forEach(items::add);
         attendedSessions.stream().map(this::attendanceItem).forEach(items::add);
@@ -190,6 +196,18 @@ public class SocialFeedService {
     }
 
     private FeedItemResponse postItem(SocialPost post, Profile viewer, long likeCount) {
+        return postItem(
+                post,
+                viewer,
+                likeCount,
+                likeRepository.existsByPostIdAndProfileId(post.getId(), viewer.getId()));
+    }
+
+    private FeedItemResponse postItem(
+            SocialPost post,
+            Profile viewer,
+            long likeCount,
+            boolean likedByViewer) {
         Profile author = post.getAuthor();
 
         return new FeedItemResponse(
@@ -206,10 +224,7 @@ public class SocialFeedService {
                 null,
                 null,
                 likeCount,
-                likeRepository.existsByPostIdAndProfileId(
-                        post.getId(),
-                        viewer.getId()
-                ),
+                likedByViewer,
                 commentRepository.countByPostId(post.getId())
         );
     }
