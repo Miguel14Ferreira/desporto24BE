@@ -79,8 +79,8 @@ class SessionChatServiceTest {
                 .body("olá")
                 .createdAt(Instant.parse("2026-09-25T12:00:00Z"))
                 .build();
-        when(messageRepository.findBySessionIdOrderByCreatedAtAsc(10L))
-                .thenReturn(List.of(message));
+        when(messageRepository.findBySessionIdOrderByCreatedAtDesc(eq(10L), any()))
+                .thenReturn(new java.util.ArrayList<>(List.of(message)));
 
         var messages = service.messages(10L, "creator");
 
