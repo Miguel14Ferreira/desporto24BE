@@ -22,6 +22,7 @@ import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.enumeration.NotificationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -301,7 +302,11 @@ public class ReliabilityService {
 
     @Transactional(readOnly = true)
     public List<AttendanceDisputeResponse> disputes(DisputeStatus status) {
-        return disputeRepository.findByStatusOrderByCreatedAtAsc(status).stream()
+        return disputeRepository.findByStatusOrderByCreatedAtAsc(
+                        status,
+                        PageRequest.of(0, 200)
+                )
+                .stream()
                 .map(dispute -> {
                     SessionParticipant participant = dispute.getParticipant();
                     Session session = participant.getSession();
