@@ -765,21 +765,29 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         List<Session> createdSessions = sessionRepository
-                .findByProfileIdOrderByGameDateAsc(profile.getId());
+                .findByProfileIdOrderByGameDateAsc(
+                        profile.getId(),
+                        PageRequest.of(0, 200)
+                );
 
         Set<Long> createdIds = createdSessions.stream()
                 .map(Session::getId)
                 .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
 
         List<Session> joinedSessions = participantRepository
-                .findByProfileIdAndStateOrderByJoinedAtAsc(profile.getId(), ParticipantState.ACTIVE)
+                .findByProfileIdAndStateOrderByJoinedAtAsc(
+                        profile.getId(),
+                        ParticipantState.ACTIVE,
+                        PageRequest.of(0, 200))
                 .stream()
                 .map(SessionParticipant::getSession)
                 .filter(s -> !createdIds.contains(s.getId()))
                 .toList();
 
         List<Session> waitlistedSessions = waitlistRepository
-                .findByProfileIdOrderByCreatedAtAsc(profile.getId())
+                .findByProfileIdOrderByCreatedAtAsc(
+                        profile.getId(),
+                        PageRequest.of(0, 200))
                 .stream()
                 .map(SessionWaitlist::getSession)
                 .toList();
