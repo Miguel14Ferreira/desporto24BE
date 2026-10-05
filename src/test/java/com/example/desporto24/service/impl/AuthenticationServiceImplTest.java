@@ -21,6 +21,7 @@ import com.example.desporto24.security.TotpService;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.PilotEventService;
+import com.example.desporto24.service.ReferenceCatalogService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,7 @@ class AuthenticationServiceImplTest {
     @Mock private ProfileMapper profileMapper;
     @Mock private TotpService totpService;
     @Mock private PilotEventService pilotEventService;
+    @Mock private ReferenceCatalogService referenceCatalogService;
 
     @Test
     void logoutInvalidatesExistingJwtVersion() {
@@ -423,6 +425,11 @@ class AuthenticationServiceImplTest {
     }
 
     private AuthenticationServiceImpl service() {
+        lenient().when(referenceCatalogService.isAllowedOrBlank(
+                eq(ReferenceCatalogService.GENDER),
+                any()
+        )).thenReturn(true);
+
         AuthenticationServiceImpl service = new AuthenticationServiceImpl(
                 loginAttemptService,
                 profileService,
@@ -436,7 +443,8 @@ class AuthenticationServiceImplTest {
                 jwtTokenProvider,
                 profileMapper,
                 totpService,
-                pilotEventService
+                pilotEventService,
+                referenceCatalogService
         );
         ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test");
         return service;
