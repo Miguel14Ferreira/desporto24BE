@@ -2,6 +2,7 @@ package com.example.desporto24.repository.session;
 
 import com.example.desporto24.model.session.SessionWaitlist;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -48,6 +49,7 @@ public interface SessionWaitlistRepository extends JpaRepository<SessionWaitlist
     long countEntriesAhead(@Param("entryId") Long entryId);
 
     List<SessionWaitlist> findByProfileIdOrderByCreatedAtAsc(Long profileId);
+    List<SessionWaitlist> findByProfileIdOrderByCreatedAtAsc(Long profileId, Pageable pageable);
 
     long deleteByProfileId(Long profileId);
 }
