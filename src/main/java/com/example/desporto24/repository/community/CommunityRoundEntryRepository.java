@@ -11,5 +11,6 @@ public interface CommunityRoundEntryRepository extends JpaRepository<CommunityRo
     List<CommunityRoundEntry> findByRoundIdInOrderByRoundIdAscIdAsc(Collection<Long> roundIds);
     List<CommunityRoundEntry> findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(Long communityId);
     List<CommunityRoundEntry> findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(Long seasonId);
+    List<CommunityRoundEntry> findByRoundSeasonIdInOrderByRoundPlayedAtAscRoundIdAscIdAsc(Collection<Long> seasonIds);
     void deleteByRoundId(Long roundId);
 }
