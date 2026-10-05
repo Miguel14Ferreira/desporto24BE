@@ -1,5 +1,5 @@
 -- Fixed official venues belong in database seed/reference data, not Java startup code.
--- Idempotent through the unique key (information_source, source_reference).
+-- Idempotent through portable INSERT ... SELECT ... WHERE NOT EXISTS statements.
 
 INSERT INTO venue (
     name,
@@ -27,8 +27,7 @@ INSERT INTO venue (
     source_reference,
     created_at
 )
-VALUES
-(
+SELECT
     'Clube Nacional de Ginástica - Parque Desportivo',
     'Parede',
     'Lisboa',
@@ -53,8 +52,40 @@ VALUES
     'OFFICIAL',
     'OFFICIAL:CNG:PAREDE',
     CURRENT_TIMESTAMP
-),
-(
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM venue
+    WHERE information_source = 'OFFICIAL'
+      AND source_reference = 'OFFICIAL:CNG:PAREDE'
+);
+
+INSERT INTO venue (
+    name,
+    city,
+    district,
+    address,
+    sports,
+    venue_type,
+    ownership_type,
+    environment_type,
+    indoor,
+    changing_rooms,
+    toilets,
+    showers,
+    stands,
+    cafe,
+    parking,
+    lighting,
+    latitude,
+    longitude,
+    website,
+    contact,
+    opening_hours,
+    information_source,
+    source_reference,
+    created_at
+)
+SELECT
     'Complexo Desportivo Municipal da Abóboda',
     'São Domingos de Rana',
     'Lisboa',
@@ -79,5 +110,9 @@ VALUES
     'OFFICIAL',
     'OFFICIAL:CASCAIS:CDM-ABOBODA',
     CURRENT_TIMESTAMP
-)
-ON CONFLICT (information_source, source_reference) DO NOTHING;
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM venue
+    WHERE information_source = 'OFFICIAL'
+      AND source_reference = 'OFFICIAL:CASCAIS:CDM-ABOBODA'
+);
