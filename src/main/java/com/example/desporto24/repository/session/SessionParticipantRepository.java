@@ -63,6 +63,12 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
             Long profileId,
             Collection<AttendanceStatus> attendanceStatuses);
 
+    @EntityGraph(attributePaths = {"session"})
+    List<SessionParticipant> findByProfileIdAndAttendanceStatusInOrderByAttendanceRecordedAtDesc(
+            Long profileId,
+            Collection<AttendanceStatus> attendanceStatuses,
+            Pageable pageable);
+
     List<SessionParticipant> findByProfileIdAndAttendanceStatusOrderByAttendanceRecordedAtDesc(
             Long profileId,
             AttendanceStatus attendanceStatus);
