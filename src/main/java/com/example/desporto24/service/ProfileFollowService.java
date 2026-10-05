@@ -9,6 +9,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.social.ProfileFollowRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -69,7 +70,10 @@ public class ProfileFollowService {
     public List<FollowProfileResponse> following(String username) {
         Profile profile = profile(username);
 
-        return followRepository.findByFollowerIdOrderByCreatedAtDesc(profile.getId())
+        return followRepository.findByFollowerIdOrderByCreatedAtDesc(
+                        profile.getId(),
+                        PageRequest.of(0, 200)
+                )
                 .stream()
                 .map(ProfileFollow::getFollowing)
                 .map(this::toProfile)
@@ -80,7 +84,10 @@ public class ProfileFollowService {
     public List<FollowProfileResponse> followers(String username) {
         Profile profile = profile(username);
 
-        return followRepository.findByFollowingIdOrderByCreatedAtDesc(profile.getId())
+        return followRepository.findByFollowingIdOrderByCreatedAtDesc(
+                        profile.getId(),
+                        PageRequest.of(0, 200)
+                )
                 .stream()
                 .map(ProfileFollow::getFollower)
                 .map(this::toProfile)
