@@ -168,3 +168,7 @@ CREATE INDEX IF NOT EXISTS idx_attendance_dispute_participant_created
 CREATE INDEX IF NOT EXISTS idx_attendance_dispute_participant_status
     ON attendance_dispute (participant_id, status);
 
+-- Performance index for moderation report queue.
+CREATE INDEX IF NOT EXISTS idx_user_report_status_created
+    ON user_report (status, created_at);
+
