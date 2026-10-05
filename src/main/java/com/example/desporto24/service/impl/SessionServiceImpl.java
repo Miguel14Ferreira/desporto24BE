@@ -552,11 +552,7 @@ public class SessionServiceImpl implements SessionService {
 
     private int waitlistPosition(Long sessionId, SessionWaitlist entry) {
         return Math.toIntExact(
-                waitlistRepository.countEntriesAhead(
-                        sessionId,
-                        entry.getPriorityTier(),
-                        entry.getCreatedAt()
-                ) + 1
+                waitlistRepository.countEntriesAhead(entry.getId()) + 1
         );
     }
 
