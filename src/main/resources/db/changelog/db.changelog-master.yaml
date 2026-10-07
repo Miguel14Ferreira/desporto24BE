@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-08-social-post-comment-index.yaml
+  - include:
+      file: db/changelog/changes/2026-10-08-notification-unread-index.yaml
