@@ -10,7 +10,14 @@ import java.util.Set;
 
 public interface SocialPostCommentRepository extends JpaRepository<SocialPostComment, Long> {
 
-    List<SocialPostComment> findByPostIdOrderByCreatedAtAsc(Long postId);
+    @Query("""
+            select comment
+            from SocialPostComment comment
+            join fetch comment.author
+            where comment.post.id = :postId
+            order by comment.createdAt asc
+            """)
+    List<SocialPostComment> findByPostIdOrderByCreatedAtAsc(@Param("postId") Long postId);
 
     long countByPostId(Long postId);
 
