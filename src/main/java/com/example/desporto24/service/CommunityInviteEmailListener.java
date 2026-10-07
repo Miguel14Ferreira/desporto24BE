@@ -29,7 +29,7 @@ public class CommunityInviteEmailListener {
         }
 
         try {
-            emailSender.send(event.recipientEmail(), "Convite para uma comunidade | Community invitation — Desporto24",
+            emailSender.send(event.recipientEmail(), "Convite para uma comunidade | Community invitation — Jynlo",
                     buildEmail(event));
         } catch (RuntimeException exception) {
             // The invitation and in-app notification have already been committed.
