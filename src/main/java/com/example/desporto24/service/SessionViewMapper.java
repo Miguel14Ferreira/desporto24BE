@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -30,6 +31,14 @@ public class SessionViewMapper {
     }
 
     public SessionSummaryResponse toSummary(Session session, Double distanceKm, Profile viewer) {
+        return toSummary(session, distanceKm, viewer, null);
+    }
+
+    public SessionSummaryResponse toSummary(
+            Session session,
+            Double distanceKm,
+            Profile viewer,
+            Map<Long, Long> participantCounts) {
         boolean joinedByViewer = viewer != null && participantRepository
                 .existsBySessionIdAndProfileIdAndState(
                         session.getId(), viewer.getId(), ParticipantState.ACTIVE);
@@ -43,8 +52,10 @@ public class SessionViewMapper {
                 session.getCity(),
                 session.getGameDate().toInstant(),
                 distanceKm,
-                Math.toIntExact(participantRepository.countBySessionIdAndState(
-                        session.getId(), ParticipantState.ACTIVE)),
+                participantCounts == null
+                        ? Math.toIntExact(participantRepository.countBySessionIdAndState(
+                                session.getId(), ParticipantState.ACTIVE))
+                        : Math.toIntExact(participantCounts.getOrDefault(session.getId(), 0L)),
                 session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),

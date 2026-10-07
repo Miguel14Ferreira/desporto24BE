@@ -58,7 +58,9 @@ import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
@@ -313,7 +315,7 @@ public class SessionServiceImpl implements SessionService {
         double effectiveRadius = criteria.radiusKm() == null ? 25.0 : criteria.radiusKm();
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
 
-        return candidates.stream()
+        List<Session> filteredCandidates = candidates.stream()
                 .filter(s -> s.getAudience() != SessionAudience.COMMUNITY_ONLY)
                 .filter(s -> criteria.sport() == null
                         || criteria.sport().isBlank()
@@ -336,7 +338,19 @@ public class SessionServiceImpl implements SessionService {
                         || effectivePrice(s).compareTo(criteria.minPrice()) >= 0)
                 .filter(s -> criteria.maxPrice() == null
                         || effectivePrice(s).compareTo(criteria.maxPrice()) <= 0)
-                .map(s -> toDiscoveryView(s, criteria, hasCoordinates))
+                .toList();
+
+        Set<Long> sessionIds = filteredCandidates.stream()
+                .map(Session::getId)
+                .collect(Collectors.toSet());
+        Map<Long, Long> participantCounts = sessionIds.isEmpty()
+                ? Map.of()
+                : participantRepository.countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
+                        .stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return filteredCandidates.stream()
+                .map(s -> toDiscoveryView(s, criteria, hasCoordinates, participantCounts))
                 .filter(v -> !hasCoordinates
                         || (v.distanceKm() != null && v.distanceKm() <= effectiveRadius))
                 .filter(v -> !"available".equalsIgnoreCase(criteria.availability())
@@ -350,14 +364,17 @@ public class SessionServiceImpl implements SessionService {
     }
 
     private SessionSummaryResponse toDiscoveryView(
-            Session session, SessionSearchCriteria criteria, boolean hasCoordinates) {
+            Session session,
+            SessionSearchCriteria criteria,
+            boolean hasCoordinates,
+            Map<Long, Long> participantCounts) {
         Double distanceKm = null;
         if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
                     session.getLatitude(), session.getLongitude());
         }
-        return sessionViewMapper.toSummary(session, distanceKm);
+        return sessionViewMapper.toSummary(session, distanceKm, null, participantCounts);
     }
 
     private Comparator<SessionSummaryResponse> discoveryComparator(String sort) {
