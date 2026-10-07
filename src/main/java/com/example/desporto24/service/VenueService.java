@@ -31,10 +31,11 @@ public class VenueService {
         String cityQuery = normalize(city);
         String sportQuery = normalize(sport);
 
-        return venueRepository.findAllByOrderByNameAsc()
-                .stream()
-                .filter(venue -> cityQuery == null
-                        || normalize(venue.getCity()).contains(cityQuery))
+        List<Venue> venues = cityQuery == null
+                ? venueRepository.findAllByOrderByNameAsc()
+                : venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc(cityQuery);
+
+        return venues.stream()
                 .filter(venue -> sportQuery == null
                         || (venue.getSports() != null
                         && hasSport(venue.getSports(), sportQuery)))
