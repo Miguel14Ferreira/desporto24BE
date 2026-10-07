@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-08-social-post-comment-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_social_post_comment_post_created_at
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: social_post_comment
+            indexName: idx_social_post_comment_post_created_at
+            columns:
+              - column:
+                  name: post_id
+              - column:
+                  name: created_at
