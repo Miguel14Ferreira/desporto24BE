@@ -746,27 +746,44 @@ public class SessionServiceImpl implements SessionService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        List<SessionSummaryResponse> created = sessionRepository
-                .findByProfileIdOrderByGameDateAsc(profile.getId()).stream()
-                .map(s -> sessionViewMapper.toSummary(s, null))
-                .toList();
+        List<Session> createdSessions = sessionRepository
+                .findByProfileIdOrderByGameDateAsc(profile.getId());
 
-        Set<Long> createdIds = created.stream()
-                .map(SessionSummaryResponse::id)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> createdIds = createdSessions.stream()
+                .map(Session::getId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        List<SessionSummaryResponse> joined = participantRepository
+        List<Session> joinedSessions = participantRepository
                 .findByProfileIdAndStateOrderByJoinedAtAsc(profile.getId(), ParticipantState.ACTIVE)
                 .stream()
                 .map(SessionParticipant::getSession)
-                .filter(s -> !createdIds.contains(s.getId()))
-                .map(s -> sessionViewMapper.toSummary(s, null))
+                .filter(session -> !createdIds.contains(session.getId()))
                 .toList();
 
-        List<SessionSummaryResponse> waitlisted = waitlistRepository
+        List<Session> waitlistedSessions = waitlistRepository
                 .findByProfileIdOrderByCreatedAtAsc(profile.getId())
                 .stream()
-                .map(entry -> sessionViewMapper.toSummary(entry.getSession(), null))
+                .map(SessionWaitlist::getSession)
+                .toList();
+
+        Set<Long> sessionIds = new LinkedHashSet<>(createdIds);
+        joinedSessions.stream().map(Session::getId).forEach(sessionIds::add);
+        waitlistedSessions.stream().map(Session::getId).forEach(sessionIds::add);
+
+        Map<Long, Long> participantCounts = sessionIds.isEmpty()
+                ? Map.of()
+                : participantRepository.countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
+                        .stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        List<SessionSummaryResponse> created = createdSessions.stream()
+                .map(session -> sessionViewMapper.toSummary(session, null, null, participantCounts))
+                .toList();
+        List<SessionSummaryResponse> joined = joinedSessions.stream()
+                .map(session -> sessionViewMapper.toSummary(session, null, null, participantCounts))
+                .toList();
+        List<SessionSummaryResponse> waitlisted = waitlistedSessions.stream()
+                .map(session -> sessionViewMapper.toSummary(session, null, null, participantCounts))
                 .toList();
 
         return new MySessionsResponse(created, joined, waitlisted);
