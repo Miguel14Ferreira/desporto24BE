@@ -80,8 +80,10 @@ class SessionDiscoveryServiceTest {
         profile.setUsername("miguel");
 
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
-        when(sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
-                anyCollection(), any(Date.class))).thenReturn(List.of());
+        when(sessionRepository.discoverCandidates(
+                anyCollection(), any(Date.class), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
+                nullable(Boolean.class), anyBoolean(), nullable(java.math.BigDecimal.class), nullable(java.math.BigDecimal.class)))
+                .thenReturn(List.of());
 
         List<SessionSummaryResponse> result = service.discover(criteria(
                 null, null, null, null, null, null, null,
@@ -213,7 +215,9 @@ class SessionDiscoveryServiceTest {
     }
 
     private void stubCandidates(Session... sessions) {
-        when(sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(anyCollection(), any(Date.class)))
+        when(sessionRepository.discoverCandidates(
+                anyCollection(), any(Date.class), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
+                nullable(Boolean.class), anyBoolean(), nullable(java.math.BigDecimal.class), nullable(java.math.BigDecimal.class)))
                 .thenReturn(List.of(sessions));
     }
 
