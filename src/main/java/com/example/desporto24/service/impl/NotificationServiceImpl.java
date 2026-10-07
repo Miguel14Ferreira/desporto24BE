@@ -58,6 +58,12 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long countUnreadNotifications(String username) {
+        return notificationsRepository.countByUsernameAndReadFalse(username);
+    }
+
+    @Override
     public void disableProfileAndSendEmail(String email, String authenticatedUsername) {
         ProfileDTO profileDTO = getUserByEmailOrThrow(email);
         if (!authenticatedUsername.equals(profileDTO.getUsername())) {

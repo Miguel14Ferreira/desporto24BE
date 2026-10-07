@@ -16,6 +16,7 @@ import java.util.Optional;
 public interface NotificationsRepository extends JpaRepository<Notifications, Long> {
 
     List<Notifications> findByUsername(String username);
+    long countByUsernameAndReadFalse(String username);
     Optional<Notifications> findByToken(String token);
 
     @Transactional
