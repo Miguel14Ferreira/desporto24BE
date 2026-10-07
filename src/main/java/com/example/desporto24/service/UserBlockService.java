@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Set;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -73,6 +74,11 @@ public class UserBlockService {
         return new UserBlockStatusResponse(
                 userBlockRepository.existsByBlockerIdAndBlockedId(actor.getId(), target.getId())
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> blockedProfileIds(Profile profile) {
+        return userBlockRepository.findBlockedProfileIds(profile.getId());
     }
 
     @Transactional(readOnly = true)

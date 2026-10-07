@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Set;
+
 @Repository
 public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
 
@@ -19,6 +21,16 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
                or (block.blocker.id = :secondId and block.blocked.id = :firstId)
             """)
     boolean existsBetween(Long firstId, Long secondId);
+
+    @Query("""
+            select case
+                when block.blocker.id = :profileId then block.blocked.id
+                else block.blocker.id
+            end
+            from UserBlock block
+            where block.blocker.id = :profileId or block.blocked.id = :profileId
+            """)
+    Set<Long> findBlockedProfileIds(Long profileId);
 
     long deleteByBlockerIdOrBlockedId(Long blockerId, Long blockedId);
 }
