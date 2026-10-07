@@ -282,10 +282,24 @@ public class SessionServiceImpl implements SessionService {
             return List.of(sessionViewMapper.toSummary(session, null, viewer));
         }
 
-        return sessionRepository
-                .findByRecurrenceSeriesIdOrderByGameDateAsc(session.getRecurrenceSeriesId())
+        List<Session> seriesSessions = sessionRepository
+                .findByRecurrenceSeriesIdOrderByGameDateAsc(session.getRecurrenceSeriesId());
+        Set<Long> sessionIds = seriesSessions.stream()
+                .map(Session::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Long> participantCounts = participantRepository
+                .countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
                 .stream()
-                .map(item -> sessionViewMapper.toSummary(item, null, viewer))
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Set<Long> joinedSessionIds = participantRepository
+                .findSessionIdsByProfileAndState(sessionIds, viewer.getId(), ParticipantState.ACTIVE);
+        Set<Long> waitlistedSessionIds = waitlistRepository
+                .findSessionIdsByProfile(sessionIds, viewer.getId());
+
+        return seriesSessions.stream()
+                .map(item -> sessionViewMapper.toSummary(
+                        item, null, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .toList();
     }
 

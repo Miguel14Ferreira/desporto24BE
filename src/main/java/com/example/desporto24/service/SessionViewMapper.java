@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -63,6 +64,30 @@ public class SessionViewMapper {
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 joinedByViewer,
                 waitlistedByViewer,
+                session.getRecurrenceSeriesId()
+        );
+    }
+
+    public SessionSummaryResponse toSummary(
+            Session session,
+            Double distanceKm,
+            Map<Long, Long> participantCounts,
+            Set<Long> joinedSessionIds,
+            Set<Long> waitlistedSessionIds) {
+        return new SessionSummaryResponse(
+                session.getId(),
+                session.getSport(),
+                session.getCity(),
+                session.getGameDate().toInstant(),
+                distanceKm,
+                Math.toIntExact(participantCounts.getOrDefault(session.getId(), 0L)),
+                session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
+                session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
+                Boolean.TRUE.equals(session.getPrivateGame()),
+                session.getStatus() == null ? SessionStatus.OPEN : session.getStatus(),
+                session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
+                joinedSessionIds.contains(session.getId()),
+                waitlistedSessionIds.contains(session.getId()),
                 session.getRecurrenceSeriesId()
         );
     }
