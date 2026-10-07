@@ -5,12 +5,14 @@ import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
 @Component
+@ConditionalOnProperty(name = "app.venue-seed.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class VenueSeedData implements ApplicationRunner {
 
