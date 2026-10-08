@@ -102,13 +102,7 @@ public class ChatServiceImpl implements ChatService {
 
         userBlockService.ensureInteractionAllowed(first, second);
 
-        return friendRepository.findByProfile1OrProfile2(first, first).stream()
-                .filter(friend ->
-                        (friend.getProfile1().getId().equals(first.getId())
-                                && friend.getProfile2().getId().equals(second.getId()))
-                        || (friend.getProfile1().getId().equals(second.getId())
-                                && friend.getProfile2().getId().equals(first.getId())))
-                .findFirst()
+        return friendRepository.findConnection(first.getId(), second.getId())
                 .orElseThrow(() -> new AccessDeniedException("Users are not friends"));
     }
 }
