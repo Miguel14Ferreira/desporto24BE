@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-08-session-participant-session-state-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_session_participant_session_state
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: session_participant
+            indexName: idx_session_participant_session_state
+            columns:
+              - column:
+                  name: session_id
+              - column:
+                  name: state
+  - changeSet:
+      id: 2026-10-08-session-participant-profile-state-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_session_participant_profile_state
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: session_participant
+            indexName: idx_session_participant_profile_state
+            columns:
+              - column:
+                  name: profile_id
+              - column:
+                  name: state
