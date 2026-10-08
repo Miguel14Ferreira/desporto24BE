@@ -20,8 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -82,11 +80,7 @@ public class ChatServiceImpl implements ChatService {
     public List<Chat> findChatMessages(String sender, String recipient) {
         requireFriendship(sender, recipient);
 
-        List<Chat> chats = new ArrayList<>();
-        chats.addAll(chatRepository.findByUsername1AndUsername2(sender, recipient));
-        chats.addAll(chatRepository.findByUsername1AndUsername2(recipient, sender));
-        chats.sort(Comparator.comparing(Chat::getDate));
-        return chats;
+        return chatRepository.findConversation(sender, recipient);
     }
 
     @Override
