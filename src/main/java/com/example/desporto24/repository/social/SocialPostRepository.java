@@ -14,6 +14,7 @@ public interface SocialPostRepository extends JpaRepository<SocialPost, Long> {
     @Query("""
             select p
             from SocialPost p
+            join fetch p.author
             where p.author.id in :authorIds
             order by p.createdAt desc
             """)
@@ -21,6 +22,12 @@ public interface SocialPostRepository extends JpaRepository<SocialPost, Long> {
             @Param("authorIds") Collection<Long> authorIds,
             Pageable pageable);
 
+    @Query("""
+            select p
+            from SocialPost p
+            join fetch p.author
+            order by p.createdAt desc
+            """)
     List<SocialPost> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     List<SocialPost> findByAuthorId(Long authorId);
