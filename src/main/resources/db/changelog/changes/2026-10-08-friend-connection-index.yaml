@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-08-friend-connection-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_friend_profile_pair
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: friend
+            indexName: idx_friend_profile_pair
+            columns:
+              - column:
+                  name: profile1
+              - column:
+                  name: profile2
