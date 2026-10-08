@@ -10,7 +10,18 @@ import java.util.Optional;
 
 public interface CommunityMemberRepository extends JpaRepository<CommunityMember, Long> {
     Optional<CommunityMember> findByCommunityIdAndProfileId(Long communityId, Long profileId);
-    List<CommunityMember> findByProfileIdOrderByJoinedAtDesc(Long profileId);
+
+    @Query("""
+            select member
+            from CommunityMember member
+            join fetch member.community community
+            join fetch community.owner
+            where member.profile.id = :profileId
+            order by member.joinedAt desc
+            """)
+    List<CommunityMember> findByProfileIdOrderByJoinedAtDesc(
+            @Param("profileId") Long profileId);
+
     long countByProfileId(Long profileId);
 
     @Query("""
