@@ -35,8 +35,7 @@ public class SnidVenueImportData {
         try {
             String geoJsonUrl = findSnidGeoJsonUrl();
             if (geoJsonUrl == null || geoJsonUrl.isBlank()) {
-                log.warn("SNID venue import skipped: GeoJSON resource not found");
-                return;
+                throw new IllegalStateException("SNID GeoJSON resource not found");
             }
 
             Map<?, ?> geoJson = restClient.get()
@@ -45,8 +44,7 @@ public class SnidVenueImportData {
                     .body(Map.class);
 
             if (geoJson == null || !(geoJson.get("features") instanceof List<?> features)) {
-                log.warn("SNID venue import skipped: invalid GeoJSON payload");
-                return;
+                throw new IllegalStateException("Invalid SNID GeoJSON payload");
             }
 
             List<Venue> existingVenues = venueRepository.findAllByOrderByNameAsc();
@@ -183,7 +181,8 @@ public class SnidVenueImportData {
                     features.size(),
                     geoJsonUrl);
         } catch (Exception ex) {
-            log.warn("SNID venue import failed without blocking startup: {}", ex.getMessage(), ex);
+            log.error("SNID venue import failed: {}", ex.getMessage(), ex);
+            throw new IllegalStateException("SNID venue import failed", ex);
         }
     }
 
