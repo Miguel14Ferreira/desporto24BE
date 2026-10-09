@@ -328,6 +328,7 @@ public class SnidVenueImportData {
                     jsonFieldShape(sample, "location"), jsonFieldShape(sample, "coordinates"),
                     jsonFieldShape(sample, "address"), sample.contains("coordinates"),
                     sample.contains("\\\"coordinates\\\""));
+            inspectSnidLocationShape(sample);
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
                             : String.valueOf(sample.stripLeading().charAt(0)), keys);
@@ -335,6 +336,33 @@ public class SnidVenueImportData {
             log.warn("SNID JSON prefix inspection unavailable: {}", ex.toString());
         } finally {
             if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** Parse only the location field from the bounded JSON prefix; no persistence. */
+    private void inspectSnidLocationShape(String sample) {
+        try (com.fasterxml.jackson.core.JsonParser parser =
+                     new com.fasterxml.jackson.databind.ObjectMapper().getFactory().createParser(sample)) {
+            if (parser.nextToken() != com.fasterxml.jackson.core.JsonToken.START_OBJECT) return;
+            while (parser.nextToken() == com.fasterxml.jackson.core.JsonToken.FIELD_NAME) {
+                String field = parser.currentName();
+                com.fasterxml.jackson.core.JsonToken token = parser.nextToken();
+                if ("location".equals(field) && token == com.fasterxml.jackson.core.JsonToken.VALUE_STRING) {
+                    com.fasterxml.jackson.databind.JsonNode geometry =
+                            new com.fasterxml.jackson.databind.ObjectMapper().readTree(parser.getText());
+                    com.fasterxml.jackson.databind.JsonNode coordinates = geometry.path("coordinates");
+                    log.info("SNID location geometry: type={}, coordinatesArray={}, coordinateCount={}",
+                            geometry.path("type").asText("missing"), coordinates.isArray(),
+                            coordinates.isArray() ? coordinates.size() : 0);
+                    return;
+                }
+                parser.skipChildren();
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            log.info("SNID location not fully available in 8KiB prefix: {}",
+                    ex.getOriginalMessage());
+        } catch (java.io.IOException ex) {
+            log.warn("SNID location prefix inspection unavailable: {}", ex.toString());
         }
     }
 
