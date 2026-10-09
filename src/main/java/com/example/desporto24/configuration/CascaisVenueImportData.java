@@ -16,7 +16,7 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "app.venue-import.enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "desporto.venues.bootstrap", name = "cascais-enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class CascaisVenueImportData implements ApplicationRunner {
 

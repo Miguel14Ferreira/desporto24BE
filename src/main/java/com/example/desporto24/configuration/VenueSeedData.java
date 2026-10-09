@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 
 @Component
-@ConditionalOnProperty(name = "app.venue-seed.enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "desporto.venues.bootstrap", name = "fixed-enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class VenueSeedData implements ApplicationRunner {
 

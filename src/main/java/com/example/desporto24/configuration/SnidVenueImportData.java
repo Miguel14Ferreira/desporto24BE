@@ -22,7 +22,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "app.venue-import.enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "desporto.venues.bootstrap", name = "snid-enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class SnidVenueImportData implements ApplicationRunner {
 
