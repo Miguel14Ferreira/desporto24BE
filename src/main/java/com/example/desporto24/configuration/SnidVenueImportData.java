@@ -351,6 +351,15 @@ public class SnidVenueImportData {
                     com.fasterxml.jackson.databind.JsonNode geometry =
                             new com.fasterxml.jackson.databind.ObjectMapper().readTree(parser.getText());
                     com.fasterxml.jackson.databind.JsonNode coordinates = geometry.path("coordinates");
+                    boolean portugalPoint = coordinates.isArray() && coordinates.size() == 2
+                            && coordinates.get(0).isNumber() && coordinates.get(1).isNumber()
+                            && ((coordinates.get(1).asDouble() >= 36.9 && coordinates.get(1).asDouble() <= 42.2
+                                    && coordinates.get(0).asDouble() >= -9.6 && coordinates.get(0).asDouble() <= -6.1)
+                                || (coordinates.get(1).asDouble() >= 32.0 && coordinates.get(1).asDouble() <= 33.3
+                                    && coordinates.get(0).asDouble() >= -17.5 && coordinates.get(0).asDouble() <= -15.5)
+                                || (coordinates.get(1).asDouble() >= 36.8 && coordinates.get(1).asDouble() <= 40.2
+                                    && coordinates.get(0).asDouble() >= -31.5 && coordinates.get(0).asDouble() <= -24.5));
+                    log.info("SNID location point within Portugal bounds (GeoJSON lon/lat order): {}", portugalPoint);
                     log.info("SNID location geometry: type={}, coordinatesArray={}, coordinateCount={}",
                             geometry.path("type").asText("missing"), coordinates.isArray(),
                             coordinates.isArray() ? coordinates.size() : 0);
