@@ -324,6 +324,9 @@ public class SnidVenueImportData {
             Matcher matcher = JSON_KEY.matcher(sample);
             Set<String> keys = new LinkedHashSet<>();
             while (matcher.find() && keys.size() < 25) keys.add(matcher.group(1));
+            log.info("SNID JSON prefix field types: location={}, coordinates={}, address={}",
+                    jsonFieldShape(sample, "location"), jsonFieldShape(sample, "coordinates"),
+                    jsonFieldShape(sample, "address"));
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
                             : String.valueOf(sample.stripLeading().charAt(0)), keys);
@@ -332,6 +335,24 @@ public class SnidVenueImportData {
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    /** Classify JSON field shape without exposing its value. */
+    private String jsonFieldShape(String sample, String key) {
+        int start = sample.indexOf("\"" + key + "\"");
+        if (start < 0) return "not-in-prefix";
+        int colon = sample.indexOf(':', start + key.length() + 2);
+        if (colon < 0) return "truncated";
+        int i = colon + 1;
+        while (i < sample.length() && Character.isWhitespace(sample.charAt(i))) i++;
+        if (i == sample.length()) return "truncated";
+        return switch (sample.charAt(i)) {
+            case '{' -> "object";
+            case '[' -> "array";
+            case '"' -> "string";
+            case 'n' -> "null";
+            default -> "scalar";
+        };
     }
 
     private String stableId(
