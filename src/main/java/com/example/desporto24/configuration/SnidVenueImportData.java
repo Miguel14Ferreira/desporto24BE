@@ -224,12 +224,16 @@ public class SnidVenueImportData {
             return null;
         }
 
+        log.info("SNID dataset search returned {} candidate datasets", datasets.size());
+
         for (Object datasetValue : datasets) {
             if (!(datasetValue instanceof Map<?, ?> dataset)) {
                 continue;
             }
 
             String title = clean(string(dataset.get("title")));
+            log.info("SNID dataset candidate: title={}, resources={}",
+                    title, dataset.get("resources") instanceof List<?> items ? items.size() : 0);
             if (title == null
                     || !title.toLowerCase(Locale.ROOT)
                     .contains("sistema nacional de informação desportiva")) {
@@ -248,6 +252,8 @@ public class SnidVenueImportData {
                 String format = clean(string(resource.get("format")));
                 String url = clean(string(resource.get("url")));
 
+                log.info("SNID matching dataset resource: format={}, urlPresent={}",
+                        format, url != null);
                 if (url != null
                         && format != null
                         && format.toLowerCase(Locale.ROOT).contains("geojson")) {
