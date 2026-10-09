@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Date;
 import java.util.List;
 
 @Repository
@@ -22,6 +23,16 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     Page<Chat> findConversationPage(@Param("sender") String sender,
                                     @Param("recipient") String recipient,
                                     Pageable pageable);
+
+    @Query("SELECT c FROM Chat c WHERE ((c.username1 = :sender AND c.username2 = :recipient) "
+            + "OR (c.username1 = :recipient AND c.username2 = :sender)) "
+            + "AND (c.date < :beforeDate OR (c.date = :beforeDate AND c.id < :beforeId)) "
+            + "ORDER BY c.date DESC, c.id DESC")
+    List<Chat> findConversationBefore(@Param("sender") String sender,
+                                      @Param("recipient") String recipient,
+                                      @Param("beforeDate") Date beforeDate,
+                                      @Param("beforeId") Long beforeId,
+                                      Pageable pageable);
 
     long deleteByUsername1OrUsername2(String username1, String username2);
 }
