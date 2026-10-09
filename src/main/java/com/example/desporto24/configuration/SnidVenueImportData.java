@@ -269,6 +269,11 @@ public class SnidVenueImportData {
                 log.info("SNID matching dataset resource: format={}, urlPresent={}, title={}, mime={}, size={}",
                         format, url != null, clean(string(resource.get("title"))),
                         clean(string(resource.get("mime"))), resource.get("filesize"));
+                if (url != null && format != null && format.equalsIgnoreCase("json")
+                        && resource.get("filesize") instanceof Number size && size.longValue() > 0) {
+                    log.info("SNID JSON resource available for read-only inspection: title={}, url={}",
+                            clean(string(resource.get("title"))), url);
+                }
                 if (url != null
                         && format != null
                         && format.toLowerCase(Locale.ROOT).contains("geojson")) {
