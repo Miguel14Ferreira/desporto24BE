@@ -33,6 +33,7 @@ public class AdminVenueImportController {
     private volatile String snidImportStatus = "NOT_STARTED";
     private volatile Instant snidImportStartedAt;
     private volatile Instant snidImportFinishedAt;
+    private volatile SnidVenueImportData.ImportResult snidImportResult;
 
     @GetMapping("/imports/snid/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
@@ -42,6 +43,9 @@ public class AdminVenueImportController {
         result.put("running", snidImportRunning.get());
         result.put("startedAt", snidImportStartedAt);
         result.put("finishedAt", snidImportFinishedAt);
+        result.put("processed", snidImportResult == null ? null : snidImportResult.processed());
+        result.put("inserted", snidImportResult == null ? null : snidImportResult.inserted());
+        result.put("skipped", snidImportResult == null ? null : snidImportResult.skipped());
         return result;
     }
 
@@ -55,11 +59,12 @@ public class AdminVenueImportController {
         snidImportStatus = "RUNNING";
         snidImportStartedAt = Instant.now();
         snidImportFinishedAt = null;
+        snidImportResult = null;
         try {
             taskExecutor.execute(() -> {
                 try {
-                    snidVenueImportData.importVenues();
-                    snidImportStatus = "FINISHED_CHECK_LOGS";
+                    snidImportResult = snidVenueImportData.importVenues();
+                    snidImportStatus = "FINISHED";
                 } catch (Exception ex) {
                     snidImportStatus = "FAILED";
                     throw ex;

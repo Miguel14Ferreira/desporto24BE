@@ -31,7 +31,7 @@ public class SnidVenueImportData {
 
     private final RestClient restClient = RestClient.builder().build();
 
-    public void importVenues() {
+    public ImportResult importVenues() {
         try {
             String geoJsonUrl = findSnidGeoJsonUrl();
             if (geoJsonUrl == null || geoJsonUrl.isBlank()) {
@@ -180,11 +180,14 @@ public class SnidVenueImportData {
                     skipped,
                     features.size(),
                     geoJsonUrl);
+            return new ImportResult(features.size(), inserted, skipped);
         } catch (Exception ex) {
             log.error("SNID venue import failed: {}", ex.getMessage(), ex);
             throw new IllegalStateException("SNID venue import failed", ex);
         }
     }
+
+    public record ImportResult(int processed, int inserted, int skipped) {}
 
     private String findSnidGeoJsonUrl() {
         Map<?, ?> response = restClient.get()
