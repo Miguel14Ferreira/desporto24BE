@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-08-notification-unread-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_notifications_username_unread
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: >-
+              CREATE INDEX idx_notifications_username_unread
+              ON desporto24.notifications (username)
+              WHERE read = false

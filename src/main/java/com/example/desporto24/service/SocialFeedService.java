@@ -28,7 +28,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
@@ -159,8 +162,21 @@ public class SocialFeedService {
                         PageRequest.of(0, FEED_LIMIT)
                 );
 
+        Set<Long> postIds = posts.stream()
+                .map(SocialPost::getId)
+                .collect(Collectors.toSet());
+        Map<Long, Long> likeCounts = countsByPostId(
+                postIds.isEmpty() ? List.of() : likeRepository.countByPostIds(postIds));
+        Map<Long, Long> commentCounts = countsByPostId(
+                postIds.isEmpty() ? List.of() : commentRepository.countByPostIds(postIds));
+        Set<Long> likedPostIds = postIds.isEmpty()
+                ? Set.of()
+                : likeRepository.findLikedPostIds(postIds, actor.getId());
+
         List<FeedItemResponse> items = new ArrayList<>();
-        posts.stream().map(post -> postItem(post, actor)).forEach(items::add);
+        posts.stream()
+                .map(post -> postItem(post, likeCounts, commentCounts, likedPostIds))
+                .forEach(items::add);
         sessions.stream().map(this::sessionItem).forEach(items::add);
         attendedSessions.stream().map(this::attendanceItem).forEach(items::add);
 
@@ -171,6 +187,14 @@ public class SocialFeedService {
     }
 
     private FeedItemResponse postItem(SocialPost post, Profile viewer) {
+        return postItem(post, Map.of(), Map.of(), Set.of());
+    }
+
+    private FeedItemResponse postItem(
+            SocialPost post,
+            Map<Long, Long> likeCounts,
+            Map<Long, Long> commentCounts,
+            Set<Long> likedPostIds) {
         Profile author = post.getAuthor();
 
         return new FeedItemResponse(
@@ -186,13 +210,17 @@ public class SocialFeedService {
                 null,
                 null,
                 null,
-                likeRepository.countByPostId(post.getId()),
-                likeRepository.existsByPostIdAndProfileId(
-                        post.getId(),
-                        viewer.getId()
-                ),
-                commentRepository.countByPostId(post.getId())
+                likeCounts.getOrDefault(post.getId(), 0L),
+                likedPostIds.contains(post.getId()),
+                commentCounts.getOrDefault(post.getId(), 0L)
         );
+    }
+
+    private Map<Long, Long> countsByPostId(List<Object[]> rows) {
+        return rows.stream().collect(Collectors.toMap(
+                row -> (Long) row[0],
+                row -> (Long) row[1]
+        ));
     }
 
     private FeedItemResponse sessionItem(Session session) {

@@ -6,7 +6,7 @@ public final class EmailConstant {
     }
 
     public static final String SIMPLE_MAIL_TRANSFER_PROTOCOL = "smtps";
-    public static final String EMAIL_SUBJECT = "Desporto24";
+    public static final String EMAIL_SUBJECT = "Jynlo";
     public static final String GMAIL_SMTP_SERVER = "smtp.gmail.com";
     public static final String SMTP_HOST = "mail.smtp.host";
     public static final String SMTP_AUTH = "mail.smtp.auth";

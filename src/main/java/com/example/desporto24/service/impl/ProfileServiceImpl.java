@@ -436,6 +436,8 @@ public class ProfileServiceImpl implements ProfileService {
         Profile actor = profileRepository.findUserByUsernameIgnoreCase(actorUsername)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
+        Set<Long> blockedProfileIds = userBlockService.blockedProfileIds(actor);
+
         return profileRepository.searchPublicCandidates(
                         actorUsername,
                         normalizedName,
@@ -445,7 +447,7 @@ public class ProfileServiceImpl implements ProfileService {
                         PageRequest.of(0, 100)
                 )
                 .stream()
-                .filter(profile -> !userBlockService.isBlockedBetween(actor, profile))
+                .filter(profile -> !blockedProfileIds.contains(profile.getId()))
                 .filter(profile -> matchesAge(profile, minAge, maxAge))
                 .limit(50)
                 .map(this::toPublicProfile)
@@ -457,9 +459,11 @@ public class ProfileServiceImpl implements ProfileService {
         Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
+        Set<Long> blockedProfileIds = userBlockService.blockedProfileIds(actor);
+
         return profileRepository.discoverProfiles(username, PageRequest.of(0, 100))
                 .stream()
-                .filter(profile -> !userBlockService.isBlockedBetween(actor, profile))
+                .filter(profile -> !blockedProfileIds.contains(profile.getId()))
                 .sorted((left, right) -> {
                     int scoreCompare = Integer.compare(
                             compatibilityScore(actor, right),

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface SessionParticipantRepository extends JpaRepository<SessionParticipant, Long> {
@@ -43,6 +44,15 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
     List<SessionParticipant> findBySessionIdAndAttendanceStatusOrderByJoinedAtAsc(
             Long sessionId,
             AttendanceStatus attendanceStatus);
+
+    @Query("select p.session.id from SessionParticipant p where p.session.id in :sessionIds and p.profile.id = :profileId and p.state = :state")
+    Set<Long> findSessionIdsByProfileAndState(
+            @Param("sessionIds") Set<Long> sessionIds,
+            @Param("profileId") Long profileId,
+            @Param("state") ParticipantState state);
+
+    @Query("select p.session.id, count(p.id) from SessionParticipant p where p.session.id in :sessionIds and p.state = :state group by p.session.id")
+    List<Object[]> countBySessionIdsAndState(@Param("sessionIds") Set<Long> sessionIds, @Param("state") ParticipantState state);
 
     @Query("""
             select p

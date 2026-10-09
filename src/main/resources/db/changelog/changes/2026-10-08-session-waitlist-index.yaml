@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-08-session-waitlist-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_session_waitlist_queue_order
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: session_waitlist
+            indexName: idx_session_waitlist_queue_order
+            columns:
+              - column:
+                  name: session_id
+              - column:
+                  name: priority_tier
+              - column:
+                  name: created_at

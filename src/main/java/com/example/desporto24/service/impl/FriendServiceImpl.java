@@ -230,13 +230,7 @@ public class FriendServiceImpl implements FriendService {
     }
 
     private Friend findFriendConnection(Profile first, Profile second) {
-        return friendRepository.findByProfile1OrProfile2(first, first).stream()
-                .filter(friend ->
-                        (friend.getProfile1().getId().equals(first.getId())
-                                && friend.getProfile2().getId().equals(second.getId()))
-                        || (friend.getProfile1().getId().equals(second.getId())
-                                && friend.getProfile2().getId().equals(first.getId())))
-                .findFirst()
+        return friendRepository.findConnection(first.getId(), second.getId())
                 .orElse(null);
     }
 

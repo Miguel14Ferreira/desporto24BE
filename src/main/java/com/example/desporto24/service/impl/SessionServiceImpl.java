@@ -58,7 +58,9 @@ import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
@@ -280,10 +282,24 @@ public class SessionServiceImpl implements SessionService {
             return List.of(sessionViewMapper.toSummary(session, null, viewer));
         }
 
-        return sessionRepository
-                .findByRecurrenceSeriesIdOrderByGameDateAsc(session.getRecurrenceSeriesId())
+        List<Session> seriesSessions = sessionRepository
+                .findByRecurrenceSeriesIdOrderByGameDateAsc(session.getRecurrenceSeriesId());
+        Set<Long> sessionIds = seriesSessions.stream()
+                .map(Session::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Long> participantCounts = participantRepository
+                .countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
                 .stream()
-                .map(item -> sessionViewMapper.toSummary(item, null, viewer))
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Set<Long> joinedSessionIds = participantRepository
+                .findSessionIdsByProfileAndState(sessionIds, viewer.getId(), ParticipantState.ACTIVE);
+        Set<Long> waitlistedSessionIds = waitlistRepository
+                .findSessionIdsByProfile(sessionIds, viewer.getId());
+
+        return seriesSessions.stream()
+                .map(item -> sessionViewMapper.toSummary(
+                        item, null, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .toList();
     }
 
@@ -307,36 +323,34 @@ public class SessionServiceImpl implements SessionService {
     }
 
     private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
-        List<Session> candidates = sessionRepository.findByStatusInAndGameDateAfterOrderByGameDateAsc(
-                List.of(SessionStatus.OPEN, SessionStatus.FULL), new Date());
+        String sport = criteria.sport() == null ? "" : criteria.sport().trim().toLowerCase(Locale.ROOT);
+        String city = criteria.city() == null ? "" : criteria.city().trim().toLowerCase(Locale.ROOT);
+        List<Session> filteredCandidates = sessionRepository.discoverCandidates(
+                List.of(SessionStatus.OPEN, SessionStatus.FULL),
+                new Date(),
+                sport,
+                city,
+                criteria.from() == null ? null : Date.from(criteria.from()),
+                criteria.to() == null ? null : Date.from(criteria.to()),
+                criteria.privateGame(),
+                Boolean.TRUE.equals(criteria.freeOnly()),
+                criteria.minPrice(),
+                criteria.maxPrice());
 
         double effectiveRadius = criteria.radiusKm() == null ? 25.0 : criteria.radiusKm();
         boolean hasCoordinates = criteria.latitude() != null && criteria.longitude() != null;
 
-        return candidates.stream()
-                .filter(s -> s.getAudience() != SessionAudience.COMMUNITY_ONLY)
-                .filter(s -> criteria.sport() == null
-                        || criteria.sport().isBlank()
-                        || s.getSport().equalsIgnoreCase(criteria.sport()))
-                .filter(s -> criteria.city() == null
-                        || criteria.city().isBlank()
-                        || (s.getCity() != null
-                        && s.getCity().toLowerCase(Locale.ROOT)
-                        .contains(criteria.city().toLowerCase(Locale.ROOT))))
-                .filter(s -> criteria.from() == null
-                        || !s.getGameDate().toInstant().isBefore(criteria.from()))
-                .filter(s -> criteria.to() == null
-                        || !s.getGameDate().toInstant().isAfter(criteria.to()))
-                .filter(s -> criteria.privateGame() == null
-                        || Boolean.TRUE.equals(s.getPrivateGame()) == criteria.privateGame())
-                .filter(s -> !Boolean.TRUE.equals(criteria.freeOnly())
-                        || s.getPriceAmount() == null
-                        || s.getPriceAmount().compareTo(BigDecimal.ZERO) == 0)
-                .filter(s -> criteria.minPrice() == null
-                        || effectivePrice(s).compareTo(criteria.minPrice()) >= 0)
-                .filter(s -> criteria.maxPrice() == null
-                        || effectivePrice(s).compareTo(criteria.maxPrice()) <= 0)
-                .map(s -> toDiscoveryView(s, criteria, hasCoordinates))
+        Set<Long> sessionIds = filteredCandidates.stream()
+                .map(Session::getId)
+                .collect(Collectors.toSet());
+        Map<Long, Long> participantCounts = sessionIds.isEmpty()
+                ? Map.of()
+                : participantRepository.countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
+                        .stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return filteredCandidates.stream()
+                .map(s -> toDiscoveryView(s, criteria, hasCoordinates, participantCounts))
                 .filter(v -> !hasCoordinates
                         || (v.distanceKm() != null && v.distanceKm() <= effectiveRadius))
                 .filter(v -> !"available".equalsIgnoreCase(criteria.availability())
@@ -350,14 +364,17 @@ public class SessionServiceImpl implements SessionService {
     }
 
     private SessionSummaryResponse toDiscoveryView(
-            Session session, SessionSearchCriteria criteria, boolean hasCoordinates) {
+            Session session,
+            SessionSearchCriteria criteria,
+            boolean hasCoordinates,
+            Map<Long, Long> participantCounts) {
         Double distanceKm = null;
         if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
                     session.getLatitude(), session.getLongitude());
         }
-        return sessionViewMapper.toSummary(session, distanceKm);
+        return sessionViewMapper.toSummary(session, distanceKm, null, participantCounts);
     }
 
     private Comparator<SessionSummaryResponse> discoveryComparator(String sort) {
@@ -729,27 +746,44 @@ public class SessionServiceImpl implements SessionService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        List<SessionSummaryResponse> created = sessionRepository
-                .findByProfileIdOrderByGameDateAsc(profile.getId()).stream()
-                .map(s -> sessionViewMapper.toSummary(s, null))
-                .toList();
+        List<Session> createdSessions = sessionRepository
+                .findByProfileIdOrderByGameDateAsc(profile.getId());
 
-        Set<Long> createdIds = created.stream()
-                .map(SessionSummaryResponse::id)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Set<Long> createdIds = createdSessions.stream()
+                .map(Session::getId)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        List<SessionSummaryResponse> joined = participantRepository
+        List<Session> joinedSessions = participantRepository
                 .findByProfileIdAndStateOrderByJoinedAtAsc(profile.getId(), ParticipantState.ACTIVE)
                 .stream()
                 .map(SessionParticipant::getSession)
-                .filter(s -> !createdIds.contains(s.getId()))
-                .map(s -> sessionViewMapper.toSummary(s, null))
+                .filter(session -> !createdIds.contains(session.getId()))
                 .toList();
 
-        List<SessionSummaryResponse> waitlisted = waitlistRepository
+        List<Session> waitlistedSessions = waitlistRepository
                 .findByProfileIdOrderByCreatedAtAsc(profile.getId())
                 .stream()
-                .map(entry -> sessionViewMapper.toSummary(entry.getSession(), null))
+                .map(SessionWaitlist::getSession)
+                .toList();
+
+        Set<Long> sessionIds = new LinkedHashSet<>(createdIds);
+        joinedSessions.stream().map(Session::getId).forEach(sessionIds::add);
+        waitlistedSessions.stream().map(Session::getId).forEach(sessionIds::add);
+
+        Map<Long, Long> participantCounts = sessionIds.isEmpty()
+                ? Map.of()
+                : participantRepository.countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
+                        .stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        List<SessionSummaryResponse> created = createdSessions.stream()
+                .map(session -> sessionViewMapper.toSummary(session, null, null, participantCounts))
+                .toList();
+        List<SessionSummaryResponse> joined = joinedSessions.stream()
+                .map(session -> sessionViewMapper.toSummary(session, null, null, participantCounts))
+                .toList();
+        List<SessionSummaryResponse> waitlisted = waitlistedSessions.stream()
+                .map(session -> sessionViewMapper.toSummary(session, null, null, participantCounts))
                 .toList();
 
         return new MySessionsResponse(created, joined, waitlisted);

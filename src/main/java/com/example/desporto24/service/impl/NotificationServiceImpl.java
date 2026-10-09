@@ -58,6 +58,12 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long countUnreadNotifications(String username) {
+        return notificationsRepository.countByUsernameAndReadFalse(username);
+    }
+
+    @Override
     public void disableProfileAndSendEmail(String email, String authenticatedUsername) {
         ProfileDTO profileDTO = getUserByEmailOrThrow(email);
         if (!authenticatedUsername.equals(profileDTO.getUsername())) {
@@ -220,12 +226,12 @@ public class NotificationServiceImpl implements NotificationService {
     private String buildAccountLockedRecoveryEmail(String name, String link) {
         return "<h2>Acessos à conta bloqueados</h2>"
                 + "<p>Olá " + name + ",</p>"
-                + "<p>Os acessos à tua conta DESPORTO24 foram bloqueados por motivos de segurança.</p>"
+                + "<p>Os acessos à tua conta JYNLO foram bloqueados por motivos de segurança.</p>"
                 + "<p>Todos os tokens de sessão anteriores deixaram de ser válidos.</p>"
                 + "<p>Para recuperares o acesso, define uma nova palavra-passe através deste link:</p>"
                 + "<p><a href=\"" + link + "\">Recuperar e desbloquear conta</a></p>"
                 + "<p>O link expira em 15 minutos.</p>"
-                + "<p>Cumprimentos,<br>DESPORTO24 MANAGEMENT TEAM</p>";
+                + "<p>Cumprimentos,<br>JYNLO MANAGEMENT TEAM</p>";
     }
 
     private String buildEmergencyResetPasswordMail(String name, String link) {
@@ -243,7 +249,7 @@ public class NotificationServiceImpl implements NotificationService {
                         "                  \n" +
                         "                    </td>\n" +
                         "                    <td style=\"font-size:28px;line-height:1.315789474;Margin-top:4px;padding-left:10px\">\n" +
-                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Desporto24</span>\n" +
+                        "                      <span style=\"font-family:Helvetica,Arial,sans-serif;font-weight:700;color:#000000;text-decoration:none;vertical-align:top;display:inline-block\">Jynlo</span>\n" +
                         "                    </td>\n" +
                         "                  </tr>\n" +
                         "                </tbody></table>\n" +
@@ -280,7 +286,7 @@ public class NotificationServiceImpl implements NotificationService {
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +
                         "      <td style=\"font-family:Helvetica,Arial,sans-serif;font-size:19px;line-height:1.315789474;max-width:560px\">\n" +
                         "        \n" +
-                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + " (se não reconheces este username, é porque provavelmente foi alterado),</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Pedimos-te agora para definires uma nova palavra-passe através deste link: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a> </p> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Recomendamos-te que depois de alterares a tua palavra-passe que entres na tua conta e verifica se outros dados foram alterados para que tu possas alterá-los.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">DESPORTO24APP</p>" +
+                        "            <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Olá " + name + " (se não reconheces este username, é porque provavelmente foi alterado),</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> Pedimos-te agora para definires uma nova palavra-passe através deste link: </p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\"> <a href=\"" + link + "\">Clica aqui para alterares a tua palavra-passe</a> </p> <p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Recomendamos-te que depois de alterares a tua palavra-passe que entres na tua conta e verifica se outros dados foram alterados para que tu possas alterá-los.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Atenção, este link vai expirar dentro de 15 minutos.</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">Cumprimentos,</p><p style=\"Margin:0 0 20px 0;font-size:19px;line-height:25px;color:#0b0c0c\">JYNLOAPP</p>" +
                         "        \n" +
                         "      </td>\n" +
                         "      <td width=\"10\" valign=\"middle\"><br></td>\n" +

@@ -14,14 +14,14 @@ public final class TransactionalEmailTemplate {
                 <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Desporto24</title>
+                  <title>Jynlo</title>
                 </head>
                 <body style="margin:0;padding:0;background-color:#f3f6fa">
                   <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f6fa">
                     <tr><td align="center" style="padding:24px 12px">
                       <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:#ffffff;border-radius:12px">
                         <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#102033">
-                          <p style="font-size:16px;line-height:1.6;font-weight:bold;color:#102033">Desporto24</p>
+                          <p style="font-size:16px;line-height:1.6;font-weight:bold;color:#102033">Jynlo</p>
                           <h1 style="font-size:24px;line-height:1.3;color:#102033">%s</h1>
                           <p style="font-size:16px;line-height:1.6;color:#102033">%s</p>
                           <h2 lang="en" style="font-size:20px;line-height:1.3;color:#102033">%s</h2>

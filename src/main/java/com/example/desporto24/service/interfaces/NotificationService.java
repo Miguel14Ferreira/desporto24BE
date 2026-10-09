@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface NotificationService {
     List<Notifications> getNotificationsFromProfile(String username);
+    long countUnreadNotifications(String username);
     void disableProfileAndSendEmail(String email, String authenticatedUsername);
     void blockOwnAccount(String username);
     void acceptFriendRequest(Long id, String username);

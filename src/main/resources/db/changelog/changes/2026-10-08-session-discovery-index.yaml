@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-08-session-discovery-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_session_status_game_date
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: session
+            indexName: idx_session_status_game_date
+            columns:
+              - column:
+                  name: status
+              - column:
+                  name: game_date

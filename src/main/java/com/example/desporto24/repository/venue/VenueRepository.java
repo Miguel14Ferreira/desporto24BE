@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findAllByOrderByNameAsc();
+    List<Venue> findByCityContainingIgnoreCaseOrderByNameAsc(String city);
 
     Optional<Venue> findByInformationSourceAndSourceReference(
             Venue.InformationSource informationSource,

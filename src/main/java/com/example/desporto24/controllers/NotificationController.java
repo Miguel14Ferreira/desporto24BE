@@ -37,6 +37,14 @@ public class NotificationController {
         );
     }
 
+    @GetMapping("/me/unread-count")
+    public ResponseEntity<Long> getMyUnreadNotificationCount(Authentication authentication) {
+        return new ResponseEntity<>(
+                notificationService.countUnreadNotifications(authentication.getName()),
+                OK
+        );
+    }
+
     @GetMapping("/{username}")
     @Operation(summary = "Get Notifications", description = "Retrieve all notifications for a specific user.")
     @ApiResponses(value = {

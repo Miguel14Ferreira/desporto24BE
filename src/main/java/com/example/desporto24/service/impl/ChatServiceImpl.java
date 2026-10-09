@@ -1,6 +1,9 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.Chat.ChatRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.exception.ChatBlockedException;
 import com.example.desporto24.model.Chat;
@@ -20,8 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -82,11 +83,14 @@ public class ChatServiceImpl implements ChatService {
     public List<Chat> findChatMessages(String sender, String recipient) {
         requireFriendship(sender, recipient);
 
-        List<Chat> chats = new ArrayList<>();
-        chats.addAll(chatRepository.findByUsername1AndUsername2(sender, recipient));
-        chats.addAll(chatRepository.findByUsername1AndUsername2(recipient, sender));
-        chats.sort(Comparator.comparing(Chat::getDate));
-        return chats;
+        return chatRepository.findConversation(sender, recipient);
+    }
+
+    @Override
+    public Page<Chat> findChatMessagesPage(String sender, String recipient, int page, int size) {
+        requireFriendship(sender, recipient);
+        return chatRepository.findConversationPage(sender, recipient,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date").and(Sort.by(Sort.Direction.DESC, "id"))));
     }
 
     @Override
@@ -102,13 +106,7 @@ public class ChatServiceImpl implements ChatService {
 
         userBlockService.ensureInteractionAllowed(first, second);
 
-        return friendRepository.findByProfile1OrProfile2(first, first).stream()
-                .filter(friend ->
-                        (friend.getProfile1().getId().equals(first.getId())
-                                && friend.getProfile2().getId().equals(second.getId()))
-                        || (friend.getProfile1().getId().equals(second.getId())
-                                && friend.getProfile2().getId().equals(first.getId())))
-                .findFirst()
+        return friendRepository.findConnection(first.getId(), second.getId())
                 .orElseThrow(() -> new AccessDeniedException("Users are not friends"));
     }
 }
