@@ -4,10 +4,7 @@ import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
@@ -21,10 +18,9 @@ import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
-@Component
-@ConditionalOnProperty(prefix = "desporto.venues.bootstrap", name = "snid-enabled", havingValue = "true")
+@Service
 @RequiredArgsConstructor
-public class SnidVenueImportData implements ApplicationRunner {
+public class SnidVenueImportData {
 
     private static final String DATASET_SEARCH_URL =
             "https://dados.gov.pt/api/1/datasets/?q=Sistema%20Nacional%20de%20Informa%C3%A7%C3%A3o%20Desportiva";
@@ -35,8 +31,7 @@ public class SnidVenueImportData implements ApplicationRunner {
 
     private final RestClient restClient = RestClient.builder().build();
 
-    @Override
-    public void run(ApplicationArguments args) {
+    public void importVenues() {
         try {
             String geoJsonUrl = findSnidGeoJsonUrl();
             if (geoJsonUrl == null || geoJsonUrl.isBlank()) {
