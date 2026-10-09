@@ -324,9 +324,10 @@ public class SnidVenueImportData {
             Matcher matcher = JSON_KEY.matcher(sample);
             Set<String> keys = new LinkedHashSet<>();
             while (matcher.find() && keys.size() < 25) keys.add(matcher.group(1));
-            log.info("SNID JSON prefix field types: location={}, coordinates={}, address={}",
+            log.info("SNID JSON prefix field types: location={}, coordinates={}, address={}, coordinatesTokenPresent={}, escapedCoordinatesKeyPresent={}",
                     jsonFieldShape(sample, "location"), jsonFieldShape(sample, "coordinates"),
-                    jsonFieldShape(sample, "address"));
+                    jsonFieldShape(sample, "address"), sample.contains("coordinates"),
+                    sample.contains("\\\"coordinates\\\""));
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
                             : String.valueOf(sample.stripLeading().charAt(0)), keys);
