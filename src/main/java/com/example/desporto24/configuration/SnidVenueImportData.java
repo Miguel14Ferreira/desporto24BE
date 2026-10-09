@@ -333,6 +333,7 @@ public class SnidVenueImportData {
                     jsonFieldShape(sample, "category"), jsonFieldShape(sample, "district"),
                     jsonFieldShape(sample, "municipalityInfo"), jsonFieldShape(sample, "dataProvider"));
             inspectSnidLocationShape(sample);
+            inspectSnidRecordBoundaries(sample);
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
                             : String.valueOf(sample.stripLeading().charAt(0)), keys);
@@ -341,6 +342,27 @@ public class SnidVenueImportData {
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    /** Count complete top-level JSON records in the bounded prefix, without logging values. */
+    private void inspectSnidRecordBoundaries(String sample) {
+        int complete = 0;
+        boolean truncated = false;
+        try (com.fasterxml.jackson.core.JsonParser parser =
+                     new com.fasterxml.jackson.databind.ObjectMapper().getFactory().createParser(sample)) {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            while (complete < 10 && parser.nextToken() != null) {
+                mapper.readTree(parser);
+                complete++;
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            truncated = true;
+        } catch (java.io.IOException ex) {
+            log.warn("SNID record boundary inspection unavailable: {}", ex.toString());
+            return;
+        }
+        log.info("SNID bounded record inspection: completeTopLevelValues={}, truncatedAtPrefix={}",
+                complete, truncated);
     }
 
     /** Parse only the location field from the bounded JSON prefix; no persistence. */
