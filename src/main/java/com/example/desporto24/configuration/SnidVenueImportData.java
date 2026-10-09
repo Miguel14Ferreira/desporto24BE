@@ -24,6 +24,11 @@ public class SnidVenueImportData {
 
     private static final String DATASET_SEARCH_URL =
             "https://dados.gov.pt/api/1/datasets/?q=Sistema%20Nacional%20de%20Informa%C3%A7%C3%A3o%20Desportiva";
+    private static final String[] DATASET_SEARCH_URLS = {
+            DATASET_SEARCH_URL,
+            "https://dados.gov.pt/api/1/datasets/?q=SNID",
+            "https://dados.gov.pt/api/1/datasets/?q=instala%C3%A7%C3%B5es%20desportivas"
+    };
     private static final String SOURCE_PREFIX = "SNID:";
     private static final int SAVE_BATCH_SIZE = 500;
 
@@ -215,16 +220,25 @@ public class SnidVenueImportData {
     public record ImportResult(int processed, int inserted, int skipped) {}
 
     private String findSnidGeoJsonUrl() {
+        for (String searchUrl : DATASET_SEARCH_URLS) {
+            String found = findSnidGeoJsonUrl(searchUrl);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private String findSnidGeoJsonUrl(String searchUrl) {
         Map<?, ?> response = restClient.get()
-                .uri(DATASET_SEARCH_URL)
+                .uri(searchUrl)
                 .retrieve()
                 .body(Map.class);
 
         if (response == null || !(response.get("data") instanceof List<?> datasets)) {
+            log.warn("SNID dataset search returned invalid response for {}", searchUrl);
             return null;
         }
 
-        log.info("SNID dataset search returned {} candidate datasets", datasets.size());
+        log.info("SNID dataset search returned {} candidate datasets for {}", datasets.size(), searchUrl);
 
         for (Object datasetValue : datasets) {
             if (!(datasetValue instanceof Map<?, ?> dataset)) {
