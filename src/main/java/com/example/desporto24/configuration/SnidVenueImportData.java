@@ -31,6 +31,31 @@ public class SnidVenueImportData {
 
     private final RestClient restClient = RestClient.builder().build();
 
+    /** Read-only check of the remote GeoJSON and approximate Portuguese coverage. */
+    public Map<String, Object> validateSource() {
+        String url = findSnidGeoJsonUrl();
+        if (url == null || url.isBlank()) throw new IllegalStateException("SNID GeoJSON resource not found");
+        Map<?, ?> json = restClient.get().uri(url).retrieve().body(Map.class);
+        if (json == null || !(json.get("features") instanceof List<?> features))
+            throw new IllegalStateException("Invalid SNID GeoJSON payload");
+        int valid = 0, mainland = 0, madeira = 0, azores = 0;
+        for (Object item : features) {
+            if (!(item instanceof Map<?, ?> feature)) continue;
+            String name = firstText(asMap(feature.get("properties")),
+                    "nome", "name", "designacao", "denominacao", "instalacao", "instalação", "infraestrutura");
+            double[] p = geometryCoordinates(asMap(feature.get("geometry")));
+            if (name == null || p == null) continue;
+            valid++;
+            double lon = p[0], lat = p[1];
+            if (lat >= 36.9 && lat <= 42.2 && lon >= -9.6 && lon <= -6.1) mainland++;
+            else if (lat >= 32.0 && lat <= 33.3 && lon >= -17.5 && lon <= -15.5) madeira++;
+            else if (lat >= 36.8 && lat <= 40.2 && lon >= -31.5 && lon <= -24.5) azores++;
+        }
+        return Map.of("total", features.size(), "valid", valid, "mainland", mainland,
+                "madeira", madeira, "azores", azores, "otherValid", valid - mainland - madeira - azores,
+                "source", url);
+    }
+
     public ImportResult importVenues() {
         try {
             String geoJsonUrl = findSnidGeoJsonUrl();

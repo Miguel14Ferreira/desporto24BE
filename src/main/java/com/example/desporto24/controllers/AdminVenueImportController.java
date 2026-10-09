@@ -49,6 +49,12 @@ public class AdminVenueImportController {
         return result;
     }
 
+    @GetMapping("/imports/snid/validate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public Map<String, Object> validateSnidSource() {
+        return snidVenueImportData.validateSource();
+    }
+
     @PostMapping("/imports/snid")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @org.springframework.web.bind.annotation.ResponseStatus(HttpStatus.ACCEPTED)
