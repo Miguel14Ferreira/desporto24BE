@@ -266,8 +266,9 @@ public class SnidVenueImportData {
                 String format = clean(string(resource.get("format")));
                 String url = clean(string(resource.get("url")));
 
-                log.info("SNID matching dataset resource: format={}, urlPresent={}",
-                        format, url != null);
+                log.info("SNID matching dataset resource: format={}, urlPresent={}, title={}, mime={}, size={}",
+                        format, url != null, clean(string(resource.get("title"))),
+                        clean(string(resource.get("mime"))), resource.get("filesize"));
                 if (url != null
                         && format != null
                         && format.toLowerCase(Locale.ROOT).contains("geojson")) {
