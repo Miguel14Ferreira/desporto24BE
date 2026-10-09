@@ -8,6 +8,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.util.LinkedHashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -31,6 +36,7 @@ public class SnidVenueImportData {
     };
     private static final String SOURCE_PREFIX = "SNID:";
     private static final int SAVE_BATCH_SIZE = 500;
+    private static final Pattern JSON_KEY = Pattern.compile("\\\"([^\\\"]{1,80})\\\"\\s*:");
 
     private final VenueRepository venueRepository;
 
@@ -240,6 +246,7 @@ public class SnidVenueImportData {
 
         log.info("SNID dataset search returned {} candidate datasets for {}", datasets.size(), searchUrl);
 
+        boolean inspected = false;
         for (Object datasetValue : datasets) {
             if (!(datasetValue instanceof Map<?, ?> dataset)) {
                 continue;
@@ -273,6 +280,10 @@ public class SnidVenueImportData {
                         && resource.get("filesize") instanceof Number size && size.longValue() > 0) {
                     log.info("SNID JSON resource available for read-only inspection: title={}, url={}",
                             clean(string(resource.get("title"))), url);
+                    if (!inspected && clean(string(resource.get("title"))).startsWith("snid-localizacao")) {
+                        inspected = true;
+                        inspectJsonPrefix(url);
+                    }
                 }
                 if (url != null
                         && format != null
@@ -284,6 +295,43 @@ public class SnidVenueImportData {
         }
 
         return null;
+    }
+
+    /** Inspect only the first 8 KiB; never log record values or persist data. */
+    private void inspectJsonPrefix(String resourceUrl) {
+        HttpURLConnection connection = null;
+        try {
+            URI uri = URI.create(resourceUrl);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+                throw new IllegalArgumentException("Unexpected SNID resource host");
+            }
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(10000);
+            connection.setRequestProperty("Range", "bytes=0-8191");
+            connection.setInstanceFollowRedirects(false);
+            int status = connection.getResponseCode();
+            if (status != 200 && status != 206) {
+                log.warn("SNID JSON prefix inspection returned HTTP {}", status);
+                return;
+            }
+            byte[] prefix;
+            try (var stream = connection.getInputStream()) {
+                prefix = stream.readNBytes(8192);
+            }
+            String sample = new String(prefix, StandardCharsets.UTF_8);
+            Matcher matcher = JSON_KEY.matcher(sample);
+            Set<String> keys = new LinkedHashSet<>();
+            while (matcher.find() && keys.size() < 25) keys.add(matcher.group(1));
+            log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
+                    status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
+                            : String.valueOf(sample.stripLeading().charAt(0)), keys);
+        } catch (Exception ex) {
+            log.warn("SNID JSON prefix inspection unavailable: {}", ex.toString());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
     }
 
     private String stableId(
