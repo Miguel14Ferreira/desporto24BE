@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.Chat;
+import org.springframework.data.domain.Page;
 import com.example.desporto24.model.Friend;
 import com.example.desporto24.model.dto.chat.ChatInfoResponse;
 import com.example.desporto24.model.dto.chat.ChatMessageRequest;
@@ -38,6 +39,18 @@ public class ChatController {
                 chatService.findChatMessages(authentication.getName(), username),
                 OK
         );
+    }
+
+    @GetMapping("/me/{username}/page")
+    public ResponseEntity<Page<Chat>> getMyChatPage(
+            @PathVariable String username,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size,
+            Authentication authentication) {
+        if (page < 0 || size < 1 || size > 100) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(chatService.findChatMessagesPage(authentication.getName(), username, page, size));
     }
 
     @PostMapping("/me/{username}")

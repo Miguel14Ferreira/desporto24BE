@@ -1,6 +1,9 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.Chat.ChatRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.exception.ChatBlockedException;
 import com.example.desporto24.model.Chat;
@@ -81,6 +84,13 @@ public class ChatServiceImpl implements ChatService {
         requireFriendship(sender, recipient);
 
         return chatRepository.findConversation(sender, recipient);
+    }
+
+    @Override
+    public Page<Chat> findChatMessagesPage(String sender, String recipient, int page, int size) {
+        requireFriendship(sender, recipient);
+        return chatRepository.findConversationPage(sender, recipient,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "date").and(Sort.by(Sort.Direction.DESC, "id"))));
     }
 
     @Override
