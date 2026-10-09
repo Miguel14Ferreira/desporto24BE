@@ -328,6 +328,10 @@ public class SnidVenueImportData {
                     jsonFieldShape(sample, "location"), jsonFieldShape(sample, "coordinates"),
                     jsonFieldShape(sample, "address"), sample.contains("coordinates"),
                     sample.contains("\\\"coordinates\\\""));
+            log.info("SNID sample record fields: id={}, name={}, category={}, district={}, municipalityInfo={}, dataProvider={}",
+                    jsonFieldShape(sample, "id"), jsonFieldShape(sample, "name"),
+                    jsonFieldShape(sample, "category"), jsonFieldShape(sample, "district"),
+                    jsonFieldShape(sample, "municipalityInfo"), jsonFieldShape(sample, "dataProvider"));
             inspectSnidLocationShape(sample);
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
