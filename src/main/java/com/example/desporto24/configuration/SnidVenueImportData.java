@@ -247,8 +247,15 @@ public class SnidVenueImportData {
                         skipped++;
                         continue;
                     }
-                    String municipality = snidMunicipality(record.path("municipalityInfo"));
-                    String district = clean(record.path("district").asText(null));
+                    var address = record.path("address");
+                    String municipality = fallback(clean(address.path("addressLocality").asText(null)),
+                            snidMunicipality(record.path("municipalityInfo")));
+                    String district = clean(address.path("district").asText(null));
+                    String street = clean(address.path("streetAddress").asText(null));
+                    String postalCode = clean(address.path("postalCode").asText(null));
+                    String officialAddress = fallback(street, name);
+                    if (postalCode != null && street != null) officialAddress += ", " + postalCode;
+                    if (municipality != null) officialAddress += ", " + municipality;
                     String rawId = clean(record.path("id").asText(null));
                     String reference = SOURCE_PREFIX + stableId(rawId, name, municipality, lat, lon);
                     String key = venueKey(name, lat, lon);
@@ -261,7 +268,7 @@ public class SnidVenueImportData {
                             .name(limit(name, 140))
                             .city(limit(city, 120))
                             .district(limit(district, 120))
-                            .address(limit(name + (municipality == null ? "" : ", " + municipality), 255))
+                            .address(limit(officialAddress, 255))
                             .venueType(limit(snidCategory(record.path("category")), 80))
                             .latitude(lat)
                             .longitude(lon)
