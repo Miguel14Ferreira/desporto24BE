@@ -129,6 +129,21 @@ public class SnidVenueImportData {
     }
 
 
+    /** Preserve a human-readable category without serializing JSON objects into venue_type. */
+    private String snidCategory(com.fasterxml.jackson.databind.JsonNode category) {
+        if (category == null || category.isNull() || category.isMissingNode()) return null;
+        if (category.isTextual()) return clean(category.asText());
+        if (!category.isObject()) return null;
+        for (String field : new String[]{"name", "designation", "designacao", "label", "type"}) {
+            var value = category.path(field);
+            if (value.isTextual()) {
+                String name = clean(value.asText());
+                if (name != null) return name;
+            }
+        }
+        return null;
+    }
+
     /** SNID municipalityInfo may be either a string or a structured object. */
     private String snidMunicipality(com.fasterxml.jackson.databind.JsonNode info) {
         if (info == null || info.isNull() || info.isMissingNode()) return null;
@@ -211,7 +226,7 @@ public class SnidVenueImportData {
                             .city(limit(city, 120))
                             .district(limit(district, 120))
                             .address(limit(name + (municipality == null ? "" : ", " + municipality), 255))
-                            .venueType(limit(clean(record.path("category").asText(null)), 80))
+                            .venueType(limit(snidCategory(record.path("category")), 80))
                             .latitude(lat)
                             .longitude(lon)
                             .informationSource(Venue.InformationSource.OFFICIAL)
