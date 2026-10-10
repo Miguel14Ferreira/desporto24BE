@@ -78,6 +78,8 @@ public class SnidVenueImportData {
                                 snidNodeShape(record.path("type")),
                                 snidNodeShape(record.path("address")),
                                 snidNodeShape(record.path("municipalityInfo")));
+                        log.info("SNID read-only address keys: {}", snidObjectKeys(record.path("address")));
+                        log.info("SNID read-only municipalityInfo keys: {}", snidObjectKeys(record.path("municipalityInfo")));
                     }
                     var sportsField = record == null ? null : record.path("sports");
                     if (sportsField != null && sportsField.isTextual()) sportsText++;
@@ -144,6 +146,14 @@ public class SnidVenueImportData {
         return null;
     }
 
+
+    /** Return JSON object keys only; never include their values. */
+    private List<String> snidObjectKeys(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node == null || !node.isObject()) return List.of();
+        List<String> keys = new ArrayList<>();
+        node.fieldNames().forEachRemaining(keys::add);
+        return keys;
+    }
 
     /** Describe a JSON value without logging potentially sensitive field contents. */
     private String snidNodeShape(com.fasterxml.jackson.databind.JsonNode node) {
