@@ -334,11 +334,66 @@ public class SnidVenueImportData {
                     jsonFieldShape(sample, "municipalityInfo"), jsonFieldShape(sample, "dataProvider"));
             inspectSnidLocationShape(sample);
             inspectSnidRecordBoundaries(sample);
+            validateSnidStreamReadOnly(resourceUrl);
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
                             : String.valueOf(sample.stripLeading().charAt(0)), keys);
         } catch (Exception ex) {
             log.warn("SNID JSON prefix inspection unavailable: {}", ex.toString());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** Stream the official JSON records without persisting or retaining the dataset in memory. */
+    private void validateSnidStreamReadOnly(String resourceUrl) {
+        HttpURLConnection connection = null;
+        int total = 0, valid = 0, invalid = 0;
+        try {
+            URI uri = URI.create(resourceUrl);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+                throw new IllegalArgumentException("Unexpected SNID resource host");
+            }
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            if (connection.getResponseCode() != 200) {
+                log.warn("SNID stream validation HTTP {}", connection.getResponseCode());
+                return;
+            }
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (java.io.InputStream input = connection.getInputStream();
+                 com.fasterxml.jackson.core.JsonParser parser = mapper.getFactory().createParser(input)) {
+                while (parser.nextToken() != null) {
+                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                    total++;
+                    boolean usable = false;
+                    if (record != null && record.path("name").isTextual()
+                            && !record.path("name").asText().isBlank()) {
+                        try {
+                            com.fasterxml.jackson.databind.JsonNode location =
+                                    mapper.readTree(record.path("location").asText(""));
+                            com.fasterxml.jackson.databind.JsonNode coords =
+                                    location == null ? null : location.path("coordinates");
+                            usable = location != null && "Point".equals(location.path("type").asText())
+                                    && coords != null && coords.isArray() && coords.size() == 2
+                                    && coords.get(0).isNumber() && coords.get(1).isNumber()
+                                    && Double.isFinite(coords.get(0).asDouble())
+                                    && Double.isFinite(coords.get(1).asDouble());
+                        } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {
+                            // Invalid location JSON is counted below.
+                        }
+                    }
+                    if (usable) valid++; else invalid++;
+                }
+            }
+            log.info("SNID full stream validation (read-only): total={}, valid={}, invalid={}",
+                    total, valid, invalid);
+        } catch (Exception ex) {
+            log.warn("SNID full stream validation interrupted after {} records: {}", total,
+                    ex.getClass().getSimpleName());
         } finally {
             if (connection != null) connection.disconnect();
         }
