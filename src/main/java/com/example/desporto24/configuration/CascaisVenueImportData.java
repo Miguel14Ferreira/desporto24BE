@@ -130,20 +130,20 @@ public class CascaisVenueImportData implements ApplicationRunner {
                 inserted++;
             }
 
-            long cascaisTotal = venueRepository.findAllByOrderByNameAsc().stream()
+            long cascaisTotal = knownVenues.stream()
                     .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
                     .filter(venue -> venue.getSourceReference() != null
                             && venue.getSourceReference().startsWith(SOURCE_PREFIX))
                     .count();
 
-            long cascaisClassified = venueRepository.findAllByOrderByNameAsc().stream()
+            long cascaisClassified = knownVenues.stream()
                     .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
                     .filter(venue -> venue.getSourceReference() != null
                             && venue.getSourceReference().startsWith(SOURCE_PREFIX))
                     .filter(venue -> venue.getSports() != null && !venue.getSports().isBlank())
                     .count();
 
-            List<String> unclassifiedSamples = venueRepository.findAllByOrderByNameAsc().stream()
+            List<String> unclassifiedSamples = knownVenues.stream()
                     .filter(venue -> venue.getInformationSource() == Venue.InformationSource.OFFICIAL)
                     .filter(venue -> venue.getSourceReference() != null
                             && venue.getSourceReference().startsWith(SOURCE_PREFIX))
