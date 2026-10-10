@@ -122,6 +122,13 @@ public class SessionServiceImpl implements SessionService {
         if (request.venueId() != null) {
             linkedVenue = venueRepository.findById(request.venueId())
                     .orElseThrow(() -> new IllegalArgumentException("Recinto não encontrado"));
+            String venueSports = linkedVenue.getSports();
+            if (venueSports != null && !venueSports.isBlank()
+                    && java.util.Arrays.stream(venueSports.split(";"))
+                            .map(String::trim)
+                            .noneMatch(sport::equalsIgnoreCase)) {
+                throw new IllegalArgumentException("Modalidade não disponível neste recinto");
+            }
         }
 
         if (!request.gameDate().isAfter(Instant.now())) {
