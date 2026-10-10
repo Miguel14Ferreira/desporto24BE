@@ -153,6 +153,21 @@ public class SnidVenueImportData {
                                 limit(clean(string(metadata.get("title"))), 120),
                                 limit(clean(string(metadata.get("format"))), 20),
                                 metadata.get("filesize"));
+                        String partTitle = clean(string(metadata.get("title")));
+                        String partUrl = clean(string(metadata.get("url")));
+                        if (partTitle != null && partTitle.startsWith("part-") && partTitle.endsWith(".json")
+                                && partUrl != null) {
+                            try {
+                                URI partUri = URI.create(partUrl);
+                                if ("https".equalsIgnoreCase(partUri.getScheme())
+                                        && "dados.gov.pt".equalsIgnoreCase(partUri.getHost())) {
+                                    log.info("SNID read-only part resource: title={}, url={}",
+                                            limit(partTitle, 120), partUri);
+                                }
+                            } catch (IllegalArgumentException ex) {
+                                log.warn("SNID read-only part resource URL invalid: {}", limit(partTitle, 120));
+                            }
+                        }
                     }
                     for (Object resourceValue : resources) {
                         if (resourceValue instanceof Map<?, ?> resource
