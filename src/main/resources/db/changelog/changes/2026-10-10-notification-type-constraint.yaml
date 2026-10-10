@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-10-notification-type-constraint
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        tableExists:
+          schemaName: desporto24
+          tableName: notifications
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.notifications
+              DROP CONSTRAINT IF EXISTS notifications_type_check;
+              ALTER TABLE desporto24.notifications
+              ADD CONSTRAINT notifications_type_check
+              CHECK (type IS NULL OR type IN (
+                'WAITLIST_PROMOTED',
+                'SESSION_REMOVED',
+                'SESSION_CANCELLED',
+                'ATTENDANCE_DISPUTE_ACCEPTED',
+                'ATTENDANCE_DISPUTE_REJECTED',
+                'CHAT_MESSAGE',
+                'COMMUNITY_INVITE'
+              ));
