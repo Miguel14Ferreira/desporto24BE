@@ -73,6 +73,11 @@ public class SnidVenueImportData {
                         List<String> fieldNames = new ArrayList<>();
                         record.fieldNames().forEachRemaining(fieldNames::add);
                         log.info("SNID read-only record field names: {}", fieldNames);
+                        log.info("SNID read-only field shapes: category={}, type={}, address={}, municipalityInfo={}",
+                                snidNodeShape(record.path("category")),
+                                snidNodeShape(record.path("type")),
+                                snidNodeShape(record.path("address")),
+                                snidNodeShape(record.path("municipalityInfo")));
                     }
                     var sportsField = record == null ? null : record.path("sports");
                     if (sportsField != null && sportsField.isTextual()) sportsText++;
@@ -139,6 +144,16 @@ public class SnidVenueImportData {
         return null;
     }
 
+
+    /** Describe a JSON value without logging potentially sensitive field contents. */
+    private String snidNodeShape(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node == null || node.isMissingNode()) return "missing";
+        if (node.isNull()) return "null";
+        if (node.isTextual()) return "text";
+        if (node.isArray()) return "array";
+        if (node.isObject()) return "object";
+        return "scalar";
+    }
 
     /** Preserve a human-readable category without serializing JSON objects into venue_type. */
     private String snidCategory(com.fasterxml.jackson.databind.JsonNode category) {
