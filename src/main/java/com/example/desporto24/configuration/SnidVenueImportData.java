@@ -137,6 +137,16 @@ public class SnidVenueImportData {
                     if (title == null || !title.toLowerCase(Locale.ROOT)
                             .contains("sistema nacional de informação desportiva")) continue;
                     if (!(dataset.get("resources") instanceof List<?> resources)) continue;
+                    log.info("SNID read-only resource inventory: total={}", resources.size());
+                    int listed = 0;
+                    for (Object entry : resources) {
+                        if (!(entry instanceof Map<?, ?> metadata)) continue;
+                        if (listed++ >= 50) break;
+                        log.info("SNID read-only resource: title={}, format={}, size={}",
+                                limit(clean(string(metadata.get("title"))), 120),
+                                limit(clean(string(metadata.get("format"))), 20),
+                                metadata.get("filesize"));
+                    }
                     for (Object resourceValue : resources) {
                         if (!(resourceValue instanceof Map<?, ?> resource)) continue;
                         String resourceTitle = clean(string(resource.get("title")));
