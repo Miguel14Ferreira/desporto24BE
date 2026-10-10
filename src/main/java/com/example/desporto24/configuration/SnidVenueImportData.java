@@ -334,7 +334,7 @@ public class SnidVenueImportData {
                     jsonFieldShape(sample, "municipalityInfo"), jsonFieldShape(sample, "dataProvider"));
             inspectSnidLocationShape(sample);
             inspectSnidRecordBoundaries(sample);
-            validateSnidStreamReadOnly(resourceUrl);
+            // Full SNID streaming validation is intentionally not run during application startup.
             log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
                     status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
                             : String.valueOf(sample.stripLeading().charAt(0)), keys);
