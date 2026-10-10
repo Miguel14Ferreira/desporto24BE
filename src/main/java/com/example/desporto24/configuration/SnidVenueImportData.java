@@ -286,6 +286,16 @@ public class SnidVenueImportData {
                     com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
                     total++;
                     String name = clean(record.path("name").asText(null));
+                    // SNID also publishes sports institutions, which are not bookable venues.
+                    String category = snidCategory(record.path("category"));
+                    String normalizedCategory = category == null ? "" : java.text.Normalizer.normalize(
+                            category, java.text.Normalizer.Form.NFD)
+                            .replaceAll("\\p{M}+", "").toLowerCase(java.util.Locale.ROOT);
+                    if (normalizedCategory.contains("instituicao desportiva")
+                            || normalizedCategory.contains("insituicao desportiva")) {
+                        skipped++;
+                        continue;
+                    }
                     com.fasterxml.jackson.databind.JsonNode location;
                     try {
                         location = mapper.readTree(record.path("location").asText(""));
