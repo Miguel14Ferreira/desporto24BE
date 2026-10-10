@@ -63,6 +63,7 @@ public class SnidVenueImportData {
             }
             int total = 0, valid = 0, mainland = 0, madeira = 0, azores = 0;
             int sportsText = 0, sportsArray = 0, sportsObject = 0;
+            Map<String, Integer> categoryCounts = new java.util.TreeMap<>();
             Set<String> categorySamples = new LinkedHashSet<>();
             Set<String> typeSamples = new LinkedHashSet<>();
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -72,7 +73,8 @@ public class SnidVenueImportData {
                     com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
                     total++;
                     if (record != null) {
-                        String category = clean(record.path("category").asText(null));
+                        String category = snidCategory(record.path("category"));
+                        categoryCounts.merge(category == null ? "(sem categoria)" : category, 1, Integer::sum);
                         String type = clean(record.path("type").asText(null));
                         if (category != null && categorySamples.size() < 12) categorySamples.add(limit(category.replaceAll("[\\r\\n]", " "), 80));
                         if (type != null && typeSamples.size() < 12) typeSamples.add(limit(type.replaceAll("[\\r\\n]", " "), 80));
@@ -113,12 +115,14 @@ public class SnidVenueImportData {
                     else if (lat >= 36.8 && lat <= 40.2 && lon >= -31.5 && lon <= -24.5) azores++;
                 }
             }
+            log.info("SNID read-only category counts: {}", categoryCounts);
             log.info("SNID read-only category examples (up to 12): {}", categorySamples);
             log.info("SNID read-only type examples (up to 12): {}", typeSamples);
             return Map.of("total", total, "valid", valid, "mainland", mainland,
                     "madeira", madeira, "azores", azores,
                     "otherValid", valid - mainland - madeira - azores, "source", url,
-                    "sportsText", sportsText, "sportsArray", sportsArray, "sportsObject", sportsObject);
+                    "sportsText", sportsText, "sportsArray", sportsArray, "sportsObject", sportsObject,
+                    "categoryCounts", categoryCounts);
         } catch (java.io.IOException ex) {
             throw new IllegalStateException("SNID JSON validation failed", ex);
         } finally {
