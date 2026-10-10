@@ -62,12 +62,17 @@ public class SnidVenueImportData {
                 throw new IllegalStateException("SNID JSON HTTP " + connection.getResponseCode());
             }
             int total = 0, valid = 0, mainland = 0, madeira = 0, azores = 0;
+            int sportsText = 0, sportsArray = 0, sportsObject = 0;
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             try (var input = connection.getInputStream();
                  var parser = mapper.getFactory().createParser(input)) {
                 while (parser.nextToken() != null) {
                     com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
                     total++;
+                    var sportsField = record == null ? null : record.path("sports");
+                    if (sportsField != null && sportsField.isTextual()) sportsText++;
+                    else if (sportsField != null && sportsField.isArray()) sportsArray++;
+                    else if (sportsField != null && sportsField.isObject()) sportsObject++;
                     if (record == null || !record.path("name").isTextual()
                             || record.path("name").asText().isBlank()) continue;
                     com.fasterxml.jackson.databind.JsonNode location;
@@ -90,7 +95,8 @@ public class SnidVenueImportData {
             }
             return Map.of("total", total, "valid", valid, "mainland", mainland,
                     "madeira", madeira, "azores", azores,
-                    "otherValid", valid - mainland - madeira - azores, "source", url);
+                    "otherValid", valid - mainland - madeira - azores, "source", url,
+                    "sportsText", sportsText, "sportsArray", sportsArray, "sportsObject", sportsObject);
         } catch (java.io.IOException ex) {
             throw new IllegalStateException("SNID JSON validation failed", ex);
         } finally {
