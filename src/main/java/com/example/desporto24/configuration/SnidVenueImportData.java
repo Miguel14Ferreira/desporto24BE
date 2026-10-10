@@ -66,7 +66,7 @@ public class SnidVenueImportData {
             try (var input = connection.getInputStream();
                  var parser = mapper.getFactory().createParser(input)) {
                 while (parser.nextToken() != null) {
-                    var record = mapper.readTree(parser);
+                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
                     total++;
                     if (record == null || !record.path("name").isTextual()
                             || record.path("name").asText().isBlank()) continue;
