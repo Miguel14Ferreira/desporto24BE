@@ -128,8 +128,108 @@ public class SnidVenueImportData {
         return null;
     }
 
+
+    /** Stream the official SNID records; persist only bounded batches. */
+    private ImportResult importOfficialJson(String resourceUrl) throws java.io.IOException {
+        URI uri = URI.create(resourceUrl);
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+            throw new IllegalArgumentException("Unexpected SNID resource host");
+        }
+        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(15000);
+        connection.setInstanceFollowRedirects(false);
+        try {
+            if (connection.getResponseCode() != 200) {
+                throw new java.io.IOException("SNID JSON HTTP " + connection.getResponseCode());
+            }
+            Set<String> sourceReferences = new HashSet<>();
+            Set<String> venueKeys = new HashSet<>();
+            for (VenueRepository.VenueDeduplicationView existing : venueRepository.findAllProjectedBy()) {
+                if (existing.getSourceReference() != null) sourceReferences.add(existing.getSourceReference());
+                String key = venueKey(existing.getName(), existing.getLatitude(), existing.getLongitude());
+                if (key != null) venueKeys.add(key);
+            }
+            int total = 0, inserted = 0, skipped = 0;
+            List<Venue> batch = new ArrayList<>(SAVE_BATCH_SIZE);
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (var input = connection.getInputStream();
+                 var parser = mapper.getFactory().createParser(input)) {
+                while (parser.nextToken() != null) {
+                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                    total++;
+                    String name = clean(record.path("name").asText(null));
+                    com.fasterxml.jackson.databind.JsonNode location;
+                    try {
+                        location = mapper.readTree(record.path("location").asText(""));
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                        skipped++;
+                        continue;
+                    }
+                    var coords = location == null ? null : location.path("coordinates");
+                    if (name == null || location == null
+                            || !"Point".equals(location.path("type").asText())
+                            || coords == null || !coords.isArray() || coords.size() != 2
+                            || !coords.get(0).isNumber() || !coords.get(1).isNumber()) {
+                        skipped++;
+                        continue;
+                    }
+                    double lon = coords.get(0).asDouble(), lat = coords.get(1).asDouble();
+                    if (!Double.isFinite(lon) || !Double.isFinite(lat)
+                            || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                        skipped++;
+                        continue;
+                    }
+                    String municipality = clean(record.path("municipalityInfo").asText(null));
+                    String district = clean(record.path("district").asText(null));
+                    String rawId = clean(record.path("id").asText(null));
+                    String reference = SOURCE_PREFIX + stableId(rawId, name, municipality, lat, lon);
+                    String key = venueKey(name, lat, lon);
+                    if (sourceReferences.contains(reference) || (key != null && venueKeys.contains(key))) {
+                        skipped++;
+                        continue;
+                    }
+                    String city = fallback(municipality, fallback(district, "Portugal"));
+                    Venue venue = Venue.builder()
+                            .name(limit(name, 140))
+                            .city(limit(city, 120))
+                            .district(limit(district, 120))
+                            .address(limit(name + (municipality == null ? "" : ", " + municipality), 255))
+                            .venueType(limit(clean(record.path("category").asText(null)), 80))
+                            .latitude(lat)
+                            .longitude(lon)
+                            .informationSource(Venue.InformationSource.OFFICIAL)
+                            .sourceReference(limit(reference, 255))
+                            .createdAt(Instant.now())
+                            .build();
+                    batch.add(venue);
+                    sourceReferences.add(reference);
+                    if (key != null) venueKeys.add(key);
+                    if (batch.size() >= SAVE_BATCH_SIZE) {
+                        venueRepository.saveAll(batch);
+                        inserted += batch.size();
+                        batch.clear();
+                    }
+                }
+            }
+            if (!batch.isEmpty()) {
+                venueRepository.saveAll(batch);
+                inserted += batch.size();
+            }
+            log.info("SNID official JSON import: total={}, inserted={}, skipped={}", total, inserted, skipped);
+            return new ImportResult(total, inserted, skipped);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
     public ImportResult importVenues() {
         try {
+            String officialJsonUrl = findSnidLocationJsonUrl();
+            if (officialJsonUrl != null) {
+                return importOfficialJson(officialJsonUrl);
+            }
             String geoJsonUrl = findSnidGeoJsonUrl();
             if (geoJsonUrl == null || geoJsonUrl.isBlank()) {
                 throw new IllegalStateException("SNID GeoJSON resource not found");
