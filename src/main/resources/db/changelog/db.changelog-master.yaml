@@ -15,3 +15,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-10-community-round-entry-nullable-profile.yaml
   - include:
       file: db/changelog/changes/2026-10-10-notification-type-constraint.yaml
+  - include:
+      file: db/changelog/changes/2026-10-10-pilot-event-type-constraint.yaml
