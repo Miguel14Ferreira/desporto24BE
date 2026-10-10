@@ -290,9 +290,15 @@ public class SnidVenueImportData {
                         inspectJsonPrefix(url);
                     }
                 }
-                if (url != null
-                        && format != null
-                        && format.toLowerCase(Locale.ROOT).contains("geojson")) {
+                String mime = clean(string(resource.get("mime")));
+                String resourcePath = url == null ? null : URI.create(url).getPath();
+                boolean geoJsonFormat = format != null
+                        && format.toLowerCase(Locale.ROOT).contains("geojson");
+                boolean geoJsonMime = mime != null
+                        && mime.equalsIgnoreCase("application/geo+json");
+                boolean geoJsonFile = resourcePath != null
+                        && resourcePath.toLowerCase(Locale.ROOT).endsWith(".geojson");
+                if (url != null && (geoJsonFormat || geoJsonMime || geoJsonFile)) {
                     log.info("SNID GeoJSON resource selected: {}", url);
                     return url;
                 }
