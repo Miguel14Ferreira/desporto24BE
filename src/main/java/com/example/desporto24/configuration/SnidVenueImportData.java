@@ -129,6 +129,21 @@ public class SnidVenueImportData {
     }
 
 
+    /** SNID municipalityInfo may be either a string or a structured object. */
+    private String snidMunicipality(com.fasterxml.jackson.databind.JsonNode info) {
+        if (info == null || info.isNull() || info.isMissingNode()) return null;
+        if (info.isTextual()) return clean(info.asText());
+        if (!info.isObject()) return null;
+        for (String field : new String[]{"name", "municipality", "municipio", "concelho", "designacao"}) {
+            var value = info.path(field);
+            if (value.isTextual()) {
+                String municipality = clean(value.asText());
+                if (municipality != null) return municipality;
+            }
+        }
+        return null;
+    }
+
     /** Stream the official SNID records; persist only bounded batches. */
     private ImportResult importOfficialJson(String resourceUrl) throws java.io.IOException {
         URI uri = URI.create(resourceUrl);
@@ -181,7 +196,7 @@ public class SnidVenueImportData {
                         skipped++;
                         continue;
                     }
-                    String municipality = clean(record.path("municipalityInfo").asText(null));
+                    String municipality = snidMunicipality(record.path("municipalityInfo"));
                     String district = clean(record.path("district").asText(null));
                     String rawId = clean(record.path("id").asText(null));
                     String reference = SOURCE_PREFIX + stableId(rawId, name, municipality, lat, lon);
