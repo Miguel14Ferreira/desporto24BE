@@ -19,6 +19,14 @@ class SecurityConstantTest {
     }
 
     @Test
+    void exposesVenueReadsWithoutOpeningVenueWrites() {
+        var publicGets = Arrays.asList(SecurityConstant.PUBLIC_GET_URLS);
+        assertTrue(publicGets.contains("/api/venues"));
+        assertTrue(publicGets.contains("/api/venues/*"));
+        assertFalse(Arrays.asList(SecurityConstant.PUBLIC_URLS).contains("/api/venues/**"));
+    }
+
+    @Test
     void exposesOnlyTheDiscoveryCollectionAsPublicSessionGet() {
         assertTrue(Arrays.asList(SecurityConstant.PUBLIC_GET_URLS).contains("/api/sessions"));
         assertFalse(Arrays.asList(SecurityConstant.PUBLIC_GET_URLS).contains("/api/sessions/**"));

@@ -22,7 +22,9 @@ public final class SecurityConstant {
     public static final String OPTIONS_HTTP_METHOD = "OPTIONS";
 
     public static final String[] PUBLIC_GET_URLS = {
-            "/api/sessions"
+            "/api/sessions",
+            "/api/venues",
+            "/api/venues/*"
     };
 
     public static final String[] PUBLIC_URLS = {
