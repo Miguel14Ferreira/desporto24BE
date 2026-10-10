@@ -118,11 +118,14 @@ public class SnidVenueImportData {
             log.info("SNID read-only category counts: {}", categoryCounts);
             log.info("SNID read-only category examples (up to 12): {}", categorySamples);
             log.info("SNID read-only type examples (up to 12): {}", typeSamples);
-            return Map.of("total", total, "valid", valid, "mainland", mainland,
-                    "madeira", madeira, "azores", azores,
-                    "otherValid", valid - mainland - madeira - azores, "source", url,
-                    "sportsText", sportsText, "sportsArray", sportsArray, "sportsObject", sportsObject,
-                    "categoryCounts", categoryCounts);
+            return Map.ofEntries(
+                    Map.entry("total", total), Map.entry("valid", valid),
+                    Map.entry("mainland", mainland), Map.entry("madeira", madeira),
+                    Map.entry("azores", azores),
+                    Map.entry("otherValid", valid - mainland - madeira - azores),
+                    Map.entry("source", url), Map.entry("sportsText", sportsText),
+                    Map.entry("sportsArray", sportsArray), Map.entry("sportsObject", sportsObject),
+                    Map.entry("categoryCounts", categoryCounts));
         } catch (java.io.IOException ex) {
             throw new IllegalStateException("SNID JSON validation failed", ex);
         } finally {
