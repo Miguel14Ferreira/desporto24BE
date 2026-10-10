@@ -227,8 +227,13 @@ public class SnidVenueImportData {
 
     private String findSnidGeoJsonUrl() {
         for (String searchUrl : DATASET_SEARCH_URLS) {
-            String found = findSnidGeoJsonUrl(searchUrl);
-            if (found != null) return found;
+            try {
+                String found = findSnidGeoJsonUrl(searchUrl);
+                if (found != null) return found;
+            } catch (org.springframework.web.client.RestClientException ex) {
+                log.warn("SNID dataset search unavailable for {}: {}", searchUrl,
+                        ex.getClass().getSimpleName());
+            }
         }
         return null;
     }
