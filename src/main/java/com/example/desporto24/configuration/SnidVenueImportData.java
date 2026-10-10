@@ -282,6 +282,8 @@ public class SnidVenueImportData {
                         format, url != null, clean(string(resource.get("title"))),
                         clean(string(resource.get("mime"))), resource.get("filesize"));
                 if (url != null && format != null && format.equalsIgnoreCase("json")
+                        && clean(string(resource.get("title"))) != null
+                        && clean(string(resource.get("title"))).startsWith("snid-localizacao")
                         && resource.get("filesize") instanceof Number size && size.longValue() > 0) {
                     log.info("SNID JSON resource available for read-only inspection: title={}, url={}",
                             clean(string(resource.get("title"))), url);
