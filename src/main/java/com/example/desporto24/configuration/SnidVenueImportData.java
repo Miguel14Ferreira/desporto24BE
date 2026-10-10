@@ -144,11 +144,11 @@ public class SnidVenueImportData {
                 throw new IllegalStateException("Invalid SNID GeoJSON payload");
             }
 
-            List<Venue> existingVenues = venueRepository.findAllByOrderByNameAsc();
+            List<VenueRepository.VenueDeduplicationView> existingVenues = venueRepository.findAllProjectedBy();
             Set<String> sourceReferences = new HashSet<>();
             Set<String> venueKeys = new HashSet<>();
 
-            for (Venue venue : existingVenues) {
+            for (VenueRepository.VenueDeduplicationView venue : existingVenues) {
                 if (venue.getSourceReference() != null) {
                     sourceReferences.add(venue.getSourceReference());
                 }

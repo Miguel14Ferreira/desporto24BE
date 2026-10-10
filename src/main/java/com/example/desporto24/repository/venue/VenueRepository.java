@@ -8,6 +8,17 @@ import java.util.Optional;
 
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findAllByOrderByNameAsc();
+
+    /** Only the fields needed for import deduplication, not complete Venue entities. */
+    interface VenueDeduplicationView {
+        String getName();
+        Double getLatitude();
+        Double getLongitude();
+        String getSourceReference();
+    }
+
+    List<VenueDeduplicationView> findAllProjectedBy();
+
     List<Venue> findByCityContainingIgnoreCaseOrderByNameAsc(String city);
 
     Optional<Venue> findByInformationSourceAndSourceReference(
