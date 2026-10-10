@@ -347,13 +347,31 @@ public class SnidVenueImportData {
     /** Count complete top-level JSON records in the bounded prefix, without logging values. */
     private void inspectSnidRecordBoundaries(String sample) {
         int complete = 0;
+        int valid = 0;
+        int invalid = 0;
         boolean truncated = false;
         try (com.fasterxml.jackson.core.JsonParser parser =
                      new com.fasterxml.jackson.databind.ObjectMapper().getFactory().createParser(sample)) {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             while (complete < 10 && parser.nextToken() != null) {
-                mapper.readTree(parser);
+                com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
                 complete++;
+                try {
+                    com.fasterxml.jackson.databind.JsonNode location =
+                            mapper.readTree(record.path("location").asText(""));
+                    com.fasterxml.jackson.databind.JsonNode point =
+                            location == null ? null : location.path("coordinates");
+                    boolean usable = record.path("name").isTextual()
+                            && !record.path("name").asText().isBlank()
+                            && location != null && "Point".equals(location.path("type").asText())
+                            && point != null && point.isArray() && point.size() == 2
+                            && point.get(0).isNumber() && point.get(1).isNumber()
+                            && Double.isFinite(point.get(0).asDouble())
+                            && Double.isFinite(point.get(1).asDouble());
+                    if (usable) valid++; else invalid++;
+                } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                    invalid++;
+                }
             }
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             truncated = true;
@@ -361,8 +379,8 @@ public class SnidVenueImportData {
             log.warn("SNID record boundary inspection unavailable: {}", ex.toString());
             return;
         }
-        log.info("SNID bounded record inspection: completeTopLevelValues={}, truncatedAtPrefix={}",
-                complete, truncated);
+        log.info("SNID bounded record inspection: completeTopLevelValues={}, valid={}, invalid={}, truncatedAtPrefix={}",
+                complete, valid, invalid, truncated);
     }
 
     /** Parse only the location field from the bounded JSON prefix; no persistence. */
