@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.venue.CreateVenueRequest;
@@ -78,6 +79,13 @@ public class VenueService {
         String normalizedName = requireText(name, "Nome do recinto obrigatório");
         String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
         String normalizedAddress = requireText(address, "Morada do recinto obrigatória");
+
+        String normalizedSports = trimToNull(sports);
+        if (normalizedSports != null && java.util.Arrays.stream(normalizedSports.split(";", -1))
+                .map(String::trim)
+                .anyMatch(sport -> !SportsCatalog.ALLOWED.contains(sport))) {
+            throw new IllegalArgumentException("Modalidade inválida no recinto");
+        }
 
         Venue existingBySource = venueRepository.findByInformationSourceAndSourceReference(
                 Venue.InformationSource.OPENSTREETMAP, normalizedSourceReference).orElse(null);
