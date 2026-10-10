@@ -43,28 +43,89 @@ public class SnidVenueImportData {
     private final RestClient restClient = RestClient.builder().build();
 
     /** Read-only check of the remote GeoJSON and approximate Portuguese coverage. */
+    /** Validate the official SNID location JSON without persisting records or loading the file into memory. */
     public Map<String, Object> validateSource() {
-        String url = findSnidGeoJsonUrl();
-        if (url == null || url.isBlank()) throw new IllegalStateException("SNID GeoJSON resource not found");
-        Map<?, ?> json = restClient.get().uri(url).retrieve().body(Map.class);
-        if (json == null || !(json.get("features") instanceof List<?> features))
-            throw new IllegalStateException("Invalid SNID GeoJSON payload");
-        int valid = 0, mainland = 0, madeira = 0, azores = 0;
-        for (Object item : features) {
-            if (!(item instanceof Map<?, ?> feature)) continue;
-            String name = firstText(asMap(feature.get("properties")),
-                    "nome", "name", "designacao", "denominacao", "instalacao", "instalação", "infraestrutura");
-            double[] p = geometryCoordinates(asMap(feature.get("geometry")));
-            if (name == null || p == null) continue;
-            valid++;
-            double lon = p[0], lat = p[1];
-            if (lat >= 36.9 && lat <= 42.2 && lon >= -9.6 && lon <= -6.1) mainland++;
-            else if (lat >= 32.0 && lat <= 33.3 && lon >= -17.5 && lon <= -15.5) madeira++;
-            else if (lat >= 36.8 && lat <= 40.2 && lon >= -31.5 && lon <= -24.5) azores++;
+        String url = findSnidLocationJsonUrl();
+        if (url == null) throw new IllegalStateException("SNID location JSON resource not found");
+        HttpURLConnection connection = null;
+        try {
+            URI uri = URI.create(url);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+                throw new IllegalArgumentException("Unexpected SNID resource host");
+            }
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            if (connection.getResponseCode() != 200) {
+                throw new IllegalStateException("SNID JSON HTTP " + connection.getResponseCode());
+            }
+            int total = 0, valid = 0, mainland = 0, madeira = 0, azores = 0;
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (var input = connection.getInputStream();
+                 var parser = mapper.getFactory().createParser(input)) {
+                while (parser.nextToken() != null) {
+                    var record = mapper.readTree(parser);
+                    total++;
+                    if (record == null || !record.path("name").isTextual()
+                            || record.path("name").asText().isBlank()) continue;
+                    com.fasterxml.jackson.databind.JsonNode location;
+                    try {
+                        location = mapper.readTree(record.path("location").asText(""));
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                        continue;
+                    }
+                    if (location == null || !"Point".equals(location.path("type").asText())) continue;
+                    var coords = location.path("coordinates");
+                    if (!coords.isArray() || coords.size() != 2
+                            || !coords.get(0).isNumber() || !coords.get(1).isNumber()) continue;
+                    double lon = coords.get(0).asDouble(), lat = coords.get(1).asDouble();
+                    if (!Double.isFinite(lon) || !Double.isFinite(lat)) continue;
+                    valid++;
+                    if (lat >= 36.9 && lat <= 42.2 && lon >= -9.6 && lon <= -6.1) mainland++;
+                    else if (lat >= 32.0 && lat <= 33.3 && lon >= -17.5 && lon <= -15.5) madeira++;
+                    else if (lat >= 36.8 && lat <= 40.2 && lon >= -31.5 && lon <= -24.5) azores++;
+                }
+            }
+            return Map.of("total", total, "valid", valid, "mainland", mainland,
+                    "madeira", madeira, "azores", azores,
+                    "otherValid", valid - mainland - madeira - azores, "source", url);
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException("SNID JSON validation failed", ex);
+        } finally {
+            if (connection != null) connection.disconnect();
         }
-        return Map.of("total", features.size(), "valid", valid, "mainland", mainland,
-                "madeira", madeira, "azores", azores, "otherValid", valid - mainland - madeira - azores,
-                "source", url);
+    }
+
+    private String findSnidLocationJsonUrl() {
+        for (String searchUrl : DATASET_SEARCH_URLS) {
+            try {
+                Map<?, ?> response = restClient.get().uri(searchUrl).retrieve().body(Map.class);
+                if (response == null || !(response.get("data") instanceof List<?> datasets)) continue;
+                for (Object item : datasets) {
+                    if (!(item instanceof Map<?, ?> dataset)) continue;
+                    String title = clean(string(dataset.get("title")));
+                    if (title == null || !title.toLowerCase(Locale.ROOT)
+                            .contains("sistema nacional de informação desportiva")) continue;
+                    if (!(dataset.get("resources") instanceof List<?> resources)) continue;
+                    for (Object resourceValue : resources) {
+                        if (!(resourceValue instanceof Map<?, ?> resource)) continue;
+                        String resourceTitle = clean(string(resource.get("title")));
+                        String format = clean(string(resource.get("format")));
+                        String url = clean(string(resource.get("url")));
+                        if (resourceTitle != null && resourceTitle.startsWith("snid-localizacao")
+                                && format != null && format.equalsIgnoreCase("json")
+                                && resource.get("filesize") instanceof Number size && size.longValue() > 0
+                                && url != null) return url;
+                    }
+                }
+            } catch (org.springframework.web.client.RestClientException ex) {
+                log.warn("SNID location dataset search unavailable for {}: {}", searchUrl,
+                        ex.getClass().getSimpleName());
+            }
+        }
+        return null;
     }
 
     public ImportResult importVenues() {
