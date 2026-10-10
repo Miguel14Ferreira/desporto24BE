@@ -69,6 +69,11 @@ public class SnidVenueImportData {
                 while (parser.nextToken() != null) {
                     com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
                     total++;
+                    if (total == 1 && record != null && record.isObject()) {
+                        List<String> fieldNames = new ArrayList<>();
+                        record.fieldNames().forEachRemaining(fieldNames::add);
+                        log.info("SNID read-only record field names: {}", fieldNames);
+                    }
                     var sportsField = record == null ? null : record.path("sports");
                     if (sportsField != null && sportsField.isTextual()) sportsText++;
                     else if (sportsField != null && sportsField.isArray()) sportsArray++;
