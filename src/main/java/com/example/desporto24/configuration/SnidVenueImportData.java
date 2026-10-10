@@ -196,7 +196,7 @@ public class SnidVenueImportData {
                 var token = parser.nextToken();
                 if (token == com.fasterxml.jackson.core.JsonToken.START_ARRAY) token = parser.nextToken();
                 if (token == com.fasterxml.jackson.core.JsonToken.START_OBJECT) {
-                    var first = mapper.readTree(parser);
+                    com.fasterxml.jackson.databind.JsonNode first = mapper.readTree(parser);
                     log.info("SNID demo read-only first object keys: {}", snidObjectKeys(first));
                 } else log.info("SNID demo read-only first token: {}", token);
             }
