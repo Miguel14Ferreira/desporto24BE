@@ -79,14 +79,22 @@ public class VenueService {
         String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
         String normalizedAddress = requireText(address, "Morada do recinto obrigatória");
 
-        Venue venue = venueRepository.findByInformationSourceAndSourceReference(
-                        Venue.InformationSource.OPENSTREETMAP,
-                        normalizedSourceReference)
-                .orElseGet(() -> Venue.builder()
-                        .informationSource(Venue.InformationSource.OPENSTREETMAP)
-                        .sourceReference(normalizedSourceReference)
-                        .createdAt(Instant.now())
-                        .build());
+        Venue existingBySource = venueRepository.findByInformationSourceAndSourceReference(
+                Venue.InformationSource.OPENSTREETMAP, normalizedSourceReference).orElse(null);
+        if (existingBySource == null && latitude != null && longitude != null) {
+            // Reuse an exact matching venue from any source without overwriting it.
+            Venue existingByLocation = venueRepository
+                    .findFirstByNameIgnoreCaseAndLatitudeAndLongitude(
+                            normalizedName, latitude, longitude).orElse(null);
+            if (existingByLocation != null) {
+                return toResponse(existingByLocation);
+            }
+        }
+        Venue venue = existingBySource != null ? existingBySource : Venue.builder()
+                .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .sourceReference(normalizedSourceReference)
+                .createdAt(Instant.now())
+                .build();
 
         venue.setName(normalizedName);
         venue.setCity(normalizedCity);

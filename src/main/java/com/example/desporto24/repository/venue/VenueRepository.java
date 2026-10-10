@@ -21,6 +21,9 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
 
     List<Venue> findByCityContainingIgnoreCaseOrderByNameAsc(String city);
 
+    Optional<Venue> findFirstByNameIgnoreCaseAndLatitudeAndLongitude(
+            String name, Double latitude, Double longitude);
+
     Optional<Venue> findByInformationSourceAndSourceReference(
             Venue.InformationSource informationSource,
             String sourceReference);
