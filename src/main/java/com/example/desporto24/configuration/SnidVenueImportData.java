@@ -148,6 +148,13 @@ public class SnidVenueImportData {
                                 metadata.get("filesize"));
                     }
                     for (Object resourceValue : resources) {
+                        if (resourceValue instanceof Map<?, ?> resource
+                                && "snid-demo.json".equals(clean(string(resource.get("title"))))) {
+                            inspectSnidDemoFields(clean(string(resource.get("url"))));
+                            break;
+                        }
+                    }
+                    for (Object resourceValue : resources) {
                         if (!(resourceValue instanceof Map<?, ?> resource)) continue;
                         String resourceTitle = clean(string(resource.get("title")));
                         String format = clean(string(resource.get("format")));
@@ -166,6 +173,39 @@ public class SnidVenueImportData {
         return null;
     }
 
+
+    /** Inspect only the first demo record; do not persist or log record values. */
+    private void inspectSnidDemoFields(String resourceUrl) {
+        if (resourceUrl == null) return;
+        URI uri;
+        try { uri = URI.create(resourceUrl); }
+        catch (IllegalArgumentException ex) { return; }
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) return;
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            if (connection.getResponseCode() != 200) {
+                log.info("SNID demo read-only HTTP status: {}", connection.getResponseCode());
+                return;
+            }
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (var input = connection.getInputStream(); var parser = mapper.getFactory().createParser(input)) {
+                var token = parser.nextToken();
+                if (token == com.fasterxml.jackson.core.JsonToken.START_ARRAY) token = parser.nextToken();
+                if (token == com.fasterxml.jackson.core.JsonToken.START_OBJECT) {
+                    var first = mapper.readTree(parser);
+                    log.info("SNID demo read-only first object keys: {}", snidObjectKeys(first));
+                } else log.info("SNID demo read-only first token: {}", token);
+            }
+        } catch (java.io.IOException ex) {
+            log.warn("SNID demo read-only inspection unavailable: {}", ex.getClass().getSimpleName());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
 
     /** Return JSON object keys only; never include their values. */
     private List<String> snidObjectKeys(com.fasterxml.jackson.databind.JsonNode node) {
