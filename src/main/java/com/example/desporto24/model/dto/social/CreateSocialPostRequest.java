@@ -6,6 +6,10 @@ import jakarta.validation.constraints.Size;
 public record CreateSocialPostRequest(
         @NotBlank
         @Size(max = 1000)
-        String content
+        String content,
+        Long sessionId
 ) {
+    public CreateSocialPostRequest(String content) {
+        this(content, null);
+    }
 }

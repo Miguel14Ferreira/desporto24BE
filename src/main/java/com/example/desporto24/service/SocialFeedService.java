@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
@@ -58,9 +59,11 @@ public class SocialFeedService {
             String username,
             CreateSocialPostRequest request) {
         Profile author = profile(username);
+        Session linkedSession = resolvePublicSession(request.sessionId());
 
         SocialPost post = postRepository.save(SocialPost.builder()
                 .author(author)
+                .session(linkedSession)
                 .content(request.content().trim())
                 .createdAt(Instant.now())
                 .build());
@@ -272,6 +275,19 @@ public class SocialFeedService {
                 false,
                 0
         );
+    }
+
+    private Session resolvePublicSession(Long sessionId) {
+        if (sessionId == null) {
+            return null;
+        }
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Sessão não encontrada"));
+        if (Boolean.TRUE.equals(session.getPrivateGame())
+                || session.getAudience() == SessionAudience.COMMUNITY_ONLY) {
+            throw new AccessDeniedException("Não é possível partilhar uma sessão privada no feed");
+        }
+        return session;
     }
 
     private String storageKey(URI uri) {
