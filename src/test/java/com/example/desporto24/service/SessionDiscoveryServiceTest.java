@@ -159,7 +159,7 @@ class SessionDiscoveryServiceTest {
         Session wrongCity = session(6L, "Futebol", "Lisboa", null, null, 0, false, 10, 4);
         wrongCity.setGameDate(Date.from(from.plusSeconds(1800)));
 
-        stubCandidates(match, wrongSport, full, paid, privateSession, wrongCity);
+        stubCandidates(match, full);
         stubSummary(match, null, 4);
         stubSummary(full, null, 4);
 
@@ -177,7 +177,7 @@ class SessionDiscoveryServiceTest {
         Session match = session(2L, "Futebol", "Queluz", null, null, 6, false, 10, 2);
         Session expensive = session(3L, "Futebol", "Queluz", null, null, 12, false, 10, 2);
 
-        stubCandidates(cheap, match, expensive);
+        stubCandidates(match);
         stubSummary(match, null, 2);
 
         SessionSearchCriteria criteria = new SessionSearchCriteria(
