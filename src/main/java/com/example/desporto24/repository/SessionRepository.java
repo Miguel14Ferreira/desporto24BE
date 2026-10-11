@@ -54,7 +54,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice);
 
-    @Query("""
+    @Query(value = """
             select s
             from Session s
             where s.status in :statuses
