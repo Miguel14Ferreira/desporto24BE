@@ -25,13 +25,13 @@ public class VenueSchemaDiagnosticsOnReady {
                             + "JOIN pg_class t ON t.oid = c.conrelid "
                             + "JOIN pg_namespace n ON n.oid = t.relnamespace "
                             + "WHERE t.relname = 'venue' AND c.conname = 'venue_information_source_check'",
-                    rs -> log.info("VENUE_SCHEMA_DIAGNOSTIC constraint_schema={} definition={}",
+                    (org.springframework.jdbc.core.RowCallbackHandler) rs -> log.info("VENUE_SCHEMA_DIAGNOSTIC constraint_schema={} definition={}",
                             rs.getString("nspname"), rs.getString("definition")));
             jdbcTemplate.query(
                     "SELECT table_schema FROM information_schema.tables "
                             + "WHERE lower(table_name) = 'databasechangelog' "
                             + "ORDER BY table_schema",
-                    rs -> log.info("VENUE_SCHEMA_DIAGNOSTIC changelog_schema={}",
+                    (org.springframework.jdbc.core.RowCallbackHandler) rs -> log.info("VENUE_SCHEMA_DIAGNOSTIC changelog_schema={}",
                             rs.getString("table_schema")));
         } catch (Exception ex) {
             log.warn("VENUE_SCHEMA_DIAGNOSTIC failed: {}", ex.toString());
