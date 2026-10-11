@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/desporto24-relaunch-clean
+      - feature/desporto24-preview-deploy
   pull_request:
     branches:
       - develop
