@@ -56,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Import({
         SessionServiceImpl.class,
         SessionViewMapper.class,
+        VenueService.class,
         SessionDistanceCalculator.class,
         WaitlistPromotionService.class,
         SessionNotificationService.class,
