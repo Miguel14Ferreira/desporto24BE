@@ -70,6 +70,21 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
               and (:minPrice is null or coalesce(s.priceAmount, 0) >= :minPrice)
               and (:maxPrice is null or coalesce(s.priceAmount, 0) <= :maxPrice)
             order by s.gameDate asc, s.id asc
+            """, countQuery = """
+            select count(s)
+            from Session s
+            where s.status in :statuses
+              and s.gameDate > :now
+              and s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+              and (:sport = '' or lower(s.sport) = :sport)
+              and (:city = '' or lower(s.city) like concat('%', :city, '%'))
+              and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
+              and (:fromDate is null or s.gameDate >= :fromDate)
+              and (:toDate is null or s.gameDate <= :toDate)
+              and (:privateGame is null or coalesce(s.privateGame, false) = :privateGame)
+              and (:freeOnly = false or s.priceAmount is null or s.priceAmount = 0)
+              and (:minPrice is null or coalesce(s.priceAmount, 0) >= :minPrice)
+              and (:maxPrice is null or coalesce(s.priceAmount, 0) <= :maxPrice)
             """)
     org.springframework.data.domain.Page<Session> discoverCandidatesPage(
             @Param("statuses") Collection<SessionStatus> statuses,
