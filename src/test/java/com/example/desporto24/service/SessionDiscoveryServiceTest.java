@@ -118,6 +118,32 @@ class SessionDiscoveryServiceTest {
     }
 
     @Test
+    void appliesDistanceAndAvailabilityBeforeReturningEligibleSessions() {
+        Session fullNearby = session(1L, "Futebol", "Lisboa", 38.75, -9.25, 0, false, 4, 4);
+        Session farAway = session(2L, "Futebol", "Sintra", 38.85, -9.40, 0, false, 10, 2);
+        Session eligible = session(3L, "Futebol", "Amadora", 38.76, -9.24, 0, false, 10, 2);
+
+        stubCandidates(fullNearby, farAway, eligible);
+        when(distanceCalculator.kilometres(38.75, -9.25, fullNearby.getLatitude(), fullNearby.getLongitude())).thenReturn(2.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, farAway.getLatitude(), farAway.getLongitude())).thenReturn(40.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, eligible.getLatitude(), eligible.getLongitude())).thenReturn(3.0);
+        stubSummary(fullNearby, 2.0, 4);
+        stubSummary(farAway, 40.0, 2);
+        stubSummary(eligible, 3.0, 2);
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, 38.75, -9.25, 25.0,
+                "available", false, null, "date"
+        ));
+
+        assertEquals(List.of(3L), result.stream().map(SessionSummaryResponse::id).toList());
+        verify(sessionRepository, never()).discoverCandidatesPage(
+                anyCollection(), any(Date.class), anyString(), anyString(), anyString(),
+                nullable(Date.class), nullable(Date.class), nullable(Boolean.class), anyBoolean(),
+                nullable(BigDecimal.class), nullable(BigDecimal.class), any());
+    }
+
+    @Test
     void radiusIsNotAppliedWhenCoordinatesAreMissing() {
         Session first = session(1L, "Futebol", "Queluz", 38.75, -9.25, 0, false, 10, 1);
         Session second = session(2L, "Padel", "Sintra", 38.80, -9.40, 10, true, 4, 4);
