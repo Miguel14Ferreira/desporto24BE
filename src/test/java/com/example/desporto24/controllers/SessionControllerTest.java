@@ -43,7 +43,7 @@ class SessionControllerTest {
         when(sessionService.discover(any(), eq("miguel"))).thenReturn(List.of());
 
         List<?> response = controller.discover(
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, authentication
         );
 
@@ -57,7 +57,7 @@ class SessionControllerTest {
         when(sessionService.discover(any())).thenReturn(List.of());
 
         List<?> response = controller.discover(
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null
         );
 

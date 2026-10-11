@@ -81,7 +81,7 @@ class SessionDiscoveryServiceTest {
 
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
         when(sessionRepository.discoverCandidates(
-                anyCollection(), any(Date.class), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
+                anyCollection(), any(Date.class), anyString(), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
                 nullable(Boolean.class), anyBoolean(), nullable(java.math.BigDecimal.class), nullable(java.math.BigDecimal.class)))
                 .thenReturn(List.of());
 
@@ -216,7 +216,7 @@ class SessionDiscoveryServiceTest {
 
     private void stubCandidates(Session... sessions) {
         when(sessionRepository.discoverCandidates(
-                anyCollection(), any(Date.class), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
+                anyCollection(), any(Date.class), anyString(), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
                 nullable(Boolean.class), anyBoolean(), nullable(java.math.BigDecimal.class), nullable(java.math.BigDecimal.class)))
                 .thenReturn(List.of(sessions));
     }
