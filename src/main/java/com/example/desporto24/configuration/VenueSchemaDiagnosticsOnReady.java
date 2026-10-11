@@ -42,7 +42,7 @@ public class VenueSchemaDiagnosticsOnReady {
             for (String schema : changelogSchemas) {
                 if (!schema.matches("[A-Za-z_][A-Za-z0-9_]*")) continue;
                 jdbcTemplate.query(
-                        "SELECT id, exectype FROM \\"" + schema + "\\".databasechangelog WHERE id = ?",
+                        "SELECT id, exectype FROM " + schema + ".databasechangelog WHERE id = ?",
                         (org.springframework.jdbc.core.RowCallbackHandler) rs ->
                                 log.info("VENUE_SCHEMA_DIAGNOSTIC changeset_schema={} id={} exectype={}",
                                         schema, rs.getString("id"), rs.getString("exectype")),
