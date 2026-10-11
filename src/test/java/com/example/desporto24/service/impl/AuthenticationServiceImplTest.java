@@ -393,7 +393,6 @@ class AuthenticationServiceImplTest {
         profile.setNotLocked(false);
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches(TEST_MFA_CODE, TEST_CHALLENGE_HASH)).thenReturn(true);
         when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
 
         assertThrows(
