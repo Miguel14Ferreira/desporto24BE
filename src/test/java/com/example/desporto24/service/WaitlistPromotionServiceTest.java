@@ -8,6 +8,7 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
@@ -43,6 +44,7 @@ class WaitlistPromotionServiceTest {
 
     @Autowired private WaitlistPromotionService service;
     @Autowired private ProfileRepository profileRepository;
+    @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
@@ -52,6 +54,7 @@ class WaitlistPromotionServiceTest {
 
     @BeforeEach
     void setUp() {
+        pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
         sessionRepository.deleteAll();
