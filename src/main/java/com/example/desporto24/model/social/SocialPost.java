@@ -1,6 +1,7 @@
 package com.example.desporto24.model.social;
 
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.Session;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +23,10 @@ public class SocialPost {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = false)
     private Profile author;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id")
+    private Session session;
 
     @Column(nullable = false, length = 1000)
     private String content;
