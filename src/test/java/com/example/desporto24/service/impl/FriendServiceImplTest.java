@@ -183,8 +183,8 @@ class FriendServiceImplTest {
                 .thenReturn(Optional.of(miguel));
         when(profileRepository.findUserByUsername("ana"))
                 .thenReturn(Optional.of(ana));
-        when(friendRepository.findByProfile1OrProfile2(miguel, miguel))
-                .thenReturn(List.of(friendship));
+        when(friendRepository.findConnection(miguel.getId(), ana.getId()))
+                .thenReturn(Optional.of(friendship));
 
         service.unblockFriend("miguel", "ana");
 
