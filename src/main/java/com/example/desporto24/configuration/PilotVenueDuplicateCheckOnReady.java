@@ -19,6 +19,29 @@ public class PilotVenueDuplicateCheckOnReady {
     private final VenueRepository venueRepository;
 
     @EventListener(ApplicationReadyEvent.class)
+    public void verifyImportedVenues() {
+        verify(261L, "OSM:WAY:305711614", "Porto", "Natação");
+        verify(262L, "OSM:WAY:58257179", "Coimbra",
+                "Andebol;Basquetebol;Voleibol;Futsal;Patinagem;Ginástica");
+    }
+
+    private void verify(Long id, String reference, String city, String sports) {
+        try {
+            venueRepository.findById(id).ifPresentOrElse(venue -> {
+                boolean valid = venue.getInformationSource() == Venue.InformationSource.OPENSTREETMAP
+                        && reference.equals(venue.getSourceReference())
+                        && city.equalsIgnoreCase(venue.getCity())
+                        && sports.equals(venue.getSports());
+                log.info("PILOT_VENUE_VERIFY id={} result={} name={} city={} sports={}",
+                        id, valid ? "OK" : "MISMATCH",
+                        venue.getName(), venue.getCity(), venue.getSports());
+            }, () -> log.warn("PILOT_VENUE_VERIFY id={} result=NOT_FOUND", id));
+        } catch (Exception ex) {
+            log.warn("PILOT_VENUE_VERIFY id={} result=FAILED error={}", id, ex.toString());
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
     public void checkPilotVenues() {
         check("OSM:WAY:305711614", "Piscina Municipal da Constituição", "Porto",
                 41.16518, -8.61414);
