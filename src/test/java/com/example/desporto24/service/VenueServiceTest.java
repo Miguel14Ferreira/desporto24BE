@@ -197,4 +197,40 @@ class VenueServiceTest {
         assertEquals(1, results.size());
         assertEquals("Campo Padel", results.getFirst().name());
     }
+
+    @Test
+    void searchesImportedNationalVenuesByCityAndSport() {
+        Venue porto = Venue.builder()
+                .id(261L)
+                .name("Piscina Municipal da Constituição")
+                .city("Porto")
+                .address("Rua do Almirante Leote do Rêgo")
+                .sports("Natação")
+                .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .build();
+        Venue coimbra = Venue.builder()
+                .id(262L)
+                .name("Pavilhão Municipal Multidesportos Mário Mexia")
+                .city("Coimbra")
+                .address("Praça Heróis do Ultramar")
+                .sports("Andebol;Basquetebol;Voleibol;Futsal;Patinagem;Ginástica")
+                .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .build();
+
+        when(venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc("porto"))
+                .thenReturn(List.of(porto));
+        when(venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc("coimbra"))
+                .thenReturn(List.of(coimbra));
+
+        var swimming = service.search(" Porto ", "natação");
+        var basketball = service.search("Coimbra", "Basquetebol");
+        var swimmingInCoimbra = service.search("Coimbra", "Natação");
+
+        assertEquals(1, swimming.size());
+        assertEquals(261L, swimming.getFirst().id());
+        assertEquals("OPENSTREETMAP", swimming.getFirst().informationSource());
+        assertEquals(1, basketball.size());
+        assertEquals(262L, basketball.getFirst().id());
+        assertTrue(swimmingInCoimbra.isEmpty());
+    }
 }
