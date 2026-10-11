@@ -199,6 +199,11 @@ public class SocialFeedService {
             Map<Long, Long> commentCounts,
             Set<Long> likedPostIds) {
         Profile author = post.getAuthor();
+        Session linkedSession = post.getSession();
+        if (linkedSession != null && (Boolean.TRUE.equals(linkedSession.getPrivateGame())
+                || linkedSession.getAudience() == SessionAudience.COMMUNITY_ONLY)) {
+            linkedSession = null;
+        }
 
         return new FeedItemResponse(
                 "POST",
@@ -209,10 +214,11 @@ public class SocialFeedService {
                 post.getContent(),
                 post.getImageUrl(),
                 post.getCreatedAt(),
-                null,
-                null,
-                null,
-                null,
+                linkedSession == null ? null : linkedSession.getId(),
+                linkedSession == null ? null : linkedSession.getSport(),
+                linkedSession == null ? null : linkedSession.getCity(),
+                linkedSession == null || linkedSession.getGameDate() == null
+                        ? null : linkedSession.getGameDate().toInstant(),
                 likeCounts.getOrDefault(post.getId(), 0L),
                 likedPostIds.contains(post.getId()),
                 commentCounts.getOrDefault(post.getId(), 0L)
