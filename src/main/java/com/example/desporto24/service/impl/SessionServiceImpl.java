@@ -332,11 +332,13 @@ public class SessionServiceImpl implements SessionService {
     private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
         String sport = criteria.sport() == null ? "" : criteria.sport().trim().toLowerCase(Locale.ROOT);
         String city = criteria.city() == null ? "" : criteria.city().trim().toLowerCase(Locale.ROOT);
+        String query = criteria.query() == null ? "" : criteria.query().trim().toLowerCase(Locale.ROOT);
         List<Session> filteredCandidates = sessionRepository.discoverCandidates(
                 List.of(SessionStatus.OPEN, SessionStatus.FULL),
                 new Date(),
                 sport,
                 city,
+                query,
                 criteria.from() == null ? null : Date.from(criteria.from()),
                 criteria.to() == null ? null : Date.from(criteria.to()),
                 criteria.privateGame(),

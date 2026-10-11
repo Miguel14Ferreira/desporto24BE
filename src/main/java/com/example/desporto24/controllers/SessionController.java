@@ -39,6 +39,7 @@ public class SessionController {
     public List<SessionSummaryResponse> discover(
             @RequestParam(required = false) String sport,
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) String query,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false)
@@ -55,7 +56,7 @@ public class SessionController {
             Authentication authentication) {
         SessionSearchCriteria criteria = new SessionSearchCriteria(
                 sport, city, from, to, latitude, longitude, radiusKm,
-                availability, privateGame, freeOnly, minPrice, maxPrice, sort
+                availability, privateGame, freeOnly, minPrice, maxPrice, sort, query
         );
 
         if (authentication == null

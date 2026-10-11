@@ -32,6 +32,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
               and s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
               and (:sport = '' or lower(s.sport) = :sport)
               and (:city = '' or lower(s.city) like concat('%', :city, '%'))
+              and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
               and (:fromDate is null or s.gameDate >= :fromDate)
               and (:toDate is null or s.gameDate <= :toDate)
               and (:privateGame is null or coalesce(s.privateGame, false) = :privateGame)
@@ -45,6 +46,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("now") Date now,
             @Param("sport") String sport,
             @Param("city") String city,
+            @Param("query") String query,
             @Param("fromDate") Date fromDate,
             @Param("toDate") Date toDate,
             @Param("privateGame") Boolean privateGame,
