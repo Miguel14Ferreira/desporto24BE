@@ -69,6 +69,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
               and (:freeOnly = false or s.priceAmount is null or s.priceAmount = 0)
               and (:minPrice is null or coalesce(s.priceAmount, 0) >= :minPrice)
               and (:maxPrice is null or coalesce(s.priceAmount, 0) <= :maxPrice)
+            order by s.gameDate asc, s.id asc
             """)
     org.springframework.data.domain.Page<Session> discoverCandidatesPage(
             @Param("statuses") Collection<SessionStatus> statuses,
