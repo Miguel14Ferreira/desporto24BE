@@ -75,6 +75,14 @@ public class SocialFeedService {
             String username,
             String content,
             MultipartFile image) {
+        return createPostWithImage(username, content, image, null);
+    }
+
+    public FeedItemResponse createPostWithImage(
+            String username,
+            String content,
+            MultipartFile image,
+            Long sessionId) {
         String normalizedContent = content == null ? "" : content.trim();
 
         if (normalizedContent.isBlank()) {
@@ -86,7 +94,7 @@ public class SocialFeedService {
         if (image == null || image.isEmpty()) {
             return createPost(
                     username,
-                    new CreateSocialPostRequest(normalizedContent)
+                    new CreateSocialPostRequest(normalizedContent, sessionId)
             );
         }
         if (mediaStorage == null) {
@@ -94,12 +102,14 @@ public class SocialFeedService {
         }
 
         Profile author = profile(username);
+        Session linkedSession = resolvePublicSession(sessionId);
         String baseKey = "posts/" + author.getId() + "/" + UUID.randomUUID();
         URI uri = mediaStorage.store(baseKey, image);
         String storageKey = storageKey(uri);
 
         SocialPost post = postRepository.save(SocialPost.builder()
                 .author(author)
+                .session(linkedSession)
                 .content(normalizedContent)
                 .imageUrl(uri.toString())
                 .imageStorageKey(storageKey)

@@ -48,11 +48,13 @@ public class SocialFeedController {
     public FeedItemResponse createPostWithImage(
             @RequestPart("content") String content,
             @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "sessionId", required = false) Long sessionId,
             Authentication authentication) {
         return feedService.createPostWithImage(
                 authentication.getName(),
                 content,
-                image
+                image,
+                sessionId
         );
     }
 
