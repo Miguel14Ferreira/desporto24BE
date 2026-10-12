@@ -63,6 +63,9 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
               and p.attendanceStatus = com.example.desporto24.enumeration.AttendanceStatus.ATTENDED
               and p.attendanceRecordedAt is not null
               and (s.privateGame = false or s.privateGame is null)
+              and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
+                   or (s.audience is null and s.community is null))
+              and (s.enabled = true or s.enabled is null)
             order by p.attendanceRecordedAt desc
             """)
     List<SessionParticipant> findPublicAttendanceFeed(

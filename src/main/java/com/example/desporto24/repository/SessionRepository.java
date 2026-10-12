@@ -114,6 +114,9 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             from Session s
             where s.profile.id in :profileIds
               and (s.privateGame = false or s.privateGame is null)
+              and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
+                   or (s.audience is null and s.community is null))
+              and (s.enabled = true or s.enabled is null)
             order by s.created_at desc
             """)
     List<Session> findPublicFeedSessions(
@@ -124,6 +127,9 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             select s
             from Session s
             where (s.privateGame = false or s.privateGame is null)
+              and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
+                   or (s.audience is null and s.community is null))
+              and (s.enabled = true or s.enabled is null)
             order by s.created_at desc
             """)
     List<Session> findRecentPublicFeedSessions(Pageable pageable);
