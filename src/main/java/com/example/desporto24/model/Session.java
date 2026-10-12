@@ -48,6 +48,11 @@ public class Session {
     @Column(name = "max_participants")
     private Integer maxParticipants;
 
+    // Counts confirmed people without a Jynlo membership. The creator is already an ACTIVE participant.
+    @Builder.Default
+    @Column(name = "external_confirmed_participants", nullable = false)
+    private Integer externalConfirmedParticipants = 0;
+
     @Column(name = "price_amount", precision = 10, scale = 2)
     private BigDecimal priceAmount;
 

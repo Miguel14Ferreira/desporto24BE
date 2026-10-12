@@ -53,10 +53,10 @@ public class SessionViewMapper {
                 session.getCity(),
                 session.getGameDate().toInstant(),
                 distanceKm,
-                participantCounts == null
-                        ? Math.toIntExact(participantRepository.countBySessionIdAndState(
-                                session.getId(), ParticipantState.ACTIVE))
-                        : Math.toIntExact(participantCounts.getOrDefault(session.getId(), 0L)),
+                SessionCapacity.totalConfirmed(session, participantCounts == null
+                        ? participantRepository.countBySessionIdAndState(
+                                session.getId(), ParticipantState.ACTIVE)
+                        : participantCounts.getOrDefault(session.getId(), 0L)),
                 session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),
@@ -80,7 +80,8 @@ public class SessionViewMapper {
                 session.getCity(),
                 session.getGameDate().toInstant(),
                 distanceKm,
-                Math.toIntExact(participantCounts.getOrDefault(session.getId(), 0L)),
+                SessionCapacity.totalConfirmed(session,
+                        participantCounts.getOrDefault(session.getId(), 0L)),
                 session.getMaxParticipants() == null ? 0 : session.getMaxParticipants(),
                 session.getPriceAmount() == null ? BigDecimal.ZERO : session.getPriceAmount(),
                 Boolean.TRUE.equals(session.getPrivateGame()),
@@ -116,8 +117,8 @@ public class SessionViewMapper {
         }).orElse(null);
 
         boolean canSeeExactAddress = creator || participant;
-        int participantCount = Math.toIntExact(participantRepository.countBySessionIdAndState(
-                session.getId(), ParticipantState.ACTIVE));
+        int participantCount = SessionCapacity.totalConfirmed(session,
+                participantRepository.countBySessionIdAndState(session.getId(), ParticipantState.ACTIVE));
         boolean publicAudience = session.getAudience() == SessionAudience.PUBLIC
                 || (session.getAudience() == null && session.getCommunity() == null);
         boolean canSharePublicly = publicAudience

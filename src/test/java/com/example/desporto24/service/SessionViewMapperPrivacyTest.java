@@ -47,6 +47,19 @@ class SessionViewMapperPrivacyTest {
     }
 
     @Test
+    void detailAndSummariesIncludeConfirmedPlayersOutsideTheApp() {
+        Session session = session(profile(1L, "creator"));
+        session.setExternalConfirmedParticipants(7);
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE))
+                .thenReturn(1L);
+
+        assertEquals(8, mapper.toDetail(session, null).participantCount());
+        assertEquals(8, mapper.toSummary(session, null).participantCount());
+        assertEquals(8, mapper.toSummary(session, null, null, java.util.Map.of(10L, 1L))
+                .participantCount());
+    }
+
+    @Test
     void detailIncludesRecurrenceSeriesId() {
         Profile creator = profile(1L, "creator");
         Session session = session(creator);

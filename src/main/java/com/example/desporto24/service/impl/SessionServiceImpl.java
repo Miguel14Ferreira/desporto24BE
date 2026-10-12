@@ -36,6 +36,7 @@ import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
+import com.example.desporto24.service.SessionCapacity;
 import com.example.desporto24.service.SessionNotificationService;
 import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.ReliabilityService;
@@ -509,11 +510,10 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
-        int maxParticipants = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
         long activeParticipants = participantRepository.countBySessionIdAndState(
                 sessionId, ParticipantState.ACTIVE);
 
-        if (activeParticipants < maxParticipants) {
+        if (SessionCapacity.remainingPlaces(session, activeParticipants) > 0) {
             SessionParticipant participant = participantRepository
                     .findBySessionIdAndProfileId(sessionId, profile.getId())
                     .orElseGet(SessionParticipant::new);
@@ -530,7 +530,8 @@ public class SessionServiceImpl implements SessionService {
             pilotEventService.recordSessionJoined(profile, sessionId);
 
             long newCount = activeParticipants + 1;
-            session.setStatus(newCount >= maxParticipants ? SessionStatus.FULL : SessionStatus.OPEN);
+            session.setStatus(SessionCapacity.remainingPlaces(session, newCount) == 0
+                    ? SessionStatus.FULL : SessionStatus.OPEN);
             session.setUpdatedAt(Instant.now());
             sessionRepository.save(session);
             return new JoinSessionResponse(JoinState.PARTICIPANT, null);

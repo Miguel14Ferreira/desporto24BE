@@ -171,6 +171,34 @@ class SessionJoinServiceTest {
     }
 
     @Test
+    void externalConfirmationsLeaveExactlyTwoPlacesForAppRegistrations() {
+        Session session = createSession(false, null, 10);
+        // The organiser already occupies one active seat in the app.
+        session.setExternalConfirmedParticipants(7);
+        sessionRepository.saveAndFlush(session);
+
+        Profile first = createProfile("firstExternal");
+        Profile second = createProfile("secondExternal");
+        Profile third = createProfile("thirdExternal");
+
+        assertEquals(8, SessionCapacity.totalConfirmed(session, 1L));
+        assertEquals(2, SessionCapacity.remainingPlaces(session, 1L));
+
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), first.getUsername()).state());
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), second.getUsername()).state());
+        assertEquals(JoinState.WAITLISTED, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), third.getUsername()).state());
+
+        assertEquals(3L, participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
+        assertEquals(10, SessionCapacity.totalConfirmed(session, 3L));
+        assertEquals(SessionStatus.FULL,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
     void fullSessionPlacesUserOnWaitlist() {
         Session session = createSession(false, null, 1);
         Profile joiner = createProfile("joiner");

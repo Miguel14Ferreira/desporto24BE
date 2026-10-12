@@ -32,6 +32,14 @@ public class WaitlistPromotionService {
             return Optional.empty();
         }
 
+        // A promotion cannot consume a place already reserved for an external player.
+        long active = participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE);
+        if (SessionCapacity.remainingPlaces(session, active) == 0) {
+            recomputeStatus(session, now);
+            return Optional.empty();
+        }
+
         Optional<SessionParticipant> promoted = waitlistRepository
                 .findFirstBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId())
                 .map(entry -> {
@@ -65,7 +73,8 @@ public class WaitlistPromotionService {
         int max = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
         long active = participantRepository.countBySessionIdAndState(
                 session.getId(), ParticipantState.ACTIVE);
-        session.setStatus(max > 0 && active >= max ? SessionStatus.FULL : SessionStatus.OPEN);
+        session.setStatus(max > 0 && SessionCapacity.remainingPlaces(session, active) == 0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
         session.setUpdatedAt(now);
         sessionRepository.save(session);
     }

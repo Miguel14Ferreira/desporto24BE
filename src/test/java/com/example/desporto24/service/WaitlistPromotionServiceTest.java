@@ -144,6 +144,22 @@ class WaitlistPromotionServiceTest {
     }
 
     @Test
+    void externalConfirmedPlayersPreventPromotionWhenNoSeatIsFree() {
+        session.setExternalConfirmedParticipants(1);
+        sessionRepository.saveAndFlush(session);
+        Profile waiting = profile("waitingExternal");
+        waitlisted(waiting, Instant.now());
+
+        Optional<SessionParticipant> promoted = service.promoteNext(session, Instant.now());
+
+        assertTrue(promoted.isEmpty());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), waiting.getId()).isPresent());
+        assertEquals(SessionStatus.FULL,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
     void cancelledSessionDoesNotPromoteWaitlist() {
         Profile waiting = profile("waiting");
         waitlisted(waiting, Instant.now());
