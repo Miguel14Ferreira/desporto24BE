@@ -117,10 +117,15 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
               and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
                    or (s.audience is null and s.community is null))
               and (s.enabled = true or s.enabled is null)
+              and s.gameDate > :now
+              and (s.status is null
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.OPEN
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.FULL)
             order by s.created_at desc
             """)
     List<Session> findPublicFeedSessions(
             @Param("profileIds") Collection<Long> profileIds,
+            @Param("now") Date now,
             Pageable pageable);
 
     @Query("""
@@ -130,9 +135,13 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
               and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
                    or (s.audience is null and s.community is null))
               and (s.enabled = true or s.enabled is null)
+              and s.gameDate > :now
+              and (s.status is null
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.OPEN
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.FULL)
             order by s.created_at desc
             """)
-    List<Session> findRecentPublicFeedSessions(Pageable pageable);
+    List<Session> findRecentPublicFeedSessions(@Param("now") Date now, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Session s where s.id = :id")

@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -162,12 +163,13 @@ public class SocialFeedService {
                         authorIds,
                         PageRequest.of(0, FEED_LIMIT));
 
+        // Filter expired games in SQL before pagination, without deleting feed history.
+        Date now = Date.from(Instant.now());
         List<Session> sessions = discoveryFallback
                 ? sessionRepository.findRecentPublicFeedSessions(
-                        PageRequest.of(0, FEED_LIMIT))
+                        now, PageRequest.of(0, FEED_LIMIT))
                 : sessionRepository.findPublicFeedSessions(
-                        authorIds,
-                        PageRequest.of(0, FEED_LIMIT));
+                        authorIds, now, PageRequest.of(0, FEED_LIMIT));
 
         List<SessionParticipant> attendedSessions =
                 participantRepository.findPublicAttendanceFeed(

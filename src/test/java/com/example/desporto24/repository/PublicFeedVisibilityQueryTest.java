@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -15,9 +16,25 @@ class PublicFeedVisibilityQueryTest {
     @Test
     void publicSessionFeedExcludesCommunityOnlyAndDisabledSessions() throws Exception {
         assertPublicVisibility(SessionRepository.class.getMethod(
-                "findPublicFeedSessions", Collection.class, Pageable.class));
+                "findPublicFeedSessions", Collection.class, Date.class, Pageable.class));
         assertPublicVisibility(SessionRepository.class.getMethod(
-                "findRecentPublicFeedSessions", Pageable.class));
+                "findRecentPublicFeedSessions", Date.class, Pageable.class));
+    }
+
+    @Test
+    void recruitmentFeedOnlyContainsUpcomingActiveSessions() throws Exception {
+        assertOnlyActiveUpcomingSessions(SessionRepository.class.getMethod(
+                "findPublicFeedSessions", Collection.class, Date.class, Pageable.class));
+        assertOnlyActiveUpcomingSessions(SessionRepository.class.getMethod(
+                "findRecentPublicFeedSessions", Date.class, Pageable.class));
+    }
+
+    private void assertOnlyActiveUpcomingSessions(Method method) {
+        String jpql = method.getAnnotation(Query.class).value();
+        assertTrue(jpql.contains("s.gameDate > :now"), method.getName());
+        assertTrue(jpql.contains("SessionStatus.OPEN"), method.getName());
+        assertTrue(jpql.contains("SessionStatus.FULL"), method.getName());
+        assertTrue(jpql.contains("s.status is null"), method.getName());
     }
 
     @Test
