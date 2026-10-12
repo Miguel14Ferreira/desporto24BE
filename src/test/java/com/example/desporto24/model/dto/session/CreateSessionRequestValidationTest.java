@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+import com.example.desporto24.enumeration.SessionRecurrence;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,6 +45,23 @@ class CreateSessionRequestValidationTest {
     @Test
     void blankLocalityIsRejected() {
         assertFalse(validator.validate(requestWithCity("")).isEmpty());
+    }
+
+    @Test
+    void negativeExternalConfirmedParticipantsAreRejected() {
+        assertFalse(validator.validate(requestWithExternal(-1)).isEmpty());
+    }
+
+    @Test
+    void externalConfirmedParticipantsWithinRangeAreAccepted() {
+        assertTrue(validator.validate(requestWithExternal(7)).isEmpty());
+    }
+
+    private CreateSessionRequest requestWithExternal(int external) {
+        return new CreateSessionRequest(
+                "Futsal", Instant.now().plusSeconds(3600), "Lisboa", "Rua de Teste 1",
+                10, BigDecimal.ZERO, false, null, 38.7223, -9.1393,
+                null, null, SessionRecurrence.NONE, null, external);
     }
 
     private CreateSessionRequest requestWithCity(String city) {

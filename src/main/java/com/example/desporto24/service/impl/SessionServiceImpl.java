@@ -140,6 +140,16 @@ public class SessionServiceImpl implements SessionService {
             throw new IllegalArgumentException("Private sessions require a password");
         }
 
+        // The organiser already occupies an active place and must not be counted again.
+        int externalConfirmed = request.externalConfirmedParticipants() == null
+                ? 0 : request.externalConfirmedParticipants();
+        if (externalConfirmed < 0 || externalConfirmed > 99
+                || request.maxParticipants() == null
+                || externalConfirmed >= request.maxParticipants()) {
+            throw new IllegalArgumentException(
+                    "External confirmed participants must leave a place for the organiser");
+        }
+
         SessionRecurrence recurrence = request.recurrence() == null
                 ? SessionRecurrence.NONE
                 : request.recurrence();
@@ -208,6 +218,8 @@ public class SessionServiceImpl implements SessionService {
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
         session.setMaxParticipants(request.maxParticipants());
+        session.setExternalConfirmedParticipants(
+                request.externalConfirmedParticipants() == null ? 0 : request.externalConfirmedParticipants());
         session.setPriceAmount(request.priceAmount() == null ? BigDecimal.ZERO : request.priceAmount());
         session.setPrivateGame(request.privateGame());
         session.setPasswordHash(request.privateGame() ? passwordHashService.encode(request.password()) : null);
@@ -221,7 +233,8 @@ public class SessionServiceImpl implements SessionService {
                         ? linkedVenue.getLongitude()
                         : request.longitude()
         );
-        session.setStatus(SessionStatus.OPEN);
+        session.setStatus(SessionCapacity.remainingPlaces(session, 1) == 0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
         session.setEnabled(true);
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
