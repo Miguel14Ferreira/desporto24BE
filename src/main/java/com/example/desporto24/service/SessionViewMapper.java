@@ -149,7 +149,9 @@ public class SessionViewMapper {
                 session.getProblemType(),
                 creator ? session.getProblemDetails() : null,
                 session.getCommunity() == null ? null : session.getCommunity().getId(),
-                canSharePublicly
+                canSharePublicly,
+                session.getExternalConfirmedParticipants() == null
+                        ? 0 : session.getExternalConfirmedParticipants()
         );
     }
 }

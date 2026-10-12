@@ -60,6 +60,20 @@ class SessionViewMapperPrivacyTest {
     }
 
     @Test
+    void detailExposesExternalConfirmedCountSeparatelyFromTotal() {
+        Session session = session(profile(1L, "creator"));
+        session.setExternalConfirmedParticipants(7);
+        when(participantRepository.countBySessionIdAndState(10L, ParticipantState.ACTIVE))
+                .thenReturn(1L);
+
+        SessionDetailResponse detail = mapper.toDetail(session, null);
+
+        assertEquals(7, detail.externalConfirmedParticipants());
+        assertEquals(8, detail.participantCount());
+        assertEquals(10, detail.maxParticipants());
+    }
+
+    @Test
     void detailIncludesRecurrenceSeriesId() {
         Profile creator = profile(1L, "creator");
         Session session = session(creator);

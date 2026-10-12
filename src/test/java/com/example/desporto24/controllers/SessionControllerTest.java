@@ -10,6 +10,7 @@ import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionTeamPlayerResponse;
 import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
+import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmationsRequest;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
@@ -95,6 +96,17 @@ class SessionControllerTest {
         assertEquals(201, response.getStatusCode().value());
         assertEquals(detail, response.getBody());
         verify(sessionService).create(request, "miguel");
+    }
+
+    @Test
+    void updateExternalConfirmationsUsesAuthenticatedCreator() {
+        when(authentication.getName()).thenReturn("miguel");
+        var request = new UpdateSessionExternalConfirmationsRequest(7);
+        SessionDetailResponse detail = detail("Rua do Campo", true);
+        when(sessionService.updateExternalConfirmations(1L, 7, "miguel")).thenReturn(detail);
+
+        assertSame(detail, controller.updateExternalConfirmations(1L, request, authentication));
+        verify(sessionService).updateExternalConfirmations(1L, 7, "miguel");
     }
 
     @Test

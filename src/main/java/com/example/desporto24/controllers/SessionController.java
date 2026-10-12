@@ -11,6 +11,7 @@ import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
+import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmationsRequest;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
 import jakarta.validation.Valid;
@@ -119,6 +120,15 @@ public class SessionController {
             Authentication authentication) {
         JoinSessionRequest effectiveRequest = request == null ? new JoinSessionRequest(null) : request;
         return sessionService.join(id, effectiveRequest, authentication.getName());
+    }
+
+    @PatchMapping("/{id}/external-confirmations")
+    public SessionDetailResponse updateExternalConfirmations(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateSessionExternalConfirmationsRequest request,
+            Authentication authentication) {
+        return sessionService.updateExternalConfirmations(
+                id, request.externalConfirmedParticipants(), authentication.getName());
     }
 
     @PostMapping("/{id}/leave")

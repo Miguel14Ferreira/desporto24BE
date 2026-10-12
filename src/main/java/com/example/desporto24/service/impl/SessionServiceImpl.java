@@ -591,6 +591,55 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional
+    public SessionDetailResponse updateExternalConfirmations(
+            Long sessionId, int externalConfirmed, String username) {
+        // The same row lock as join() serialises changes to reserved places.
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireCreator(session, actor);
+        assertJoinable(session);
+
+        int max = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
+        long active = participantRepository.countBySessionIdAndState(
+                sessionId, ParticipantState.ACTIVE);
+        if (externalConfirmed < 0 || externalConfirmed > 99 || externalConfirmed >= max
+                || active + externalConfirmed > max) {
+            throw new IllegalArgumentException(
+                    "Confirmed external players exceed available session capacity");
+        }
+
+        int previous = session.getExternalConfirmedParticipants() == null
+                ? 0 : session.getExternalConfirmedParticipants();
+        Instant now = Instant.now();
+        session.setExternalConfirmedParticipants(externalConfirmed);
+        session.setStatus(SessionCapacity.remainingPlaces(session, active) == 0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessionRepository.save(session);
+
+        // Releasing reserved places must honour the existing waitlist first.
+        if (externalConfirmed < previous) {
+            boolean promoted = false;
+            while (SessionCapacity.remainingPlaces(session,
+                    participantRepository.countBySessionIdAndState(
+                            sessionId, ParticipantState.ACTIVE)) > 0) {
+                if (waitlistPromotionService.promoteNext(session, now).isEmpty()) {
+                    break;
+                }
+                promoted = true;
+            }
+            if (promoted) {
+                invalidateConfirmedTeams(sessionId);
+            }
+        }
+
+        return sessionViewMapper.toDetail(session, actor);
+    }
+
+    @Override
+    @Transactional
     public void leave(Long sessionId, String username) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));

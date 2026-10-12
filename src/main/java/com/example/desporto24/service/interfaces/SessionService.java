@@ -25,6 +25,7 @@ public interface SessionService {
     MySessionsResponse mine(String username);
     List<SessionParticipantResponse> participants(Long sessionId, String username);
     JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username);
+    SessionDetailResponse updateExternalConfirmations(Long sessionId, int externalConfirmed, String username);
     void leave(Long sessionId, String username);
     void cancel(Long sessionId, String username);
     void complete(Long sessionId, String username);
