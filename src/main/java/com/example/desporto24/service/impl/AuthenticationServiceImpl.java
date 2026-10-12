@@ -300,7 +300,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             createWelcomeNotification(profileDTO, null);
             pilotEventService.recordRegistrationCompleted(savedProfile, cohort);
         } else {
-            sendSignUpEmail(profileDTO);
+            sendSignUpEmail(profileDTO, request.returnSessionId());
         }
     }
 
@@ -341,7 +341,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         profileDTO.setProfilePicUrl(uri.toString());
     }
 
-    private void sendSignUpEmail(ProfileDTO profileDTO)  {
+    private void sendSignUpEmail(ProfileDTO profileDTO) {
+        sendSignUpEmail(profileDTO, null);
+    }
+
+    private void sendSignUpEmail(ProfileDTO profileDTO, Long returnSessionId) {
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(
                 token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), profileDTO.getUsername()
@@ -349,7 +353,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
 
         String link = uiAppUrl.replaceAll("/+$", "")
-                + "/?confirmRegistration=" + token;
+                + "/?confirmRegistration=" + token
+                + (returnSessionId != null && returnSessionId > 0
+                        ? "&returnSessionId=" + returnSessionId
+                        : "");
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
         emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
                 buildRegistrationEmail(profileDTO.getUsername(), link));

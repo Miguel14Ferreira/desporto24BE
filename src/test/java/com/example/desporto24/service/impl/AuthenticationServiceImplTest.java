@@ -201,7 +201,8 @@ class AuthenticationServiceImplTest {
                 "912345678",
                 "outro",
                 "fixture@example.test",
-        true
+                true,
+                42L
         );
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
@@ -245,6 +246,7 @@ class AuthenticationServiceImplTest {
         assertTrue(html.getValue().contains("15 minutos"));
         assertTrue(html.getValue().contains("15 minutes"));
         assertTrue(html.getValue().contains("https://example.test/?confirmRegistration="));
+        assertTrue(html.getValue().contains("returnSessionId=42"));
     }
 
     @Test
