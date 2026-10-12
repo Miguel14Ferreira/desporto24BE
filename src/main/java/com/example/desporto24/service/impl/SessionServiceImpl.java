@@ -20,6 +20,7 @@ import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
 import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
@@ -252,6 +253,32 @@ public class SessionServiceImpl implements SessionService {
 
         pilotEventService.recordSessionCreated(creator, saved.getId());
         return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SessionPublicPreviewResponse publicPreview(Long sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+
+        // Never expose private sessions or sessions restricted to a community.
+        boolean publicAudience = session.getAudience() == SessionAudience.PUBLIC
+                || (session.getAudience() == null && session.getCommunity() == null);
+        if (!publicAudience
+                || Boolean.TRUE.equals(session.getPrivateGame())
+                || Boolean.FALSE.equals(session.getEnabled())) {
+            throw new SessionNotFound("Session not found");
+        }
+
+        return new SessionPublicPreviewResponse(
+                session.getId(),
+                session.getSport(),
+                session.getCity(),
+                session.getGameDate() == null ? null : session.getGameDate().toInstant(),
+                session.getMaxParticipants(),
+                session.getPriceAmount(),
+                session.getStatus(),
+                session.getGamePhoto());
     }
 
     @Override

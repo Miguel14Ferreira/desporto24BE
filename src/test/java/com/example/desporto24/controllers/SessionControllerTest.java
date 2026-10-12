@@ -5,6 +5,7 @@ import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionTeamPlayerResponse;
 import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
@@ -64,6 +65,17 @@ class SessionControllerTest {
         assertTrue(response.isEmpty());
         verify(sessionService).discover(any());
         verify(sessionService, never()).discover(any(), anyString());
+    }
+
+    @Test
+    void publicPreviewWorksWithoutAuthentication() {
+        SessionPublicPreviewResponse preview = new SessionPublicPreviewResponse(
+                7L, "Futebol", "Parede", Instant.parse("2026-10-20T19:00:00Z"),
+                10, BigDecimal.ZERO, SessionStatus.OPEN, null);
+        when(sessionService.publicPreview(7L)).thenReturn(preview);
+
+        assertEquals(preview, controller.publicPreview(7L));
+        verify(sessionService).publicPreview(7L);
     }
 
     @Test

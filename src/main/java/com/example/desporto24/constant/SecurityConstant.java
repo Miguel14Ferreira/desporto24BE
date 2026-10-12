@@ -23,6 +23,7 @@ public final class SecurityConstant {
 
     public static final String[] PUBLIC_GET_URLS = {
             "/api/sessions",
+            "/api/sessions/*/public-preview",
             "/api/venues",
             "/api/venues/*"
     };

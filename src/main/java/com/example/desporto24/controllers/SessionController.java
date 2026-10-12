@@ -5,6 +5,7 @@ import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
 import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
@@ -71,6 +72,11 @@ public class SessionController {
     @GetMapping("/mine")
     public MySessionsResponse mine(Authentication authentication) {
         return sessionService.mine(authentication.getName());
+    }
+
+    @GetMapping("/{id}/public-preview")
+    public SessionPublicPreviewResponse publicPreview(@PathVariable Long id) {
+        return sessionService.publicPreview(id);
     }
 
     @GetMapping("/{id}")
