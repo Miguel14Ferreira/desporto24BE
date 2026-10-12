@@ -366,6 +366,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public void resendRegistrationConfirmation(String username) {
+        resendRegistrationConfirmation(username, null);
+    }
+
+    @Override
+    public void resendRegistrationConfirmation(String username, Long returnSessionId) {
         String suppliedUsername = username == null ? "" : username.trim();
         Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
@@ -377,7 +382,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.deleteByProfile(profile.getUsername());
 
         ProfileDTO profileDTO = profileMapper.toDto(profile);
-        sendSignUpEmail(profileDTO);
+        sendSignUpEmail(profileDTO, returnSessionId);
     }
 
     private void createWelcomeNotification(ProfileDTO profileDTO, String token) {

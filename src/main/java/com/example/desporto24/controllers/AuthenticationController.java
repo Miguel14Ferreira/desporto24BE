@@ -157,18 +157,25 @@ public class AuthenticationController {
     }
 
     @PostMapping("/register/resend-confirmation")
-    public ResponseEntity<HttpResponse> resendRegistrationConfirmation(@RequestParam String username) {
+    public ResponseEntity<HttpResponse> resendRegistrationConfirmation(
+            @RequestParam String username,
+            @RequestParam(required = false) Long returnSessionId) {
         sensitiveActionRateLimiter.requireCooldown(
                 "registration-confirmation",
                 username,
                 Duration.ofSeconds(60)
         );
         try {
-            authenticationService.resendRegistrationConfirmation(username);
+            authenticationService.resendRegistrationConfirmation(username, returnSessionId);
         } catch (UserNotFoundException ignored) {
             // Keep a generic response to avoid exposing whether an account exists.
         }
         return buildResponse(CONFIRMATION_EMAIL_RESENT);
+    }
+
+    // Preserve existing direct callers; HTTP uses the annotated two-argument method.
+    public ResponseEntity<HttpResponse> resendRegistrationConfirmation(String username) {
+        return resendRegistrationConfirmation(username, null);
     }
 
     @PostMapping("/reset-password/initiate")

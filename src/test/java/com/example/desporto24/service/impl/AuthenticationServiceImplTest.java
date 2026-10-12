@@ -250,6 +250,46 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void resendConfirmationPreservesSharedSessionDestination() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME, 42L);
+
+        verify(confirmationTokenService).deleteByProfile(TEST_USERNAME);
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("returnSessionId=42"));
+    }
+
+    @Test
+    void legacyResendConfirmationDoesNotRequireSessionDestination() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME);
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("confirmRegistration="));
+        assertFalse(html.getValue().contains("returnSessionId="));
+    }
+
+    @Test
     void previewRegistrationRecordsAttributedPilotEventImmediately() {
         RegistrationRequest request = new RegistrationRequest(
                 TEST_USERNAME,
