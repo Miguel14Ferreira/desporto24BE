@@ -23,3 +23,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-11-venue-information-source-constraint.yaml
   - include:
       file: db/changelog/changes/2026-10-11-social-post-session-link.yaml
+  - include:
+      file: db/changelog/changes/2026-10-12-social-session-like.yaml

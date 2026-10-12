@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-12-social-session-like
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: social_session_like
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_social_session_like
+                    nullable: false
+              - column:
+                  name: session_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: social_session_like
+            baseColumnNames: session_id
+            referencedTableName: session
+            referencedColumnNames: id
+            constraintName: fk_social_session_like_session
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: social_session_like
+            baseColumnNames: profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_social_session_like_profile
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: social_session_like
+            columnNames: session_id, profile_id
+            constraintName: uk_social_session_like
