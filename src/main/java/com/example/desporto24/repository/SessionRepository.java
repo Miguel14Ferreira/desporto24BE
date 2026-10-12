@@ -29,7 +29,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             from Session s
             where s.status in :statuses
               and s.gameDate > :now
-              and s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+              and (s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+                   or (s.audience is null and s.community is null))
               and (:sport = '' or lower(s.sport) = :sport)
               and (:city = '' or lower(s.city) like concat('%', :city, '%'))
               and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
@@ -59,7 +60,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             from Session s
             where s.status in :statuses
               and s.gameDate > :now
-              and s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+              and (s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+                   or (s.audience is null and s.community is null))
               and (:sport = '' or lower(s.sport) = :sport)
               and (:city = '' or lower(s.city) like concat('%', :city, '%'))
               and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
@@ -75,7 +77,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             from Session s
             where s.status in :statuses
               and s.gameDate > :now
-              and s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+              and (s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+                   or (s.audience is null and s.community is null))
               and (:sport = '' or lower(s.sport) = :sport)
               and (:city = '' or lower(s.city) like concat('%', :city, '%'))
               and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
