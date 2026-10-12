@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-12-post-game-review-reminder-column
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: post_game_review_reminder_sent_at
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: post_game_review_reminder_sent_at
+                  type: TIMESTAMP WITH TIME ZONE
+  - changeSet:
+      id: 2026-10-12-post-game-review-notification-type
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        tableExists:
+          schemaName: desporto24
+          tableName: notifications
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.notifications
+              DROP CONSTRAINT IF EXISTS notifications_type_check;
+              ALTER TABLE desporto24.notifications
+              ADD CONSTRAINT notifications_type_check
+              CHECK (type IS NULL OR type IN (
+                'WAITLIST_PROMOTED',
+                'SESSION_REMOVED',
+                'SESSION_CANCELLED',
+                'SESSION_POST_GAME_REVIEW',
+                'ATTENDANCE_DISPUTE_ACCEPTED',
+                'ATTENDANCE_DISPUTE_REJECTED',
+                'CHAT_MESSAGE',
+                'COMMUNITY_INVITE'
+              ));

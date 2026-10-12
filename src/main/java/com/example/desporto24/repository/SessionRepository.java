@@ -143,6 +143,25 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             """)
     List<Session> findRecentPublicFeedSessions(@Param("now") Date now, Pageable pageable);
 
+    // Only recent, unfinished games need a post-game reminder.
+    @Query("""
+            select s.id
+            from Session s
+            where s.profile.username = :username
+              and s.gameDate <= :cutoff
+              and s.gameDate >= :since
+              and s.postGameReviewReminderSentAt is null
+              and s.status in (
+                  com.example.desporto24.enumeration.SessionStatus.OPEN,
+                  com.example.desporto24.enumeration.SessionStatus.FULL)
+            order by s.gameDate desc
+            """)
+    List<Long> findSessionsAwaitingPostGameReview(
+            @Param("username") String username,
+            @Param("cutoff") Date cutoff,
+            @Param("since") Date since,
+            Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Session s where s.id = :id")
     java.util.Optional<Session> findByIdForUpdate(@Param("id") Long id);

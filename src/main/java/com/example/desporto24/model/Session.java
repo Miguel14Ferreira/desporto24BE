@@ -79,6 +79,9 @@ public class Session {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Column(name = "post_game_review_reminder_sent_at")
+    private Instant postGameReviewReminderSentAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "audience")
     private SessionAudience audience;
