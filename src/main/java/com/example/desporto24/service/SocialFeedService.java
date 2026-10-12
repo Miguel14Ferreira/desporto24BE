@@ -210,8 +210,7 @@ public class SocialFeedService {
             Set<Long> likedPostIds) {
         Profile author = post.getAuthor();
         Session linkedSession = post.getSession();
-        if (linkedSession != null && (Boolean.TRUE.equals(linkedSession.getPrivateGame())
-                || linkedSession.getAudience() == SessionAudience.COMMUNITY_ONLY)) {
+        if (!isPubliclyShareableSession(linkedSession)) {
             linkedSession = null;
         }
 
@@ -299,11 +298,20 @@ public class SocialFeedService {
         }
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Sessão não encontrada"));
-        if (Boolean.TRUE.equals(session.getPrivateGame())
-                || session.getAudience() == SessionAudience.COMMUNITY_ONLY) {
-            throw new AccessDeniedException("Não é possível partilhar uma sessão privada no feed");
+        if (!isPubliclyShareableSession(session)) {
+            throw new AccessDeniedException("Não é possível partilhar esta sessão no feed");
         }
         return session;
+    }
+
+    static boolean isPubliclyShareableSession(Session session) {
+        if (session == null
+                || Boolean.TRUE.equals(session.getPrivateGame())
+                || Boolean.FALSE.equals(session.getEnabled())) {
+            return false;
+        }
+        return session.getAudience() == SessionAudience.PUBLIC
+                || (session.getAudience() == null && session.getCommunity() == null);
     }
 
     private String storageKey(URI uri) {
