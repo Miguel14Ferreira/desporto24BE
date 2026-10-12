@@ -31,7 +31,8 @@ public record SessionDetailResponse(
         String recurrenceSeriesId,
         SessionProblemType problemType,
         String problemDetails,
-        Long communityId
+        Long communityId,
+        boolean canSharePublicly
 ) {
     public SessionDetailResponse(
             Long id,
@@ -74,7 +75,8 @@ public record SessionDetailResponse(
                 null,
                 null,
                 null,
-                null
+                null,
+                false
         );
     }
 }

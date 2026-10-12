@@ -125,6 +125,46 @@ class SessionViewMapperPrivacyTest {
         assertTrue(response.canSeeExactAddress());
     }
 
+    @Test
+    void publicSessionDetailAllowsSharing() {
+        Session session = session(profile(1L, "creator"));
+        session.setAudience(com.example.desporto24.enumeration.SessionAudience.PUBLIC);
+
+        assertTrue(mapper.toDetail(session, null).canSharePublicly());
+    }
+
+    @Test
+    void communityOnlyAndLegacyCommunitySessionsDoNotAllowPublicSharing() {
+        Session session = session(profile(1L, "creator"));
+        session.setCommunity(mock(com.example.desporto24.model.community.Community.class));
+        session.setAudience(com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY);
+        assertFalse(mapper.toDetail(session, null).canSharePublicly());
+
+        session.setAudience(null);
+        assertFalse(mapper.toDetail(session, null).canSharePublicly());
+    }
+
+    @Test
+    void explicitlyPublicCommunitySessionCanBeShared() {
+        Session session = session(profile(1L, "creator"));
+        session.setCommunity(mock(com.example.desporto24.model.community.Community.class));
+        session.setAudience(com.example.desporto24.enumeration.SessionAudience.PUBLIC);
+
+        assertTrue(mapper.toDetail(session, null).canSharePublicly());
+    }
+
+    @Test
+    void disabledOrPrivateSessionCannotBeShared() {
+        Session session = session(profile(1L, "creator"));
+        session.setAudience(com.example.desporto24.enumeration.SessionAudience.PUBLIC);
+        session.setEnabled(false);
+        assertFalse(mapper.toDetail(session, null).canSharePublicly());
+
+        session.setEnabled(true);
+        session.setPrivateGame(true);
+        assertFalse(mapper.toDetail(session, null).canSharePublicly());
+    }
+
     private Profile profile(Long id, String username) {
         Profile profile = new Profile();
         profile.setId(id);

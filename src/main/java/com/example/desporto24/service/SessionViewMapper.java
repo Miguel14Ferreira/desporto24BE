@@ -118,6 +118,11 @@ public class SessionViewMapper {
         boolean canSeeExactAddress = creator || participant;
         int participantCount = Math.toIntExact(participantRepository.countBySessionIdAndState(
                 session.getId(), ParticipantState.ACTIVE));
+        boolean publicAudience = session.getAudience() == SessionAudience.PUBLIC
+                || (session.getAudience() == null && session.getCommunity() == null);
+        boolean canSharePublicly = publicAudience
+                && !Boolean.TRUE.equals(session.getPrivateGame())
+                && !Boolean.FALSE.equals(session.getEnabled());
 
         return new SessionDetailResponse(
                 session.getId(),
@@ -142,7 +147,8 @@ public class SessionViewMapper {
                 session.getRecurrenceSeriesId(),
                 session.getProblemType(),
                 creator ? session.getProblemDetails() : null,
-                session.getCommunity() == null ? null : session.getCommunity().getId()
+                session.getCommunity() == null ? null : session.getCommunity().getId(),
+                canSharePublicly
         );
     }
 }
