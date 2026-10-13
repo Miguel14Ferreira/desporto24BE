@@ -1,6 +1,8 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionMessage;
@@ -17,6 +19,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -168,6 +171,57 @@ class SessionChatServiceTest {
     }
 
     @Test
+    void chatClosesAutomaticallyTwoHoursAfterKickoffButHistoryRemainsReadable() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(3 * 3600)));
+        stubActor(session, creator);
+        when(messageRepository.findBySessionIdOrderByCreatedAtAsc(10L)).thenReturn(List.of());
+
+        assertThrows(IllegalStateException.class,
+                () -> service.post(10L, "new message", "creator"));
+        assertTrue(service.messages(10L, "creator").isEmpty());
+        verify(messageRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void gameDayChatStillWorksUntilTwoHoursAfterKickoff() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(30 * 60)));
+        stubActor(session, creator);
+        when(messageRepository.save(any(SessionMessage.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.post(10L, "still playing", "creator");
+
+        verify(messageRepository).save(any(SessionMessage.class));
+    }
+
+    @Test
+    void closingOrCancellingTheSessionImmediatelyDisablesNewMessages() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator);
+        session.setGameDate(Date.from(Instant.now().plusSeconds(7200)));
+        stubActor(session, creator);
+
+        for (SessionStatus status : new SessionStatus[] {
+                SessionStatus.COMPLETED, SessionStatus.CANCELLED
+        }) {
+            session.setStatus(status);
+            assertThrows(IllegalStateException.class,
+                    () -> service.post(10L, "after the game", "creator"));
+        }
+
+        session.setStatus(SessionStatus.OPEN);
+        session.setProblemType(SessionProblemType.NOT_OCCURRED);
+        assertThrows(IllegalStateException.class,
+                () -> service.post(10L, "game did not happen", "creator"));
+        verify(messageRepository, never()).save(any());
+    }
+
+    @Test
     void messageLongerThanTwoThousandCharactersIsRejected() {
         Profile creator = profile(1L, "creator");
         Session session = session(10L, creator);
@@ -181,6 +235,7 @@ class SessionChatServiceTest {
 
     private void stubActor(Session session, Profile actor) {
         when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdForUpdate(session.getId())).thenReturn(Optional.of(session));
         when(profileRepository.findUserByUsername(actor.getUsername())).thenReturn(Optional.of(actor));
     }
 
