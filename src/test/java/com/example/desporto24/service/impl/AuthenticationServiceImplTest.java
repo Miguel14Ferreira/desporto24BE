@@ -23,11 +23,9 @@ import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import com.example.desporto24.utility.JWTokenProvider;
-import com.example.desporto24.utility.SmsUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -378,25 +376,23 @@ class AuthenticationServiceImplTest {
     @Test
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
         Profile profile = activeProfile(true);
+        // Configured MFA uses an authenticator secret, not an SMS challenge.
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.of(profile));
-        when(passwordEncoder.encode(anyString())).thenReturn(TEST_CHALLENGE_HASH);
 
-        try (MockedStatic<SmsUtils> sms = mockStatic(SmsUtils.class)) {
-            LoginResponse response = service().login(credentials());
+        LoginResponse response = service().login(credentials());
 
-            assertTrue(response.mfaRequired());
-            assertNotNull(response.challengeId());
-            assertNull(response.token());
-            assertNull(response.profile());
-            verifyNoInteractions(jwtTokenProvider);
-            verify(mfaVerificationService).saveConfirmationMFA(any());
-            verify(passwordEncoder).encode(argThat(code -> code.toString().matches("\\d{6}")));
-            sms.verify(() -> SmsUtils.sendSMS(
-                    eq("+351"),
-                    eq("912345678"),
-                    argThat(message -> message.matches("(?s).*\\d{6}.*"))
-            ));
-        }
+        assertTrue(response.mfaRequired());
+        assertNotNull(response.challengeId());
+        assertNotNull(response.challengeExpiresAt());
+        assertNull(response.token());
+        assertNull(response.profile());
+        verify(mfaVerificationService).saveConfirmationMFA(argThat(challenge ->
+                response.challengeId().equals(challenge.getChallengeId())
+                        && TEST_USERNAME.equals(challenge.getPerfil())
+                        && challenge.getExpiredAt() != null));
+        verifyNoInteractions(jwtTokenProvider, totpService, passwordEncoder);
+        verify(profileRepository, never()).save(any(Profile.class));
     }
 
     @Test
