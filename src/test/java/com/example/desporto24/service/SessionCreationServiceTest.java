@@ -404,10 +404,13 @@ class SessionCreationServiceTest {
         verify(sessionRepository, times(3)).save(captor.capture());
         verify(participantRepository, times(3)).save(any());
 
-        assertEquals(firstGame, captor.getAllValues().get(0).getGameDate().toInstant());
-        assertEquals(firstGame.plus(7, java.time.temporal.ChronoUnit.DAYS),
+        // java.util.Date stores milliseconds, whereas Instant.now() also has nanoseconds.
+        // Keep verifying the weekly offsets at the precision persisted by Session.
+        Instant firstGameInDatePrecision = java.util.Date.from(firstGame).toInstant();
+        assertEquals(firstGameInDatePrecision, captor.getAllValues().get(0).getGameDate().toInstant());
+        assertEquals(firstGameInDatePrecision.plus(7, java.time.temporal.ChronoUnit.DAYS),
                 captor.getAllValues().get(1).getGameDate().toInstant());
-        assertEquals(firstGame.plus(14, java.time.temporal.ChronoUnit.DAYS),
+        assertEquals(firstGameInDatePrecision.plus(14, java.time.temporal.ChronoUnit.DAYS),
                 captor.getAllValues().get(2).getGameDate().toInstant());
 
         String seriesId = captor.getAllValues().get(0).getRecurrenceSeriesId();
