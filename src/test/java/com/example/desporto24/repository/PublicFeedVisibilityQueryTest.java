@@ -39,8 +39,10 @@ class PublicFeedVisibilityQueryTest {
 
     @Test
     void attendanceFeedUsesTheSamePublicVisibilityRules() throws Exception {
-        assertPublicVisibility(SessionParticipantRepository.class.getMethod(
-                "findPublicAttendanceFeed", Collection.class, Pageable.class));
+        Method method = SessionParticipantRepository.class.getMethod(
+                "findPublicAttendanceFeed", Collection.class, Pageable.class);
+        assertPublicVisibility(method);
+        assertTrue(method.getAnnotation(Query.class).value().contains("p.feedHidden = false"));
     }
 
     private void assertPublicVisibility(Method method) {

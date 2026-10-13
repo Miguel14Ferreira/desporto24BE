@@ -57,6 +57,9 @@ public class SessionParticipant {
     @Column(name = "attendance_recorded_at")
     private Instant attendanceRecordedAt;
 
+    @Column(name = "feed_hidden", nullable = false)
+    private boolean feedHidden;
+
     @Column(name = "team_code", length = 1)
     private String teamCode;
 }

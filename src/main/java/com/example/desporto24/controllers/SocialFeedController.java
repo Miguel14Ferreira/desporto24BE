@@ -58,6 +58,14 @@ public class SocialFeedController {
         );
     }
 
+    @PutMapping("/attendance/{sessionId}/hide")
+    public ResponseEntity<Void> hideAttendanceActivity(
+            @PathVariable Long sessionId,
+            Authentication authentication) {
+        feedService.hideAttendanceActivity(sessionId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/posts/{postId}/likes")
     public PostLikeResponse likePost(
             @PathVariable Long postId,

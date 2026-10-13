@@ -62,6 +62,7 @@ public interface SessionParticipantRepository extends JpaRepository<SessionParti
             where pr.id in :profileIds
               and p.attendanceStatus = com.example.desporto24.enumeration.AttendanceStatus.ATTENDED
               and p.attendanceRecordedAt is not null
+              and p.feedHidden = false
               and (s.privateGame = false or s.privateGame is null)
               and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
                    or (s.audience is null and s.community is null))

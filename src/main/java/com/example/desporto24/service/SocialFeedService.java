@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -18,6 +19,8 @@ import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -140,6 +143,25 @@ public class SocialFeedService {
                 && !post.getImageStorageKey().isBlank()
         ) {
             mediaStorage.delete(post.getImageStorageKey());
+        }
+    }
+
+    public void hideAttendanceActivity(Long sessionId, String username) {
+        Profile actor = profile(username);
+        SessionParticipant participant = participantRepository
+                .findBySessionIdAndProfileId(sessionId, actor.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Atividade não encontrada"));
+
+        if (participant.getAttendanceStatus() != AttendanceStatus.ATTENDED
+                || participant.getAttendanceRecordedAt() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Atividade não encontrada");
+        }
+
+        if (!participant.isFeedHidden()) {
+            participant.setFeedHidden(true);
+            participantRepository.save(participant);
         }
     }
 
