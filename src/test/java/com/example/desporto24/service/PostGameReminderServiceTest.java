@@ -46,6 +46,10 @@ class PostGameReminderServiceTest {
         assertEquals(NotificationType.SESSION_POST_GAME_REVIEW, sent.getValue().getType());
         assertEquals(11L, sent.getValue().getSessionId());
         assertEquals("creator", sent.getValue().getUsername());
+        assertEquals("Como correu o teu jogo?", sent.getValue().getSubject());
+        assertTrue(sent.getValue().getMessage().contains("Se quiseres, regista as presenças"));
+        assertTrue(sent.getValue().getMessage().contains("assinala «Não aconteceu»"));
+        assertFalse(sent.getValue().getMessage().contains("Confirma se o jogo aconteceu"));
         assertFalse(sent.getValue().isRead());
         assertNotNull(session.getPostGameReviewReminderSentAt());
     }

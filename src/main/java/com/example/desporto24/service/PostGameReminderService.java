@@ -46,8 +46,9 @@ public class PostGameReminderService {
             Notifications notification = new Notifications();
             notification.setSubject("Como correu o teu jogo?");
             notification.setMessage(
-                    "A tua sessão de " + session.getSport()
-                    + " já terminou? Confirma se o jogo aconteceu e regista quem esteve presente.");
+                    "O horário da tua sessão de " + session.getSport()
+                    + " já passou. Se quiseres, regista as presenças. "
+                    + "Se o jogo não aconteceu, assinala «Não aconteceu» na sessão.");
             notification.setGreeting("");
             notification.setSignature("");
             notification.setCreatedAt(now.toString());
