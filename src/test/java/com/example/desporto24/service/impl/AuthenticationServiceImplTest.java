@@ -398,14 +398,20 @@ class AuthenticationServiceImplTest {
     @Test
     void wrongMfaCodeNeverGeneratesJwt() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        String totpSecret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(totpSecret, profile.getUserId()));
+
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches("WRONG", TEST_CHALLENGE_HASH)).thenReturn(false);
+        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
+        when(totpService.verify(totpSecret, "wrong")).thenReturn(false);
 
         assertThrows(
                 BadCredentialsException.class,
                 () -> service().confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong"))
         );
 
+        verify(totpService).verify(totpSecret, "wrong");
         verifyNoInteractions(jwtTokenProvider);
         verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
     }
