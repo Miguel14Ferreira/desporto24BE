@@ -45,11 +45,9 @@ class SessionExperienceRatingServiceTest {
         when(ratingRepository.save(any(SessionExperienceRating.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        var result = service.rate(7L, "miguel", new SessionExperienceRatingRequest(5, 4, 3));
+        var result = service.rate(7L, "miguel", new SessionExperienceRatingRequest(5));
 
-        assertEquals(5, result.environmentScore());
-        assertEquals(4, result.venueScore());
-        assertEquals(3, result.gameScore());
+        assertEquals(5, result.overallScore());
         assertNotNull(result.updatedAt());
         verify(ratingRepository, times(1)).save(argThat(rating ->
                 rating.getProfile() == player
@@ -65,16 +63,15 @@ class SessionExperienceRatingServiceTest {
         Instant created = Instant.now().minusSeconds(100);
         SessionExperienceRating existing = SessionExperienceRating.builder()
                 .id(15L).session(session).profile(player)
-                .environmentScore(2).venueScore(2).gameScore(2)
+                .overallScore(2)
                 .createdAt(created).updatedAt(created).build();
         when(ratingRepository.findBySessionIdAndProfileId(7L, 12L))
                 .thenReturn(Optional.of(existing));
         when(ratingRepository.save(existing)).thenReturn(existing);
 
-        var result = service.rate(7L, "miguel", new SessionExperienceRatingRequest(5, 5, 4));
+        var result = service.rate(7L, "miguel", new SessionExperienceRatingRequest(4));
 
-        assertEquals(5, result.environmentScore());
-        assertEquals(4, result.gameScore());
+        assertEquals(4, result.overallScore());
         assertEquals(15L, existing.getId());
         assertEquals(created, existing.getCreatedAt());
         verify(ratingRepository).save(same(existing));
@@ -88,7 +85,7 @@ class SessionExperienceRatingServiceTest {
         when(profileRepository.findUserByUsernameIgnoreCase("miguel")).thenReturn(Optional.of(player));
 
         assertThrows(AccessDeniedException.class, () ->
-                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3, 3, 3)));
+                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3)));
         verify(ratingRepository, never()).save(any());
     }
 
@@ -100,7 +97,7 @@ class SessionExperienceRatingServiceTest {
         when(profileRepository.findUserByUsernameIgnoreCase("miguel")).thenReturn(Optional.of(player));
 
         assertThrows(IllegalStateException.class, () ->
-                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3, 3, 3)));
+                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3)));
         verifyNoInteractions(participantRepository, ratingRepository);
     }
 
@@ -111,21 +108,21 @@ class SessionExperienceRatingServiceTest {
         when(sessionRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(cancelled));
         when(profileRepository.findUserByUsernameIgnoreCase("miguel")).thenReturn(Optional.of(player));
         assertThrows(IllegalStateException.class, () ->
-                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3, 3, 3)));
+                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3)));
 
         cancelled.setStatus(SessionStatus.OPEN);
         cancelled.setProblemType(SessionProblemType.NOT_OCCURRED);
         assertThrows(IllegalStateException.class, () ->
-                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3, 3, 3)));
+                service.rate(7L, "miguel", new SessionExperienceRatingRequest(3)));
         verify(ratingRepository, never()).save(any());
     }
 
     @Test
     void invalidScoresAreRejectedWithoutDatabaseChanges() {
         for (var invalid : new SessionExperienceRatingRequest[] {
-                new SessionExperienceRatingRequest(0, 3, 3),
-                new SessionExperienceRatingRequest(3, 6, 3),
-                new SessionExperienceRatingRequest(3, 3, null)
+                new SessionExperienceRatingRequest(0),
+                new SessionExperienceRatingRequest(6),
+                new SessionExperienceRatingRequest(null)
         }) {
             assertThrows(IllegalArgumentException.class, () ->
                     service.rate(7L, "miguel", invalid));
@@ -140,13 +137,13 @@ class SessionExperienceRatingServiceTest {
         when(profileRepository.findUserByUsernameIgnoreCase("miguel")).thenReturn(Optional.of(player));
         when(ratingRepository.findBySessionIdAndProfileId(7L, 12L))
                 .thenReturn(Optional.of(SessionExperienceRating.builder()
-                        .environmentScore(5).venueScore(4).gameScore(5)
+                        .overallScore(5)
                         .updatedAt(Instant.now()).build()));
 
         var result = service.mine(7L, "miguel");
 
         assertTrue(result.isPresent());
-        assertEquals(5, result.orElseThrow().gameScore());
+        assertEquals(5, result.orElseThrow().overallScore());
         verify(ratingRepository).findBySessionIdAndProfileId(7L, 12L);
     }
 

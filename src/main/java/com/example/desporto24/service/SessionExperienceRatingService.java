@@ -43,9 +43,7 @@ public class SessionExperienceRatingService {
         if (request == null) {
             throw new IllegalArgumentException("Ratings are required");
         }
-        requireScore(request.environmentScore());
-        requireScore(request.venueScore());
-        requireScore(request.gameScore());
+        requireScore(request.overallScore());
 
         // Serialize updates for the same session so the unique (session, profile) rating remains singular.
         Session session = sessionRepository.findByIdForUpdate(sessionId)
@@ -65,9 +63,7 @@ public class SessionExperienceRatingService {
                         .profile(profile)
                         .createdAt(now)
                         .build());
-        rating.setEnvironmentScore(request.environmentScore());
-        rating.setVenueScore(request.venueScore());
-        rating.setGameScore(request.gameScore());
+        rating.setOverallScore(request.overallScore());
         rating.setUpdatedAt(now);
 
         return response(ratingRepository.save(rating));
@@ -106,7 +102,6 @@ public class SessionExperienceRatingService {
 
     private SessionExperienceRatingResponse response(SessionExperienceRating rating) {
         return new SessionExperienceRatingResponse(
-                rating.getEnvironmentScore(), rating.getVenueScore(), rating.getGameScore(),
-                rating.getUpdatedAt());
+                rating.getOverallScore(), rating.getUpdatedAt());
     }
 }

@@ -34,14 +34,8 @@ public class SessionExperienceRating {
     @JoinColumn(name = "profile_id", nullable = false)
     private Profile profile;
 
-    @Column(name = "environment_score", nullable = false)
-    private Integer environmentScore;
-
-    @Column(name = "venue_score", nullable = false)
-    private Integer venueScore;
-
-    @Column(name = "game_score", nullable = false)
-    private Integer gameScore;
+    @Column(name = "overall_score", nullable = false)
+    private Integer overallScore;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

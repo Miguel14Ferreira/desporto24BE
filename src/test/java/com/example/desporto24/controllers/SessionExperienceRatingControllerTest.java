@@ -25,8 +25,8 @@ class SessionExperienceRatingControllerTest {
     @Test
     void ratingUsesAuthenticatedProfile() {
         when(authentication.getName()).thenReturn("miguel");
-        var request = new SessionExperienceRatingRequest(5, 4, 3);
-        var expected = new SessionExperienceRatingResponse(5, 4, 3, Instant.now());
+        var request = new SessionExperienceRatingRequest(5);
+        var expected = new SessionExperienceRatingResponse(5, Instant.now());
         when(service.rate(7L, "miguel", request)).thenReturn(expected);
 
         assertSame(expected, controller.rate(7L, request, authentication));

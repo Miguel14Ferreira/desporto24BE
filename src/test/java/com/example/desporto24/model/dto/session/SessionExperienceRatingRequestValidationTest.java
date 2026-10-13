@@ -8,13 +8,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class SessionExperienceRatingRequestValidationTest {
 
     @Test
-    void eachScoreMustBeBetweenOneAndFive() {
+    void overallScoreMustBeBetweenOneAndFive() {
         try (var factory = Validation.buildDefaultValidatorFactory()) {
             var validator = factory.getValidator();
-            assertTrue(validator.validate(new SessionExperienceRatingRequest(5, 4, 1)).isEmpty());
-            assertFalse(validator.validate(new SessionExperienceRatingRequest(0, 3, 3)).isEmpty());
-            assertFalse(validator.validate(new SessionExperienceRatingRequest(3, 6, 3)).isEmpty());
-            assertFalse(validator.validate(new SessionExperienceRatingRequest(3, 3, null)).isEmpty());
+            assertTrue(validator.validate(new SessionExperienceRatingRequest(5)).isEmpty());
+            assertFalse(validator.validate(new SessionExperienceRatingRequest(0)).isEmpty());
+            assertFalse(validator.validate(new SessionExperienceRatingRequest(6)).isEmpty());
+            assertFalse(validator.validate(new SessionExperienceRatingRequest(null)).isEmpty());
         }
     }
 }
