@@ -269,7 +269,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         ProfileDTO profileDTO = new ProfileDTO();
         profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
-        profileDTO.setPassword(request.password());
+        profileDTO.setPassword(passwordHashService.encode(request.password()));
         profileDTO.setNickname(trimToNull(request.nickname()));
         profileDTO.setDateOfBirth(request.dateOfBirth());
         profileDTO.setCountry(request.country().trim());
