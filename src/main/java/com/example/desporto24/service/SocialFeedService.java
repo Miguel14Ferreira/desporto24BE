@@ -232,7 +232,8 @@ public class SocialFeedService {
                         ? null : linkedSession.getGameDate().toInstant(),
                 likeCounts.getOrDefault(post.getId(), 0L),
                 likedPostIds.contains(post.getId()),
-                commentCounts.getOrDefault(post.getId(), 0L)
+                commentCounts.getOrDefault(post.getId(), 0L),
+                publicSessionImage(linkedSession)
         );
     }
 
@@ -264,7 +265,8 @@ public class SocialFeedService {
                 session.getGameDate() == null ? null : session.getGameDate().toInstant(),
                 0,
                 false,
-                0
+                0,
+                publicSessionImage(session)
         );
     }
 
@@ -290,7 +292,8 @@ public class SocialFeedService {
                         : session.getGameDate().toInstant(),
                 0,
                 false,
-                0
+                0,
+                publicSessionImage(session)
         );
     }
 
@@ -304,6 +307,15 @@ public class SocialFeedService {
             throw new AccessDeniedException("Não é possível partilhar esta sessão no feed");
         }
         return session;
+    }
+
+    static String publicSessionImage(Session session) {
+        if (!isPubliclyShareableSession(session)
+                || session.getGamePhoto() == null
+                || session.getGamePhoto().isBlank()) {
+            return null;
+        }
+        return session.getGamePhoto();
     }
 
     static boolean isPubliclyShareableSession(Session session) {

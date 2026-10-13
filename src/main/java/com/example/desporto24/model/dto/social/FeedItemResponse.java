@@ -17,6 +17,7 @@ public record FeedItemResponse(
         Instant gameDate,
         long likeCount,
         boolean likedByMe,
-        long commentCount
+        long commentCount,
+        String sessionImageUrl
 ) {
 }
