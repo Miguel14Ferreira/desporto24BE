@@ -452,10 +452,12 @@ class AuthenticationServiceImplTest {
     void confirmedMfaChallengeIsSingleUse() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
         Profile profile = activeProfile(true);
+        String totpSecret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(totpSecret, profile.getUserId()));
         ProfileDTO safeProfile = safeProfile();
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(passwordEncoder.matches(TEST_MFA_CODE, TEST_CHALLENGE_HASH)).thenReturn(true);
+        when(totpService.verify(totpSecret, TEST_MFA_CODE)).thenReturn(true);
         when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
                 .thenReturn(true)
                 .thenReturn(false);
@@ -471,6 +473,8 @@ class AuthenticationServiceImplTest {
                 SMSAlreadyConfirmedException.class,
                 () -> service().confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, TEST_MFA_CODE))
         );
+        verify(totpService, times(2)).verify(totpSecret, TEST_MFA_CODE);
+        verify(mfaVerificationService, times(2)).confirmIfPending(eq(TEST_CHALLENGE_ID), any());
         verify(jwtTokenProvider, times(1)).generateJwtToken(any(ProfilePrincipal.class));
     }
 
