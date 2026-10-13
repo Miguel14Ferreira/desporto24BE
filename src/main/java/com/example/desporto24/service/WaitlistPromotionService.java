@@ -7,6 +7,7 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.Optional;
 public class WaitlistPromotionService {
 
     private final SessionParticipantRepository participantRepository;
+    private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionRepository sessionRepository;
     private final SessionNotificationService sessionNotificationService;
@@ -41,7 +43,11 @@ public class WaitlistPromotionService {
         }
 
         Optional<SessionParticipant> promoted = waitlistRepository
-                .findFirstBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId())
+                .findBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId())
+                .stream()
+                .filter(entry -> !exclusionRepository.existsByOrganizerIdAndExcludedId(
+                        session.getProfile().getId(), entry.getProfile().getId()))
+                .findFirst()
                 .map(entry -> {
                     waitlistRepository.delete(entry);
 

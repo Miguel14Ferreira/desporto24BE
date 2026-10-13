@@ -14,6 +14,7 @@ import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmatio
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
+import com.example.desporto24.service.SessionOrganizerExclusionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -34,6 +35,7 @@ class SessionControllerTest {
 
     @Mock private SessionService sessionService;
     @Mock private SessionTeamSuggestionService sessionTeamSuggestionService;
+    @Mock private SessionOrganizerExclusionService exclusionService;
     @Mock private Authentication authentication;
 
     @InjectMocks private SessionController controller;
@@ -205,6 +207,21 @@ class SessionControllerTest {
                 "Campo sem iluminação",
                 "miguel"
         );
+    }
+
+    @Test
+    void futureExclusionOperationsUseTheAuthenticatedOrganizer() {
+        when(authentication.getName()).thenReturn("organizer");
+        when(exclusionService.excludeAfterNoShow(1L, 8L, "organizer")).thenReturn(true);
+        when(exclusionService.status(1L, 8L, "organizer")).thenReturn(true);
+
+        assertTrue(controller.excludeFromFutureSessions(1L, 8L, authentication).excluded());
+        assertTrue(controller.exclusionStatus(1L, 8L, authentication).excluded());
+        assertFalse(controller.removeFutureExclusion(1L, 8L, authentication).excluded());
+
+        verify(exclusionService).excludeAfterNoShow(1L, 8L, "organizer");
+        verify(exclusionService).status(1L, 8L, "organizer");
+        verify(exclusionService).remove(1L, 8L, "organizer");
     }
 
     @Test

@@ -14,6 +14,8 @@ import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
 import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmationsRequest;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
+import com.example.desporto24.service.SessionOrganizerExclusionService;
+import com.example.desporto24.model.dto.session.SessionOrganizerExclusionResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -36,6 +38,7 @@ public class SessionController {
 
     private final SessionService sessionService;
     private final SessionTeamSuggestionService sessionTeamSuggestionService;
+    private final SessionOrganizerExclusionService exclusionService;
 
     @GetMapping
     public List<SessionSummaryResponse> discover(
@@ -129,6 +132,30 @@ public class SessionController {
             Authentication authentication) {
         return sessionService.updateExternalConfirmations(
                 id, request.externalConfirmedParticipants(), authentication.getName());
+    }
+
+    @PutMapping("/{id}/participants/{participantId}/future-exclusion")
+    public SessionOrganizerExclusionResponse excludeFromFutureSessions(
+            @PathVariable Long id, @PathVariable Long participantId,
+            Authentication authentication) {
+        return new SessionOrganizerExclusionResponse(
+                exclusionService.excludeAfterNoShow(id, participantId, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/participants/{participantId}/future-exclusion")
+    public SessionOrganizerExclusionResponse exclusionStatus(
+            @PathVariable Long id, @PathVariable Long participantId,
+            Authentication authentication) {
+        return new SessionOrganizerExclusionResponse(
+                exclusionService.status(id, participantId, authentication.getName()));
+    }
+
+    @DeleteMapping("/{id}/participants/{participantId}/future-exclusion")
+    public SessionOrganizerExclusionResponse removeFutureExclusion(
+            @PathVariable Long id, @PathVariable Long participantId,
+            Authentication authentication) {
+        return new SessionOrganizerExclusionResponse(
+                exclusionService.remove(id, participantId, authentication.getName()));
     }
 
     @PostMapping("/{id}/leave")

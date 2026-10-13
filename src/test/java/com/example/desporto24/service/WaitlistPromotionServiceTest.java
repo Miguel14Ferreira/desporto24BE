@@ -11,6 +11,8 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
+import com.example.desporto24.model.session.SessionOrganizerExclusion;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,7 @@ class WaitlistPromotionServiceTest {
     @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
+    @Autowired private SessionOrganizerExclusionRepository exclusionRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
 
     private Profile creator;
@@ -57,6 +60,7 @@ class WaitlistPromotionServiceTest {
         pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
+        exclusionRepository.deleteAll();
         sessionRepository.deleteAll();
         profileRepository.deleteAll();
 
@@ -97,6 +101,24 @@ class WaitlistPromotionServiceTest {
                 session.getId(), normalPriority.getId()).isEmpty());
         assertTrue(waitlistRepository.findBySessionIdAndProfileId(
                 session.getId(), reducedPriority.getId()).isPresent());
+    }
+
+    @Test
+    void excludedWaitlistedPlayerIsSkippedButNotRemovedFromExistingWaitlist() {
+        Profile excluded = profile("excluded");
+        Profile eligible = profile("eligible");
+        waitlisted(excluded, Instant.parse("2026-09-25T10:00:00Z"));
+        waitlisted(eligible, Instant.parse("2026-09-25T10:01:00Z"));
+        exclusionRepository.saveAndFlush(SessionOrganizerExclusion.builder()
+                .organizer(creator).excluded(excluded).createdAt(Instant.now()).build());
+
+        var promoted = service.promoteNext(session, Instant.now()).orElseThrow();
+
+        assertEquals(eligible.getId(), promoted.getProfile().getId());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), excluded.getId()).isPresent());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), eligible.getId()).isEmpty());
     }
 
     @Test

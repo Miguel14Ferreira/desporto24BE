@@ -32,6 +32,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
@@ -77,6 +78,7 @@ public class SessionServiceImpl implements SessionService {
     private final CommunityMemberRepository communityMemberRepository;
     private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
+    private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionViewMapper sessionViewMapper;
     private final SessionDistanceCalculator distanceCalculator;
@@ -504,6 +506,10 @@ public class SessionServiceImpl implements SessionService {
         if (participantRepository.existsBySessionIdAndProfileIdAndState(
                 sessionId, profile.getId(), ParticipantState.ACTIVE)) {
             return new JoinSessionResponse(JoinState.PARTICIPANT, null);
+        }
+        if (exclusionRepository.existsByOrganizerIdAndExcludedId(
+                session.getProfile().getId(), profile.getId())) {
+            throw new AccessDeniedException("O organizador não aceita novas inscrições deste jogador");
         }
 
         var existingWaitlist = waitlistRepository.findBySessionIdAndProfileId(sessionId, profile.getId());

@@ -13,6 +13,8 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
+import com.example.desporto24.model.session.SessionOrganizerExclusion;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.configuration.ReliabilityPolicyProperties;
@@ -81,6 +83,7 @@ class SessionJoinServiceTest {
     @Autowired private ProfileRepository profileRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
+    @Autowired private SessionOrganizerExclusionRepository exclusionRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private BCryptPasswordEncoder passwordEncoder;
@@ -92,6 +95,7 @@ class SessionJoinServiceTest {
         pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
+        exclusionRepository.deleteAll();
         sessionRepository.deleteAll();
         profileRepository.deleteAll();
 
@@ -115,6 +119,39 @@ class SessionJoinServiceTest {
                 joiner.getId(),
                 session.getId()));
         assertEquals(SessionStatus.FULL, sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void excludedPlayerCannotJoinOrWaitlistOnAnyFutureSessionFromSameOrganizer() {
+        Session session = createSession(false, null, 2);
+        Profile excluded = createProfile("excluded");
+        exclusionRepository.saveAndFlush(SessionOrganizerExclusion.builder()
+                .organizer(creator).excluded(excluded).createdAt(Instant.now()).build());
+
+        assertThrows(AccessDeniedException.class, () -> sessionService.join(
+                session.getId(), new JoinSessionRequest(null), excluded.getUsername()));
+        assertFalse(participantRepository.existsBySessionIdAndProfileIdAndState(
+                session.getId(), excluded.getId(), ParticipantState.ACTIVE));
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), excluded.getId()).isEmpty());
+
+        Session next = createSession(false, null, 3);
+        assertThrows(AccessDeniedException.class, () -> sessionService.join(
+                next.getId(), new JoinSessionRequest(null), excluded.getUsername()));
+    }
+
+    @Test
+    void anAlreadyEnrolledPlayerIsNotExpelledByExclusion() {
+        Session session = createSession(false, null, 3);
+        Profile player = createProfile("alreadyJoined");
+        sessionService.join(session.getId(), new JoinSessionRequest(null), player.getUsername());
+        exclusionRepository.saveAndFlush(SessionOrganizerExclusion.builder()
+                .organizer(creator).excluded(player).createdAt(Instant.now()).build());
+
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), player.getUsername()).state());
+        assertEquals(2, participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
     }
 
     @Test

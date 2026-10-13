@@ -14,6 +14,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.impl.SessionServiceImpl;
@@ -45,6 +46,7 @@ class SessionCreationServiceTest {
     @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private VenueRepository venueRepository;
     @Mock private SessionParticipantRepository participantRepository;
+    @Mock private SessionOrganizerExclusionRepository exclusionRepository;
     @Mock private SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
     @Mock private SessionDistanceCalculator distanceCalculator;
@@ -458,6 +460,7 @@ class SessionCreationServiceTest {
                 communityMemberRepository,
                 venueRepository,
                 participantRepository,
+                exclusionRepository,
                 waitlistRepository,
                 sessionViewMapper,
                 distanceCalculator,
