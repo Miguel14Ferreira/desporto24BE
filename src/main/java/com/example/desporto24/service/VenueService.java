@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -24,24 +26,100 @@ import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_
 @Transactional
 public class VenueService {
 
+    private static final double EARTH_RADIUS_KM = 6371.0088;
+
     private final VenueRepository venueRepository;
     private final ProfileRepository profileRepository;
+    private final SessionDistanceCalculator distanceCalculator;
 
     @Transactional(readOnly = true)
     public List<VenueResponse> search(String city, String sport) {
-        String cityQuery = normalize(city);
-        String sportQuery = normalize(sport);
+        return search(city, sport, null, null, null);
+    }
 
+    @Transactional(readOnly = true)
+    public List<VenueResponse> search(
+            String city, String sport, Double latitude, Double longitude, Double radiusKm) {
+        String sportQuery = normalize(sport);
+        boolean geoSearch = latitude != null || longitude != null || radiusKm != null;
+        if (geoSearch) {
+            validateGeoSearch(latitude, longitude, radiusKm);
+            double radius = radiusKm == null ? 25.0 : radiusKm;
+            // When coordinates are provided, the radius replaces the textual city filter.
+            return nearbyCandidates(latitude, longitude, radius).stream()
+                    .filter(venue -> sportQuery == null
+                            || (venue.getSports() != null && hasSport(venue.getSports(), sportQuery)))
+                    .filter(venue -> venue.getLatitude() != null && venue.getLongitude() != null)
+                    .map(venue -> new NearbyVenue(venue, distanceCalculator.kilometres(
+                            latitude, longitude, venue.getLatitude(), venue.getLongitude())))
+                    .filter(candidate -> candidate.distanceKm() <= radius)
+                    .sorted(Comparator.comparingDouble(NearbyVenue::distanceKm)
+                            .thenComparing(candidate -> candidate.venue().getName()))
+                    .map(candidate -> toResponse(candidate.venue()))
+                    .toList();
+        }
+
+        String cityQuery = normalize(city);
         List<Venue> venues = cityQuery == null
                 ? venueRepository.findAllByOrderByNameAsc()
                 : venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc(cityQuery);
 
         return venues.stream()
                 .filter(venue -> sportQuery == null
-                        || (venue.getSports() != null
-                        && hasSport(venue.getSports(), sportQuery)))
+                        || (venue.getSports() != null && hasSport(venue.getSports(), sportQuery)))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private record NearbyVenue(Venue venue, double distanceKm) {}
+
+    private static void validateGeoSearch(Double latitude, Double longitude, Double radiusKm) {
+        if (latitude == null || longitude == null
+                || !Double.isFinite(latitude) || !Double.isFinite(longitude)
+                || Math.abs(latitude) > 90 || Math.abs(longitude) > 180
+                || (radiusKm != null && (!Double.isFinite(radiusKm)
+                || radiusKm <= 0 || radiusKm > 100))) {
+            throw new IllegalArgumentException("Coordenadas ou raio de pesquisa inválidos");
+        }
+    }
+
+    private List<Venue> nearbyCandidates(double latitude, double longitude, double radiusKm) {
+        double angularRadius = radiusKm / EARTH_RADIUS_KM;
+        double latitudeDelta = Math.toDegrees(angularRadius);
+        double minLatitude = Math.max(-90.0, latitude - latitudeDelta);
+        double maxLatitude = Math.min(90.0, latitude + latitudeDelta);
+
+        // Near the poles every longitude is a candidate.
+        if (minLatitude <= -90.0 || maxLatitude >= 90.0) {
+            return nearbyBox(minLatitude, maxLatitude, -180.0, 180.0);
+        }
+
+        double longitudeRatio = Math.sin(angularRadius) / Math.cos(Math.toRadians(latitude));
+        double longitudeDelta = longitudeRatio >= 1.0
+                ? 180.0 : Math.toDegrees(Math.asin(longitudeRatio));
+        if (longitudeDelta >= 180.0) {
+            return nearbyBox(minLatitude, maxLatitude, -180.0, 180.0);
+        }
+        double minLongitude = longitude - longitudeDelta;
+        double maxLongitude = longitude + longitudeDelta;
+        if (minLongitude < -180.0) {
+            List<Venue> candidates = new ArrayList<>(
+                    nearbyBox(minLatitude, maxLatitude, -180.0, maxLongitude));
+            candidates.addAll(nearbyBox(minLatitude, maxLatitude, minLongitude + 360.0, 180.0));
+            return candidates;
+        }
+        if (maxLongitude > 180.0) {
+            List<Venue> candidates = new ArrayList<>(
+                    nearbyBox(minLatitude, maxLatitude, minLongitude, 180.0));
+            candidates.addAll(nearbyBox(minLatitude, maxLatitude, -180.0, maxLongitude - 360.0));
+            return candidates;
+        }
+        return nearbyBox(minLatitude, maxLatitude, minLongitude, maxLongitude);
+    }
+
+    private List<Venue> nearbyBox(double minLat, double maxLat, double minLon, double maxLon) {
+        return venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                minLat, maxLat, minLon, maxLon);
     }
 
     @Transactional(readOnly = true)

@@ -37,3 +37,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-13-session-overall-rating.yaml
   - include:
       file: db/changelog/changes/2026-10-13-attendance-feed-visibility.yaml
+  - include:
+      file: db/changelog/changes/2026-10-14-venue-geolocation-index.yaml

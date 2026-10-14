@@ -35,8 +35,11 @@ public class VenueController {
     @GetMapping
     public List<VenueResponse> search(
             @RequestParam(required = false) String city,
-            @RequestParam(required = false) String sport) {
-        return venueService.search(city, sport);
+            @RequestParam(required = false) String sport,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Double radiusKm) {
+        return venueService.search(city, sport, latitude, longitude, radiusKm);
     }
 
     @PostMapping("/resolve-map-link")
