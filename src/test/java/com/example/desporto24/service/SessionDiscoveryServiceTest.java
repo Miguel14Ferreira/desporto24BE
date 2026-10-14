@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
@@ -27,6 +29,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -95,6 +98,76 @@ class SessionDiscoveryServiceTest {
 
         assertTrue(result.isEmpty());
         verify(pilotEventService).recordSessionSearched(profile);
+    }
+
+    @Test
+    void authenticatedDiscoveryIncludesParticipantAndWaitlistFlagsWithoutPerSessionQueries() {
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        viewer.setUsername("miguel");
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(viewer));
+
+        Session joined = session(1L, "Padel", "Lisboa", null, null, 0, false, 4, 2);
+        Session waitlisted = session(2L, "Padel", "Lisboa", null, null, 0, false, 4, 4);
+        Session available = session(3L, "Padel", "Lisboa", null, null, 0, false, 4, 1);
+        stubCandidates(joined, waitlisted, available);
+
+        Set<Long> allIds = Set.of(1L, 2L, 3L);
+        Set<Long> joinedIds = Set.of(1L);
+        Set<Long> waitlistedIds = Set.of(2L);
+        when(participantRepository.findSessionIdsByProfileAndState(
+                allIds, 7L, ParticipantState.ACTIVE)).thenReturn(joinedIds);
+        when(waitlistRepository.findSessionIdsByProfile(allIds, 7L)).thenReturn(waitlistedIds);
+        when(sessionViewMapper.toSummary(
+                any(Session.class), isNull(), anyMap(), eq(joinedIds), eq(waitlistedIds)))
+                .thenAnswer(invocation -> {
+                    Session candidate = invocation.getArgument(0);
+                    return new SessionSummaryResponse(
+                            candidate.getId(), candidate.getSport(), candidate.getCity(),
+                            candidate.getGameDate().toInstant(), null, 2, 4,
+                            candidate.getPriceAmount(), false, candidate.getStatus(),
+                            SessionAudience.PUBLIC, joinedIds.contains(candidate.getId()),
+                            waitlistedIds.contains(candidate.getId()), null);
+                });
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, null, null, null,
+                null, null, null, null
+        ), "miguel");
+
+        assertEquals(3, result.size());
+        assertTrue(result.get(0).joinedByViewer());
+        assertFalse(result.get(0).waitlistedByViewer());
+        assertFalse(result.get(1).joinedByViewer());
+        assertTrue(result.get(1).waitlistedByViewer());
+        assertFalse(result.get(2).joinedByViewer());
+        assertFalse(result.get(2).waitlistedByViewer());
+
+        verify(participantRepository).findSessionIdsByProfileAndState(
+                allIds, 7L, ParticipantState.ACTIVE);
+        verify(waitlistRepository).findSessionIdsByProfile(allIds, 7L);
+        verify(sessionViewMapper, times(3)).toSummary(
+                any(Session.class), isNull(), anyMap(), eq(joinedIds), eq(waitlistedIds));
+        verify(pilotEventService).recordSessionSearched(viewer);
+    }
+
+    @Test
+    void anonymousDiscoveryDoesNotLookUpPersonalMemberships() {
+        Session available = session(4L, "Padel", "Lisboa", null, null, 0, false, 4, 1);
+        stubCandidates(available);
+        stubSummary(available, null, 1);
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, null, null, null,
+                null, null, null, null
+        ));
+
+        assertEquals(1, result.size());
+        assertFalse(result.getFirst().joinedByViewer());
+        assertFalse(result.getFirst().waitlistedByViewer());
+        verify(participantRepository, never()).findSessionIdsByProfileAndState(
+                anySet(), anyLong(), any());
+        verify(waitlistRepository, never()).findSessionIdsByProfile(anySet(), anyLong());
     }
 
     @Test
@@ -251,7 +324,9 @@ class SessionDiscoveryServiceTest {
     }
 
     private void stubSummary(Session session, Double distance, int participants) {
-        when(sessionViewMapper.toSummary(eq(session), eq(distance), isNull(), anyMap())).thenReturn(new SessionSummaryResponse(
+        when(sessionViewMapper.toSummary(
+                eq(session), eq(distance), anyMap(), anySet(), anySet()))
+                .thenReturn(new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
                 session.getCity(),

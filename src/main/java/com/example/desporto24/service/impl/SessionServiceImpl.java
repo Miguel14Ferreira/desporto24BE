@@ -356,23 +356,24 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional(readOnly = true)
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria) {
-        return discoverSessions(criteria);
+        return discoverSessions(criteria, null);
     }
 
     @Override
     @Transactional
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria, String username) {
-        List<SessionSummaryResponse> result = discoverSessions(criteria);
+        Profile viewer = username == null || username.isBlank()
+                ? null : profileRepository.findUserByUsername(username).orElse(null);
+        List<SessionSummaryResponse> result = discoverSessions(criteria, viewer);
 
-        if (username != null && !username.isBlank()) {
-            profileRepository.findUserByUsername(username)
-                    .ifPresent(pilotEventService::recordSessionSearched);
+        if (viewer != null) {
+            pilotEventService.recordSessionSearched(viewer);
         }
 
         return result;
     }
 
-    private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
+    private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria, Profile viewer) {
         String sport = criteria.sport() == null ? "" : criteria.sport().trim().toLowerCase(Locale.ROOT);
         String city = criteria.city() == null ? "" : criteria.city().trim().toLowerCase(Locale.ROOT);
         String query = criteria.query() == null ? "" : criteria.query().trim().toLowerCase(Locale.ROOT);
@@ -400,9 +401,17 @@ public class SessionServiceImpl implements SessionService {
                 : participantRepository.countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
                         .stream()
                         .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Set<Long> joinedSessionIds = viewer == null || sessionIds.isEmpty()
+                ? Set.of()
+                : participantRepository.findSessionIdsByProfileAndState(
+                        sessionIds, viewer.getId(), ParticipantState.ACTIVE);
+        Set<Long> waitlistedSessionIds = viewer == null || sessionIds.isEmpty()
+                ? Set.of()
+                : waitlistRepository.findSessionIdsByProfile(sessionIds, viewer.getId());
 
         return filteredCandidates.stream()
-                .map(s -> toDiscoveryView(s, criteria, hasCoordinates, participantCounts))
+                .map(s -> toDiscoveryView(
+                        s, criteria, hasCoordinates, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .filter(v -> !hasCoordinates
                         || (v.distanceKm() != null && v.distanceKm() <= effectiveRadius))
                 .filter(v -> !"available".equalsIgnoreCase(criteria.availability())
@@ -419,14 +428,17 @@ public class SessionServiceImpl implements SessionService {
             Session session,
             SessionSearchCriteria criteria,
             boolean hasCoordinates,
-            Map<Long, Long> participantCounts) {
+            Map<Long, Long> participantCounts,
+            Set<Long> joinedSessionIds,
+            Set<Long> waitlistedSessionIds) {
         Double distanceKm = null;
         if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
                     session.getLatitude(), session.getLongitude());
         }
-        return sessionViewMapper.toSummary(session, distanceKm, null, participantCounts);
+        return sessionViewMapper.toSummary(
+                session, distanceKm, participantCounts, joinedSessionIds, waitlistedSessionIds);
     }
 
     private Comparator<SessionSummaryResponse> discoveryComparator(String sort) {
