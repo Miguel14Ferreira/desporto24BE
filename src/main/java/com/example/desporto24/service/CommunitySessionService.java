@@ -49,7 +49,7 @@ public class CommunitySessionService {
 
         return sessionRepository.findByCommunityIdOrderByGameDateDesc(communityId)
                 .stream()
-                .filter(session -> member || session.getAudience() != SessionAudience.COMMUNITY_ONLY)
+                .filter(session -> member || session.getAudience() == SessionAudience.PUBLIC)
                 .map(session -> sessionViewMapper.toSummary(session, null, viewer))
                 .toList();
     }
