@@ -166,7 +166,7 @@ class CommunityManagementServiceTest {
         requester.setId(2L);
         requester.setUsername("requester");
         Community community = Community.builder().id(10L).name("Community")
-                .visibility(CommunityVisibility.PUBLIC).build();
+                .owner(requester).visibility(CommunityVisibility.PUBLIC).build();
         CommunityJoinRequest pending = CommunityJoinRequest.builder()
                 .community(community).requester(requester)
                 .status(CommunityInviteStatus.PENDING).build();
