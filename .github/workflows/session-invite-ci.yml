@@ -28,5 +28,5 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Run session invitation tests
-        run: bash ./mvnw -B -ntp -Dtest=SessionInviteServiceTest test
+      - name: Run complete backend test suite
+        run: bash ./mvnw -B -ntp test
