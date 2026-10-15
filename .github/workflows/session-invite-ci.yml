@@ -29,4 +29,6 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Run complete backend test suite
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
         run: bash ./mvnw -B -ntp test
