@@ -388,7 +388,7 @@ public class CommunityManagementService {
 
     public void removeMember(Long communityId, String actorUsername, String targetUsername) {
         Profile actor = profile(actorUsername);
-        requireAdmin(communityId, actor);
+        CommunityMember actorMembership = requireAdmin(communityId, actor);
 
         Profile target = profile(targetUsername);
         CommunityMember targetMembership = memberRepository
@@ -397,6 +397,10 @@ public class CommunityManagementService {
 
         if (targetMembership.getRole() == CommunityRole.OWNER) {
             throw new IllegalArgumentException("O Owner não pode ser removido");
+        }
+        if (targetMembership.getRole() == CommunityRole.ADMIN
+                && actorMembership.getRole() != CommunityRole.OWNER) {
+            throw new SecurityException("Apenas o Owner pode remover administradores");
         }
 
         memberRepository.delete(targetMembership);
