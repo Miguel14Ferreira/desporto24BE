@@ -191,6 +191,48 @@ class CommunityManagementServiceTest {
     }
 
     @Test
+    void acceptingInviteResolvesExistingPendingJoinRequest() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        CommunityInviteRepository invites = mock(CommunityInviteRepository.class);
+        CommunityJoinRequestRepository requests = mock(CommunityJoinRequestRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile owner = new Profile();
+        owner.setId(1L);
+        owner.setUsername("owner");
+        Profile invited = new Profile();
+        invited.setId(2L);
+        invited.setUsername("invited");
+        Community community = Community.builder().id(10L).name("Community")
+                .owner(owner).visibility(CommunityVisibility.PRIVATE).build();
+        CommunityInvite invite = CommunityInvite.builder().community(community)
+                .invitedProfile(invited).invitedBy(owner)
+                .status(CommunityInviteStatus.PENDING).build();
+        CommunityJoinRequest pending = CommunityJoinRequest.builder().community(community)
+                .requester(invited).status(CommunityInviteStatus.PENDING).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("invited")).thenReturn(Optional.of(invited));
+        when(invites.findById(100L)).thenReturn(Optional.of(invite));
+        when(requests.findByCommunityIdAndRequesterIdAndStatus(
+                10L, 2L, CommunityInviteStatus.PENDING)).thenReturn(Optional.of(pending));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(
+                CommunityMember.builder().community(community).profile(invited)
+                        .role(CommunityRole.MEMBER).build()));
+
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, invites, requests, profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        service.acceptInvite(100L, "invited");
+
+        assertEquals(CommunityInviteStatus.ACCEPTED, invite.getStatus());
+        assertEquals(CommunityInviteStatus.ACCEPTED, pending.getStatus());
+        verify(members).save(any(CommunityMember.class));
+        verify(requests).save(pending);
+        verify(invites).save(invite);
+    }
+
+    @Test
     void adminCannotRemoveAnotherAdmin() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);
