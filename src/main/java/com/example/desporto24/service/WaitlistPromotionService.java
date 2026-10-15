@@ -34,6 +34,12 @@ public class WaitlistPromotionService {
             return Optional.empty();
         }
 
+        // Joining is forbidden once kickoff has passed; promotion must follow the same rule.
+        if (session.getGameDate() == null
+                || !session.getGameDate().toInstant().isAfter(now)) {
+            return Optional.empty();
+        }
+
         // A promotion cannot consume a place already reserved for an external player.
         long active = participantRepository.countBySessionIdAndState(
                 session.getId(), ParticipantState.ACTIVE);
