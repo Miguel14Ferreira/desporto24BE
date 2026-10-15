@@ -182,6 +182,22 @@ class WaitlistPromotionServiceTest {
     }
 
     @Test
+    void startedSessionDoesNotPromoteWaitlistedPlayer() {
+        Profile waiting = profile("waitingAfterStart");
+        waitlisted(waiting, Instant.now().minusSeconds(600));
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        Optional<SessionParticipant> promoted = service.promoteNext(session, Instant.now());
+
+        assertTrue(promoted.isEmpty());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), waiting.getId()).isPresent());
+        assertTrue(participantRepository.findBySessionIdAndProfileIdAndState(
+                session.getId(), waiting.getId(), ParticipantState.ACTIVE).isEmpty());
+    }
+
+    @Test
     void cancelledSessionDoesNotPromoteWaitlist() {
         Profile waiting = profile("waiting");
         waitlisted(waiting, Instant.now());
