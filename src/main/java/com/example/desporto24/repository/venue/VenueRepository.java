@@ -24,6 +24,8 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
             Double minLatitude, Double maxLatitude, Double minLongitude, Double maxLongitude);
 
+    boolean existsByNameIgnoreCaseAndCityIgnoreCaseAndAddressIgnoreCase(String name, String city, String address);
+
     Optional<Venue> findFirstByNameIgnoreCaseAndLatitudeAndLongitude(
             String name, Double latitude, Double longitude);
 
