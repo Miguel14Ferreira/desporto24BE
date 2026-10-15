@@ -200,6 +200,13 @@ public class VenueService {
         Profile creator = profileRepository.findUserByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
+        if (venueRepository.existsByNameIgnoreCaseAndCityIgnoreCaseAndAddressIgnoreCase(
+                request.name().trim(), request.city().trim(), request.address().trim())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "Já existe um recinto com este nome, cidade e morada");
+        }
+
         Venue venue = venueRepository.save(Venue.builder()
                 .name(request.name().trim())
                 .city(request.city().trim())
