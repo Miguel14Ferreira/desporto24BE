@@ -191,6 +191,54 @@ class CommunityManagementServiceTest {
     }
 
     @Test
+    void approvingJoinRequestResolvesExistingPendingCommunityInvite() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        CommunityJoinRequestRepository requests = mock(CommunityJoinRequestRepository.class);
+        CommunityInviteRepository invites = mock(CommunityInviteRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile owner = new Profile();
+        owner.setId(1L);
+        owner.setUsername("owner");
+        Profile requester = new Profile();
+        requester.setId(2L);
+        requester.setUsername("requester");
+        Community community = Community.builder().id(10L).name("Community")
+                .owner(owner).visibility(CommunityVisibility.PRIVATE).build();
+        CommunityMember ownerMembership = CommunityMember.builder()
+                .community(community).profile(owner).role(CommunityRole.OWNER).build();
+        CommunityJoinRequest request = CommunityJoinRequest.builder()
+                .community(community).requester(requester)
+                .status(CommunityInviteStatus.PENDING).build();
+        CommunityInvite invite = CommunityInvite.builder()
+                .community(community).invitedProfile(requester).invitedBy(owner)
+                .status(CommunityInviteStatus.PENDING).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(10L, 1L))
+                .thenReturn(Optional.of(ownerMembership));
+        when(requests.findById(100L)).thenReturn(Optional.of(request));
+        when(invites.findByCommunityIdAndInvitedProfileIdAndStatus(
+                10L, 2L, CommunityInviteStatus.PENDING)).thenReturn(Optional.of(invite));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(
+                ownerMembership, CommunityMember.builder()
+                        .community(community).profile(requester)
+                        .role(CommunityRole.MEMBER).build()));
+
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, invites, requests, profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        service.acceptJoinRequest(10L, 100L, "owner");
+
+        assertEquals(CommunityInviteStatus.ACCEPTED, request.getStatus());
+        assertEquals(CommunityInviteStatus.ACCEPTED, invite.getStatus());
+        verify(members).save(any(CommunityMember.class));
+        verify(requests).save(request);
+        verify(invites).save(invite);
+    }
+
+    @Test
     void acceptingInviteResolvesExistingPendingJoinRequest() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);
