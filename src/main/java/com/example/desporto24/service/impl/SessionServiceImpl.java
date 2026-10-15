@@ -348,6 +348,10 @@ public class SessionServiceImpl implements SessionService {
                 .findSessionIdsByProfile(sessionIds, viewer.getId());
 
         return seriesSessions.stream()
+                .filter(item -> item.getAudience() != SessionAudience.COMMUNITY_ONLY
+                        || item.getCommunity() == null
+                        || communityMemberRepository.existsByCommunityIdAndProfileId(
+                                item.getCommunity().getId(), viewer.getId()))
                 .map(item -> sessionViewMapper.toSummary(
                         item, null, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .toList();
