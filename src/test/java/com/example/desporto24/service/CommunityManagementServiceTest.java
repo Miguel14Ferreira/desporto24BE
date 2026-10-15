@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.example.desporto24.enumeration.CommunityInviteStatus;
 import com.example.desporto24.exception.CommunityInvitePendingException;
 import com.example.desporto24.model.community.CommunityInvite;
+import com.example.desporto24.model.community.CommunityJoinRequest;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.dto.community.UpdateCommunityVisibilityRequest;
@@ -153,6 +154,40 @@ class CommunityManagementServiceTest {
 
         assertEquals(NO_USER_FOUND_BY_USERNAME, exception.getMessage());
         verify(inviteRepository, never()).save(any());
+    }
+
+    @Test
+    void joiningPublicCommunityResolvesOwnPreviouslyPendingRequest() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        CommunityJoinRequestRepository requests = mock(CommunityJoinRequestRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile requester = new Profile();
+        requester.setId(2L);
+        requester.setUsername("requester");
+        Community community = Community.builder().id(10L).name("Community")
+                .visibility(CommunityVisibility.PUBLIC).build();
+        CommunityJoinRequest pending = CommunityJoinRequest.builder()
+                .community(community).requester(requester)
+                .status(CommunityInviteStatus.PENDING).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("requester")).thenReturn(Optional.of(requester));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(requests.findByCommunityIdAndRequesterIdAndStatus(
+                10L, 2L, CommunityInviteStatus.PENDING)).thenReturn(Optional.of(pending));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(
+                CommunityMember.builder().community(community).profile(requester)
+                        .role(CommunityRole.MEMBER).build()));
+
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, mock(CommunityInviteRepository.class), requests, profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        service.joinPublic(10L, "requester");
+
+        assertEquals(CommunityInviteStatus.ACCEPTED, pending.getStatus());
+        verify(requests).save(pending);
+        verify(members).save(any(CommunityMember.class));
     }
 
     @Test
