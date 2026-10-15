@@ -7,6 +7,9 @@ import com.example.desporto24.enumeration.SessionInviteStatus;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
+import com.example.desporto24.model.dto.session.JoinSessionResponse;
+import com.example.desporto24.enumeration.JoinState;
+import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.model.session.SessionInvite;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
@@ -41,6 +44,7 @@ class SessionInviteServiceTest {
     @Mock NotificationsRepository notifications;
     @Mock SessionParticipantRepository participants;
     @Mock SessionWaitlistRepository waitlist;
+    @Mock SessionService sessionService;
 
     private SessionInviteService service;
     private Session session;
@@ -49,7 +53,7 @@ class SessionInviteServiceTest {
 
     @BeforeEach
     void setup() {
-        service = new SessionInviteService(sessions, profiles, invites, notifications, participants, waitlist);
+        service = new SessionInviteService(sessions, profiles, invites, notifications, participants, waitlist, sessionService);
         owner = new Profile();
         owner.setId(10L);
         owner.setUsername("organizador");
@@ -192,4 +196,67 @@ class SessionInviteServiceTest {
         assertFailure(HttpStatus.BAD_REQUEST, " ");
         verifyNoInteractions(sessions, profiles, invites);
     }
+    private SessionInvite pending() {
+        SessionInvite invite = new SessionInvite();
+        invite.setId(55L);
+        invite.setSession(session);
+        invite.setInvitee(recipient);
+        invite.setInviter(owner);
+        invite.setStatus(SessionInviteStatus.PENDING);
+        when(sessions.findByIdForUpdate(1L)).thenReturn(Optional.of(session));
+        when(profiles.findUserByUsername("jogador")).thenReturn(Optional.of(recipient));
+        when(invites.findById(55L)).thenReturn(Optional.of(invite));
+        return invite;
+    }
+
+    @Test
+    void acceptsUsingExistingJoinService() {
+        SessionInvite invite = pending();
+        JoinSessionResponse joined = new JoinSessionResponse(JoinState.PARTICIPANT, null);
+        when(sessionService.join(eq(1L), any(), eq("jogador"))).thenReturn(joined);
+        assertSame(joined, service.accept(1L, 55L, "jogador"));
+        assertEquals(SessionInviteStatus.ACCEPTED, invite.getStatus());
+        assertNotNull(invite.getRespondedAt());
+        verify(invites).save(invite);
+    }
+
+    @Test
+    void declinesWithoutJoining() {
+        SessionInvite invite = pending();
+        service.decline(1L, 55L, "jogador");
+        assertEquals(SessionInviteStatus.DECLINED, invite.getStatus());
+        assertNotNull(invite.getRespondedAt());
+        verifyNoInteractions(sessionService);
+    }
+
+    @Test
+    void rejectsAlreadyAnsweredInvite() {
+        SessionInvite invite = pending();
+        invite.setStatus(SessionInviteStatus.DECLINED);
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.accept(1L, 55L, "jogador"));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verifyNoInteractions(sessionService);
+    }
+
+    @Test
+    void rejectsOtherPlayerResponding() {
+        SessionInvite invite = pending();
+        invite.setInvitee(owner);
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.decline(1L, 55L, "jogador"));
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(invites, never()).save(any());
+    }
+
+    @Test
+    void failedJoinDoesNotMarkInvitationAccepted() {
+        SessionInvite invite = pending();
+        when(sessionService.join(eq(1L), any(), eq("jogador")))
+                .thenThrow(new IllegalStateException("Session already started"));
+        assertThrows(IllegalStateException.class, () -> service.accept(1L, 55L, "jogador"));
+        assertEquals(SessionInviteStatus.PENDING, invite.getStatus());
+        verify(invites, never()).save(any());
+    }
+
 }
