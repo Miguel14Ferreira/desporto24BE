@@ -54,6 +54,19 @@ public class CommunityMembershipCleanupService {
                         participant.setTeamCode(null);
                         participantRepository.save(participant);
                         promotionService.promoteNext(session, now);
+                        var activeParticipants = participantRepository
+                                .findBySessionIdAndStateOrderByJoinedAtAsc(
+                                        session.getId(), ParticipantState.ACTIVE);
+                        boolean teamsChanged = false;
+                        for (var active : activeParticipants) {
+                            if (active.getTeamCode() != null) {
+                                active.setTeamCode(null);
+                                teamsChanged = true;
+                            }
+                        }
+                        if (teamsChanged) {
+                            participantRepository.saveAll(activeParticipants);
+                        }
                     });
         }
     }
