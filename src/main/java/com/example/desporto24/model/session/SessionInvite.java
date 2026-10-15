@@ -11,7 +11,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "session_invite", schema = "desporto24")
+@Table(name = "session_invite")
 @Getter
 @Setter
 @NoArgsConstructor
