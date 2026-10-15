@@ -35,13 +35,19 @@ class CommunityMembershipCleanupServiceTest {
         session.setGameDate(Date.from(Instant.now().plusSeconds(3600)));
         SessionParticipant participant = new SessionParticipant();
         participant.setState(ParticipantState.ACTIVE);
+        participant.setTeamCode("A");
         participant.setAttendanceStatus(AttendanceStatus.PENDING);
+        SessionParticipant teammate = new SessionParticipant();
+        teammate.setState(ParticipantState.ACTIVE);
+        teammate.setTeamCode("B");
         SessionWaitlist queued = new SessionWaitlist();
         when(sessions.findByCommunityIdOrderByGameDateDesc(10L)).thenReturn(List.of(session));
         when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(session));
         when(participants.findBySessionIdAndProfileIdAndState(
                 42L, 7L, ParticipantState.ACTIVE)).thenReturn(Optional.of(participant));
         when(waitlists.findBySessionIdAndProfileId(42L, 7L)).thenReturn(Optional.of(queued));
+        when(participants.findBySessionIdAndStateOrderByJoinedAtAsc(
+                42L, ParticipantState.ACTIVE)).thenReturn(List.of(teammate));
 
         new CommunityMembershipCleanupService(sessions, participants, waitlists, promotions)
                 .onMembershipEnded(new CommunityMembershipEndedEvent(10L, 7L));
@@ -51,6 +57,9 @@ class CommunityMembershipCleanupServiceTest {
         verify(waitlists).delete(queued);
         verify(participants).save(participant);
         verify(promotions).promoteNext(eq(session), any(Instant.class));
+        assertNull(participant.getTeamCode());
+        assertNull(teammate.getTeamCode());
+        verify(participants).saveAll(List.of(teammate));
     }
 
     @Test
