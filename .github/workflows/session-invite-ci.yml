@@ -29,4 +29,4 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Run session invitation tests
-        run: ./mvnw -B -ntp -Dtest=SessionInviteServiceTest test
+        run: bash ./mvnw -B -ntp -Dtest=SessionInviteServiceTest test
