@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -94,6 +95,22 @@ public class SessionInviteService {
         notifications.save(notification);
         return inviteId;
     }
+    @Transactional(readOnly = true)
+    public List<PendingSessionInvite> pendingFor(String username) {
+        Profile actor = profiles.findUserByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        return invites.findByInviteeIdAndStatusOrderByCreatedAtDesc(actor.getId(), SessionInviteStatus.PENDING)
+                .stream()
+                .map(invite -> new PendingSessionInvite(
+                        invite.getId(),
+                        invite.getSession().getId(),
+                        invite.getInviter().getUsername(),
+                        invite.getCreatedAt()))
+                .toList();
+    }
+
+    public record PendingSessionInvite(Long id, Long sessionId, String inviterUsername, Instant createdAt) {}
+
     @Transactional
     public JoinSessionResponse accept(Long sessionId, Long inviteId, String username) {
         // Lock the same session row as join(), so competing responses and joins serialize.
