@@ -191,6 +191,38 @@ class CommunityManagementServiceTest {
     }
 
     @Test
+    void adminCannotRemoveAnotherAdmin() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile actor = new Profile();
+        actor.setId(1L);
+        actor.setUsername("admin");
+        Profile target = new Profile();
+        target.setId(2L);
+        target.setUsername("other-admin");
+        Community community = Community.builder().id(10L).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("admin")).thenReturn(Optional.of(actor));
+        when(profiles.findUserByUsernameIgnoreCase("other-admin")).thenReturn(Optional.of(target));
+        when(members.findByCommunityIdAndProfileId(10L, 1L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(community).profile(actor)
+                        .role(CommunityRole.ADMIN).build()));
+        when(members.findByCommunityIdAndProfileId(10L, 2L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(community).profile(target)
+                        .role(CommunityRole.ADMIN).build()));
+
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, mock(CommunityInviteRepository.class),
+                mock(CommunityJoinRequestRepository.class), profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        assertThrows(SecurityException.class,
+                () -> service.removeMember(10L, "admin", "other-admin"));
+        verify(members, never()).delete(any());
+    }
+
+    @Test
     void ownerCanChangeVisibilityInBothDirectionsWithoutChangingCommunityDetails() {
         for (CommunityVisibility target : CommunityVisibility.values()) {
             CommunityRepository communities = mock(CommunityRepository.class);
