@@ -404,6 +404,7 @@ public class CommunityManagementService {
         }
 
         memberRepository.delete(targetMembership);
+        eventPublisher.publishEvent(new CommunityMembershipEndedEvent(communityId, target.getId()));
     }
 
     public void leave(Long communityId, String username) {
@@ -417,6 +418,7 @@ public class CommunityManagementService {
         }
 
         memberRepository.delete(membership);
+        eventPublisher.publishEvent(new CommunityMembershipEndedEvent(communityId, current.getId()));
     }
 
     public CommunityResponse transferOwnership(
