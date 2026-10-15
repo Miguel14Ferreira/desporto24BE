@@ -80,6 +80,41 @@ class SessionDiscoveryServiceTest {
     }
 
     @Test
+    void recurrenceSeriesDoesNotExposeCommunityOnlySessionsToOutsiders() {
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        viewer.setUsername("outsider");
+        when(profileRepository.findUserByUsername("outsider")).thenReturn(Optional.of(viewer));
+
+        Session publicSession = new Session();
+        publicSession.setId(1L);
+        publicSession.setAudience(SessionAudience.PUBLIC);
+        publicSession.setRecurrenceSeriesId("series-one");
+
+        Session privateSession = new Session();
+        privateSession.setId(2L);
+        privateSession.setAudience(SessionAudience.COMMUNITY_ONLY);
+        privateSession.setRecurrenceSeriesId("series-one");
+        privateSession.setCommunity(
+                com.example.desporto24.model.community.Community.builder().id(10L).build());
+
+        when(sessionRepository.findById(1L)).thenReturn(Optional.of(publicSession));
+        when(sessionRepository.findByRecurrenceSeriesIdOrderByGameDateAsc("series-one"))
+                .thenReturn(List.of(publicSession, privateSession));
+        when(communityMemberRepository.existsByCommunityIdAndProfileId(10L, 7L))
+                .thenReturn(false);
+        SessionSummaryResponse visibleSummary = mock(SessionSummaryResponse.class);
+        when(sessionViewMapper.toSummary(eq(publicSession), isNull(), anyMap(), anySet(), anySet()))
+                .thenReturn(visibleSummary);
+
+        List<SessionSummaryResponse> result = service.series(1L, "outsider");
+
+        assertEquals(List.of(visibleSummary), result);
+        verify(sessionViewMapper, never()).toSummary(
+                eq(privateSession), isNull(), anyMap(), anySet(), anySet());
+    }
+
+    @Test
     void authenticatedDiscoveryRecordsPilotSearchAfterSuccessfulDiscovery() {
         Profile profile = new Profile();
         profile.setId(7L);
