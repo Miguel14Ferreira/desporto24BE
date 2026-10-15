@@ -344,6 +344,13 @@ public class CommunityManagementService {
                     .build());
         }
 
+        joinRequestRepository.findByCommunityIdAndRequesterIdAndStatus(
+                        community.getId(), current.getId(), CommunityInviteStatus.PENDING)
+                .ifPresent(pending -> {
+                    pending.setStatus(CommunityInviteStatus.ACCEPTED);
+                    joinRequestRepository.save(pending);
+                });
+
         invite.setStatus(CommunityInviteStatus.ACCEPTED);
         inviteRepository.save(invite);
         return toResponse(community, current);
