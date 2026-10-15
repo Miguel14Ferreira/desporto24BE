@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.SessionAudience;
+import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -17,6 +18,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
@@ -66,6 +68,13 @@ public class CommunitySessionService {
                 .orElseThrow(() -> new IllegalArgumentException("Sessão não encontrada"));
         if (session.getCommunity() == null || !communityId.equals(session.getCommunity().getId())) {
             throw new IllegalArgumentException("A sessão não pertence a esta comunidade");
+        }
+
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED
+                || session.getGameDate() == null
+                || !session.getGameDate().toInstant().isAfter(Instant.now())) {
+            throw new IllegalStateException("Esta sessão já não aceita novas inscrições");
         }
 
         session.setAudience(SessionAudience.PUBLIC);
