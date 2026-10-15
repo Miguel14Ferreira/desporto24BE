@@ -60,7 +60,7 @@ class SessionInviteServiceTest {
 
     private void prepare() {
         when(sessions.findByIdForUpdate(1L)).thenReturn(Optional.of(session));
-        when(profiles.findUserByUsername("organizador")).thenReturn(Optional.of(owner));
+        lenient().when(profiles.findUserByUsername("organizador")).thenReturn(Optional.of(owner));
     }
 
     private void assertFailure(HttpStatus status, String player) {
