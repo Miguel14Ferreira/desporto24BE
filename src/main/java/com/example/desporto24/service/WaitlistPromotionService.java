@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
@@ -9,6 +10,7 @@ import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ public class WaitlistPromotionService {
     private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionRepository sessionRepository;
+    private final CommunityMemberRepository memberRepository;
     private final SessionNotificationService sessionNotificationService;
     private final PilotEventService pilotEventService;
 
@@ -51,6 +54,10 @@ public class WaitlistPromotionService {
         Optional<SessionParticipant> promoted = waitlistRepository
                 .findBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId())
                 .stream()
+                .filter(entry -> session.getAudience() != SessionAudience.COMMUNITY_ONLY
+                        || session.getCommunity() == null
+                        || memberRepository.existsByCommunityIdAndProfileId(
+                                session.getCommunity().getId(), entry.getProfile().getId()))
                 .filter(entry -> !exclusionRepository.existsByOrganizerIdAndExcludedId(
                         session.getProfile().getId(), entry.getProfile().getId()))
                 .findFirst()
