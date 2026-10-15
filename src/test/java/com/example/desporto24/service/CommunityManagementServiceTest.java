@@ -157,6 +157,44 @@ class CommunityManagementServiceTest {
     }
 
     @Test
+    void joiningPublicCommunityResolvesExistingPendingInvite() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        CommunityInviteRepository invites = mock(CommunityInviteRepository.class);
+        CommunityJoinRequestRepository requests = mock(CommunityJoinRequestRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile owner = new Profile();
+        owner.setId(1L);
+        owner.setUsername("owner");
+        Profile player = new Profile();
+        player.setId(2L);
+        player.setUsername("player");
+        Community community = Community.builder().id(10L).name("Community")
+                .owner(owner).visibility(CommunityVisibility.PUBLIC).build();
+        CommunityInvite pending = CommunityInvite.builder().community(community)
+                .invitedProfile(player).invitedBy(owner)
+                .status(CommunityInviteStatus.PENDING).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("player")).thenReturn(Optional.of(player));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(invites.findByCommunityIdAndInvitedProfileIdAndStatus(
+                10L, 2L, CommunityInviteStatus.PENDING)).thenReturn(Optional.of(pending));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(10L)).thenReturn(List.of(
+                CommunityMember.builder().community(community).profile(player)
+                        .role(CommunityRole.MEMBER).build()));
+
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, invites, requests, profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        service.joinPublic(10L, "player");
+
+        assertEquals(CommunityInviteStatus.ACCEPTED, pending.getStatus());
+        verify(invites).save(pending);
+        verify(members).save(any(CommunityMember.class));
+    }
+
+    @Test
     void joiningPublicCommunityResolvesOwnPreviouslyPendingRequest() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);

@@ -128,6 +128,13 @@ public class CommunityManagementService {
                     joinRequestRepository.save(pending);
                 });
 
+        inviteRepository.findByCommunityIdAndInvitedProfileIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .ifPresent(pending -> {
+                    pending.setStatus(CommunityInviteStatus.ACCEPTED);
+                    inviteRepository.save(pending);
+                });
+
         return toResponse(community, current);
     }
 
