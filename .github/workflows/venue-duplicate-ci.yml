@@ -1,0 +1,24 @@
+name: Validate venue duplicate guard
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/main/java/com/example/desporto24/repository/venue/VenueRepository.java'
+      - 'src/main/java/com/example/desporto24/service/VenueService.java'
+      - '.github/workflows/venue-duplicate-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -B test
