@@ -259,4 +259,22 @@ class SessionInviteServiceTest {
         verify(invites, never()).save(any());
     }
 
+    @Test
+    void pendingInboxContainsOnlyCurrentUserInvitations() {
+        when(profiles.findUserByUsername("jogador")).thenReturn(Optional.of(recipient));
+        SessionInvite invite = new SessionInvite();
+        invite.setId(55L);
+        invite.setSession(session);
+        invite.setInviter(owner);
+        when(invites.findByInviteeIdAndStatusOrderByCreatedAtDesc(20L, SessionInviteStatus.PENDING))
+                .thenReturn(java.util.List.of(invite));
+
+        var result = service.pendingFor("jogador");
+        assertEquals(1, result.size());
+        assertEquals(55L, result.get(0).id());
+        assertEquals(1L, result.get(0).sessionId());
+        assertEquals("organizador", result.get(0).inviterUsername());
+        verify(invites).findByInviteeIdAndStatusOrderByCreatedAtDesc(20L, SessionInviteStatus.PENDING);
+    }
+
 }
