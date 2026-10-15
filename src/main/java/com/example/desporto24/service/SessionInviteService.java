@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.NotificationType;
+import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionInviteStatus;
 import com.example.desporto24.enumeration.SessionStatus;
@@ -12,6 +13,8 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionInviteRepository;
+import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ public class SessionInviteService {
     private final ProfileRepository profiles;
     private final SessionInviteRepository invites;
     private final NotificationsRepository notifications;
+    private final SessionParticipantRepository participants;
+    private final SessionWaitlistRepository waitlist;
 
     @Transactional
     public Long invite(Long sessionId, String organizerUsername, String recipientUsername) {
@@ -53,6 +58,10 @@ public class SessionInviteService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Jogador não encontrado."));
         if (recipient.getId().equals(actor.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Não podes convidar-te a ti próprio.");
+        }
+        if (participants.existsBySessionIdAndProfileIdAndState(sessionId, recipient.getId(), ParticipantState.ACTIVE)
+                || waitlist.findBySessionIdAndProfileId(sessionId, recipient.getId()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este jogador já está inscrito ou na lista de espera.");
         }
         if (invites.findBySessionIdAndInviteeIdAndStatus(sessionId, recipient.getId(), SessionInviteStatus.PENDING).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Já existe um convite pendente.");
