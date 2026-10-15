@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 import com.example.desporto24.model.dto.session.JoinSessionResponse;
 
 @RestController
@@ -26,6 +27,11 @@ public class SessionInviteController {
                                     Authentication authentication) {
         return Map.of("id", inviteService.invite(sessionId, authentication.getName(), request.username()));
     }
+    @GetMapping("/pending")
+    public List<SessionInviteService.PendingSessionInvite> pending(Authentication authentication) {
+        return inviteService.pendingFor(authentication.getName());
+    }
+
     @PostMapping("/{inviteId}/accept")
     public JoinSessionResponse accept(@PathVariable Long sessionId,
                                       @PathVariable Long inviteId,
