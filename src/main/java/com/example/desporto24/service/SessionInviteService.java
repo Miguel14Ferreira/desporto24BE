@@ -5,6 +5,9 @@ import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionInviteStatus;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.model.dto.session.JoinSessionRequest;
+import com.example.desporto24.model.dto.session.JoinSessionResponse;
+import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionInvite;
@@ -32,6 +35,7 @@ public class SessionInviteService {
     private final NotificationsRepository notifications;
     private final SessionParticipantRepository participants;
     private final SessionWaitlistRepository waitlist;
+    private final SessionService sessionService;
 
     @Transactional
     public Long invite(Long sessionId, String organizerUsername, String recipientUsername) {
@@ -90,4 +94,43 @@ public class SessionInviteService {
         notifications.save(notification);
         return inviteId;
     }
+    @Transactional
+    public JoinSessionResponse accept(Long sessionId, Long inviteId, String username) {
+        // Lock the same session row as join(), so competing responses and joins serialize.
+        sessions.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão não encontrada."));
+        SessionInvite invite = findPendingInvite(sessionId, inviteId, username);
+        // Reuse all existing eligibility, capacity, exclusion and waitlist rules.
+        JoinSessionResponse result = sessionService.join(sessionId, new JoinSessionRequest(null), username);
+        invite.setStatus(SessionInviteStatus.ACCEPTED);
+        invite.setRespondedAt(Instant.now());
+        invites.save(invite);
+        return result;
+    }
+
+    @Transactional
+    public void decline(Long sessionId, Long inviteId, String username) {
+        sessions.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão não encontrada."));
+        SessionInvite invite = findPendingInvite(sessionId, inviteId, username);
+        invite.setStatus(SessionInviteStatus.DECLINED);
+        invite.setRespondedAt(Instant.now());
+        invites.save(invite);
+    }
+
+    private SessionInvite findPendingInvite(Long sessionId, Long inviteId, String username) {
+        Profile actor = profiles.findUserByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        SessionInvite invite = invites.findById(inviteId)
+                .filter(value -> value.getSession().getId().equals(sessionId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Convite não encontrado."));
+        if (!invite.getInvitee().getId().equals(actor.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Este convite não te pertence.");
+        }
+        if (invite.getStatus() != SessionInviteStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este convite já foi respondido.");
+        }
+        return invite;
+    }
+
 }
