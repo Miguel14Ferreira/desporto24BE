@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.NotificationType;
+import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionInviteStatus;
 import com.example.desporto24.enumeration.SessionStatus;
@@ -12,6 +13,9 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionInviteRepository;
+import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionWaitlistRepository;
+import com.example.desporto24.model.session.SessionWaitlist;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +39,8 @@ class SessionInviteServiceTest {
     @Mock ProfileRepository profiles;
     @Mock SessionInviteRepository invites;
     @Mock NotificationsRepository notifications;
+    @Mock SessionParticipantRepository participants;
+    @Mock SessionWaitlistRepository waitlist;
 
     private SessionInviteService service;
     private Session session;
@@ -43,7 +49,7 @@ class SessionInviteServiceTest {
 
     @BeforeEach
     void setup() {
-        service = new SessionInviteService(sessions, profiles, invites, notifications);
+        service = new SessionInviteService(sessions, profiles, invites, notifications, participants, waitlist);
         owner = new Profile();
         owner.setId(10L);
         owner.setUsername("organizador");
@@ -142,6 +148,26 @@ class SessionInviteServiceTest {
         session.setAudience(SessionAudience.COMMUNITY_ONLY);
         assertFailure(HttpStatus.CONFLICT, "jogador");
         verifyNoInteractions(invites);
+    }
+
+    @Test
+    void rejectsAlreadyJoinedPlayer() {
+        prepare();
+        when(profiles.findUserByUsernameIgnoreCase("jogador")).thenReturn(Optional.of(recipient));
+        when(participants.existsBySessionIdAndProfileIdAndState(1L, 20L, ParticipantState.ACTIVE))
+                .thenReturn(true);
+        assertFailure(HttpStatus.CONFLICT, "jogador");
+        verify(invites, never()).save(any());
+    }
+
+    @Test
+    void rejectsWaitlistedPlayer() {
+        prepare();
+        when(profiles.findUserByUsernameIgnoreCase("jogador")).thenReturn(Optional.of(recipient));
+        when(waitlist.findBySessionIdAndProfileId(1L, 20L))
+                .thenReturn(Optional.of(new SessionWaitlist()));
+        assertFailure(HttpStatus.CONFLICT, "jogador");
+        verify(invites, never()).save(any());
     }
 
     @Test
