@@ -129,6 +129,22 @@ class SessionInviteServiceTest {
     }
 
     @Test
+    void rejectsCompletedSession() {
+        prepare();
+        session.setStatus(SessionStatus.COMPLETED);
+        assertFailure(HttpStatus.CONFLICT, "jogador");
+        verifyNoInteractions(invites);
+    }
+
+    @Test
+    void rejectsCommunityOnlySession() {
+        prepare();
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        assertFailure(HttpStatus.CONFLICT, "jogador");
+        verifyNoInteractions(invites);
+    }
+
+    @Test
     void rejectsDuplicatePendingInvite() {
         prepare();
         when(profiles.findUserByUsernameIgnoreCase("jogador")).thenReturn(Optional.of(recipient));
