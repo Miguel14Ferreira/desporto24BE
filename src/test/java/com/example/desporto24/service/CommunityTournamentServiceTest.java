@@ -4,6 +4,10 @@ import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentMatchStatus;
+import com.example.desporto24.model.community.CommunityTournamentMatch;
+import com.example.desporto24.repository.community.CommunityTournamentMatchRepository;
+import com.example.desporto24.repository.community.CommunityTournamentParticipantRepository;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
@@ -37,6 +41,8 @@ class CommunityTournamentServiceTest {
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository memberRepository;
     @Mock private CommunityTournamentRepository tournamentRepository;
+    @Mock private CommunityTournamentParticipantRepository participantRepository;
+    @Mock private CommunityTournamentMatchRepository matchRepository;
     @Mock private ProfileRepository profileRepository;
     @InjectMocks private CommunityTournamentService service;
 
@@ -184,6 +190,72 @@ class CommunityTournamentServiceTest {
         assertEquals(19L, result.tournaments().get(0).id());
         assertEquals(TournamentStatus.DRAFT, result.tournaments().get(0).status());
         verify(memberRepository, never()).existsByCommunityIdAndProfileId(any(), any());
+    }
+
+
+    @Test
+    void ownerCanRemoveUnscoredInProgressTournamentAndItsDependencies() {
+        actingAsOwner(CommunityRole.OWNER);
+        var tournament = CommunityTournament.builder()
+                .id(19L).name("Ensaio").community(community)
+                .status(TournamentStatus.IN_PROGRESS).createdAt(Instant.now()).build();
+        when(tournamentRepository.findByIdForUpdate(19L)).thenReturn(Optional.of(tournament));
+        var scheduled = CommunityTournamentMatch.builder().id(45L).tournament(tournament)
+                .status(TournamentMatchStatus.SCHEDULED).build();
+        when(matchRepository.findByTournamentIdOrderByRoundNumberAscIdAsc(19L))
+                .thenReturn(List.of(scheduled));
+
+        service.delete(7L, 19L, "owner");
+
+        var order = inOrder(matchRepository, participantRepository, tournamentRepository);
+        order.verify(matchRepository).deleteAll(List.of(scheduled));
+        order.verify(matchRepository).flush();
+        order.verify(participantRepository).findByTournamentIdOrderByIdAsc(19L);
+        order.verify(participantRepository).deleteAll(List.of());
+        order.verify(participantRepository).flush();
+        order.verify(tournamentRepository).delete(tournament);
+    }
+
+    @Test
+    void refusesDeletingTournamentOfAnotherCommunityBeforeReadingItsMatches() {
+        actingAsOwner(CommunityRole.ADMIN);
+        var other = Community.builder().id(8L).build();
+        when(tournamentRepository.findByIdForUpdate(19L)).thenReturn(Optional.of(
+                CommunityTournament.builder().id(19L).community(other).build()));
+
+        var ex = assertThrows(ResponseStatusException.class, () -> service.delete(7L, 19L, "owner"));
+        assertEquals(org.springframework.http.HttpStatus.NOT_FOUND, ex.getStatusCode());
+        verifyNoInteractions(matchRepository, participantRepository);
+        verify(tournamentRepository, never()).delete(any());
+    }
+
+    @Test
+    void memberCannotDeleteTournament() {
+        actingAsOwner(CommunityRole.MEMBER);
+        assertThrows(AccessDeniedException.class, () -> service.delete(7L, 19L, "owner"));
+        verifyNoInteractions(matchRepository, participantRepository, tournamentRepository);
+    }
+
+    @Test
+    void refusesDeletingCompletedTournamentOrOneWithRecordedResults() {
+        actingAsOwner(CommunityRole.OWNER);
+        var tournament = CommunityTournament.builder().id(19L).community(community)
+                .status(TournamentStatus.COMPLETED).build();
+        when(tournamentRepository.findByIdForUpdate(19L)).thenReturn(Optional.of(tournament));
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.delete(7L, 19L, "owner"));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, error.getStatusCode());
+        verifyNoInteractions(matchRepository, participantRepository);
+
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        when(matchRepository.findByTournamentIdOrderByRoundNumberAscIdAsc(19L))
+                .thenReturn(List.of(CommunityTournamentMatch.builder()
+                        .status(TournamentMatchStatus.COMPLETED).homeScore(2).awayScore(1).build()));
+        error = assertThrows(ResponseStatusException.class,
+                () -> service.delete(7L, 19L, "owner"));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, error.getStatusCode());
+        verify(matchRepository, never()).deleteAll(anyList());
+        verify(tournamentRepository, never()).delete(any());
     }
 
     @Test

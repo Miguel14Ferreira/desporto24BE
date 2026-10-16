@@ -43,6 +43,15 @@ public class CommunityTournamentController {
                 .body(tournamentService.create(communityId, authentication.getName(), request));
     }
 
+    @DeleteMapping("/{tournamentId}")
+    public ResponseEntity<Void> delete(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            Authentication authentication) {
+        tournamentService.delete(communityId, tournamentId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{tournamentId}/participants/me")
     public ResponseEntity<CommunityTournamentParticipantResponse> join(
             @PathVariable Long communityId,

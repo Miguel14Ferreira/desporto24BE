@@ -104,6 +104,43 @@ class CommunityTournamentPersistenceTest {
         assertNotEquals(loaded.get(0).getHomeParticipant().getId(), loaded.get(0).getAwayParticipant().getId());
     }
 
+
+    @Test
+    void scheduledMatchAndRosterCanBeDeletedInForeignKeyOrder() {
+        Profile first = new Profile();
+        first.setUsername("delete-test-owner");
+        entityManager.persist(first);
+        Profile second = new Profile();
+        second.setUsername("delete-test-opponent");
+        entityManager.persist(second);
+        var community = Community.builder().name("Grupo teste")
+                .visibility(CommunityVisibility.PRIVATE).owner(first)
+                .createdAt(Instant.now()).build();
+        entityManager.persist(community);
+        var tournament = tournamentRepository.saveAndFlush(CommunityTournament.builder()
+                .community(community).name("Torneio de teste").createdAt(Instant.now()).build());
+        var home = participantRepository.saveAndFlush(CommunityTournamentParticipant.builder()
+                .tournament(tournament).profile(first).joinedAt(Instant.now()).build());
+        var away = participantRepository.saveAndFlush(CommunityTournamentParticipant.builder()
+                .tournament(tournament).profile(second).joinedAt(Instant.now()).build());
+        matchRepository.saveAndFlush(CommunityTournamentMatch.builder().tournament(tournament)
+                .homeParticipant(home).awayParticipant(away).roundNumber(1).build());
+        entityManager.flush();
+        entityManager.clear();
+
+        matchRepository.deleteAll(matchRepository.findByTournamentIdOrderByRoundNumberAscIdAsc(tournament.getId()));
+        matchRepository.flush();
+        participantRepository.deleteAll(participantRepository.findByTournamentIdOrderByIdAsc(tournament.getId()));
+        participantRepository.flush();
+        tournamentRepository.deleteById(tournament.getId());
+        tournamentRepository.flush();
+        entityManager.clear();
+
+        assertFalse(tournamentRepository.existsById(tournament.getId()));
+        assertFalse(matchRepository.existsByTournamentId(tournament.getId()));
+        assertTrue(participantRepository.findByTournamentIdOrderByIdAsc(tournament.getId()).isEmpty());
+    }
+
     @Test
     void allowsRecordingAndReopeningACompletedMatchFromTheRepository() {
         Profile owner = new Profile();

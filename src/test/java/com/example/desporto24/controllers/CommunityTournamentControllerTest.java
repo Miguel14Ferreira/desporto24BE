@@ -106,6 +106,15 @@ class CommunityTournamentControllerTest {
         verify(service).create(7L, "owner", request);
     }
 
+
+    @Test
+    void deletingUsesAuthenticatedCommunityManagerAndReturns204() {
+        when(authentication.getName()).thenReturn("owner");
+        var response = controller.delete(7L, 19L, authentication);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(service).delete(7L, 19L, "owner");
+    }
+
     @Test
     void listingUsesPageAndAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("owner");

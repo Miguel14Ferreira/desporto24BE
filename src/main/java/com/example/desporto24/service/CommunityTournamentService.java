@@ -8,6 +8,7 @@ import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityTournament;
 import com.example.desporto24.model.community.CommunityTournamentParticipant;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
@@ -18,6 +19,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityTournamentRepository;
+import com.example.desporto24.repository.community.CommunityTournamentMatchRepository;
 import com.example.desporto24.repository.community.CommunityTournamentParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -40,6 +42,7 @@ public class CommunityTournamentService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTournamentParticipantRepository participantRepository;
+    private final CommunityTournamentMatchRepository matchRepository;
     private final ProfileRepository profileRepository;
 
     public CommunityTournamentResponse create(Long communityId, String username,
@@ -80,6 +83,42 @@ public class CommunityTournamentService {
                 .build();
         // Only the LEAGUE/DRAFT foundation is exposed; starting and scoring come later.
         return response(tournamentRepository.save(tournament));
+    }
+
+
+    /**
+     * Remove an unfinished experimental tournament, its fixtures and its opt-in roster.
+     * Never delete a competition which has recorded sporting results or is completed.
+     * Scope and manager rights are checked before any destructive operation.
+     */
+    public void delete(Long communityId, Long tournamentId, String username) {
+        Profile actor = profile(username);
+        var member = memberRepository.findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
+        if (member.getRole() != CommunityRole.OWNER && member.getRole() != CommunityRole.ADMIN) {
+            throw new AccessDeniedException("Apenas Owners e Admins podem eliminar torneios");
+        }
+        CommunityTournament tournament = tournament(communityId, tournamentId);
+        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não é possível eliminar uma competição concluída");
+        }
+
+        var matches = matchRepository.findByTournamentIdOrderByRoundNumberAscIdAsc(tournamentId);
+        if (matches.stream().anyMatch(match ->
+                match.getStatus() == TournamentMatchStatus.COMPLETED
+                        || match.getHomeScore() != null || match.getAwayScore() != null)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não é possível eliminar uma competição com resultados registados");
+        }
+
+        // Foreign keys connect matches to enrollments and both to the tournament.
+        // Flush in dependency order to keep the delete transactional even on PostgreSQL.
+        matchRepository.deleteAll(matches);
+        matchRepository.flush();
+        participantRepository.deleteAll(participantRepository.findByTournamentIdOrderByIdAsc(tournamentId));
+        participantRepository.flush();
+        tournamentRepository.delete(tournament);
     }
 
     @Transactional(readOnly = true)
