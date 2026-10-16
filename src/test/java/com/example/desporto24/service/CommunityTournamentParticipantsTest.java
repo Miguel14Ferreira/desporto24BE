@@ -134,8 +134,8 @@ class CommunityTournamentParticipantsTest {
                 .profile(actor).joinedAt(Instant.now()).build();
         when(participants.findByTournamentIdAndProfileId(9L, 5L)).thenReturn(Optional.of(mine));
         service.leave(7L, 9L, "ana");
-        verify(participants).delete(mine);
-        verify(participants, never()).delete(any(CommunityTournamentParticipant.class));
+        verify(participants).findByTournamentIdAndProfileId(9L, 5L);
+        verify(participants, times(1)).delete(mine);
     }
 
     @Test
