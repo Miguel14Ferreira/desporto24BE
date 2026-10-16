@@ -6,6 +6,10 @@ import com.example.desporto24.model.dto.community.CommunityTournamentParticipant
 import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
 import com.example.desporto24.service.CommunityTournamentService;
+import com.example.desporto24.service.CommunityTournamentScheduleService;
+import com.example.desporto24.model.dto.community.CommunityTournamentScheduleSummaryResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentMatchesPageResponse;
+import com.example.desporto24.enumeration.TournamentStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -17,8 +21,28 @@ import static org.mockito.Mockito.*;
 
 class CommunityTournamentControllerTest {
     private final CommunityTournamentService service = mock(CommunityTournamentService.class);
-    private final CommunityTournamentController controller = new CommunityTournamentController(service);
+    private final CommunityTournamentScheduleService scheduleService = mock(CommunityTournamentScheduleService.class);
+    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService);
     private final Authentication authentication = mock(Authentication.class);
+
+    @Test
+    void scheduleGenerationUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("owner");
+        var summary = new CommunityTournamentScheduleSummaryResponse(
+                9L, TournamentStatus.IN_PROGRESS, 4, 3, 6);
+        when(scheduleService.generate(7L, 9L, "owner")).thenReturn(summary);
+        assertSame(summary, controller.generateSchedule(7L, 9L, authentication).getBody());
+        verify(scheduleService).generate(7L, 9L, "owner");
+    }
+
+    @Test
+    void pagedMatchLookupDelegatesToScheduleService() {
+        when(authentication.getName()).thenReturn("ana");
+        var page = new CommunityTournamentMatchesPageResponse(List.of(), 2, false);
+        when(scheduleService.matches(7L, 9L, "ana", 2)).thenReturn(page);
+        assertSame(page, controller.matches(7L, 9L, 2, authentication).getBody());
+        verify(scheduleService).matches(7L, 9L, "ana", 2);
+    }
 
     @Test
     void creatingUsesAuthenticatedIdentityAndReturns201() {

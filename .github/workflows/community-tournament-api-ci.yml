@@ -5,9 +5,11 @@ on:
     paths:
       - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentController.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentScheduleService.java'
       - 'src/main/java/com/example/desporto24/model/dto/community/*Tournament*.java'
       - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentRepository.java'
       - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentParticipantRepository.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentMatchRepository.java'
       - 'src/main/java/com/example/desporto24/enumeration/TournamentParticipantStatus.java'
       - 'src/main/java/com/example/desporto24/model/community/CommunityTournamentParticipant.java'
       - 'src/main/resources/db/changelog/db.changelog-master.yaml'
@@ -15,6 +17,7 @@ on:
       - 'src/test/java/com/example/desporto24/controllers/CommunityTournamentControllerTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentParticipantsTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentScheduleServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentConfirmationTest.java'
       - '.github/workflows/community-tournament-api-ci.yml'
 permissions:
