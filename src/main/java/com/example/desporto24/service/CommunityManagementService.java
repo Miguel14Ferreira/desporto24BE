@@ -31,6 +31,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -55,10 +58,12 @@ public class CommunityManagementService {
     public CommunityResponse create(String username, CreateCommunityRequest request) {
         Profile owner = profile(username);
 
+        List<String> sports = normalizeSports(request.sports(), request.sport());
         Community community = Community.builder()
                 .name(request.name().trim())
                 .description(trimToNull(request.description()))
-                .sport(trimToNull(request.sport()))
+                .sport(sports.isEmpty() ? null : sports.get(0))
+                .sports(sports)
                 .visibility(request.visibility())
                 .owner(owner)
                 .rankingsEnabled(false)
@@ -234,6 +239,17 @@ public class CommunityManagementService {
         request.setStatus(CommunityInviteStatus.REJECTED);
         joinRequestRepository.save(request);
         notifyJoinDecision(request, actor, false);
+    }
+
+    public CommunityResponse updateSports(Long communityId, String username,
+                                          UpdateCommunitySportsRequest request) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        List<String> sports = normalizeSports(request.sports(), null);
+        community.setSports(sports);
+        community.setSport(sports.isEmpty() ? null : sports.get(0));
+        Community saved = communityRepository.save(community);
+        return toResponse(saved, actor);
     }
 
     public CommunityResponse updateVisibility(
@@ -505,7 +521,10 @@ public class CommunityManagementService {
                 myRole,
                 members.size(),
                 community.getCreatedAt(),
-                members
+                members,
+                community.getSports() == null || community.getSports().isEmpty()
+                        ? (community.getSport() == null ? List.of() : List.of(community.getSport()))
+                        : List.copyOf(community.getSports())
         );
     }
 
@@ -665,6 +684,24 @@ public class CommunityManagementService {
         if (request.getStatus() != CommunityInviteStatus.PENDING) {
             throw new IllegalArgumentException("Este pedido já não está pendente");
         }
+    }
+
+    private List<String> normalizeSports(List<String> requested, String legacySport) {
+        List<String> input = requested == null
+                ? (legacySport == null || legacySport.isBlank() ? List.of() : List.of(legacySport))
+                : requested;
+        if (input.size() > 128) {
+            throw new IllegalArgumentException("Máximo de 128 modalidades por comunidade");
+        }
+        LinkedHashMap<String, String> unique = new LinkedHashMap<>();
+        for (String value : input) {
+            if (value == null || value.isBlank() || value.trim().length() > 100) {
+                throw new IllegalArgumentException("Cada modalidade deve ter entre 1 e 100 caracteres");
+            }
+            String sport = value.trim();
+            unique.putIfAbsent(sport.toLowerCase(Locale.ROOT), sport);
+        }
+        return new ArrayList<>(unique.values());
     }
 
     private String trimToNull(String value) {

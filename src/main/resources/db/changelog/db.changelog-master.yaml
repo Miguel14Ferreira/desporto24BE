@@ -55,3 +55,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-16-tournament-participant-confirmation.yaml
   - include:
       file: db/changelog/changes/2026-10-16-tournament-champion-snapshot.yaml
+  - include:
+      file: db/changelog/changes/2026-10-16-community-multiple-sports.yaml
