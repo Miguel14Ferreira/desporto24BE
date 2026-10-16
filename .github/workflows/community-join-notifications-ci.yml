@@ -1,0 +1,28 @@
+name: Validate community join notifications
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/main/java/com/example/desporto24/enumeration/NotificationType.java'
+      - 'src/main/java/com/example/desporto24/register/Notifications/Notifications.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityManagementService.java'
+      - 'src/main/resources/db/changelog/db.changelog-master.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-16-community-join-notifications.yaml'
+      - 'src/test/java/com/example/desporto24/service/CommunityJoinNotificationsTest.java'
+      - '.github/workflows/community-join-notifications-ci.yml'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Execute complete backend test suite
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp test

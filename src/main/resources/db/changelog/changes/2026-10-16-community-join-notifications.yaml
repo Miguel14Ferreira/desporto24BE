@@ -1,0 +1,45 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-community-join-notifications
+      author: desporto24
+      preConditions:
+        onFail: HALT
+        tableExists:
+          schemaName: desporto24
+          tableName: notifications
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: notifications
+            columns:
+              - column:
+                  name: community_id
+                  type: BIGINT
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.notifications
+              DROP CONSTRAINT IF EXISTS notifications_type_check;
+              ALTER TABLE desporto24.notifications
+              ADD CONSTRAINT notifications_type_check
+              CHECK (type IS NULL OR type IN (
+                'WAITLIST_PROMOTED',
+                'SESSION_REMOVED',
+                'SESSION_CANCELLED',
+                'SESSION_POST_GAME_REVIEW',
+                'ATTENDANCE_DISPUTE_ACCEPTED',
+                'ATTENDANCE_DISPUTE_REJECTED',
+                'CHAT_MESSAGE',
+                'COMMUNITY_INVITE',
+                'COMMUNITY_JOIN_REQUEST',
+                'COMMUNITY_JOIN_ACCEPTED',
+                'COMMUNITY_JOIN_REJECTED',
+                'SESSION_INVITE'
+              ));
+        - createIndex:
+            schemaName: desporto24
+            tableName: notifications
+            indexName: idx_notifications_community_id
+            columns:
+              - column:
+                  name: community_id
