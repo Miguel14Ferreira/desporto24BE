@@ -15,6 +15,30 @@ public record CommunityTournamentResponse(
         int lossPoints,
         Instant createdAt,
         Instant startedAt,
-        Instant completedAt
+        Instant completedAt,
+        Long championProfileId,
+        String championUsername,
+        String championDisplayName,
+        Long championPoints,
+        boolean championTied
 ) {
+    // Source compatibility for older 10-field direct constructors.
+    public CommunityTournamentResponse(
+            Long id, String name, TournamentFormat format, TournamentStatus status,
+            int winPoints, int drawPoints, int lossPoints,
+            Instant createdAt, Instant startedAt, Instant completedAt) {
+        this(id, name, format, status, winPoints, drawPoints, lossPoints,
+                createdAt, startedAt, completedAt, null, null, null, null, false);
+    }
+
+    public static CommunityTournamentResponse from(
+            com.example.desporto24.model.community.CommunityTournament tournament) {
+        return new CommunityTournamentResponse(
+                tournament.getId(), tournament.getName(), tournament.getFormat(),
+                tournament.getStatus(), tournament.getWinPoints(), tournament.getDrawPoints(),
+                tournament.getLossPoints(), tournament.getCreatedAt(), tournament.getStartedAt(),
+                tournament.getCompletedAt(), tournament.getChampionProfileId(),
+                tournament.getChampionUsername(), tournament.getChampionDisplayName(),
+                tournament.getChampionPoints(), tournament.isChampionTied());
+    }
 }

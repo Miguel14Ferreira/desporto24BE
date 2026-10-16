@@ -9,6 +9,7 @@ import com.example.desporto24.service.CommunityTournamentService;
 import com.example.desporto24.service.CommunityTournamentScheduleService;
 import com.example.desporto24.service.CommunityTournamentResultService;
 import com.example.desporto24.service.CommunityTournamentStandingsService;
+import com.example.desporto24.service.CommunityTournamentFinalizationService;
 import com.example.desporto24.model.dto.community.CommunityTournamentStandingsResponse;
 import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
 import com.example.desporto24.model.dto.community.CommunityTournamentMatchResponse;
@@ -30,8 +31,23 @@ class CommunityTournamentControllerTest {
     private final CommunityTournamentScheduleService scheduleService = mock(CommunityTournamentScheduleService.class);
     private final CommunityTournamentResultService resultService = mock(CommunityTournamentResultService.class);
     private final CommunityTournamentStandingsService standingsService = mock(CommunityTournamentStandingsService.class);
-    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService, resultService, standingsService);
+    private final CommunityTournamentFinalizationService finalizationService = mock(CommunityTournamentFinalizationService.class);
+    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService, resultService, standingsService, finalizationService);
     private final Authentication authentication = mock(Authentication.class);
+
+    @Test
+    void completionUsesAuthenticatedManagerIdentity() {
+        when(authentication.getName()).thenReturn("owner");
+        var finished = new CommunityTournamentResponse(
+                9L, "Liga", null, TournamentStatus.COMPLETED,
+                3, 1, 0, null, null, java.time.Instant.now(),
+                5L, "ana", "Ana", 12L, false);
+        when(finalizationService.complete(7L, 9L, "owner")).thenReturn(finished);
+        var response = controller.complete(7L, 9L, authentication);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertSame(finished, response.getBody());
+        verify(finalizationService).complete(7L, 9L, "owner");
+    }
 
     @Test
     void standingsUsesAuthenticatedCommunityMember() {
