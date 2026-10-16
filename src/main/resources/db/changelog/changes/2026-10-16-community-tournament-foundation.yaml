@@ -199,6 +199,21 @@ databaseChangeLog:
             tableName: community_tournament_participant
             columnNames: tournament_id, profile_id
             constraintName: uk_community_tournament_participant
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_tournament_participant
+            columnNames: tournament_id, id
+            constraintName: uk_tournament_participant_scope
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament_match
+              ADD CONSTRAINT fk_tournament_home_same_scope
+              FOREIGN KEY (tournament_id, home_participant_id)
+              REFERENCES desporto24.community_tournament_participant (tournament_id, id),
+              ADD CONSTRAINT fk_tournament_away_same_scope
+              FOREIGN KEY (tournament_id, away_participant_id)
+              REFERENCES desporto24.community_tournament_participant (tournament_id, id);
         - createIndex:
             schemaName: desporto24
             tableName: community_tournament
