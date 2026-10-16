@@ -43,3 +43,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-15-session-invite-notification-type.yaml
   - include:
       file: db/changelog/changes/2026-10-15-session-invite-table.yaml
+  - include:
+      file: db/changelog/changes/2026-10-16-community-season-champion-snapshot.yaml

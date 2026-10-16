@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -146,6 +148,86 @@ class CommunityCompetitionServiceTest {
         assertEquals(44L, result.id());
         assertEquals("Época 2026/27", result.name());
         assertEquals(true, result.active());
+    }
+
+    @Test
+    void closingSeasonStoresChampionAndKeepsTrophyAfterScoringRulesChange() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Profile challenger = profile(2L, "other", "Other Player");
+        Community community = Community.builder()
+                .id(7L).name("CNG").visibility(CommunityVisibility.PRIVATE)
+                .owner(owner).rankingsEnabled(true)
+                .winPoints(3).drawPoints(1).lossPoints(0)
+                .createdAt(Instant.now()).build();
+        CommunitySeason season = CommunitySeason.builder()
+                .id(44L).community(community).name("2026/27")
+                .startsAt(Instant.now()).active(true).createdAt(Instant.now()).build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.save(season)).thenReturn(season);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(
+                        membership(community, owner, CommunityRole.OWNER),
+                        membership(community, challenger, CommunityRole.MEMBER)));
+        when(entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(44L))
+                .thenReturn(List.of(
+                        entry(owner, CommunityMatchResult.WIN, 2, 1, false, false),
+                        entry(challenger, CommunityMatchResult.DRAW, 1, 0, false, false)));
+
+        var closed = service.closeSeason(7L, 44L, "TMF14");
+        assertEquals("TMF14", closed.championUsername());
+        assertEquals("Miguel Ferreira", closed.championDisplayName());
+        assertEquals(3, closed.championPoints());
+        assertTrue(season.isChampionFinalized());
+        assertEquals(false, season.isActive());
+
+        // A later scoring change would make the challenger lead (10 vs. 0),
+        // but the finalized season trophy must remain with its original champion.
+        community.setWinPoints(0);
+        community.setDrawPoints(10);
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
+                .thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(true);
+
+        var overview = service.overview(7L, "TMF14");
+        assertEquals("TMF14", overview.seasons().get(0).championUsername());
+        assertEquals(3, overview.seasons().get(0).championPoints());
+    }
+
+    @Test
+    void closingSeasonWithoutGamesFinalizesTrophyWithNoChampion() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder()
+                .id(7L).name("CNG").visibility(CommunityVisibility.PRIVATE)
+                .owner(owner).rankingsEnabled(true)
+                .winPoints(3).drawPoints(1).lossPoints(0)
+                .createdAt(Instant.now()).build();
+        CommunitySeason season = CommunitySeason.builder()
+                .id(44L).community(community).name("Empty season")
+                .startsAt(Instant.now()).active(true).createdAt(Instant.now()).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.save(season)).thenReturn(season);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER)));
+
+        var closed = service.closeSeason(7L, 44L, "TMF14");
+
+        assertTrue(season.isChampionFinalized());
+        assertNull(closed.championUsername());
+        assertNull(closed.championPoints());
     }
 
     private Profile profile(Long id, String username, String fullName) {

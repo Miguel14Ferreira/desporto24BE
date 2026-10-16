@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-community-season-champion-snapshot
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_season
+            columns:
+              - column:
+                  name: champion_finalized
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: champion_username
+                  type: VARCHAR(100)
+              - column:
+                  name: champion_display_name
+                  type: VARCHAR(255)
+              - column:
+                  name: champion_points
+                  type: INT
