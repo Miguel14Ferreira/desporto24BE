@@ -20,8 +20,21 @@ public record CommunityTournamentResponse(
         String championUsername,
         String championDisplayName,
         Long championPoints,
-        boolean championTied
+        boolean championTied,
+        String sport
 ) {
+    // Maintain source compatibility for existing 15-field callers.
+    public CommunityTournamentResponse(
+            Long id, String name, TournamentFormat format, TournamentStatus status,
+            int winPoints, int drawPoints, int lossPoints,
+            Instant createdAt, Instant startedAt, Instant completedAt,
+            Long championProfileId, String championUsername, String championDisplayName,
+            Long championPoints, boolean championTied) {
+        this(id, name, format, status, winPoints, drawPoints, lossPoints,
+                createdAt, startedAt, completedAt, championProfileId, championUsername,
+                championDisplayName, championPoints, championTied, null);
+    }
+
     // Source compatibility for older 10-field direct constructors.
     public CommunityTournamentResponse(
             Long id, String name, TournamentFormat format, TournamentStatus status,
@@ -39,6 +52,6 @@ public record CommunityTournamentResponse(
                 tournament.getLossPoints(), tournament.getCreatedAt(), tournament.getStartedAt(),
                 tournament.getCompletedAt(), tournament.getChampionProfileId(),
                 tournament.getChampionUsername(), tournament.getChampionDisplayName(),
-                tournament.getChampionPoints(), tournament.isChampionTied());
+                tournament.getChampionPoints(), tournament.isChampionTied(), tournament.getSport());
     }
 }

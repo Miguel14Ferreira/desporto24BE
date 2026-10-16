@@ -80,6 +80,63 @@ class CommunityTournamentServiceTest {
         assertNotNull(created.createdAt());
     }
 
+
+    @Test
+    void newTournamentUsesItsOwnSportIndependentlyOfCommunitySports() {
+        community.setSport("Futebol");
+        community.setSports(new java.util.ArrayList<>(List.of("Futebol", "Padel")));
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class))).thenAnswer(invocation ->
+                invocation.getArgument(0));
+
+        var created = service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("Liga Natação", null, null, null, "  Natação  "));
+
+        assertEquals("Natação", created.sport());
+        var captor = org.mockito.ArgumentCaptor.forClass(CommunityTournament.class);
+        verify(tournamentRepository).save(captor.capture());
+        assertEquals("Natação", captor.getValue().getSport());
+    }
+
+    @Test
+    void legacyCreationSnapshotsCommunityPrimarySportOrLeavesSportless() {
+        community.setSport("Padel");
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class))).thenAnswer(invocation ->
+                invocation.getArgument(0));
+
+        assertEquals("Padel", service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("Liga antiga", null, null, null)).sport());
+        community.setSport(null);
+        assertNull(service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("Liga aberta", null, null, null)).sport());
+    }
+
+    @Test
+    void rejectsBlankExplicitSportBeforeSaving() {
+        actingAsOwner(CommunityRole.OWNER);
+        var exception = assertThrows(ResponseStatusException.class, () -> service.create(
+                7L, "owner", new CreateCommunityTournamentRequest("Liga", null, null, null, "  ")));
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verifyNoInteractions(tournamentRepository);
+    }
+
+    @Test
+    void readingTournamentUsesItsOwnStoredSportNotCurrentCommunitySport() {
+        community.setVisibility(CommunityVisibility.PUBLIC);
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        var tournament = CommunityTournament.builder().id(21L).community(community)
+                .name("Liga de Ténis").sport("Ténis").createdAt(Instant.now()).build();
+        var pageable = PageRequest.of(0, 20,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        when(tournamentRepository.findByCommunityId(7L, pageable))
+                .thenReturn(new SliceImpl<>(List.of(tournament), pageable, false));
+        community.setSport("Futebol");
+
+        assertEquals("Ténis", service.list(7L, "owner", 0).tournaments().get(0).sport());
+    }
+
     @Test
     void adminCanCreateDraftLeague() {
         actingAsOwner(CommunityRole.ADMIN);
