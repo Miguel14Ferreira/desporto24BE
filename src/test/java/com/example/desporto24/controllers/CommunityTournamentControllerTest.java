@@ -1,6 +1,8 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.community.CommunityTournamentPageResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
 import com.example.desporto24.service.CommunityTournamentService;
@@ -37,5 +39,42 @@ class CommunityTournamentControllerTest {
         when(service.list(7L, "owner", 2)).thenReturn(expected);
         assertSame(expected, controller.list(7L, 2, authentication).getBody());
         verify(service).list(7L, "owner", 2);
+    }
+
+    @Test
+    void selfEnrollmentUsesAuthenticatedProfile() {
+        when(authentication.getName()).thenReturn("ana");
+        var registered = new CommunityTournamentParticipantResponse(5L, "ana", "Ana", null);
+        when(service.join(7L, 9L, "ana")).thenReturn(registered);
+        var response = controller.join(7L, 9L, authentication);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertSame(registered, response.getBody());
+        verify(service).join(7L, 9L, "ana");
+    }
+
+    @Test
+    void withdrawalOnlySuppliesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("ana");
+        var response = controller.leave(7L, 9L, authentication);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(service).leave(7L, 9L, "ana");
+    }
+
+    @Test
+    void organizerRemovalDelegatesToAuthorizedService() {
+        when(authentication.getName()).thenReturn("owner");
+        var response = controller.removeParticipant(7L, 9L, 5L, authentication);
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(service).removeParticipant(7L, 9L, 5L, "owner");
+    }
+
+    @Test
+    void pagedRosterUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("ana");
+        var expected = new CommunityTournamentParticipantsPageResponse(List.of(), 1, false);
+        when(service.participants(7L, 9L, "ana", 1)).thenReturn(expected);
+        var response = controller.participants(7L, 9L, 1, authentication);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertSame(expected, response.getBody());
     }
 }

@@ -7,8 +7,10 @@ on:
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
       - 'src/main/java/com/example/desporto24/model/dto/community/*Tournament*.java'
       - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentRepository.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentParticipantRepository.java'
       - 'src/test/java/com/example/desporto24/controllers/CommunityTournamentControllerTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentParticipantsTest.java'
       - '.github/workflows/community-tournament-api-ci.yml'
 permissions:
   contents: read
