@@ -126,6 +126,15 @@ public class CommunityCompetitionService {
             throw new IllegalStateException("Esta época já está encerrada");
         }
 
+        // Freeze the trophy at closure: future scoring-rule changes must not change its winner.
+        List<CommunityStandingResponse> finalStandings = standings(community, seasonId);
+        CommunityStandingResponse champion = !finalStandings.isEmpty()
+                && finalStandings.get(0).games() > 0
+                ? finalStandings.get(0) : null;
+        season.setChampionUsername(champion == null ? null : champion.username());
+        season.setChampionDisplayName(champion == null ? null : champion.fullName());
+        season.setChampionPoints(champion == null ? null : champion.points());
+        season.setChampionFinalized(true);
         season.setActive(false);
         season.setEndedAt(Instant.now());
         CommunitySeason saved = seasonRepository.save(season);
@@ -356,13 +365,20 @@ public class CommunityCompetitionService {
         Integer championPoints = null;
 
         if (!season.isActive()) {
-            List<CommunityStandingResponse> seasonStandings = standings(
-                    community, season.getId());
-            if (!seasonStandings.isEmpty() && seasonStandings.get(0).games() > 0) {
-                CommunityStandingResponse champion = seasonStandings.get(0);
-                championUsername = champion.username();
-                championDisplayName = champion.fullName();
-                championPoints = champion.points();
+            if (season.isChampionFinalized()) {
+                championUsername = season.getChampionUsername();
+                championDisplayName = season.getChampionDisplayName();
+                championPoints = season.getChampionPoints();
+            } else {
+                // Compatibility with seasons closed before the champion snapshot migration.
+                List<CommunityStandingResponse> seasonStandings = standings(
+                        community, season.getId());
+                if (!seasonStandings.isEmpty() && seasonStandings.get(0).games() > 0) {
+                    CommunityStandingResponse champion = seasonStandings.get(0);
+                    championUsername = champion.username();
+                    championDisplayName = champion.fullName();
+                    championPoints = champion.points();
+                }
             }
         }
 

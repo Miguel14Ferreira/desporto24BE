@@ -1,0 +1,27 @@
+name: Validate community season champion snapshots
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/main/java/com/example/desporto24/model/community/CommunitySeason.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityCompetitionService.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityCompetitionServiceTest.java'
+      - 'src/main/resources/db/changelog/db.changelog-master.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-16-community-season-champion-snapshot.yaml'
+      - '.github/workflows/community-season-snapshot-ci.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run backend test suite
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp test

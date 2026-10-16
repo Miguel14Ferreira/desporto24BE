@@ -36,4 +36,16 @@ public class CommunitySeason {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "champion_finalized", nullable = false)
+    private boolean championFinalized;
+
+    @Column(name = "champion_username", length = 100)
+    private String championUsername;
+
+    @Column(name = "champion_display_name", length = 255)
+    private String championDisplayName;
+
+    @Column(name = "champion_points")
+    private Integer championPoints;
 }
