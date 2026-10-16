@@ -1,6 +1,10 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.storage.MediaStorage;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
+import java.net.URI;
 import com.example.desporto24.enumeration.NotificationType;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.repository.NotificationsRepository;
@@ -34,6 +38,82 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class CommunityManagementServiceTest {
+
+    @Test
+    void replacingCommunityPhotoDeletesPreviousStoredObject() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        MediaStorage storage = mock(MediaStorage.class);
+        MultipartFile upload = mock(MultipartFile.class);
+        Profile owner = new Profile();
+        owner.setId(1L);
+        owner.setUsername("owner");
+        Community community = Community.builder().id(10L).name("Community")
+                .owner(owner).visibility(CommunityVisibility.PUBLIC)
+                .photoUrl("https://cdn.example.test/communities/10/previous").build();
+        CommunityMember membership = CommunityMember.builder().community(community)
+                .profile(owner).role(CommunityRole.OWNER).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(10L, 1L))
+                .thenReturn(Optional.of(membership));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(10L))
+                .thenReturn(List.of(membership));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(communities.save(community)).thenReturn(community);
+        when(storage.store(anyString(), same(upload))).thenReturn(
+                URI.create("https://cdn.example.test/communities/10/new-photo"));
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, mock(CommunityInviteRepository.class),
+                mock(CommunityJoinRequestRepository.class), profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "mediaStorage", storage);
+
+        service.updatePhoto(10L, "owner", upload);
+
+        assertEquals("https://cdn.example.test/communities/10/new-photo",
+                community.getPhotoUrl());
+        verify(communities).save(community);
+        verify(storage).delete("communities/10/previous");
+    }
+
+    @Test
+    void firstCommunityPhotoDoesNotDeleteAnObject() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        MediaStorage storage = mock(MediaStorage.class);
+        MultipartFile upload = mock(MultipartFile.class);
+        Profile owner = new Profile();
+        owner.setId(1L);
+        owner.setUsername("owner");
+        Community community = Community.builder().id(10L).name("Community")
+                .owner(owner).visibility(CommunityVisibility.PUBLIC).build();
+        CommunityMember membership = CommunityMember.builder().community(community)
+                .profile(owner).role(CommunityRole.OWNER).build();
+
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(10L, 1L))
+                .thenReturn(Optional.of(membership));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(10L))
+                .thenReturn(List.of(membership));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(communities.save(community)).thenReturn(community);
+        when(storage.store(anyString(), same(upload))).thenReturn(
+                URI.create("https://cdn.example.test/communities/10/first-photo"));
+        CommunityManagementService service = new CommunityManagementService(
+                communities, members, mock(CommunityInviteRepository.class),
+                mock(CommunityJoinRequestRepository.class), profiles,
+                mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "mediaStorage", storage);
+
+        service.updatePhoto(10L, "owner", upload);
+
+        assertEquals("https://cdn.example.test/communities/10/first-photo",
+                community.getPhotoUrl());
+        verify(storage, never()).delete(anyString());
+    }
 
     @Test
     void newInviteCreatesUnreadNotificationOnlyForInvitedProfile() {

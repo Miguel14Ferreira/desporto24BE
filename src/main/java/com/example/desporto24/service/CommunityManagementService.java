@@ -256,6 +256,7 @@ public class CommunityManagementService {
         }
 
         Community community = community(communityId);
+        String previousPhotoUrl = community.getPhotoUrl();
         var uri = mediaStorage.store(
                 "communities/" + community.getId() + "/" + UUID.randomUUID(),
                 photo
@@ -263,6 +264,7 @@ public class CommunityManagementService {
 
         community.setPhotoUrl(uri.toString());
         Community saved = communityRepository.save(community);
+        deleteCommunityPhoto(previousPhotoUrl, communityId);
         return toResponse(saved, actor);
     }
 
