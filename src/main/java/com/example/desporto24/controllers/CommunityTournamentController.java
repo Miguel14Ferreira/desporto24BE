@@ -39,6 +39,16 @@ public class CommunityTournamentController {
                 communityId, tournamentId, authentication.getName()));
     }
 
+    @PutMapping("/{tournamentId}/participants/{profileId}/confirm")
+    public ResponseEntity<CommunityTournamentParticipantResponse> confirmParticipant(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            @PathVariable Long profileId,
+            Authentication authentication) {
+        return ResponseEntity.ok(tournamentService.confirmParticipant(
+                communityId, tournamentId, profileId, authentication.getName()));
+    }
+
     @DeleteMapping("/{tournamentId}/participants/me")
     public ResponseEntity<Void> leave(
             @PathVariable Long communityId,

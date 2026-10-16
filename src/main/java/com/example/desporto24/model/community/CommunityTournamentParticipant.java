@@ -1,6 +1,7 @@
 package com.example.desporto24.model.community;
 
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,4 +36,10 @@ public class CommunityTournamentParticipant {
 
     @Column(name = "joined_at", nullable = false)
     private Instant joinedAt;
+
+    // Existing enrollments are backfilled as CONFIRMED by Liquibase.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    @Builder.Default
+    private TournamentParticipantStatus status = TournamentParticipantStatus.CONFIRMED;
 }

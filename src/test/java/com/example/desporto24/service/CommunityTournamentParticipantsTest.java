@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
@@ -82,6 +83,7 @@ class CommunityTournamentParticipantsTest {
         assertEquals(5L, joined.profileId());
         assertEquals("Ana Silva", joined.displayName());
         assertNotNull(joined.joinedAt());
+        assertEquals(TournamentParticipantStatus.PENDING, joined.status());
         verify(participants).save(argThat(p -> p.getProfile() == actor && p.getTournament() == tournament));
     }
 
@@ -93,6 +95,7 @@ class CommunityTournamentParticipantsTest {
                 .id(1L).tournament(tournament).profile(actor).joinedAt(Instant.now()).build();
         when(participants.findByTournamentIdAndProfileId(9L, 5L)).thenReturn(Optional.of(already));
         assertEquals(5L, service.join(7L, 9L, "ana").profileId());
+        assertEquals(TournamentParticipantStatus.CONFIRMED, already.getStatus());
         verify(participants, never()).save(any());
     }
 
