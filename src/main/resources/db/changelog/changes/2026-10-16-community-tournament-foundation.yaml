@@ -1,0 +1,262 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-community-tournament-foundation
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: community_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: format
+                  type: VARCHAR(16)
+                  defaultValue: LEAGUE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: DRAFT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: win_points
+                  type: INT
+                  defaultValueNumeric: 3
+                  constraints:
+                    nullable: false
+              - column:
+                  name: draw_points
+                  type: INT
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: loss_points
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: completed_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - createTable:
+            schemaName: desporto24
+            tableName: community_tournament_participant
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tournament_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: joined_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - createTable:
+            schemaName: desporto24
+            tableName: community_tournament_match
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tournament_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: home_participant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: away_participant_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: round_number
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: SCHEDULED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: home_score
+                  type: INT
+              - column:
+                  name: away_score
+                  type: INT
+              - column:
+                  name: scheduled_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: completed_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - addForeignKeyConstraint:
+            constraintName: fk_tournament_community
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament
+            baseColumnNames: community_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_tournament_participant_tournament
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_participant
+            baseColumnNames: tournament_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_tournament_participant_profile
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_participant
+            baseColumnNames: profile_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: profile
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_tournament_match_tournament
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_match
+            baseColumnNames: tournament_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_tournament_match_home
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_match
+            baseColumnNames: home_participant_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament_participant
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_tournament_match_away
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_match
+            baseColumnNames: away_participant_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament_participant
+            referencedColumnNames: id
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_tournament_participant
+            columnNames: tournament_id, profile_id
+            constraintName: uk_community_tournament_participant
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_tournament_participant
+            columnNames: tournament_id, id
+            constraintName: uk_tournament_participant_scope
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament_match
+              ADD CONSTRAINT fk_tournament_home_same_scope
+              FOREIGN KEY (tournament_id, home_participant_id)
+              REFERENCES desporto24.community_tournament_participant (tournament_id, id),
+              ADD CONSTRAINT fk_tournament_away_same_scope
+              FOREIGN KEY (tournament_id, away_participant_id)
+              REFERENCES desporto24.community_tournament_participant (tournament_id, id);
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament
+            indexName: idx_community_tournament_community_status
+            columns:
+              - column:
+                  name: community_id
+              - column:
+                  name: status
+              - column:
+                  name: created_at
+                  descending: true
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament_participant
+            indexName: idx_tournament_participant_profile
+            columns:
+              - column:
+                  name: profile_id
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament_match
+            indexName: idx_tournament_match_round
+            columns:
+              - column:
+                  name: tournament_id
+              - column:
+                  name: round_number
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              ADD CONSTRAINT ck_tournament_format CHECK (format IN ('LEAGUE')),
+              ADD CONSTRAINT ck_tournament_status CHECK (status IN ('DRAFT', 'IN_PROGRESS', 'COMPLETED')),
+              ADD CONSTRAINT ck_tournament_points CHECK (win_points >= 0 AND draw_points >= 0 AND loss_points >= 0);
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament_match
+              ADD CONSTRAINT ck_tournament_match_status CHECK (status IN ('SCHEDULED', 'COMPLETED')),
+              ADD CONSTRAINT ck_tournament_match_round CHECK (round_number >= 1),
+              ADD CONSTRAINT ck_tournament_match_distinct CHECK (home_participant_id <> away_participant_id),
+              ADD CONSTRAINT ck_tournament_match_scores CHECK (
+                (status = 'SCHEDULED' AND home_score IS NULL AND away_score IS NULL AND completed_at IS NULL)
+                OR (status = 'COMPLETED' AND home_score >= 0 AND away_score >= 0 AND completed_at IS NOT NULL)
+              );
