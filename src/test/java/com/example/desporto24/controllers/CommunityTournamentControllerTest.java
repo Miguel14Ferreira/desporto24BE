@@ -7,6 +7,10 @@ import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
 import com.example.desporto24.service.CommunityTournamentService;
 import com.example.desporto24.service.CommunityTournamentScheduleService;
+import com.example.desporto24.service.CommunityTournamentResultService;
+import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
+import com.example.desporto24.model.dto.community.CommunityTournamentMatchResponse;
+import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentScheduleSummaryResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentMatchesPageResponse;
 import com.example.desporto24.enumeration.TournamentStatus;
@@ -22,8 +26,25 @@ import static org.mockito.Mockito.*;
 class CommunityTournamentControllerTest {
     private final CommunityTournamentService service = mock(CommunityTournamentService.class);
     private final CommunityTournamentScheduleService scheduleService = mock(CommunityTournamentScheduleService.class);
-    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService);
+    private final CommunityTournamentResultService resultService = mock(CommunityTournamentResultService.class);
+    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService, resultService);
     private final Authentication authentication = mock(Authentication.class);
+
+    @Test
+    void matchResultUsesAuthenticatedManagerAndDelegatesToService() {
+        when(authentication.getName()).thenReturn("organizer");
+        var body = new RecordCommunityTournamentMatchResultRequest(2, 1);
+        var expected = new CommunityTournamentMatchResponse(
+                21L, 2, 5L, "ana", 6L, "rui",
+                TournamentMatchStatus.COMPLETED, 2, 1);
+        when(resultService.recordResult(7L, 9L, 21L, "organizer", body)).thenReturn(expected);
+
+        var response = controller.recordMatchResult(7L, 9L, 21L, body, authentication);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertSame(expected, response.getBody());
+        verify(resultService).recordResult(7L, 9L, 21L, "organizer", body);
+    }
 
     @Test
     void scheduleGenerationUsesAuthenticatedIdentity() {
