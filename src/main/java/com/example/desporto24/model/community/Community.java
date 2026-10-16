@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "community")
@@ -29,6 +31,14 @@ public class Community {
 
     @Column(length = 100)
     private String sport;
+
+    // Explicitly ordered; "sport" remains the legacy primary modality.
+    @ElementCollection
+    @CollectionTable(name = "community_sport", joinColumns = @JoinColumn(name = "community_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "sport", nullable = false, length = 100)
+    @Builder.Default
+    private List<String> sports = new ArrayList<>();
 
     @Column(name = "photo_url", length = 1000)
     private String photoUrl;

@@ -89,6 +89,14 @@ public class CommunityController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{id}/sports")
+    public ResponseEntity<CommunityResponse> updateSports(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCommunitySportsRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateSports(id, authentication.getName(), request));
+    }
+
     @PutMapping("/{id}/visibility")
     public ResponseEntity<CommunityResponse> updateVisibility(
             @PathVariable Long id,
