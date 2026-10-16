@@ -93,6 +93,7 @@ public class CommunityTournamentService {
      */
     public void delete(Long communityId, Long tournamentId, String username) {
         Profile actor = profile(username);
+        community(communityId);
         var member = memberRepository.findByCommunityIdAndProfileId(communityId, actor.getId())
                 .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
         if (member.getRole() != CommunityRole.OWNER && member.getRole() != CommunityRole.ADMIN) {
