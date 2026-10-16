@@ -53,9 +53,26 @@ public class CommunityTournamentService {
             throw new AccessDeniedException("Apenas Owners e Admins podem criar torneios");
         }
 
+        String selectedSport = request.sport();
+        if (selectedSport != null) {
+            selectedSport = selectedSport.trim();
+            if (selectedSport.isEmpty() || selectedSport.length() > 100) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Escolhe uma modalidade válida para o torneio");
+            }
+        } else {
+            // Old clients keep working. Snapshot the primary legacy modality on creation.
+            selectedSport = community.getSport();
+            if (selectedSport != null) {
+                selectedSport = selectedSport.trim();
+                if (selectedSport.isEmpty()) selectedSport = null;
+            }
+        }
+
         CommunityTournament tournament = CommunityTournament.builder()
                 .community(community)
                 .name(request.name().trim())
+                .sport(selectedSport)
                 .winPoints(request.winPoints() == null ? 3 : request.winPoints())
                 .drawPoints(request.drawPoints() == null ? 1 : request.drawPoints())
                 .lossPoints(request.lossPoints() == null ? 0 : request.lossPoints())

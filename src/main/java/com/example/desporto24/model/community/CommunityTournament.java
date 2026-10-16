@@ -27,6 +27,11 @@ public class CommunityTournament {
     @Column(nullable = false, length = 120)
     private String name;
 
+    // A competition has its own sport, independent of the community sport list.
+    // Null is retained for old, previously sportless tournaments.
+    @Column(name = "sport", length = 100)
+    private String sport;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     @Builder.Default

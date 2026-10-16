@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-tournament-own-sport
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: sport
+                  type: VARCHAR(100)
+        # Snapshot existing primary sport; no coupling to subsequent community edits.
+        # Sportless legacy tournaments remain null, avoiding invented modalities.
+        - sql:
+            dbms: postgresql
+            sql: >-
+              UPDATE desporto24.community_tournament t
+              SET sport = NULLIF(BTRIM(c.sport), '')
+              FROM desporto24.community c
+              WHERE t.community_id = c.id
+                AND t.sport IS NULL;
