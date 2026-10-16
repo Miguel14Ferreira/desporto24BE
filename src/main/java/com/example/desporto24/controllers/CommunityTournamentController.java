@@ -7,6 +7,9 @@ import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
 import com.example.desporto24.service.CommunityTournamentService;
 import com.example.desporto24.service.CommunityTournamentScheduleService;
+import com.example.desporto24.service.CommunityTournamentResultService;
+import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
+import com.example.desporto24.model.dto.community.CommunityTournamentMatchResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentScheduleSummaryResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentMatchesPageResponse;
 import jakarta.validation.Valid;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class CommunityTournamentController {
     private final CommunityTournamentService tournamentService;
     private final CommunityTournamentScheduleService scheduleService;
+    private final CommunityTournamentResultService resultService;
 
     @PostMapping
     public ResponseEntity<CommunityTournamentResponse> create(
@@ -88,6 +92,17 @@ public class CommunityTournamentController {
             @PathVariable Long tournamentId,
             Authentication authentication) {
         return ResponseEntity.ok(scheduleService.generate(communityId, tournamentId, authentication.getName()));
+    }
+
+    @PutMapping("/{tournamentId}/matches/{matchId}/result")
+    public ResponseEntity<CommunityTournamentMatchResponse> recordMatchResult(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            @PathVariable Long matchId,
+            @RequestBody @Valid RecordCommunityTournamentMatchResultRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(resultService.recordResult(
+                communityId, tournamentId, matchId, authentication.getName(), request));
     }
 
     @GetMapping("/{tournamentId}/matches")
