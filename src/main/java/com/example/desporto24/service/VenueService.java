@@ -4,6 +4,7 @@ import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.venue.CreateVenueRequest;
+import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
 import com.example.desporto24.model.dto.venue.OpenStreetMapVenueImportRequest;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.venue.Venue;
@@ -11,6 +12,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -18,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.text.Normalizer;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -27,6 +30,8 @@ import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_
 public class VenueService {
 
     private static final double EARTH_RADIUS_KM = 6371.0088;
+    private static final int VENUE_SUGGEST_PAGE_SIZE = 40;
+    private static final int VENUE_SUGGEST_MAX_PAGE = 1000;
 
     private final VenueRepository venueRepository;
     private final ProfileRepository profileRepository;
@@ -69,6 +74,36 @@ public class VenueService {
                         || (venue.getSports() != null && hasSport(venue.getSports(), sportQuery)))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public VenueSearchPageResponse suggest(String name, String city, String sport, int page) {
+        if (page < 0 || page > VENUE_SUGGEST_MAX_PAGE) {
+            throw new IllegalArgumentException("Página de pesquisa de recintos inválida");
+        }
+        String sportFilter = normalizeSearchFilter(sport).replace(" ", "");
+        var venues = venueRepository.suggest(
+                escapeSearchPattern(normalizeSearchFilter(name)),
+                escapeSearchPattern(normalizeSearchFilter(city)),
+                escapeSearchPattern(sportFilter),
+                PageRequest.of(page, VENUE_SUGGEST_PAGE_SIZE));
+        return new VenueSearchPageResponse(
+                venues.getContent().stream().map(this::toResponse).toList(),
+                page, venues.hasNext());
+    }
+
+    private static String normalizeSearchFilter(String input) {
+        if (input == null || input.isBlank()) return "";
+        String trimmed = input.trim();
+        if (trimmed.length() > 120) {
+            throw new IllegalArgumentException("Filtro de recintos demasiado comprido");
+        }
+        return Normalizer.normalize(trimmed.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+    }
+
+    private static String escapeSearchPattern(String input) {
+        return input.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     private record NearbyVenue(Venue venue, double distanceKm) {}

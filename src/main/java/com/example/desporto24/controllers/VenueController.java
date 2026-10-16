@@ -4,6 +4,7 @@ import com.example.desporto24.model.dto.venue.CreateVenueRequest;
 import com.example.desporto24.model.dto.venue.CreateVenueSportConditionRequest;
 import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.dto.venue.VenueResponse;
+import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
 import com.example.desporto24.model.dto.venue.VenueSportConditionResponse;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkRequest;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkResponse;
@@ -40,6 +41,19 @@ public class VenueController {
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double radiusKm) {
         return venueService.search(city, sport, latitude, longitude, radiusKm);
+    }
+
+    /**
+     * Bounded search for autocomplete. The legacy GET /api/venues remains unchanged.
+     * Filters are optional for the first page, but no request returns an unlimited list.
+     */
+    @GetMapping("/suggest")
+    public VenueSearchPageResponse suggest(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String sport,
+            @RequestParam(defaultValue = "0") int page) {
+        return venueService.suggest(name, city, sport, page);
     }
 
     @PostMapping("/resolve-map-link")

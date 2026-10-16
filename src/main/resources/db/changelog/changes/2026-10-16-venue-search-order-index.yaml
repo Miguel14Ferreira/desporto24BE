@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-venue-suggest-sort-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        dbms:
+          type: postgresql
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              CREATE INDEX IF NOT EXISTS idx_venue_suggest_sort
+              ON desporto24.venue (LOWER(name), LOWER(city), id);
