@@ -152,12 +152,16 @@ public class CommunityManagementService {
         CommunityJoinRequest request = joinRequestRepository
                 .findByCommunityIdAndRequesterIdAndStatus(
                         communityId, current.getId(), CommunityInviteStatus.PENDING)
-                .orElseGet(() -> joinRequestRepository.save(CommunityJoinRequest.builder()
-                        .community(community)
-                        .requester(current)
-                        .status(CommunityInviteStatus.PENDING)
-                        .createdAt(Instant.now())
-                        .build()));
+                .orElseGet(() -> {
+                    CommunityJoinRequest created = joinRequestRepository.save(CommunityJoinRequest.builder()
+                            .community(community)
+                            .requester(current)
+                            .status(CommunityInviteStatus.PENDING)
+                            .createdAt(Instant.now())
+                            .build());
+                    notifyJoinRequestCreated(community, current);
+                    return created;
+                });
 
         return toJoinRequestResponse(request);
     }
@@ -214,6 +218,7 @@ public class CommunityManagementService {
 
         request.setStatus(CommunityInviteStatus.ACCEPTED);
         joinRequestRepository.save(request);
+        notifyJoinDecision(request, actor, true);
         return toResponse(request.getCommunity(), actor);
     }
 
@@ -228,6 +233,7 @@ public class CommunityManagementService {
 
         request.setStatus(CommunityInviteStatus.REJECTED);
         joinRequestRepository.save(request);
+        notifyJoinDecision(request, actor, false);
     }
 
     public CommunityResponse updateVisibility(
@@ -527,6 +533,57 @@ public class CommunityManagementService {
         notification.setUsername(invited.getUsername());
         notification.setRelatedUsername(actor.getUsername());
         notification.setType(NotificationType.COMMUNITY_INVITE);
+        notification.setRead(false);
+        notificationsRepository.save(notification);
+    }
+
+    private void notifyJoinRequestCreated(Community community, Profile requester) {
+        // Notify managers only once, when a new pending request is persisted.
+        memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId()).stream()
+                .filter(member -> member.getRole() == CommunityRole.OWNER
+                        || member.getRole() == CommunityRole.ADMIN)
+                .map(CommunityMember::getProfile)
+                .filter(profile -> !profile.getId().equals(requester.getId()))
+                .forEach(manager -> saveJoinNotification(
+                        manager, requester, community, NotificationType.COMMUNITY_JOIN_REQUEST,
+                        "Novo pedido para a comunidade " + community.getName(),
+                        "@" + requester.getUsername() + " quer entrar na comunidade "
+                                + community.getName()
+                                + ". Abre a comunidade e consulta Membros para responder."
+                ));
+    }
+
+    private void notifyJoinDecision(CommunityJoinRequest request, Profile actor, boolean accepted) {
+        Community community = request.getCommunity();
+        saveJoinNotification(
+                request.getRequester(), actor, community,
+                accepted ? NotificationType.COMMUNITY_JOIN_ACCEPTED : NotificationType.COMMUNITY_JOIN_REJECTED,
+                (accepted ? "Pedido aceite na comunidade " : "Pedido recusado na comunidade ") + community.getName(),
+                accepted
+                        ? "O teu pedido para entrar na comunidade " + community.getName()
+                                + " foi aceite. Abre Comunidades para participares."
+                        : "O teu pedido para entrar na comunidade " + community.getName()
+                                + " foi recusado."
+        );
+    }
+
+    private void saveJoinNotification(Profile recipient, Profile actor, Community community,
+                                      NotificationType type, String subject, String message) {
+        Notifications notification = new Notifications();
+        notification.setSubject(subject);
+        notification.setMessage(message);
+        notification.setGreeting("");
+        notification.setSignature("");
+        notification.setCreatedAt(Instant.now().toString());
+        notification.setFriendRequest(false);
+        notification.setUpdateProfile(false);
+        notification.setSessionInvite(false);
+        notification.setNormalMessage(false);
+        notification.setToken(null);
+        notification.setUsername(recipient.getUsername());
+        notification.setRelatedUsername(actor.getUsername());
+        notification.setCommunityId(community.getId());
+        notification.setType(type);
         notification.setRead(false);
         notificationsRepository.save(notification);
     }

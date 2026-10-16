@@ -38,6 +38,9 @@ public class Notifications {
     @Column(name = "session_id")
     private Long sessionId;
 
+    @Column(name = "community_id")
+    private Long communityId;
+
     @Column(name = "related_username")
     private String relatedUsername;
 
