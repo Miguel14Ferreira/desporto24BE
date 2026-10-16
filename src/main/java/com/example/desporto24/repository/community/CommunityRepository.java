@@ -37,5 +37,12 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
             """)
     Slice<CommunityDiscoveryResponse> discoverPublicPresentations(Pageable pageable);
 
+    // Load all sport tags for one result page in one query (no N+1, no pagination over joins).
+    @Query("SELECT DISTINCT c FROM Community c LEFT JOIN FETCH c.sports WHERE c.id IN :ids")
+    java.util.List<Community> findAllWithSportsByIdIn(@Param("ids") java.util.List<Long> ids);
+
+    @Query("SELECT c FROM Community c LEFT JOIN FETCH c.sports WHERE c.id = :id")
+    java.util.Optional<Community> findWithSportsById(@Param("id") Long id);
+
     boolean existsByOwnerId(Long ownerId);
 }
