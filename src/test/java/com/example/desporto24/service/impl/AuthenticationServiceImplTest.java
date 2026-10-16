@@ -268,6 +268,47 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void resendConfirmationCarriesCommunityInviteAcrossDevices() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME, null, 42L);
+
+        verify(confirmationTokenService).deleteByProfile(TEST_USERNAME);
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("returnCommunityId=42"));
+        assertFalse(html.getValue().contains("returnSessionId="));
+    }
+
+    @Test
+    void sessionLinkTakesPrecedenceOverCommunityLink() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME, 7L, 42L);
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("returnSessionId=7"));
+        assertFalse(html.getValue().contains("returnCommunityId="));
+    }
+
+    @Test
     void legacyResendConfirmationDoesNotRequireSessionDestination() {
         Profile pending = new Profile();
         pending.setUsername(TEST_USERNAME);
