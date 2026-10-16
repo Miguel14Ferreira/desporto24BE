@@ -45,11 +45,12 @@ public class CommunityDiscoveryController {
         }
         String nameTerm = name.trim().toLowerCase(Locale.ROOT);
         String sportTerm = sport.trim().toLowerCase(Locale.ROOT);
-        if (nameTerm.isEmpty() && sportTerm.isEmpty()) {
-            return new SearchResponse(List.of(), page, false);
-        }
-        var results = repository.searchPresentations(
-                escape(nameTerm), escape(sportTerm), PageRequest.of(page, 20));
+        // An unfiltered browse only discovers public communities.
+        // Explicit searches retain existing visibility behaviour.
+        var results = nameTerm.isEmpty() && sportTerm.isEmpty()
+                ? repository.discoverPublicPresentations(PageRequest.of(page, 20))
+                : repository.searchPresentations(
+                        escape(nameTerm), escape(sportTerm), PageRequest.of(page, 20));
         return new SearchResponse(results.getContent(), page, results.hasNext());
     }
 

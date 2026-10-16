@@ -21,5 +21,14 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     Slice<CommunityDiscoveryResponse> searchPresentations(
             @Param("name") String name, @Param("sport") String sport, Pageable pageable);
 
+    @Query("""
+            SELECT new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
+                c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility)
+            FROM Community c
+            WHERE c.visibility = com.example.desporto24.enumeration.CommunityVisibility.PUBLIC
+            ORDER BY LOWER(c.name), c.id
+            """)
+    Slice<CommunityDiscoveryResponse> discoverPublicPresentations(Pageable pageable);
+
     boolean existsByOwnerId(Long ownerId);
 }
