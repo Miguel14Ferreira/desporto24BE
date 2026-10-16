@@ -8,6 +8,8 @@ import com.example.desporto24.model.dto.community.CreateCommunityTournamentReque
 import com.example.desporto24.service.CommunityTournamentService;
 import com.example.desporto24.service.CommunityTournamentScheduleService;
 import com.example.desporto24.service.CommunityTournamentResultService;
+import com.example.desporto24.service.CommunityTournamentStandingsService;
+import com.example.desporto24.model.dto.community.CommunityTournamentStandingsResponse;
 import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
 import com.example.desporto24.model.dto.community.CommunityTournamentMatchResponse;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
@@ -27,8 +29,19 @@ class CommunityTournamentControllerTest {
     private final CommunityTournamentService service = mock(CommunityTournamentService.class);
     private final CommunityTournamentScheduleService scheduleService = mock(CommunityTournamentScheduleService.class);
     private final CommunityTournamentResultService resultService = mock(CommunityTournamentResultService.class);
-    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService, resultService);
+    private final CommunityTournamentStandingsService standingsService = mock(CommunityTournamentStandingsService.class);
+    private final CommunityTournamentController controller = new CommunityTournamentController(service, scheduleService, resultService, standingsService);
     private final Authentication authentication = mock(Authentication.class);
+
+    @Test
+    void standingsUsesAuthenticatedCommunityMember() {
+        when(authentication.getName()).thenReturn("member");
+        var standing = new CommunityTournamentStandingsResponse(
+                9L, TournamentStatus.IN_PROGRESS, 6, 2, 3, 1, 0, List.of());
+        when(standingsService.standings(7L, 9L, "member")).thenReturn(standing);
+        assertSame(standing, controller.standings(7L, 9L, authentication).getBody());
+        verify(standingsService).standings(7L, 9L, "member");
+    }
 
     @Test
     void matchResultUsesAuthenticatedManagerAndDelegatesToService() {
