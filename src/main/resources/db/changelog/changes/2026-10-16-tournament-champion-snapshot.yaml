@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-tournament-champion-snapshot
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: champion_profile_id
+                  type: BIGINT
+              - column:
+                  name: champion_username
+                  type: VARCHAR(100)
+              - column:
+                  name: champion_display_name
+                  type: VARCHAR(255)
+              - column:
+                  name: champion_points
+                  type: BIGINT
+              - column:
+                  name: champion_tied
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

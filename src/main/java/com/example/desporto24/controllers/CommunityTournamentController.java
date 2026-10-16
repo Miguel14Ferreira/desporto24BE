@@ -9,6 +9,7 @@ import com.example.desporto24.service.CommunityTournamentService;
 import com.example.desporto24.service.CommunityTournamentScheduleService;
 import com.example.desporto24.service.CommunityTournamentResultService;
 import com.example.desporto24.service.CommunityTournamentStandingsService;
+import com.example.desporto24.service.CommunityTournamentFinalizationService;
 import com.example.desporto24.model.dto.community.CommunityTournamentStandingsResponse;
 import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
 import com.example.desporto24.model.dto.community.CommunityTournamentMatchResponse;
@@ -31,6 +32,7 @@ public class CommunityTournamentController {
     private final CommunityTournamentScheduleService scheduleService;
     private final CommunityTournamentResultService resultService;
     private final CommunityTournamentStandingsService standingsService;
+    private final CommunityTournamentFinalizationService finalizationService;
 
     @PostMapping
     public ResponseEntity<CommunityTournamentResponse> create(
@@ -106,6 +108,15 @@ public class CommunityTournamentController {
             Authentication authentication) {
         return ResponseEntity.ok(resultService.recordResult(
                 communityId, tournamentId, matchId, authentication.getName(), request));
+    }
+
+    @PostMapping("/{tournamentId}/complete")
+    public ResponseEntity<CommunityTournamentResponse> complete(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return ResponseEntity.ok(finalizationService.complete(
+                communityId, tournamentId, authentication.getName()));
     }
 
     @GetMapping("/{tournamentId}/standings")

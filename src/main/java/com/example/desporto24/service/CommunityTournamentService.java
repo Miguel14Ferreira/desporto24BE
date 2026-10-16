@@ -229,11 +229,7 @@ public class CommunityTournamentService {
     }
 
     private CommunityTournamentResponse response(CommunityTournament tournament) {
-        return new CommunityTournamentResponse(
-                tournament.getId(), tournament.getName(), tournament.getFormat(), tournament.getStatus(),
-                tournament.getWinPoints(), tournament.getDrawPoints(), tournament.getLossPoints(),
-                tournament.getCreatedAt(), tournament.getStartedAt(), tournament.getCompletedAt()
-        );
+        return CommunityTournamentResponse.from(tournament);
     }
 
     private Profile profile(String username) {

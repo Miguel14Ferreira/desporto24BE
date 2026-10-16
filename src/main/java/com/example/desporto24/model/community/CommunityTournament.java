@@ -58,6 +58,24 @@ public class CommunityTournament {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    // Immutable champion snapshot at finalization; a null ID with championTied=true
+    // represents an actual tie after all sporting tie-breakers.
+    @Column(name = "champion_profile_id")
+    private Long championProfileId;
+
+    @Column(name = "champion_username", length = 100)
+    private String championUsername;
+
+    @Column(name = "champion_display_name", length = 255)
+    private String championDisplayName;
+
+    @Column(name = "champion_points")
+    private Long championPoints;
+
+    @Column(name = "champion_tied", nullable = false)
+    @Builder.Default
+    private boolean championTied = false;
+
     @Version
     @Column(nullable = false)
     private long version;
