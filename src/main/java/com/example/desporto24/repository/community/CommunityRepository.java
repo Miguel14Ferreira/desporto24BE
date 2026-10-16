@@ -15,7 +15,14 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
                 c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility)
             FROM Community c
             WHERE (:name = '' OR LOWER(c.name) LIKE CONCAT('%', :name, '%') ESCAPE '!')
-              AND (:sport = '' OR LOWER(COALESCE(c.sport, '')) LIKE CONCAT('%', :sport, '%') ESCAPE '!')
+              AND (:sport = ''
+                   OR LOWER(COALESCE(c.sport, '')) LIKE CONCAT('%', :sport, '%') ESCAPE '!'
+                   OR EXISTS (
+                       SELECT 1 FROM Community matching
+                       JOIN matching.sports selectedSport
+                       WHERE matching.id = c.id
+                         AND LOWER(selectedSport) LIKE CONCAT('%', :sport, '%') ESCAPE '!'
+                   ))
             ORDER BY LOWER(c.name), c.id
             """)
     Slice<CommunityDiscoveryResponse> searchPresentations(
