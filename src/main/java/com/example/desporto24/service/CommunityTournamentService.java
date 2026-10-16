@@ -8,6 +8,7 @@ import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityTournament;
 import com.example.desporto24.model.community.CommunityTournamentParticipant;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentPageResponse;
@@ -100,8 +101,38 @@ public class CommunityTournamentService {
                                 .tournament(tournament)
                                 .profile(actor)
                                 .joinedAt(Instant.now())
+                                .status(TournamentParticipantStatus.PENDING)
                                 .build()
                 )));
+    }
+
+    /**
+     * Confirm only a player's own opt-in registration; managers cannot register
+     * other people directly. Confirmation is repeatable and restricted to DRAFT.
+     */
+    public CommunityTournamentParticipantResponse confirmParticipant(
+            Long communityId, Long tournamentId, Long profileId, String username) {
+        if (profileId == null || profileId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Participante inválido");
+        }
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        CommunityTournament tournament = tournament(communityId, tournamentId);
+        requireDraft(tournament);
+
+        CommunityTournamentParticipant enrollment = participantRepository
+                .findByTournamentIdAndProfileId(tournamentId, profileId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Pedido de participação não encontrado"));
+        if (!memberRepository.existsByCommunityIdAndProfileId(communityId, profileId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "O jogador já não pertence à comunidade");
+        }
+        if (enrollment.getStatus() == TournamentParticipantStatus.CONFIRMED) {
+            return participantResponse(enrollment);
+        }
+        enrollment.setStatus(TournamentParticipantStatus.CONFIRMED);
+        return participantResponse(participantRepository.save(enrollment));
     }
 
     public void leave(Long communityId, Long tournamentId, String username) {
@@ -153,7 +184,8 @@ public class CommunityTournamentService {
             displayName = profile.getUsername();
         }
         return new CommunityTournamentParticipantResponse(
-                profile.getId(), profile.getUsername(), displayName, participant.getJoinedAt()
+                profile.getId(), profile.getUsername(), displayName, participant.getJoinedAt(),
+                participant.getStatus()
         );
     }
 

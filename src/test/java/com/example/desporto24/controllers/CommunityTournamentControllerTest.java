@@ -53,6 +53,17 @@ class CommunityTournamentControllerTest {
     }
 
     @Test
+    void confirmationUsesAuthenticatedOrganizerAndRequestedPlayer() {
+        when(authentication.getName()).thenReturn("owner");
+        var confirmed = new CommunityTournamentParticipantResponse(6L, "rui", "Rui", null);
+        when(service.confirmParticipant(7L, 9L, 6L, "owner")).thenReturn(confirmed);
+        var response = controller.confirmParticipant(7L, 9L, 6L, authentication);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertSame(confirmed, response.getBody());
+        verify(service).confirmParticipant(7L, 9L, 6L, "owner");
+    }
+
+    @Test
     void withdrawalOnlySuppliesAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("ana");
         var response = controller.leave(7L, 9L, authentication);

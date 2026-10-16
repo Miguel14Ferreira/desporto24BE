@@ -51,3 +51,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-16-community-join-notifications.yaml
   - include:
       file: db/changelog/changes/2026-10-16-venue-search-order-index.yaml
+  - include:
+      file: db/changelog/changes/2026-10-16-tournament-participant-confirmation.yaml

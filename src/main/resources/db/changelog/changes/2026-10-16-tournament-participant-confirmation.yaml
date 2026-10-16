@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-16-tournament-participant-confirmation
+      author: desporto24
+      changes:
+        # All registrations created before this feature remain confirmed.
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament_participant
+            columns:
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: CONFIRMED
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament_participant
+              ADD CONSTRAINT ck_tournament_participant_status
+              CHECK (status IN ('PENDING', 'CONFIRMED'));
