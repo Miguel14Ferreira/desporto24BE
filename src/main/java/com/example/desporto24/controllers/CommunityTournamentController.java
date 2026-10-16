@@ -6,6 +6,9 @@ import com.example.desporto24.model.dto.community.CommunityTournamentParticipant
 import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
 import com.example.desporto24.service.CommunityTournamentService;
+import com.example.desporto24.service.CommunityTournamentScheduleService;
+import com.example.desporto24.model.dto.community.CommunityTournamentScheduleSummaryResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentMatchesPageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("isAuthenticated()")
 public class CommunityTournamentController {
     private final CommunityTournamentService tournamentService;
+    private final CommunityTournamentScheduleService scheduleService;
 
     @PostMapping
     public ResponseEntity<CommunityTournamentResponse> create(
@@ -76,6 +80,23 @@ public class CommunityTournamentController {
             Authentication authentication) {
         return ResponseEntity.ok(tournamentService.participants(
                 communityId, tournamentId, authentication.getName(), page));
+    }
+
+    @PostMapping("/{tournamentId}/schedule")
+    public ResponseEntity<CommunityTournamentScheduleSummaryResponse> generateSchedule(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return ResponseEntity.ok(scheduleService.generate(communityId, tournamentId, authentication.getName()));
+    }
+
+    @GetMapping("/{tournamentId}/matches")
+    public ResponseEntity<CommunityTournamentMatchesPageResponse> matches(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            @RequestParam(defaultValue = "0") int page,
+            Authentication authentication) {
+        return ResponseEntity.ok(scheduleService.matches(communityId, tournamentId, authentication.getName(), page));
     }
 
     @GetMapping

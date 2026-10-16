@@ -60,7 +60,7 @@ class CommunityTournamentConfirmationTest {
     }
 
     private void tournamentExists() {
-        when(tournaments.findById(9L)).thenReturn(Optional.of(tournament));
+        when(tournaments.findByIdForUpdate(9L)).thenReturn(Optional.of(tournament));
     }
 
     private CommunityTournamentParticipant pending() {

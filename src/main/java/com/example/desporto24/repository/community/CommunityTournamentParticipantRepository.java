@@ -1,6 +1,7 @@
 package com.example.desporto24.repository.community;
 
 import com.example.desporto24.model.community.CommunityTournamentParticipant;
+import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Pageable;
@@ -20,4 +21,8 @@ public interface CommunityTournamentParticipantRepository
 
     @EntityGraph(attributePaths = "profile")
     Slice<CommunityTournamentParticipant> findByTournamentId(Long tournamentId, Pageable pageable);
+
+    @EntityGraph(attributePaths = "profile")
+    Slice<CommunityTournamentParticipant> findByTournamentIdAndStatus(
+            Long tournamentId, TournamentParticipantStatus status, Pageable pageable);
 }

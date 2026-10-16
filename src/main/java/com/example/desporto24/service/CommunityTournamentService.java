@@ -165,7 +165,7 @@ public class CommunityTournamentService {
         Profile actor = profile(username);
         // Rosters are accessible only to community members, even when a group is public.
         requireMember(communityId, actor);
-        tournament(communityId, tournamentId);
+        tournamentReadOnly(communityId, tournamentId);
         var pageable = PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.ASC, "id"));
         var result = participantRepository.findByTournamentId(tournamentId, pageable);
         return new CommunityTournamentParticipantsPageResponse(
@@ -204,6 +204,15 @@ public class CommunityTournamentService {
     }
 
     private CommunityTournament tournament(Long communityId, Long tournamentId) {
+        var tournament = tournamentRepository.findByIdForUpdate(tournamentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado"));
+        if (!tournament.getCommunity().getId().equals(communityId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
+        }
+        return tournament;
+    }
+
+    private CommunityTournament tournamentReadOnly(Long communityId, Long tournamentId) {
         var tournament = tournamentRepository.findById(tournamentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado"));
         if (!tournament.getCommunity().getId().equals(communityId)) {

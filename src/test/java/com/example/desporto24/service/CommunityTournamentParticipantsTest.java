@@ -63,7 +63,8 @@ class CommunityTournamentParticipantsTest {
         when(members.existsByCommunityIdAndProfileId(7L, 5L)).thenReturn(true);
     }
     private void validTournament() {
-        when(tournaments.findById(9L)).thenReturn(Optional.of(tournament));
+        lenient().when(tournaments.findById(9L)).thenReturn(Optional.of(tournament));
+        lenient().when(tournaments.findByIdForUpdate(9L)).thenReturn(Optional.of(tournament));
     }
     private void manager(CommunityRole role) {
         authenticated();
