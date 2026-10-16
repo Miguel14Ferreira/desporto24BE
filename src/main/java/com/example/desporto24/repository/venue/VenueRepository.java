@@ -2,12 +2,45 @@ package com.example.desporto24.repository.venue;
 
 import com.example.desporto24.model.venue.Venue;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findAllByOrderByNameAsc();
+
+    /**
+     * Filter and paginate in the database; never fetch the national catalog in memory.
+     * Full modality tokens prevent Futebol matching Futebol Americano.
+     * PostgreSQL and H2 both support translate for accent-insensitive search.
+     */
+    @Query("""
+           SELECT v FROM Venue v
+           WHERE (:name = '' OR
+                  LOWER(FUNCTION('translate', v.name,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :name, '%') ESCAPE '!')
+             AND (:city = '' OR
+                  LOWER(FUNCTION('translate', v.city,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :city, '%') ESCAPE '!')
+             AND (:sport = '' OR
+                  LOWER(FUNCTION('translate',
+                    CONCAT(';', REPLACE(REPLACE(COALESCE(v.sports, ''), ' ', ''), ',', ';'), ';'),
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc'))
+                    LIKE CONCAT('%;', :sport, ';%') ESCAPE '!')
+           ORDER BY LOWER(v.name), LOWER(v.city), v.id
+           """)
+    Slice<Venue> suggest(
+            @Param("name") String name,
+            @Param("city") String city,
+            @Param("sport") String sport,
+            Pageable pageable);
 
     /** Only the fields needed for import deduplication, not complete Venue entities. */
     interface VenueDeduplicationView {
