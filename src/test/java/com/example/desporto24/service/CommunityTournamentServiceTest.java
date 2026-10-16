@@ -1,0 +1,130 @@
+package com.example.desporto24.service;
+
+import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.CommunityVisibility;
+import com.example.desporto24.enumeration.TournamentFormat;
+import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.community.Community;
+import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.model.community.CommunityTournament;
+import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
+import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
+import com.example.desporto24.repository.community.CommunityTournamentRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class CommunityTournamentServiceTest {
+    @Mock private CommunityRepository communityRepository;
+    @Mock private CommunityMemberRepository memberRepository;
+    @Mock private CommunityTournamentRepository tournamentRepository;
+    @Mock private ProfileRepository profileRepository;
+    @InjectMocks private CommunityTournamentService service;
+
+    private final Profile owner = Profile.builder().id(1L).username("owner").build();
+    private final Community community = Community.builder().id(7L).name("CNG")
+            .visibility(CommunityVisibility.PRIVATE).owner(owner).createdAt(Instant.now()).build();
+
+    private void actingAsOwner(CommunityRole role) {
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(community).profile(owner).role(role).build()));
+    }
+
+    @Test
+    void ownerCreatesDraftLeagueUsingDefaultsAndKeepsExplicitZero() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class))).thenAnswer(invocation -> {
+            CommunityTournament tournament = invocation.getArgument(0);
+            tournament.setId(19L);
+            return tournament;
+        });
+
+        var created = service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("  Torneio da Praia  ", 0, null, null));
+
+        assertEquals(19L, created.id());
+        assertEquals("Torneio da Praia", created.name());
+        assertEquals(TournamentFormat.LEAGUE, created.format());
+        assertEquals(TournamentStatus.DRAFT, created.status());
+        assertEquals(0, created.winPoints());
+        assertEquals(1, created.drawPoints());
+        assertEquals(0, created.lossPoints());
+        assertNotNull(created.createdAt());
+    }
+
+    @Test
+    void adminCanCreateDraftLeague() {
+        actingAsOwner(CommunityRole.ADMIN);
+        when(tournamentRepository.save(any(CommunityTournament.class))).thenAnswer(invocation ->
+                invocation.getArgument(0));
+        var created = service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("Liga", 5, 2, 1));
+        assertEquals(5, created.winPoints());
+        assertEquals(2, created.drawPoints());
+        assertEquals(1, created.lossPoints());
+    }
+
+    @Test
+    void memberCannotCreateATournament() {
+        actingAsOwner(CommunityRole.MEMBER);
+        assertThrows(AccessDeniedException.class, () -> service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("Liga", null, null, null)));
+        verifyNoInteractions(tournamentRepository);
+    }
+
+    @Test
+    void outsiderCannotReadPrivateCommunityTournaments() {
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        assertThrows(AccessDeniedException.class, () -> service.list(7L, "owner", 0));
+        verifyNoInteractions(tournamentRepository);
+    }
+
+    @Test
+    void publicCommunityAllowsBoundedSortedReadWithHasMore() {
+        community.setVisibility(CommunityVisibility.PUBLIC);
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        var pageable = PageRequest.of(1, 20,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        CommunityTournament tournament = CommunityTournament.builder()
+                .id(19L).community(community).name("Liga")
+                .createdAt(Instant.parse("2026-10-16T12:00:00Z")).build();
+        when(tournamentRepository.findByCommunityId(7L, pageable))
+                .thenReturn(new SliceImpl<>(List.of(tournament), pageable, true));
+
+        var result = service.list(7L, "owner", 1);
+        assertEquals(1, result.page());
+        assertTrue(result.hasMore());
+        assertEquals(19L, result.tournaments().get(0).id());
+        assertEquals(TournamentStatus.DRAFT, result.tournaments().get(0).status());
+        verify(memberRepository, never()).existsByCommunityIdAndProfileId(any(), any());
+    }
+
+    @Test
+    void negativePageIsRejectedBeforeAnyDatabaseCalls() {
+        assertThrows(ResponseStatusException.class, () -> service.list(7L, "owner", -1));
+        verifyNoInteractions(tournamentRepository, memberRepository, communityRepository, profileRepository);
+    }
+}
