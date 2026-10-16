@@ -1,6 +1,8 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.community.CommunityTournamentPageResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentRequest;
 import com.example.desporto24.service.CommunityTournamentService;
@@ -26,6 +28,44 @@ public class CommunityTournamentController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(tournamentService.create(communityId, authentication.getName(), request));
+    }
+
+    @PutMapping("/{tournamentId}/participants/me")
+    public ResponseEntity<CommunityTournamentParticipantResponse> join(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return ResponseEntity.ok(tournamentService.join(
+                communityId, tournamentId, authentication.getName()));
+    }
+
+    @DeleteMapping("/{tournamentId}/participants/me")
+    public ResponseEntity<Void> leave(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            Authentication authentication) {
+        tournamentService.leave(communityId, tournamentId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{tournamentId}/participants/{profileId}")
+    public ResponseEntity<Void> removeParticipant(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            @PathVariable Long profileId,
+            Authentication authentication) {
+        tournamentService.removeParticipant(communityId, tournamentId, profileId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{tournamentId}/participants")
+    public ResponseEntity<CommunityTournamentParticipantsPageResponse> participants(
+            @PathVariable Long communityId,
+            @PathVariable Long tournamentId,
+            @RequestParam(defaultValue = "0") int page,
+            Authentication authentication) {
+        return ResponseEntity.ok(tournamentService.participants(
+                communityId, tournamentId, authentication.getName(), page));
     }
 
     @GetMapping
