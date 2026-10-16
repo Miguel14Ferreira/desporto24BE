@@ -22,6 +22,10 @@ public interface AuthenticationService {
     default void resendRegistrationConfirmation(String username, Long returnSessionId) {
         resendRegistrationConfirmation(username);
     }
+    default void resendRegistrationConfirmation(
+            String username, Long returnSessionId, Long returnCommunityId) {
+        resendRegistrationConfirmation(username, returnSessionId);
+    }
     void resetPasswordStepOne(String email);
     void resetPasswordStepTwo(String newPassword, String token);
     void confirmToken(String token);

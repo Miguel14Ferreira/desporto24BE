@@ -51,7 +51,10 @@ public record RegistrationRequest(
         boolean acceptedLegalTerms,
 
         @Positive
-        Long returnSessionId
+        Long returnSessionId,
+
+        @Positive
+        Long returnCommunityId
 ) {
 
     // Keep existing registrations and integrations compatible.
@@ -60,7 +63,16 @@ public record RegistrationRequest(
             String country, String indicativePhone, String phone, String gender,
             String email, boolean acceptedLegalTerms) {
         this(username, password, nickname, dateOfBirth, country, indicativePhone,
-                phone, gender, email, acceptedLegalTerms, null);
+                phone, gender, email, acceptedLegalTerms, null, null);
+    }
+
+    // Preserve the existing public constructor used by session invitation callers.
+    public RegistrationRequest(
+            String username, String password, String nickname, String dateOfBirth,
+            String country, String indicativePhone, String phone, String gender,
+            String email, boolean acceptedLegalTerms, Long returnSessionId) {
+        this(username, password, nickname, dateOfBirth, country, indicativePhone,
+                phone, gender, email, acceptedLegalTerms, returnSessionId, null);
     }
 
     @AssertTrue(message = "Tens de ter pelo menos 18 anos e uma data de nascimento válida")

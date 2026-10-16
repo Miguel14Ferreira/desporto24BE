@@ -1,0 +1,29 @@
+name: Validate community registration email invites
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/main/java/com/example/desporto24/model/dto/auth/RegistrationRequest.java'
+      - 'src/main/java/com/example/desporto24/controllers/AuthenticationController.java'
+      - 'src/main/java/com/example/desporto24/service/interfaces/AuthenticationService.java'
+      - 'src/main/java/com/example/desporto24/service/impl/AuthenticationServiceImpl.java'
+      - 'src/test/java/com/example/desporto24/model/dto/auth/RegistrationRequestValidationTest.java'
+      - 'src/test/java/com/example/desporto24/controllers/AuthenticationControllerTest.java'
+      - 'src/test/java/com/example/desporto24/service/impl/AuthenticationServiceImplTest.java'
+      - '.github/workflows/community-cross-device-invite-ci.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run backend tests
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp test

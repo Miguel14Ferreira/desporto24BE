@@ -67,7 +67,15 @@ class AuthenticationControllerTest {
 
         assertEquals(OK, response.getStatusCode());
         org.mockito.Mockito.verify(authenticationService)
-                .resendRegistrationConfirmation("miguel", 42L);
+                .resendRegistrationConfirmation("miguel", 42L, null);
+    }
+
+    @Test
+    void resendConfirmationForwardsCommunityDestination() {
+        var response = controller.resendRegistrationConfirmation("miguel", null, 42L);
+        assertEquals(OK, response.getStatusCode());
+        org.mockito.Mockito.verify(authenticationService)
+                .resendRegistrationConfirmation("miguel", null, 42L);
     }
 
     @Test
@@ -76,7 +84,7 @@ class AuthenticationControllerTest {
 
         assertEquals(OK, response.getStatusCode());
         org.mockito.Mockito.verify(authenticationService)
-                .resendRegistrationConfirmation("miguel", null);
+                .resendRegistrationConfirmation("miguel", null, null);
     }
 
     @Test

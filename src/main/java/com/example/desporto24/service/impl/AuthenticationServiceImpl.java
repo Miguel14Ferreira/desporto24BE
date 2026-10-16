@@ -300,7 +300,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             createWelcomeNotification(profileDTO, null);
             pilotEventService.recordRegistrationCompleted(savedProfile, cohort);
         } else {
-            sendSignUpEmail(profileDTO, request.returnSessionId());
+            sendSignUpEmail(profileDTO, request.returnSessionId(), request.returnCommunityId());
         }
     }
 
@@ -342,10 +342,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private void sendSignUpEmail(ProfileDTO profileDTO) {
-        sendSignUpEmail(profileDTO, null);
+        sendSignUpEmail(profileDTO, null, null);
     }
 
-    private void sendSignUpEmail(ProfileDTO profileDTO, Long returnSessionId) {
+    private void sendSignUpEmail(ProfileDTO profileDTO, Long returnSessionId, Long returnCommunityId) {
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(
                 token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), profileDTO.getUsername()
@@ -356,7 +356,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 + "/?confirmRegistration=" + token
                 + (returnSessionId != null && returnSessionId > 0
                         ? "&returnSessionId=" + returnSessionId
-                        : "");
+                        : returnCommunityId != null && returnCommunityId > 0
+                            ? "&returnCommunityId=" + returnCommunityId
+                            : "");
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
         emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
                 buildRegistrationEmail(profileDTO.getUsername(), link));
@@ -366,11 +368,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public void resendRegistrationConfirmation(String username) {
-        resendRegistrationConfirmation(username, null);
+        resendRegistrationConfirmation(username, null, null);
     }
 
     @Override
     public void resendRegistrationConfirmation(String username, Long returnSessionId) {
+        resendRegistrationConfirmation(username, returnSessionId, null);
+    }
+
+    @Override
+    public void resendRegistrationConfirmation(
+            String username, Long returnSessionId, Long returnCommunityId) {
         String suppliedUsername = username == null ? "" : username.trim();
         Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
@@ -382,7 +390,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.deleteByProfile(profile.getUsername());
 
         ProfileDTO profileDTO = profileMapper.toDto(profile);
-        sendSignUpEmail(profileDTO, returnSessionId);
+        sendSignUpEmail(profileDTO, returnSessionId, returnCommunityId);
     }
 
     private void createWelcomeNotification(ProfileDTO profileDTO, String token) {
