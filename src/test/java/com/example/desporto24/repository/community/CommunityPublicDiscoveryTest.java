@@ -82,6 +82,38 @@ class CommunityPublicDiscoveryTest {
         assertTrue(repository.searchPresentations("", "corrida", PageRequest.of(0, 20)).isEmpty());
     }
 
+
+    @Test
+    void loadingPresentationSportsInBulkPreservesOrderAndSportlessCommunities() {
+        Profile owner = new Profile();
+        owner.setUsername("discovery-sport-tags-fixture");
+        entityManager.persist(owner);
+        var multi = Community.builder().owner(owner).name("Com várias")
+                .sport("Futebol")
+                .sports(new java.util.ArrayList<>(java.util.List.of("Futebol", "Natação", "Ténis")))
+                .visibility(CommunityVisibility.PUBLIC).rankingsEnabled(false)
+                .createdAt(Instant.now()).build();
+        var none = Community.builder().owner(owner).name("Sem modalidade")
+                .visibility(CommunityVisibility.PUBLIC).rankingsEnabled(false)
+                .createdAt(Instant.now()).build();
+        entityManager.persist(multi);
+        entityManager.persist(none);
+        entityManager.flush();
+        Long multiId = multi.getId();
+        Long noneId = none.getId();
+        entityManager.clear();
+
+        var loaded = repository.findAllWithSportsByIdIn(java.util.List.of(multiId, noneId));
+        assertEquals(2, loaded.size());
+        var byId = loaded.stream().collect(java.util.stream.Collectors.toMap(
+                Community::getId, java.util.function.Function.identity()));
+        assertEquals(java.util.List.of("Futebol", "Natação", "Ténis"),
+                byId.get(multiId).getSports());
+        assertEquals(java.util.List.of(), byId.get(noneId).getSports());
+        assertEquals(java.util.List.of("Futebol", "Natação", "Ténis"),
+                repository.findWithSportsById(multiId).orElseThrow().getSports());
+    }
+
     private void persistWithSports(Profile owner, String name, String sport, java.util.List<String> sports) {
         entityManager.persist(Community.builder().owner(owner).name(name).sport(sport)
                 .sports(new java.util.ArrayList<>(sports))
