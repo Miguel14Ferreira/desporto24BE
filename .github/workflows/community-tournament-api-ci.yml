@@ -1,0 +1,28 @@
+name: Validate community tournament API
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentController.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
+      - 'src/main/java/com/example/desporto24/model/dto/community/*Tournament*.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentRepository.java'
+      - 'src/test/java/com/example/desporto24/controllers/CommunityTournamentControllerTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
+      - '.github/workflows/community-tournament-api-ci.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run full backend test suite
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp test
