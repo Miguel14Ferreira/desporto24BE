@@ -40,7 +40,14 @@ class CommunityTournamentServiceTest {
     @Mock private ProfileRepository profileRepository;
     @InjectMocks private CommunityTournamentService service;
 
-    private final Profile owner = Profile.builder().id(1L).username("owner").build();
+    private final Profile owner = ownerProfile();
+
+    private static Profile ownerProfile() {
+        Profile profile = new Profile();
+        profile.setId(1L);
+        profile.setUsername("owner");
+        return profile;
+    }
     private final Community community = Community.builder().id(7L).name("CNG")
             .visibility(CommunityVisibility.PRIVATE).owner(owner).createdAt(Instant.now()).build();
 
