@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.TournamentEntryType;
+
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.Profile;
@@ -56,6 +58,10 @@ public class CommunityTournamentStandingsService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
         }
 
+        if (tournament.getEntryType() == TournamentEntryType.TEAM) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A classificação por equipas será gerada a partir dos resultados das equipas");
+        }
         var participantSlice = participantRepository.findByTournamentIdAndStatus(
                 tournamentId, TournamentParticipantStatus.CONFIRMED,
                 PageRequest.of(0, MAX_PLAYERS + 1, Sort.by("id")));

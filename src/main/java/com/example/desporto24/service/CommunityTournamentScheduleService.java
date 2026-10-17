@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.TournamentEntryType;
+
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
@@ -57,6 +59,10 @@ public class CommunityTournamentScheduleService {
                 .orElseThrow(() -> notFound());
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw notFound();
+        }
+        if (tournament.getEntryType() == TournamentEntryType.TEAM) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "O calendário por equipas precisa de confrontos entre equipas");
         }
         if (tournament.getStatus() != TournamentStatus.DRAFT
                 || tournament.getFormat() != TournamentFormat.LEAGUE) {
@@ -136,6 +142,9 @@ public class CommunityTournamentScheduleService {
                 .orElseThrow(() -> notFound());
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw notFound();
+        }
+        if (tournament.getEntryType() == TournamentEntryType.TEAM) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Calendário por equipas ainda não disponível");
         }
         var pageable = PageRequest.of(page, PAGE_SIZE,
                 Sort.by(Sort.Direction.ASC, "roundNumber").and(Sort.by(Sort.Direction.ASC, "id")));
