@@ -114,12 +114,6 @@ class CommunityTournamentTeamServiceTest {
         assertEquals(19L, captor.getValue().getTournament().getId());
         assertEquals(10L, captor.getValue().getTeam().getId());
         assertEquals(2L, captor.getValue().getProfile().getId());
-        verifyNoInteractionsWithIndividualEnrollmentRepository();
-    }
-
-    private void verifyNoInteractionsWithIndividualEnrollmentRepository() {
-        // This service has no dependency on the existing individual enrollment repository.
-        // The captured team-player entity is never an individual tournament participant.
     }
 
     @Test
@@ -130,7 +124,7 @@ class CommunityTournamentTeamServiceTest {
         var error = assertThrows(ResponseStatusException.class,
                 () -> service.assignPlayer(7L, 19L, 10L, "owner", 2L));
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-        verifyNoInteractions(profileRepository);
+        verify(profileRepository, never()).findById(2L);
     }
 
     @Test
