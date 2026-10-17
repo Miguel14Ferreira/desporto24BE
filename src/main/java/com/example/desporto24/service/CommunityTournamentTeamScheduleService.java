@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Real-team single round-robin fixtures. The individual participant tables, regular
+ * Real-team configurable one/two-leg round-robin fixtures. The individual participant tables, regular
  * seasons and historical community standings are completely independent.
  */
 @Service
@@ -89,8 +89,12 @@ public class CommunityTournamentTeamScheduleService {
             }
         }
 
-        // Berger circle, with a bye for odd counts. Fixed seat is rotated against
-        // every other team exactly once; bounded to a maximum of 496 fixtures.
+        // Berger circle, with a bye for odd counts. The second leg mirrors every
+        // first-leg fixture in the corresponding round, reversing home and away.
+        int legs = tournament.getRoundRobinLegs();
+        if (legs < 1 || legs > 2) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Número de voltas inválido");
+        }
         List<CommunityTournamentTeam> seats = new ArrayList<>(rosterTeams);
         if (seats.size() % 2 != 0) seats.add(null);
         int rounds = seats.size() - 1;
@@ -110,13 +114,23 @@ public class CommunityTournamentTeamScheduleService {
             var last = seats.remove(seats.size() - 1);
             seats.add(1, last);
         }
+        if (legs == 2) {
+            List<CommunityTournamentTeamMatch> firstLeg = List.copyOf(fixtures);
+            for (var game : firstLeg) {
+                fixtures.add(CommunityTournamentTeamMatch.builder()
+                        .tournament(tournament)
+                        .homeTeam(game.getAwayTeam())
+                        .awayTeam(game.getHomeTeam())
+                        .roundNumber(game.getRoundNumber() + rounds).build());
+            }
+        }
         matches.saveAll(fixtures);
         tournament.setStatus(TournamentStatus.IN_PROGRESS);
         tournament.setStartedAt(Instant.now());
         tournaments.save(tournament);
         return new CommunityTournamentTeamScheduleSummaryResponse(
                 tournamentId, TournamentStatus.IN_PROGRESS, rosterTeams.size(),
-                rounds, fixtures.size());
+                rounds * legs, fixtures.size());
     }
 
     @Transactional(readOnly = true)

@@ -38,6 +38,11 @@ public class CommunityTournament {
     @Builder.Default
     private TournamentEntryType entryType = TournamentEntryType.INDIVIDUAL;
 
+    // Set when the competition is created. Once fixtures are published it is immutable.
+    @Builder.Default
+    @Column(name = "round_robin_legs", nullable = false)
+    private int roundRobinLegs = 1;
+
     @Column(name = "players_per_team")
     private Integer playersPerTeam;
 

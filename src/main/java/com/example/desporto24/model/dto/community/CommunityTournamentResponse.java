@@ -26,8 +26,23 @@ public record CommunityTournamentResponse(
         TournamentEntryType entryType,
         Integer playersPerTeam,
         Long championTeamId,
-        String championTeamName
+        String championTeamName,
+        int roundRobinLegs
 ) {
+    // Preserve clients which instantiate the 20-field representation.
+    public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
+            TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
+            Instant createdAt, Instant startedAt, Instant completedAt,
+            Long championProfileId, String championUsername, String championDisplayName,
+            Long championPoints, boolean championTied, String sport,
+            TournamentEntryType entryType, Integer playersPerTeam,
+            Long championTeamId, String championTeamName) {
+        this(id, name, format, status, winPoints, drawPoints, lossPoints, createdAt,
+                startedAt, completedAt, championProfileId, championUsername, championDisplayName,
+                championPoints, championTied, sport, entryType, playersPerTeam,
+                championTeamId, championTeamName, 1);
+    }
+
     public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
             TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
             Instant createdAt, Instant startedAt, Instant completedAt,
@@ -36,7 +51,7 @@ public record CommunityTournamentResponse(
             TournamentEntryType entryType, Integer playersPerTeam) {
         this(id, name, format, status, winPoints, drawPoints, lossPoints, createdAt,
                 startedAt, completedAt, championProfileId, championUsername, championDisplayName,
-                championPoints, championTied, sport, entryType, playersPerTeam, null, null);
+                championPoints, championTied, sport, entryType, playersPerTeam, null, null, 1);
     }
     public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
             TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
@@ -80,6 +95,7 @@ public record CommunityTournamentResponse(
                 tournament.getChampionUsername(), tournament.getChampionDisplayName(),
                 tournament.getChampionPoints(), tournament.isChampionTied(), tournament.getSport(),
                 tournament.getEntryType(), tournament.getPlayersPerTeam(),
-                tournament.getChampionTeamId(), tournament.getChampionTeamName());
+                tournament.getChampionTeamId(), tournament.getChampionTeamName(),
+                tournament.getRoundRobinLegs());
     }
 }
