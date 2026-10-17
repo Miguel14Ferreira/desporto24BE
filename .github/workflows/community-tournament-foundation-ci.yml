@@ -1,21 +1,7 @@
 name: Validate community tournament foundation
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/enumeration/TournamentFormat.java'
-      - 'src/main/java/com/example/desporto24/enumeration/TournamentStatus.java'
-      - 'src/main/java/com/example/desporto24/enumeration/TournamentMatchStatus.java'
-      - 'src/main/java/com/example/desporto24/model/community/CommunityTournament.java'
-      - 'src/main/java/com/example/desporto24/model/community/CommunityTournamentParticipant.java'
-      - 'src/main/java/com/example/desporto24/model/community/CommunityTournamentMatch.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentRepository.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentParticipantRepository.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentMatchRepository.java'
-      - 'src/main/resources/db/changelog/db.changelog-master.yaml'
-      - 'src/main/resources/db/changelog/changes/2026-10-16-community-tournament-foundation.yaml'
-      - 'src/test/java/com/example/desporto24/repository/community/CommunityTournamentPersistenceTest.java'
-      - '.github/workflows/community-tournament-foundation-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

@@ -1,14 +1,7 @@
 name: Validate community season champion snapshots
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/model/community/CommunitySeason.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityCompetitionService.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityCompetitionServiceTest.java'
-      - 'src/main/resources/db/changelog/db.changelog-master.yaml'
-      - 'src/main/resources/db/changelog/changes/2026-10-16-community-season-champion-snapshot.yaml'
-      - '.github/workflows/community-season-snapshot-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

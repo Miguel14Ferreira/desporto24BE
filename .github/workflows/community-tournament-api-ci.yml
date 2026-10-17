@@ -1,33 +1,7 @@
 name: Validate community tournament API
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentController.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityTournamentScheduleService.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityTournamentResultService.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityTournamentStandingsService.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityTournamentFinalizationService.java'
-      - 'src/main/java/com/example/desporto24/model/dto/community/*Tournament*.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentRepository.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentParticipantRepository.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentMatchRepository.java'
-      - 'src/main/java/com/example/desporto24/enumeration/TournamentParticipantStatus.java'
-      - 'src/main/java/com/example/desporto24/model/community/CommunityTournament.java'
-      - 'src/main/java/com/example/desporto24/model/community/CommunityTournamentParticipant.java'
-      - 'src/main/resources/db/changelog/db.changelog-master.yaml'
-      - 'src/main/resources/db/changelog/changes/2026-10-16-tournament-participant-confirmation.yaml'
-      - 'src/main/resources/db/changelog/changes/2026-10-16-tournament-champion-snapshot.yaml'
-      - 'src/test/java/com/example/desporto24/controllers/CommunityTournamentControllerTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentParticipantsTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentScheduleServiceTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentResultServiceTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentStandingsServiceTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentFinalizationServiceTest.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityTournamentConfirmationTest.java'
-      - '.github/workflows/community-tournament-api-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

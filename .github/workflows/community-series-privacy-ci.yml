@@ -1,11 +1,7 @@
 name: Validate community series privacy
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/service/impl/SessionServiceImpl.java'
-      - 'src/test/java/com/example/desporto24/service/SessionDiscoveryServiceTest.java'
-      - '.github/workflows/community-series-privacy-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
