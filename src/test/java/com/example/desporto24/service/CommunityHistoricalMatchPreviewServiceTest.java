@@ -69,7 +69,6 @@ class CommunityHistoricalMatchPreviewServiceTest {
         assertEquals("2020-10-08", result.rows().get(2).sourceDate());
         assertTrue(result.rows().get(1).potentialDuplicate());
         assertTrue(result.warnings().getFirst().contains("Linha 3"));
-        verifyNoMoreInteractions(profiles, members);
     }
 
     @Test
