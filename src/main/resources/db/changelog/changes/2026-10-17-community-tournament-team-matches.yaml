@@ -1,0 +1,89 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-tournament-team-matches
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_tournament_team_match
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tournament_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: home_team_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: away_team_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: round_number
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: SCHEDULED
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: fk_team_match_tournament
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_team_match
+            baseColumnNames: tournament_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_team_match_home
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_team_match
+            baseColumnNames: home_team_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament_team
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_team_match_away
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_team_match
+            baseColumnNames: away_team_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament_team
+            referencedColumnNames: id
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament_team_match
+            indexName: idx_team_match_tournament_round
+            columns:
+              - column:
+                  name: tournament_id
+              - column:
+                  name: round_number
+              - column:
+                  name: id
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament_team_match
+              ADD CONSTRAINT fk_team_match_home_scope FOREIGN KEY (tournament_id, home_team_id)
+              REFERENCES desporto24.community_tournament_team(tournament_id, id),
+              ADD CONSTRAINT fk_team_match_away_scope FOREIGN KEY (tournament_id, away_team_id)
+              REFERENCES desporto24.community_tournament_team(tournament_id, id),
+              ADD CONSTRAINT ck_team_match_distinct_teams CHECK (home_team_id <> away_team_id),
+              ADD CONSTRAINT ck_team_match_round_positive CHECK (round_number > 0),
+              ADD CONSTRAINT ck_team_match_status CHECK (status IN ('SCHEDULED', 'COMPLETED'));
