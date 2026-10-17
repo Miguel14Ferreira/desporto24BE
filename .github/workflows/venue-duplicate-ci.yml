@@ -1,13 +1,8 @@
 name: Validate venue duplicate guard
 
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/repository/venue/VenueRepository.java'
-      - 'src/main/java/com/example/desporto24/service/VenueService.java'
-      - '.github/workflows/venue-duplicate-ci.yml'
-
+  workflow_dispatch:
 permissions:
   contents: read
 

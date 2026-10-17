@@ -1,17 +1,7 @@
 name: Validate paginated venue suggestions
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/controllers/VenueController.java'
-      - 'src/main/java/com/example/desporto24/service/VenueService.java'
-      - 'src/main/java/com/example/desporto24/repository/venue/VenueRepository.java'
-      - 'src/main/java/com/example/desporto24/model/dto/venue/VenueSearchPageResponse.java'
-      - 'src/main/resources/db/changelog/**'
-      - 'src/test/java/com/example/desporto24/controllers/VenuePagedSearchControllerTest.java'
-      - 'src/test/java/com/example/desporto24/service/VenuePagedSearchServiceTest.java'
-      - 'src/test/java/com/example/desporto24/repository/venue/VenuePagedSearchRepositoryTest.java'
-      - '.github/workflows/venue-paged-search-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

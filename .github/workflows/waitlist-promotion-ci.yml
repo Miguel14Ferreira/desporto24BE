@@ -1,11 +1,7 @@
 name: Validate waitlist promotions
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/service/WaitlistPromotionService.java'
-      - 'src/test/java/com/example/desporto24/service/WaitlistPromotionServiceTest.java'
-      - '.github/workflows/waitlist-promotion-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
