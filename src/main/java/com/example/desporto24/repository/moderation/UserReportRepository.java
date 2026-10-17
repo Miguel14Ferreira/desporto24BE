@@ -9,6 +9,8 @@ import java.util.List;
 
 @Repository
 public interface UserReportRepository extends JpaRepository<UserReport, Long> {
+    long countByStatus(UserReportStatus status);
+
 
     boolean existsByReporterIdAndReportedIdAndStatus(
             Long reporterId,

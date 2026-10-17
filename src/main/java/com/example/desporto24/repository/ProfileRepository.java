@@ -16,6 +16,20 @@ import java.util.Optional;
 @Repository
 @Transactional(readOnly = true)
 public interface ProfileRepository extends JpaRepository<Profile, Long> {
+     /** Exclude anonymized accounts; never count deleted profiles as registered people. */
+     @Query("select count(p) from Profile p where p.email is null or lower(p.email) not like '%@deleted.invalid'")
+     long countRegisteredProfiles();
+
+     @Query("select count(p) from Profile p where p.enabled = true and (p.email is null or lower(p.email) not like '%@deleted.invalid')")
+     long countEnabledRegisteredProfiles();
+
+     @Query("select count(p) from Profile p where p.joinDate >= :since and (p.email is null or lower(p.email) not like '%@deleted.invalid')")
+     long countRegistrationsSince(@Param("since") java.util.Date since);
+
+     /** Recent logins are NOT an online-presence metric. */
+     @Query("select count(p) from Profile p where p.lastLoginDate >= :since and (p.email is null or lower(p.email) not like '%@deleted.invalid')")
+     long countRecentLoginsSince(@Param("since") java.util.Date since);
+
      Optional<Profile> findUserByEmail(String email);
      Optional<Profile> findUserByUsername(String username);
      Optional<Profile> findUserByUsernameIgnoreCase(String username);
