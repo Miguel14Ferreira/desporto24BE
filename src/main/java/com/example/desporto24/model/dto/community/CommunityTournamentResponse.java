@@ -2,6 +2,7 @@ package com.example.desporto24.model.dto.community;
 
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentEntryType;
 
 import java.time.Instant;
 
@@ -21,8 +22,21 @@ public record CommunityTournamentResponse(
         String championDisplayName,
         Long championPoints,
         boolean championTied,
-        String sport
+        String sport,
+        TournamentEntryType entryType,
+        Integer playersPerTeam
 ) {
+    public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
+            TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
+            Instant createdAt, Instant startedAt, Instant completedAt,
+            Long championProfileId, String championUsername, String championDisplayName,
+            Long championPoints, boolean championTied, String sport) {
+        this(id, name, format, status, winPoints, drawPoints, lossPoints,
+                createdAt, startedAt, completedAt, championProfileId, championUsername,
+                championDisplayName, championPoints, championTied, sport,
+                TournamentEntryType.INDIVIDUAL, null);
+    }
+
     // Maintain source compatibility for existing 15-field callers.
     public CommunityTournamentResponse(
             Long id, String name, TournamentFormat format, TournamentStatus status,
@@ -52,6 +66,7 @@ public record CommunityTournamentResponse(
                 tournament.getLossPoints(), tournament.getCreatedAt(), tournament.getStartedAt(),
                 tournament.getCompletedAt(), tournament.getChampionProfileId(),
                 tournament.getChampionUsername(), tournament.getChampionDisplayName(),
-                tournament.getChampionPoints(), tournament.isChampionTied(), tournament.getSport());
+                tournament.getChampionPoints(), tournament.isChampionTied(), tournament.getSport(),
+                tournament.getEntryType(), tournament.getPlayersPerTeam());
     }
 }

@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.TournamentEntryType;
+
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.model.Profile;
@@ -44,6 +46,10 @@ public class CommunityTournamentFinalizationService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado"));
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
+        }
+        if (tournament.getEntryType() == TournamentEntryType.TEAM) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A conclusão de competições por equipas requer classificação por equipas");
         }
         // Repeated requests return the immutable trophy without modifying the snapshot.
         if (tournament.getStatus() == TournamentStatus.COMPLETED) {

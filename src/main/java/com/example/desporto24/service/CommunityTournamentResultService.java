@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.TournamentEntryType;
+
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentStatus;
@@ -54,6 +56,10 @@ public class CommunityTournamentResultService {
                 .orElseThrow(() -> notFound());
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw notFound();
+        }
+        if (tournament.getEntryType() == TournamentEntryType.TEAM) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Este endpoint apenas regista resultados individuais");
         }
         if (tournament.getStatus() != TournamentStatus.IN_PROGRESS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,

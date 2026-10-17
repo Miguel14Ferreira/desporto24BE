@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.enumeration.TournamentFormat;
+import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.model.community.CommunityTournamentMatch;
@@ -141,6 +142,46 @@ class CommunityTournamentServiceTest {
         community.setSport("Futebol");
 
         assertEquals("Ténis", service.list(7L, "owner", 0).tournaments().get(0).sport());
+    }
+
+
+    @Test
+    void teamsAreCreatedAsASeparateParticipationType() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var created = service.create(7L, "owner", new CreateCommunityTournamentRequest(
+                "Liga 5x5", null, null, null, "Futebol", TournamentEntryType.TEAM, 5));
+        assertEquals(TournamentEntryType.TEAM, created.entryType());
+        assertEquals(5, created.playersPerTeam());
+        assertEquals(TournamentStatus.DRAFT, created.status());
+    }
+
+    @Test
+    void teamCompetitionsRequireTheirOwnSportAndRosterSize() {
+        actingAsOwner(CommunityRole.OWNER);
+        var noSize = new CreateCommunityTournamentRequest(
+                "Liga", null, null, null, "Futebol", TournamentEntryType.TEAM, null);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", noSize)).getStatusCode());
+        var noSport = new CreateCommunityTournamentRequest(
+                "Liga", null, null, null, null, TournamentEntryType.TEAM, 5);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", noSport)).getStatusCode());
+        verifyNoInteractions(tournamentRepository);
+    }
+
+    @Test
+    void legacyRequestsRemainIndividual() {
+        actingAsOwner(CommunityRole.ADMIN);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var old = service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("Liga antiga", null, null, null));
+        assertEquals(TournamentEntryType.INDIVIDUAL, old.entryType());
+        assertNull(old.playersPerTeam());
     }
 
     @Test
