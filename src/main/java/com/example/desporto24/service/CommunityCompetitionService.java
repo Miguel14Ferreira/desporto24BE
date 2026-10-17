@@ -6,6 +6,7 @@ import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.model.community.CommunityHistoricalPlayerLink;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.model.community.CommunityRoundEntry;
@@ -13,6 +14,7 @@ import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunityHistoricalPlayerLinkRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
@@ -34,6 +36,7 @@ public class CommunityCompetitionService {
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityPlayerRepository playerRepository;
+    private final CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     private final CommunityRoundRepository roundRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
@@ -254,12 +257,21 @@ public class CommunityCompetitionService {
 
     private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
         Map<String, StandingAccumulator> table = new LinkedHashMap<>();
+        Map<Long, Profile> linkedProfiles = new HashMap<>();
+        for (CommunityHistoricalPlayerLink link : historicalPlayerLinkRepository
+                .findByCommunityIdAndStatus(community.getId(), "ACCEPTED")) {
+            linkedProfiles.put(link.getPlayer().getId(), link.getProfile());
+        }
+        Set<Long> linkedProfileIds = new HashSet<>();
+        for (Profile linked : linkedProfiles.values()) linkedProfileIds.add(linked.getId());
 
         for (CommunityMember member : memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId())) {
             Profile profile = member.getProfile();
             CommunityPlayer communityPlayer = playerRepository
                     .findByCommunityIdAndProfileId(community.getId(), profile.getId())
                     .orElse(null);
+            // Confirmed historical aliases are consolidated under the actual profile.
+            if (linkedProfileIds.contains(profile.getId())) communityPlayer = null;
             table.putIfAbsent(standingKey(communityPlayer, profile), new StandingAccumulator(communityPlayer, profile));
         }
 
@@ -272,9 +284,16 @@ public class CommunityCompetitionService {
             Profile profile = entry.getProfile() != null
                     ? entry.getProfile()
                     : communityPlayer == null ? null : communityPlayer.getProfile();
+            if (communityPlayer != null && linkedProfiles.containsKey(communityPlayer.getId())) {
+                profile = linkedProfiles.get(communityPlayer.getId());
+            }
+            final Profile resolvedProfile = profile;
+            final CommunityPlayer originalPlayer = communityPlayer;
+            final CommunityPlayer displayPlayer = profile != null && linkedProfileIds.contains(profile.getId())
+                    ? null : originalPlayer;
             StandingAccumulator row = table.computeIfAbsent(
-                    standingKey(communityPlayer, profile),
-                    ignored -> new StandingAccumulator(communityPlayer, profile)
+                    standingKey(displayPlayer, resolvedProfile),
+                    ignored -> new StandingAccumulator(displayPlayer, resolvedProfile)
             );
             row.add(entry);
         }

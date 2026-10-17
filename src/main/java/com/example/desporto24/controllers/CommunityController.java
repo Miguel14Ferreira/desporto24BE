@@ -8,6 +8,7 @@ import com.example.desporto24.service.CommunityStandingsArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityManagementService;
+import com.example.desporto24.service.CommunityHistoricalPlayerLinkService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class CommunityController {
 
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
+    private final CommunityHistoricalPlayerLinkService historicalPlayerLinkService;
     private final CommunityImportService communityImportService;
     private final CommunityStandingsArchiveService historicalStandingsService;
     private final CommunityHistoricalMatchPreviewService historicalMatchPreviewService;
@@ -220,6 +222,37 @@ public class CommunityController {
         return ResponseEntity.ok(
                 competitionService.updateSettings(id, authentication.getName(), request)
         );
+    }
+
+    @GetMapping("/{id}/competition/historical-players")
+    public ResponseEntity<List<HistoricalPlayerCandidateResponse>> historicalPlayerCandidates(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.candidates(id, authentication.getName()));
+    }
+
+    @PostMapping("/{id}/competition/historical-player-links")
+    public ResponseEntity<HistoricalPlayerLinkResponse> proposeHistoricalPlayerLink(
+            @PathVariable Long id, @RequestBody @Valid ProposeHistoricalPlayerLinkRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.propose(id, authentication.getName(), request));
+    }
+
+    @GetMapping("/{id}/competition/historical-player-links/me")
+    public ResponseEntity<List<HistoricalPlayerLinkResponse>> myHistoricalPlayerLinks(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.pendingForMe(id, authentication.getName()));
+    }
+
+    @PostMapping("/{id}/competition/historical-player-links/{linkId}/accept")
+    public ResponseEntity<HistoricalPlayerLinkResponse> acceptHistoricalPlayerLink(
+            @PathVariable Long id, @PathVariable Long linkId, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.decide(id, linkId, authentication.getName(), true));
+    }
+
+    @PostMapping("/{id}/competition/historical-player-links/{linkId}/reject")
+    public ResponseEntity<HistoricalPlayerLinkResponse> rejectHistoricalPlayerLink(
+            @PathVariable Long id, @PathVariable Long linkId, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.decide(id, linkId, authentication.getName(), false));
     }
 
     @PostMapping("/{id}/competition/import/context/validate")
