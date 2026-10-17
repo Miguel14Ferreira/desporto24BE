@@ -8,6 +8,7 @@ import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityTournament;
 import com.example.desporto24.model.community.CommunityTournamentParticipant;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
@@ -72,10 +73,25 @@ public class CommunityTournamentService {
             }
         }
 
+        TournamentEntryType type = request.entryType() == null
+                ? TournamentEntryType.INDIVIDUAL : request.entryType();
+        if (type == TournamentEntryType.TEAM &&
+                (request.playersPerTeam() == null || request.playersPerTeam() < 1
+                        || request.playersPerTeam() > 30 || selectedSport == null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Escolhe modalidade e tamanho da equipa (1 a 30 jogadores)");
+        }
+        if (type == TournamentEntryType.INDIVIDUAL && request.playersPerTeam() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "O tamanho da equipa só é válido em competições por equipas");
+        }
+
         CommunityTournament tournament = CommunityTournament.builder()
                 .community(community)
                 .name(request.name().trim())
                 .sport(selectedSport)
+                .entryType(type)
+                .playersPerTeam(request.playersPerTeam())
                 .winPoints(request.winPoints() == null ? 3 : request.winPoints())
                 .drawPoints(request.drawPoints() == null ? 1 : request.drawPoints())
                 .lossPoints(request.lossPoints() == null ? 0 : request.lossPoints())
@@ -222,7 +238,8 @@ public class CommunityTournamentService {
         Profile actor = profile(username);
         // Rosters are accessible only to community members, even when a group is public.
         requireMember(communityId, actor);
-        tournamentReadOnly(communityId, tournamentId);
+        var selectedTournament = tournamentReadOnly(communityId, tournamentId);
+        requireIndividual(selectedTournament);
         var pageable = PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.ASC, "id"));
         var result = participantRepository.findByTournamentId(tournamentId, pageable);
         return new CommunityTournamentParticipantsPageResponse(
@@ -278,7 +295,15 @@ public class CommunityTournamentService {
         return tournament;
     }
 
+    private void requireIndividual(CommunityTournament tournament) {
+        if (tournament.getEntryType() == TournamentEntryType.TEAM) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta competição utiliza equipas e não inscrições individuais");
+        }
+    }
+
     private void requireDraft(CommunityTournament tournament) {
+        requireIndividual(tournament);
         if (tournament.getStatus() != TournamentStatus.DRAFT) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Os participantes só podem ser alterados antes do início do torneio");

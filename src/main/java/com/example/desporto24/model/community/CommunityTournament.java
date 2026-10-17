@@ -2,6 +2,7 @@ package com.example.desporto24.model.community;
 
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentEntryType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,6 +32,14 @@ public class CommunityTournament {
     // Null is retained for old, previously sportless tournaments.
     @Column(name = "sport", length = 100)
     private String sport;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "entry_type", nullable = false, length = 16)
+    @Builder.Default
+    private TournamentEntryType entryType = TournamentEntryType.INDIVIDUAL;
+
+    @Column(name = "players_per_team")
+    private Integer playersPerTeam;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
