@@ -446,6 +446,9 @@ public class CommunityImportService {
         }
 
         int duplicateRounds = 0;
+        // Two differently formatted dates can denote the same round in one workbook.
+        // Mark subsequent occurrences as duplicates before persisting any data.
+        Set<Instant> plannedDates = new java.util.HashSet<>();
         List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
         for (CommunityImportRoundsPlanResponse.RoundPlan round : plan.rounds()) {
             String resolvedDate = round.parsedDate();
@@ -460,8 +463,9 @@ public class CommunityImportService {
             Instant playedAt = LocalDate.parse(resolvedDate)
                     .atStartOfDay(java.time.ZoneOffset.UTC)
                     .toInstant();
-            boolean duplicate = communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
-                    communityId, context.seasonId(), playedAt);
+            boolean duplicate = !plannedDates.add(playedAt)
+                    || communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
+                            communityId, context.seasonId(), playedAt);
             if (duplicate) duplicateRounds++;
 
             resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
