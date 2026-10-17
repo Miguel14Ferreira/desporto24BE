@@ -3,6 +3,9 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.model.dto.community.AssignCommunityTournamentTeamPlayerRequest;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamResponse;
 import com.example.desporto24.model.dto.community.CreateCommunityTournamentTeamRequest;
+import com.example.desporto24.model.dto.community.CommunityTournamentTeamScheduleSummaryResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentTeamMatchesPageResponse;
+import com.example.desporto24.service.CommunityTournamentTeamScheduleService;
 import com.example.desporto24.service.CommunityTournamentTeamService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ import java.util.List;
 @PreAuthorize("isAuthenticated()")
 public class CommunityTournamentTeamController {
     private final CommunityTournamentTeamService service;
+    private final CommunityTournamentTeamScheduleService scheduleService;
 
     @GetMapping
     public List<CommunityTournamentTeamResponse> list(
@@ -34,6 +38,22 @@ public class CommunityTournamentTeamController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createTeam(
                 communityId, tournamentId, authentication.getName(), request.name()));
+    }
+
+
+    @PostMapping("/schedule")
+    public CommunityTournamentTeamScheduleSummaryResponse generateSchedule(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return scheduleService.generate(communityId, tournamentId, authentication.getName());
+    }
+
+    @GetMapping("/matches")
+    public CommunityTournamentTeamMatchesPageResponse matches(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @RequestParam(defaultValue = "0") int page,
+            Authentication authentication) {
+        return scheduleService.matches(communityId, tournamentId, authentication.getName(), page);
     }
 
     @PostMapping("/{teamId}/players")
