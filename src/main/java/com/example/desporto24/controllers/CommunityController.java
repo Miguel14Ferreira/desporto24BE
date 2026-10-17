@@ -6,6 +6,7 @@ import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityImportService;
 import com.example.desporto24.service.CommunityStandingsArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
+import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityManagementService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
@@ -27,6 +28,7 @@ public class CommunityController {
     private final CommunityImportService communityImportService;
     private final CommunityStandingsArchiveService historicalStandingsService;
     private final CommunityHistoricalMatchPreviewService historicalMatchPreviewService;
+    private final CommunityHistoricalMatchArchiveService historicalMatchArchiveService;
     private final CommunitySessionService communitySessionService;
 
     @PostMapping
@@ -331,6 +333,32 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
         return ResponseEntity.ok(historicalMatchPreviewService.preview(id, authentication.getName(), file, mapping));
+    }
+
+    /** Preserve real old fixtures in a separate archive, never a live tournament. */
+    @PostMapping(value = "/{id}/competition/import/matches/confirm",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityHistoricalMatchArchiveResponse> confirmHistoricalMatches(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityHistoricalMatchArchiveConfirmRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.confirm(
+                id, authentication.getName(), file, mapping, context));
+    }
+
+    @GetMapping("/{id}/competition/match-archives")
+    public ResponseEntity<List<CommunityHistoricalMatchArchiveSummaryResponse>> historicalMatchArchives(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.list(id, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/competition/match-archives/{archiveId}")
+    public ResponseEntity<CommunityHistoricalMatchArchiveResponse> historicalMatchArchive(
+            @PathVariable Long id, @PathVariable Long archiveId, Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.detail(
+                id, archiveId, authentication.getName()));
     }
 
     /**
