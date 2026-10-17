@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-team-tiebreak-priority
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: team_tiebreak_priority
+                  type: VARCHAR(32)
+                  defaultValue: GOAL_DIFFERENCE_FIRST
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              ADD CONSTRAINT ck_team_tiebreak_priority
+              CHECK (team_tiebreak_priority IN
+                ('GOAL_DIFFERENCE_FIRST', 'GOALS_SCORED_FIRST', 'WINS_FIRST'));

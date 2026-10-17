@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.model.community.CommunityTournamentMatch;
@@ -156,6 +157,34 @@ class CommunityTournamentServiceTest {
         var one = service.create(7L, "owner", new CreateCommunityTournamentRequest(
                 "Liga simples", null, null, null, "Futebol", TournamentEntryType.TEAM, 5));
         assertEquals(1, one.roundRobinLegs());
+    }
+
+    @Test
+    void organizerSetsTeamTieBreakPriorityAndExistingTeamsKeepDefault() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var chosen = service.create(7L, "owner", new CreateCommunityTournamentRequest(
+                "Marcador primeiro", 3, 1, 0, "Futebol", TournamentEntryType.TEAM,
+                5, 2, TournamentTeamTieBreakPriority.GOALS_SCORED_FIRST));
+        assertEquals(TournamentTeamTieBreakPriority.GOALS_SCORED_FIRST,
+                chosen.teamTieBreakPriority());
+        var legacy = service.create(7L, "owner", new CreateCommunityTournamentRequest(
+                "Liga tradicional", null, null, null, "Futebol", TournamentEntryType.TEAM, 5, 1));
+        assertEquals(TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST,
+                legacy.teamTieBreakPriority());
+    }
+
+    @Test
+    void individualCompetitionsRejectTeamOnlyTieBreakRule() {
+        actingAsOwner(CommunityRole.OWNER);
+        var request = new CreateCommunityTournamentRequest(
+                "Liga individual", 3, 1, 0, "Ténis", TournamentEntryType.INDIVIDUAL,
+                null, null, TournamentTeamTieBreakPriority.WINS_FIRST);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", request)).getStatusCode());
+        verify(tournamentRepository, never()).save(any());
     }
 
     @Test
