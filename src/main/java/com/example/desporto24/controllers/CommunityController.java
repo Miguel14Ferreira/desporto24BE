@@ -4,6 +4,7 @@ import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityImportService;
+import com.example.desporto24.service.CommunityStandingsArchiveService;
 import com.example.desporto24.service.CommunityManagementService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class CommunityController {
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
     private final CommunityImportService communityImportService;
+    private final CommunityStandingsArchiveService historicalStandingsService;
     private final CommunitySessionService communitySessionService;
 
     @PostMapping
@@ -313,6 +315,43 @@ public class CommunityController {
         return ResponseEntity.ok(
                 communityImportService.confirmPlayers(id, authentication.getName(), file, mapping)
         );
+    }
+
+    /**
+     * Archived rankings do not invent matches or alter the live standings.
+     * The same workbook and mapping must be sent to preview and confirmation.
+     */
+    @PostMapping(value = "/{id}/competition/import/standings/preview",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityStandingsArchivePreviewResponse> previewHistoricalStandings(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.preview(id, authentication.getName(), file, mapping));
+    }
+
+    @PostMapping(value = "/{id}/competition/import/standings/confirm",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityStandingsArchiveResponse> confirmHistoricalStandings(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityStandingsArchiveConfirmRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.confirm(id, authentication.getName(), file, mapping, context));
+    }
+
+    @GetMapping("/{id}/competition/standings-archives")
+    public ResponseEntity<List<CommunityStandingsArchiveSummaryResponse>> historicalStandingsArchives(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.list(id, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/competition/standings-archives/{archiveId}")
+    public ResponseEntity<CommunityStandingsArchiveResponse> historicalStandingsArchive(
+            @PathVariable Long id, @PathVariable Long archiveId, Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.detail(id, archiveId, authentication.getName()));
     }
 
     @PostMapping("/{id}/rounds")
