@@ -15,6 +15,7 @@ public record SessionPublicPreviewResponse(
         String city,
         Instant gameDate,
         Integer maxParticipants,
+        Integer participantCount,
         BigDecimal priceAmount,
         SessionStatus status,
         String gamePhoto

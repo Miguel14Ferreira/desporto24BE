@@ -74,10 +74,11 @@ class SessionControllerTest {
     void publicPreviewWorksWithoutAuthentication() {
         SessionPublicPreviewResponse preview = new SessionPublicPreviewResponse(
                 7L, "Futebol", "Parede", Instant.parse("2026-10-20T19:00:00Z"),
-                10, BigDecimal.ZERO, SessionStatus.OPEN, null);
+                10, 8, BigDecimal.ZERO, SessionStatus.OPEN, null);
         when(sessionService.publicPreview(7L)).thenReturn(preview);
 
         assertEquals(preview, controller.publicPreview(7L));
+        assertEquals(8, preview.participantCount());
         verify(sessionService).publicPreview(7L);
     }
 
