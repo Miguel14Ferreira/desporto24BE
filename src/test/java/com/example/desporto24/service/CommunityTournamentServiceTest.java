@@ -146,6 +146,37 @@ class CommunityTournamentServiceTest {
 
 
     @Test
+    void organizerSetsTwoLegRuleAtTeamCreationAndLegacyDefaultsRemainOne() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var two = service.create(7L, "owner", new CreateCommunityTournamentRequest(
+                "Liga casa e fora", null, null, null, "Futebol", TournamentEntryType.TEAM, 5, 2));
+        assertEquals(2, two.roundRobinLegs());
+        var one = service.create(7L, "owner", new CreateCommunityTournamentRequest(
+                "Liga simples", null, null, null, "Futebol", TournamentEntryType.TEAM, 5));
+        assertEquals(1, one.roundRobinLegs());
+    }
+
+    @Test
+    void rejectsUnsupportedNumberOfRoundsOrIndividualRule() {
+        actingAsOwner(CommunityRole.OWNER);
+        for (var value : List.of(0, 3)) {
+            var invalid = new CreateCommunityTournamentRequest(
+                    "Liga", null, null, null, "Futebol", TournamentEntryType.TEAM, 5, value);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", invalid)).getStatusCode());
+        }
+        var individual = new CreateCommunityTournamentRequest(
+                "Liga", null, null, null, "Ténis", TournamentEntryType.INDIVIDUAL, null, 2);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", individual)).getStatusCode());
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
     void teamsAreCreatedAsASeparateParticipationType() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

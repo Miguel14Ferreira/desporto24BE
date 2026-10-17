@@ -30,7 +30,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CommunityTournamentTeamStandingsService {
     private static final int MAX_TEAMS = 32;
-    private static final int MAX_MATCHES = MAX_TEAMS * (MAX_TEAMS - 1) / 2;
+    private static final int MAX_MATCHES = MAX_TEAMS * (MAX_TEAMS - 1);
 
     private final ProfileRepository profiles;
     private final CommunityMemberRepository members;

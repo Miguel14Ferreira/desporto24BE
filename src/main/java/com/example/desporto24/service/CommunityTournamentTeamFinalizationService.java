@@ -24,7 +24,7 @@ import java.util.Set;
 @Transactional
 public class CommunityTournamentTeamFinalizationService {
     private static final int MAX_TEAMS = 32;
-    private static final int MAX_MATCHES = MAX_TEAMS * (MAX_TEAMS - 1) / 2;
+    private static final int MAX_MATCHES = MAX_TEAMS * (MAX_TEAMS - 1);
 
     private final ProfileRepository profiles;
     private final CommunityMemberRepository members;
@@ -61,9 +61,13 @@ public class CommunityTournamentTeamFinalizationService {
         if (count < 2 || count > MAX_TEAMS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Número de equipas inválido");
         }
-        long expected = (long) count * (count - 1) / 2;
+        int legs = tournament.getRoundRobinLegs();
+        if (legs < 1 || legs > 2) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Número de voltas inválido");
+        }
+        long expected = (long) count * (count - 1) / 2 * legs;
         if (table.totalMatches() != expected || table.completedMatches() != expected
-                || rows.stream().anyMatch(row -> row.played() != count - 1)) {
+                || rows.stream().anyMatch(row -> row.played() != (count - 1) * legs)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Todos os confrontos do campeonato têm de estar concluídos");
         }
@@ -90,7 +94,9 @@ public class CommunityTournamentTeamFinalizationService {
                     || game.getHomeScore() == null || game.getAwayScore() == null) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Confronto inconsistente");
             }
-            String pairing = Math.min(home, away) + ":" + Math.max(home, away);
+            String pairing = legs == 2
+                    ? home + ":" + away
+                    : Math.min(home, away) + ":" + Math.max(home, away);
             if (!pairings.add(pairing)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Confrontos duplicados");
             }

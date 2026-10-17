@@ -114,6 +114,45 @@ class CommunityTournamentTeamFinalizationServiceTest {
     }
 
     @Test
+    void twoLegLeagueOnlyFinalizesWithBothDirectedFixtures() {
+        tournament.setRoundRobinLegs(2);
+        manager(CommunityRole.OWNER);
+        locked();
+        standingTable(List.of(row(1, blue, 2, 1, 3, 1, 4),
+                row(2, green, 2, 0, 1, 3, 1)), 2, 2);
+        fixtures(List.of(match(1, blue, green), match(2, green, blue)));
+        when(tournaments.save(tournament)).thenReturn(tournament);
+        var result = service.complete(7L, 19L, "owner");
+        assertEquals(TournamentStatus.COMPLETED, result.status());
+        assertEquals(20L, result.championTeamId());
+    }
+
+    @Test
+    void twoLegLeagueRejectsDuplicateDirectionInsteadOfReturnFixture() {
+        tournament.setRoundRobinLegs(2);
+        manager(CommunityRole.OWNER);
+        locked();
+        standingTable(List.of(row(1, blue, 2, 1, 3, 1, 4),
+                row(2, green, 2, 0, 1, 3, 1)), 2, 2);
+        fixtures(List.of(match(1, blue, green), match(2, blue, green)));
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.complete(7L, 19L, "owner")).getStatusCode());
+        verify(tournaments, never()).save(any());
+    }
+
+    @Test
+    void twoLegLeagueRejectsClosingAfterOnlyFirstLeg() {
+        tournament.setRoundRobinLegs(2);
+        manager(CommunityRole.OWNER);
+        locked();
+        standingTable(List.of(row(1, blue, 1, 1, 1, 0, 3),
+                row(2, green, 1, 0, 0, 1, 0)), 1, 1);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.complete(7L, 19L, "owner")).getStatusCode());
+        verifyNoInteractions(matches);
+    }
+
+    @Test
     void exactSportingTieIsNotResolvedUsingTeamId() {
         manager(CommunityRole.ADMIN);
         locked();

@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-team-league-legs
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: round_robin_legs
+                  type: INT
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              ADD CONSTRAINT ck_team_league_legs CHECK (round_robin_legs IN (1, 2));

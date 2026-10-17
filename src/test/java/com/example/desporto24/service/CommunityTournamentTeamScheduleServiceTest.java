@@ -124,6 +124,50 @@ class CommunityTournamentTeamScheduleServiceTest {
     }
 
     @Test
+    void twoLegLeagueMirrorsEveryPairOnLaterRounds() {
+        tournament.setRoundRobinLegs(2);
+        manager(CommunityRole.OWNER);
+        locked();
+        roster(4);
+        var response = service.generate(7L, 19L, "owner");
+        assertEquals(6, response.roundCount());
+        assertEquals(12, response.matchCount());
+        var fixtures = captured();
+        assertEquals(12, fixtures.size());
+        var unique = new HashSet<String>();
+        for (var fixture : fixtures) {
+            String directed = fixture.getHomeTeam().getId() + ":" + fixture.getAwayTeam().getId();
+            assertTrue(unique.add(directed), "Repeated home/away match");
+            if (fixture.getRoundNumber() > 3) {
+                assertTrue(fixtures.stream().anyMatch(other ->
+                        other.getRoundNumber() == fixture.getRoundNumber() - 3
+                        && other.getHomeTeam().getId().equals(fixture.getAwayTeam().getId())
+                        && other.getAwayTeam().getId().equals(fixture.getHomeTeam().getId())));
+            }
+        }
+        assertEquals(12, unique.size());
+    }
+
+    @Test
+    void twoLegLeagueWithOddTeamCountPreservesByes() {
+        tournament.setRoundRobinLegs(2);
+        manager(CommunityRole.ADMIN);
+        locked();
+        roster(3);
+        var summary = service.generate(7L, 19L, "owner");
+        assertEquals(6, summary.roundCount());
+        assertEquals(6, summary.matchCount());
+        var games = captured();
+        for (long id = 20; id <= 22; id++) {
+            final long teamId = id;
+            assertEquals(4, games.stream().filter(g ->
+                    g.getHomeTeam().getId() == teamId || g.getAwayTeam().getId() == teamId).count());
+            assertEquals(2, games.stream().filter(g -> g.getHomeTeam().getId() == teamId).count());
+            assertEquals(2, games.stream().filter(g -> g.getAwayTeam().getId() == teamId).count());
+        }
+    }
+
+    @Test
     void oddTeamCountHasByesAndEachTeamPlaysExactlyTwice() {
         manager(CommunityRole.ADMIN);
         locked();

@@ -13,16 +13,24 @@ public record CreateCommunityTournamentRequest(
         @Min(0) Integer lossPoints,
         @Size(max = 100) String sport,
         TournamentEntryType entryType,
-        @Min(1) @Max(30) Integer playersPerTeam
+        @Min(1) @Max(30) Integer playersPerTeam,
+        @Min(1) @Max(2) Integer roundRobinLegs
 ) {
+    // Backwards compatibility for existing controller/service unit tests.
+    public CreateCommunityTournamentRequest(String name, Integer winPoints, Integer drawPoints,
+                                             Integer lossPoints, String sport,
+                                             TournamentEntryType entryType, Integer playersPerTeam) {
+        this(name, winPoints, drawPoints, lossPoints, sport, entryType, playersPerTeam, null);
+    }
+
     public CreateCommunityTournamentRequest(String name, Integer winPoints,
                                              Integer drawPoints, Integer lossPoints, String sport) {
-        this(name, winPoints, drawPoints, lossPoints, sport, null, null);
+        this(name, winPoints, drawPoints, lossPoints, sport, null, null, null);
     }
 
     // Preserve clients and tests which construct the original four-field request.
     public CreateCommunityTournamentRequest(String name, Integer winPoints,
                                              Integer drawPoints, Integer lossPoints) {
-        this(name, winPoints, drawPoints, lossPoints, null, null, null);
+        this(name, winPoints, drawPoints, lossPoints, null, null, null, null);
     }
 }

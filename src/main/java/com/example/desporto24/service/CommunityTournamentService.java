@@ -88,12 +88,22 @@ public class CommunityTournamentService {
                     "O tamanho da equipa só é válido em competições por equipas");
         }
 
+        int roundRobinLegs = request.roundRobinLegs() == null ? 1 : request.roundRobinLegs();
+        if (roundRobinLegs < 1 || roundRobinLegs > 2) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escolhe uma ou duas voltas");
+        }
+        if (type != TournamentEntryType.TEAM && request.roundRobinLegs() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "O número de voltas aplica-se apenas aos campeonatos por equipas");
+        }
+
         CommunityTournament tournament = CommunityTournament.builder()
                 .community(community)
                 .name(request.name().trim())
                 .sport(selectedSport)
                 .entryType(type)
                 .playersPerTeam(request.playersPerTeam())
+                .roundRobinLegs(roundRobinLegs)
                 .winPoints(request.winPoints() == null ? 3 : request.winPoints())
                 .drawPoints(request.drawPoints() == null ? 1 : request.drawPoints())
                 .lossPoints(request.lossPoints() == null ? 0 : request.lossPoints())
