@@ -30,6 +30,7 @@ class CommunityTournamentTeamScoringTest {
     @Mock CommunityTournamentRepository tournaments;
     @Mock CommunityTournamentTeamMatchRepository matches;
     @Mock CommunityTournamentTeamRepository teams;
+    @Mock CommunityTournamentTeamKnockoutService knockout;
     @InjectMocks CommunityTournamentTeamResultService scoring;
     @InjectMocks CommunityTournamentTeamStandingsService standings;
 
@@ -170,6 +171,57 @@ class CommunityTournamentTeamScoringTest {
                 () -> scoring.record(7L, 11L, 50L, "owner",
                         new RecordCommunityTournamentMatchResultRequest(1, 0))).getStatusCode());
         verifyNoInteractions(matches);
+    }
+
+    @Test
+    void knockoutRejectsDrawAndDoesNotSaveOrAdvance() {
+        competition.setFormat(TournamentFormat.KNOCKOUT);
+        owner();
+        tournamentForWrite();
+        when(matches.findById(50L)).thenReturn(Optional.of(fixture));
+        var failure = assertThrows(ResponseStatusException.class,
+                () -> scoring.record(7L, 11L, 50L, "owner",
+                        new RecordCommunityTournamentMatchResultRequest(2, 2)));
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, failure.getStatusCode());
+        verify(matches, never()).saveAndFlush(any());
+        verifyNoInteractions(knockout);
+    }
+
+    @Test
+    void knockoutScoreIsFlushedAndBracketAdvancesUnderTournamentLock() {
+        competition.setFormat(TournamentFormat.KNOCKOUT);
+        owner();
+        tournamentForWrite();
+        when(matches.findById(50L)).thenReturn(Optional.of(fixture));
+        when(matches.findByTournamentId(eq(11L), any(PageRequest.class)))
+                .thenReturn(new SliceImpl<>(List.of(fixture), PageRequest.of(0, 33), false));
+        var saved = scoring.record(7L, 11L, 50L, "owner",
+                new RecordCommunityTournamentMatchResultRequest(3, 1));
+        assertEquals(3, saved.homeScore());
+        verify(matches).saveAndFlush(fixture);
+        verify(knockout).advanceAfterResult(competition);
+        verify(matches, never()).save(fixture);
+    }
+
+    @Test
+    void knockoutPreviousRoundCannotBeCorrectedAfterNextRoundStarts() {
+        competition.setFormat(TournamentFormat.KNOCKOUT);
+        owner();
+        tournamentForWrite();
+        fixture.setStatus(TournamentMatchStatus.COMPLETED);
+        fixture.setHomeScore(3);
+        fixture.setAwayScore(1);
+        when(matches.findById(50L)).thenReturn(Optional.of(fixture));
+        var finalRound = game(70L, blue, red, null, null);
+        finalRound.setRoundNumber(2);
+        when(matches.findByTournamentId(eq(11L), any(PageRequest.class)))
+                .thenReturn(new SliceImpl<>(List.of(finalRound), PageRequest.of(0, 33), false));
+        var error = assertThrows(ResponseStatusException.class,
+                () -> scoring.record(7L, 11L, 50L, "owner",
+                        new RecordCommunityTournamentMatchResultRequest(1, 0)));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verify(matches, never()).saveAndFlush(any());
+        verifyNoInteractions(knockout);
     }
 
     @Test

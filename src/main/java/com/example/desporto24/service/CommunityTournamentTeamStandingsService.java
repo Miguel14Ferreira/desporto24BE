@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.model.community.CommunityTournamentTeam;
@@ -50,6 +51,10 @@ public class CommunityTournamentTeamStandingsService {
         var tournament = tournaments.findById(tournamentId)
                 .orElseThrow(this::notFound);
         if (!tournament.getCommunity().getId().equals(communityId)) throw notFound();
+        if (tournament.getFormat() != TournamentFormat.LEAGUE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "As eliminatórias usam o quadro de confrontos, não uma classificação de liga");
+        }
         if (tournament.getEntryType() != TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta classificação é exclusiva de torneios por equipas");

@@ -147,6 +147,31 @@ class CommunityTournamentServiceTest {
 
 
     @Test
+    void knockoutCreationIsExplicitAndCannotUseLeagueOnlyRules() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var cup = service.create(7L, "owner", new CreateCommunityTournamentRequest(
+                "Taça do CNG", null, null, null, "Futebol",
+                TournamentEntryType.TEAM, 5, null, null, TournamentFormat.KNOCKOUT));
+        assertEquals(TournamentFormat.KNOCKOUT, cup.format());
+
+        var illegal = new CreateCommunityTournamentRequest(
+                "Taça", null, null, null, "Futebol", TournamentEntryType.TEAM,
+                5, 2, null, TournamentFormat.KNOCKOUT);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", illegal)).getStatusCode());
+        var individual = new CreateCommunityTournamentRequest(
+                "Taça individual", null, null, null, "Ténis", TournamentEntryType.INDIVIDUAL,
+                null, null, null, TournamentFormat.KNOCKOUT);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", individual)).getStatusCode());
+        verify(tournamentRepository, times(1)).save(any());
+    }
+
+    @Test
     void organizerSetsTwoLegRuleAtTeamCreationAndLegacyDefaultsRemainOne() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

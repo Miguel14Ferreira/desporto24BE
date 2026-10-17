@@ -49,6 +49,7 @@ public class CommunityTournamentTeamScheduleService {
     private final CommunityTournamentTeamRepository teams;
     private final CommunityTournamentTeamPlayerRepository players;
     private final CommunityTournamentTeamMatchRepository matches;
+    private final CommunityTournamentTeamKnockoutService knockout;
 
     public CommunityTournamentTeamScheduleSummaryResponse generate(
             Long communityId, Long tournamentId, String username) {
@@ -63,7 +64,6 @@ public class CommunityTournamentTeamScheduleService {
                 .orElseThrow(() -> notFound());
         checkScope(communityId, tournament);
         if (tournament.getStatus() != TournamentStatus.DRAFT
-                || tournament.getFormat() != TournamentFormat.LEAGUE
                 || matches.existsByTournamentId(tournamentId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "O calendário já foi publicado ou o torneio não permite esta operação");
@@ -87,6 +87,21 @@ public class CommunityTournamentTeamScheduleService {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Completa todos os plantéis antes de gerar as jornadas");
             }
+        }
+
+        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+            var opening = knockout.firstRound(tournament, rosterTeams);
+            matches.saveAll(opening);
+            tournament.setStatus(TournamentStatus.IN_PROGRESS);
+            tournament.setStartedAt(Instant.now());
+            tournaments.save(tournament);
+            int totalRounds = 32 - Integer.numberOfLeadingZeros(rosterTeams.size() - 1);
+            return new CommunityTournamentTeamScheduleSummaryResponse(
+                    tournamentId, TournamentStatus.IN_PROGRESS, rosterTeams.size(),
+                    totalRounds, opening.size());
+        }
+        if (tournament.getFormat() != TournamentFormat.LEAGUE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Formato de competição inválido");
         }
 
         // Berger circle, with a bye for odd counts. The second leg mirrors every

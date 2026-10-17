@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.model.community.CommunityTournamentTeamMatch;
@@ -19,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 /** Results for team fixtures, entirely separate from individual tournament fixtures. */
 @Service
@@ -29,6 +32,7 @@ public class CommunityTournamentTeamResultService {
     private final CommunityMemberRepository members;
     private final CommunityTournamentRepository tournaments;
     private final CommunityTournamentTeamMatchRepository matches;
+    private final CommunityTournamentTeamKnockoutService knockout;
 
     public CommunityTournamentTeamMatchResponse record(
             Long communityId, Long tournamentId, Long matchId,
@@ -62,6 +66,20 @@ public class CommunityTournamentTeamResultService {
         CommunityTournamentTeamMatch match = matches.findById(matchId)
                 .orElseThrow(this::notFound);
         if (!match.getTournament().getId().equals(tournamentId)) throw notFound();
+        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+            if (request.homeScore().equals(request.awayScore())) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Uma eliminatória exige um vencedor. Regista o resultado após desempate");
+            }
+            // Once the draw progresses, earlier winners cannot be changed.
+            var fixtures = matches.findByTournamentId(tournamentId,
+                    PageRequest.of(0, 33, Sort.by("roundNumber").descending()));
+            if (fixtures.hasNext() || fixtures.getContent().stream()
+                    .anyMatch(game -> game.getRoundNumber() > match.getRoundNumber())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "A ronda seguinte já foi publicada. Não é possível alterar este resultado");
+            }
+        }
         if (match.getStatus() == TournamentMatchStatus.COMPLETED
                 && request.homeScore().equals(match.getHomeScore())
                 && request.awayScore().equals(match.getAwayScore())) {
@@ -76,6 +94,11 @@ public class CommunityTournamentTeamResultService {
         match.setAwayScore(request.awayScore());
         match.setStatus(TournamentMatchStatus.COMPLETED);
         if (firstCompletion) match.setCompletedAt(Instant.now());
+        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+            matches.saveAndFlush(match);
+            knockout.advanceAfterResult(tournament);
+            return response(match);
+        }
         return response(matches.save(match));
     }
 

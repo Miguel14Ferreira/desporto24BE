@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.*;
 import com.example.desporto24.repository.ProfileRepository;
@@ -35,6 +36,7 @@ class CommunityTournamentTeamScheduleServiceTest {
     @Mock CommunityTournamentTeamRepository teams;
     @Mock CommunityTournamentTeamPlayerRepository players;
     @Mock CommunityTournamentTeamMatchRepository matches;
+    @Mock CommunityTournamentTeamKnockoutService knockout;
     @InjectMocks CommunityTournamentTeamScheduleService service;
 
     private final Profile owner = profile(1, "owner");
@@ -120,6 +122,27 @@ class CommunityTournamentTeamScheduleServiceTest {
         }
         assertEquals(6, pairings.size());
         assertEquals(TournamentStatus.IN_PROGRESS, tournament.getStatus());
+        assertNotNull(tournament.getStartedAt());
+    }
+
+    @Test
+    void knockoutPublishesOnlyOpeningRoundWithValidatedFullSquads() {
+        tournament.setFormat(TournamentFormat.KNOCKOUT);
+        manager(CommunityRole.OWNER);
+        locked();
+        var entrants = roster(5);
+        var first = List.of(CommunityTournamentTeamMatch.builder()
+                .tournament(tournament).homeTeam(entrants.get(0))
+                .awayTeam(entrants.get(1)).roundNumber(1).build());
+        when(knockout.firstRound(tournament, entrants)).thenReturn(first);
+
+        var response = service.generate(7L, 19L, "owner");
+
+        assertEquals(TournamentStatus.IN_PROGRESS, response.status());
+        assertEquals(5, response.teamCount());
+        assertEquals(3, response.roundCount());
+        assertEquals(1, response.matchCount());
+        assertEquals(first, captured());
         assertNotNull(tournament.getStartedAt());
     }
 

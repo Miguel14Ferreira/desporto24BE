@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-team-knockout-format
+      author: desporto24
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              DROP CONSTRAINT ck_tournament_format;
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              ADD CONSTRAINT ck_tournament_format
+              CHECK (format IN ('LEAGUE', 'KNOCKOUT'));
