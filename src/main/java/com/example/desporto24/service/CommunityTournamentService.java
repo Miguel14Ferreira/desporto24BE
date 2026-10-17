@@ -21,6 +21,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityTournamentRepository;
 import com.example.desporto24.repository.community.CommunityTournamentMatchRepository;
+import com.example.desporto24.repository.community.CommunityTournamentTeamMatchRepository;
 import com.example.desporto24.repository.community.CommunityTournamentParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,7 @@ public class CommunityTournamentService {
     private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTournamentParticipantRepository participantRepository;
     private final CommunityTournamentMatchRepository matchRepository;
+    private final CommunityTournamentTeamMatchRepository teamMatchRepository;
     private final ProfileRepository profileRepository;
 
     public CommunityTournamentResponse create(Long communityId, String username,
@@ -127,6 +129,13 @@ public class CommunityTournamentService {
                         || match.getHomeScore() != null || match.getAwayScore() != null)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Não é possível eliminar uma competição com resultados registados");
+        }
+
+        if (tournament.getEntryType() == TournamentEntryType.TEAM
+                && teamMatchRepository.existsByTournamentIdAndStatus(
+                        tournamentId, TournamentMatchStatus.COMPLETED)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não é possível eliminar uma competição por equipas com resultados registados");
         }
 
         // Foreign keys connect matches to enrollments and both to the tournament.

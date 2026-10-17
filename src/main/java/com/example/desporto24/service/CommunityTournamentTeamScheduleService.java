@@ -138,7 +138,8 @@ public class CommunityTournamentTeamScheduleService {
                 slice.getContent().stream().map(game -> new CommunityTournamentTeamMatchResponse(
                         game.getId(), game.getRoundNumber(), game.getHomeTeam().getId(),
                         game.getHomeTeam().getName(), game.getAwayTeam().getId(),
-                        game.getAwayTeam().getName(), game.getStatus())).toList(),
+                        game.getAwayTeam().getName(), game.getStatus(),
+                        game.getHomeScore(), game.getAwayScore())).toList(),
                 page, slice.hasNext());
     }
 
