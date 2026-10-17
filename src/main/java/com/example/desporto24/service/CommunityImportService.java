@@ -28,7 +28,6 @@ import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,7 +97,7 @@ public class CommunityImportService {
         requireAdmin(communityId, actor);
         validateFile(file);
 
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             DataFormatter formatter = new DataFormatter();
             List<CommunityImportPreviewResponse.SheetPreview> sheets = new ArrayList<>();
             for (Sheet sheet : workbook) {
@@ -137,7 +136,7 @@ public class CommunityImportService {
 
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             if (sheet == null) {
                 return new CommunityImportMappingValidationResponse(
@@ -231,7 +230,7 @@ public class CommunityImportService {
         }
 
         validateFile(file);
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -304,7 +303,7 @@ public class CommunityImportService {
                 normalizedPreview(communityId, username, file, request);
 
         java.util.Map<String, String> players = new java.util.LinkedHashMap<>();
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -368,7 +367,7 @@ public class CommunityImportService {
 
         java.util.Map<String, RoundImportAccumulator> rounds = new java.util.LinkedHashMap<>();
         int rowsWithoutRound = 0;
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -557,7 +556,7 @@ public class CommunityImportService {
         int createdRounds = 0;
         int skippedDuplicates = 0;
         int createdEntries = 0;
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(mapping.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -976,8 +975,13 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Seleciona um ficheiro Excel");
         }
         String fileName = file.getOriginalFilename();
-        if (fileName == null || !fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
-            throw new IllegalArgumentException("O ficheiro deve estar no formato .xlsx");
+        String lowerName = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
+        if (!lowerName.endsWith(".xlsx") && !lowerName.endsWith(".xls")
+                && !lowerName.endsWith(".csv") && !lowerName.endsWith(".tsv")) {
+            throw new IllegalArgumentException("Formatos suportados: .xlsx, .xls, .csv e .tsv");
+        }
+        if (file.getSize() > 10L * 1024 * 1024) {
+            throw new IllegalArgumentException("O ficheiro não pode ultrapassar 10 MB");
         }
     }
 
