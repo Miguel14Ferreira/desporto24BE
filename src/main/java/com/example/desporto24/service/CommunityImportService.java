@@ -207,7 +207,7 @@ public class CommunityImportService {
                     if (rowValid && dateColumn != null) {
                         String date = valueAt(rowValues, dateColumn);
                         if (!date.isBlank() && !seenPlayersByRound
-                                .computeIfAbsent(date, ignored -> new java.util.HashSet<>())
+                                .computeIfAbsent(importDateKey(date, null), ignored -> new java.util.HashSet<>())
                                 .add(normalizePlayerName(player))) {
                             warnings.add("Linha " + excelRow + ": jogador " + player
                                     + " repetido na jornada " + date
@@ -282,7 +282,7 @@ public class CommunityImportService {
                 }
                 String sourceDate = mapped.getOrDefault("DATE", "");
                 if (hasDateMapping && !sourceDate.isBlank() && !seenPlayersByRound
-                        .computeIfAbsent(sourceDate, ignored -> new java.util.HashSet<>())
+                        .computeIfAbsent(importDateKey(sourceDate, null), ignored -> new java.util.HashSet<>())
                         .add(normalizePlayerName(mapped.get("PLAYER")))) {
                     skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
                             sourceRow, "PLAYER_DUPLICATE_IN_ROUND"
@@ -413,7 +413,7 @@ public class CommunityImportService {
                 }
 
                 RoundImportAccumulator round = rounds.computeIfAbsent(
-                        sourceDate, ignored -> new RoundImportAccumulator());
+                        importDateKey(sourceDate, null), ignored -> new RoundImportAccumulator());
                 // Keep the first appearance per player and round. Every later appearance
                 // is omitted consistently from validation, preview, planning and persistence.
                 if (round.players.add(normalizePlayerName(player))) {
@@ -481,59 +481,77 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Indica o ano das jornadas que não têm ano no ficheiro");
         }
 
-        int duplicateRounds = 0;
-        // Two differently formatted source dates can refer to the same day.
-        // Skipping the second group would silently discard its participants.
-        // Require the organizer to standardize those rows until safe merging is supported.
-        java.util.Map<Instant, String> plannedDates = new java.util.HashMap<>();
-        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
-        for (CommunityImportRoundsPlanResponse.RoundPlan round : plan.rounds()) {
-            String resolvedDate = round.parsedDate();
-            if (round.needsYear()) {
-                ParsedImportDate resolved = parseImportDateWithYear(round.sourceDate(), context.defaultYear());
-                if (resolved.invalid() || resolved.date() == null) {
-                    throw new IllegalArgumentException("Não foi possível resolver a data: " + round.sourceDate());
-                }
-                resolvedDate = resolved.date();
-            }
+        // Re-read the source with the selected year to group all equivalent date
+        // formats into one actual round. The first valid player row per resolved
+        // date wins, matching the preview and persistence deduplication policy.
+        java.util.Map<String, RoundImportAccumulator> combined = new java.util.LinkedHashMap<>();
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
+            Sheet sheet = workbook.getSheet(mapping.sheetName());
+            DataFormatter formatter = new DataFormatter();
+            Integer dateColumn = mappedColumn(mapping, "DATE", "Seleciona uma coluna DATE");
+            Integer playerColumn = mappedColumn(mapping, "PLAYER", "Seleciona uma coluna PLAYER");
+            List<Row> sourceRows = nonEmptyRows(sheet, formatter);
 
-            Instant playedAt = LocalDate.parse(resolvedDate)
-                    .atStartOfDay(java.time.ZoneOffset.UTC)
-                    .toInstant();
-            String firstSourceDate = plannedDates.putIfAbsent(playedAt, round.sourceDate());
-            if (firstSourceDate != null) {
-                throw new IllegalArgumentException("A jornada de " + resolvedDate
-                        + " aparece com datas diferentes (" + firstSourceDate + " e "
-                        + round.sourceDate() + "). Uniformiza as datas para não perder jogadores");
+            for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
+                List<String> rowValues = values(sourceRows.get(rowIndex), formatter);
+                String player = valueAt(rowValues, playerColumn);
+                if (player.isBlank()) continue;
+                java.util.Map<String, String> mapped = mappedValues(mapping, rowValues);
+                if (!numericValuesValid(mapped)) continue;
+
+                String rawDate = valueAt(rowValues, dateColumn);
+                if (rawDate.isBlank()) continue; // Already rejected above.
+                String resolvedDate = importDateKey(rawDate, context.defaultYear());
+                RoundImportAccumulator round = combined.computeIfAbsent(
+                        resolvedDate, ignored -> new RoundImportAccumulator());
+                if (round.players.add(normalizePlayerName(player))) {
+                    round.addResult(mapped);
+                }
             }
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro histórico", exception);
+        }
+
+        int duplicateRounds = 0;
+        int acceptedRows = 0;
+        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
+        for (java.util.Map.Entry<String, RoundImportAccumulator> entry : combined.entrySet()) {
+            String resolvedDate = entry.getKey();
+            RoundImportAccumulator round = entry.getValue();
+            acceptedRows += round.players.size();
+            Instant playedAt = LocalDate.parse(resolvedDate)
+                    .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
             boolean duplicate = communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
                     communityId, context.seasonId(), playedAt);
             if (duplicate) duplicateRounds++;
-
             resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
-                    round.sourceDate(),
-                    resolvedDate,
-                    false,
-                    false,
-                    duplicate,
-                    round.players(),
-                    round.wins(),
-                    round.draws(),
-                    round.losses(),
-                    round.unresolvedResults()
+                    resolvedDate, resolvedDate, false, false, duplicate, round.players.size(),
+                    round.wins, round.draws, round.losses, round.unresolvedResults
             ));
         }
 
         return new CommunityImportRoundsPlanResponse(
-                plan.sheetName(),
-                plan.acceptedRows(),
-                plan.distinctRounds(),
-                plan.rowsWithoutRound(),
-                0,
-                0,
-                duplicateRounds,
-                resolvedRounds
+                plan.sheetName(), acceptedRows, resolvedRounds.size(), 0, 0, 0,
+                duplicateRounds, resolvedRounds
         );
+    }
+
+    /**
+     * Canonical round key for dates with a year. A yearless date remains raw
+     * during early preview, then resolves using the selected default year in the
+     * final plan and confirm phases. Invalid formats are checked by roundsPlan.
+     */
+    private String importDateKey(String sourceDate, Integer defaultYear) {
+        ParsedImportDate parsed = parseImportDate(sourceDate);
+        if (parsed.date() != null) return parsed.date();
+        if (parsed.needsYear() && defaultYear != null) {
+            ParsedImportDate resolved = parseImportDateWithYear(sourceDate, defaultYear);
+            if (resolved.date() == null || resolved.invalid()) {
+                throw new IllegalArgumentException("Não foi possível resolver a data: " + sourceDate);
+            }
+            return resolved.date();
+        }
+        return sourceDate.trim();
     }
 
     private ParsedImportDate parseImportDateWithYear(String value, int year) {
@@ -618,10 +636,11 @@ public class CommunityImportService {
                 if (player.isBlank() || sourceDate.isBlank()) continue;
                 java.util.Map<String, String> mapped = mappedValues(mapping, values);
                 if (!numericValuesValid(mapped)) continue;
+                String resolvedDate = importDateKey(sourceDate, context.defaultYear());
                 if (!seenPlayersByRound
-                        .computeIfAbsent(sourceDate, ignored -> new java.util.HashSet<>())
+                        .computeIfAbsent(resolvedDate, ignored -> new java.util.HashSet<>())
                         .add(normalizePlayerName(player))) continue;
-                rowsByRound.computeIfAbsent(sourceDate, ignored -> new ArrayList<>())
+                rowsByRound.computeIfAbsent(resolvedDate, ignored -> new ArrayList<>())
                         .add(sourceRows.get(rowIndex));
             }
 
