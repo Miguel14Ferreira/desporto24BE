@@ -154,6 +154,7 @@ public class CommunityImportService {
             );
             Set<String> seenFields = new java.util.HashSet<>();
             Integer playerColumn = null;
+            Integer dateColumn = null;
             List<CommunityImportMappingRequest.ColumnMapping> numericMappings = new ArrayList<>();
 
             for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
@@ -168,6 +169,7 @@ public class CommunityImportService {
                     errors.add("Campo repetido: " + field);
                 } else {
                     if (field.equals("PLAYER")) playerColumn = mapping.columnIndex();
+                    if (field.equals("DATE")) dateColumn = mapping.columnIndex();
                     if (Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP").contains(field)) {
                         numericMappings.add(mapping);
                     }
@@ -182,6 +184,7 @@ public class CommunityImportService {
             }
 
             int validRows = 0;
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
             if (errors.isEmpty()) {
                 for (int rowIndex = 1; rowIndex < rows.size(); rowIndex++) {
                     List<String> rowValues = values(rows.get(rowIndex), formatter);
@@ -198,6 +201,17 @@ public class CommunityImportService {
                         if (!value.isBlank() && !isNumber(value)) {
                             warnings.add("Linha " + excelRow + ": " + mapping.field()
                                     + " não é numérico ('" + value + "')");
+                            rowValid = false;
+                        }
+                    }
+                    if (rowValid && dateColumn != null) {
+                        String date = valueAt(rowValues, dateColumn);
+                        if (!date.isBlank() && !seenPlayersByRound
+                                .computeIfAbsent(date, ignored -> new java.util.HashSet<>())
+                                .add(normalizePlayerName(player))) {
+                            warnings.add("Linha " + excelRow + ": jogador " + player
+                                    + " repetido na jornada " + date
+                                    + "; será ignorado (mantida a primeira ocorrência)");
                             rowValid = false;
                         }
                     }
@@ -238,6 +252,9 @@ public class CommunityImportService {
                     new ArrayList<>();
             List<CommunityImportNormalizedPreviewResponse.SkippedRow> skippedRows =
                     new ArrayList<>();
+            boolean hasDateMapping = request.columns().stream()
+                    .anyMatch(column -> column.field().equalsIgnoreCase("DATE"));
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
 
             for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 Row row = sourceRows.get(rowIndex);
@@ -260,6 +277,15 @@ public class CommunityImportService {
                 if (!numericValuesValid(mapped)) {
                     skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
                             sourceRow, "INVALID_NUMERIC_VALUE"
+                    ));
+                    continue;
+                }
+                String sourceDate = mapped.getOrDefault("DATE", "");
+                if (hasDateMapping && !sourceDate.isBlank() && !seenPlayersByRound
+                        .computeIfAbsent(sourceDate, ignored -> new java.util.HashSet<>())
+                        .add(normalizePlayerName(mapped.get("PLAYER")))) {
+                    skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
+                            sourceRow, "PLAYER_DUPLICATE_IN_ROUND"
                     ));
                     continue;
                 }
@@ -388,12 +414,11 @@ public class CommunityImportService {
 
                 RoundImportAccumulator round = rounds.computeIfAbsent(
                         sourceDate, ignored -> new RoundImportAccumulator());
-                if (!round.players.add(normalizePlayerName(player))) {
-                    throw new IllegalArgumentException("O jogador " + player
-                            + " aparece mais do que uma vez na jornada " + sourceDate
-                            + ". Corrige o ficheiro antes de importar");
+                // Keep the first appearance per player and round. Every later appearance
+                // is omitted consistently from validation, preview, planning and persistence.
+                if (round.players.add(normalizePlayerName(player))) {
+                    round.addResult(mapped);
                 }
-                round.addResult(mapped);
             }
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
@@ -585,6 +610,7 @@ public class CommunityImportService {
             Integer playerColumn = mappedColumn(mapping, "PLAYER", "Seleciona uma coluna PLAYER");
 
             java.util.Map<String, List<Row>> rowsByRound = new java.util.LinkedHashMap<>();
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
             for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 List<String> values = values(sourceRows.get(rowIndex), formatter);
                 String player = valueAt(values, playerColumn);
@@ -592,6 +618,9 @@ public class CommunityImportService {
                 if (player.isBlank() || sourceDate.isBlank()) continue;
                 java.util.Map<String, String> mapped = mappedValues(mapping, values);
                 if (!numericValuesValid(mapped)) continue;
+                if (!seenPlayersByRound
+                        .computeIfAbsent(sourceDate, ignored -> new java.util.HashSet<>())
+                        .add(normalizePlayerName(player))) continue;
                 rowsByRound.computeIfAbsent(sourceDate, ignored -> new ArrayList<>())
                         .add(sourceRows.get(rowIndex));
             }
