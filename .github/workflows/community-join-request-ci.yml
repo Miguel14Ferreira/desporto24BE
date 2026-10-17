@@ -1,11 +1,7 @@
 name: Validate community join requests
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/service/CommunityManagementService.java'
-      - 'src/test/java/com/example/desporto24/service/CommunityManagementServiceTest.java'
-      - '.github/workflows/community-join-request-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

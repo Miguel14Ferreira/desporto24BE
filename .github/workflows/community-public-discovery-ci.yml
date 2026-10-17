@@ -1,13 +1,7 @@
 name: Validate community public discovery
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/controllers/CommunityDiscoveryController.java'
-      - 'src/main/java/com/example/desporto24/repository/community/CommunityRepository.java'
-      - 'src/test/java/com/example/desporto24/controllers/CommunityDiscoveryControllerTest.java'
-      - 'src/test/java/com/example/desporto24/repository/community/CommunityPublicDiscoveryTest.java'
-      - '.github/workflows/community-public-discovery-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

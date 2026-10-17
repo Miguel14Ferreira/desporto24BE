@@ -1,15 +1,7 @@
 name: Validate community join notifications
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/enumeration/NotificationType.java'
-      - 'src/main/java/com/example/desporto24/register/Notifications/Notifications.java'
-      - 'src/main/java/com/example/desporto24/service/CommunityManagementService.java'
-      - 'src/main/resources/db/changelog/db.changelog-master.yaml'
-      - 'src/main/resources/db/changelog/changes/2026-10-16-community-join-notifications.yaml'
-      - 'src/test/java/com/example/desporto24/service/CommunityJoinNotificationsTest.java'
-      - '.github/workflows/community-join-notifications-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
