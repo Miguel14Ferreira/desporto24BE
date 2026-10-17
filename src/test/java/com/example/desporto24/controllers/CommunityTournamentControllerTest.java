@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.community.CommunityTournamentPageResponse;
+import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
@@ -92,6 +93,23 @@ class CommunityTournamentControllerTest {
         when(scheduleService.matches(7L, 9L, "ana", 2)).thenReturn(page);
         assertSame(page, controller.matches(7L, 9L, 2, authentication).getBody());
         verify(scheduleService).matches(7L, 9L, "ana", 2);
+    }
+
+
+    @Test
+    void teamTournamentCreationPassesExplicitSizeToTheExistingEndpoint() {
+        var request = new CreateCommunityTournamentRequest("Liga CNG", null, null, null,
+                "Futebol", TournamentEntryType.TEAM, 5);
+        when(authentication.getName()).thenReturn("owner");
+        var created = new CommunityTournamentResponse(19L, "Liga CNG", null,
+                TournamentStatus.DRAFT, 3, 1, 0, null, null, null,
+                null, null, null, null, false, "Futebol",
+                TournamentEntryType.TEAM, 5);
+        when(service.create(7L, "owner", request)).thenReturn(created);
+        var response = controller.create(7L, request, authentication);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(TournamentEntryType.TEAM, response.getBody().entryType());
+        assertEquals(5, response.getBody().playersPerTeam());
     }
 
     @Test
