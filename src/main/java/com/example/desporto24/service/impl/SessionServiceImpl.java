@@ -292,6 +292,9 @@ public class SessionServiceImpl implements SessionService {
                 session.getCity(),
                 session.getGameDate() == null ? null : session.getGameDate().toInstant(),
                 session.getMaxParticipants(),
+                SessionCapacity.totalConfirmed(session,
+                        participantRepository.countBySessionIdAndState(
+                                session.getId(), ParticipantState.ACTIVE)),
                 session.getPriceAmount(),
                 session.getStatus(),
                 session.getGamePhoto());
