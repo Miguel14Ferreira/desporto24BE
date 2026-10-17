@@ -110,7 +110,7 @@ class CommunityTournamentTeamScheduleServiceTest {
             assertTrue(pairings.add(pair), "Duplicate pairing");
             long sameRound = games.stream()
                     .filter(g -> g.getRoundNumber() == game.getRoundNumber())
-                    .filter(g -> g.getId() != game.getId() &&
+                    .filter(g -> g != game &&
                             (g.getHomeTeam().getId().equals(game.getHomeTeam().getId())
                             || g.getAwayTeam().getId().equals(game.getHomeTeam().getId())
                             || g.getHomeTeam().getId().equals(game.getAwayTeam().getId())
