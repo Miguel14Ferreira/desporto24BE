@@ -196,6 +196,68 @@ class CommunityTournamentTeamScoringTest {
     }
 
     @Test
+    void teamPriorityChangesOrderWhenPointsEqualWithoutChangingResults() {
+        actor();
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(11L)).thenReturn(Optional.of(competition));
+        when(teams.findByTournamentIdOrderByIdAsc(11L)).thenReturn(List.of(blue, green, red));
+        // All teams win once; blue has better goal difference, green scores more.
+        var fixtures = List.of(game(51L, blue, green, 2, 0),
+                game(52L, red, blue, 1, 0),
+                game(53L, green, red, 6, 4));
+        when(matches.findByTournamentIdAndStatus(eq(11L), eq(TournamentMatchStatus.COMPLETED),
+                any(PageRequest.class))).thenReturn(
+                        new SliceImpl<>(fixtures, PageRequest.of(0, 993), false));
+        when(matches.countByTournamentId(11L)).thenReturn(3L);
+
+        assertEquals("Azuis", standings.standings(7L, 11L, "owner")
+                .standings().get(0).teamName());
+
+        competition.setTeamTieBreakPriority(TournamentTeamTieBreakPriority.GOALS_SCORED_FIRST);
+        var byScored = standings.standings(7L, 11L, "owner");
+        assertEquals("Verdes", byScored.standings().get(0).teamName());
+        assertEquals(3, byScored.standings().get(0).points());
+        // No result was mutated by selecting another ordering.
+        verify(matches, never()).save(any());
+    }
+
+    @Test
+    void winsFirstUsesActualWinsBeforeGoalDifference() {
+        actor();
+        var white = CommunityTournamentTeam.builder().id(23L).name("Brancos").build();
+        competition.setWinPoints(2);
+        competition.setDrawPoints(2);
+        competition.setTeamTieBreakPriority(TournamentTeamTieBreakPriority.WINS_FIRST);
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(11L)).thenReturn(Optional.of(competition));
+        when(teams.findByTournamentIdOrderByIdAsc(11L))
+                .thenReturn(List.of(blue, green, red, white));
+        when(matches.findByTournamentIdAndStatus(eq(11L), eq(TournamentMatchStatus.COMPLETED),
+                any(PageRequest.class))).thenReturn(new SliceImpl<>(List.of(
+                        game(51L, blue, green, 1, 0),
+                        game(52L, blue, red, 1, 0),
+                        game(53L, white, blue, 5, 0),
+                        game(54L, green, red, 10, 0),
+                        game(55L, green, white, 0, 0),
+                        game(56L, red, white, 0, 0)
+                ), PageRequest.of(0, 993), false));
+        when(matches.countByTournamentId(11L)).thenReturn(6L);
+        var table = standings.standings(7L, 11L, "owner");
+        int bluePosition = table.standings().stream()
+                .filter(row -> row.teamId().equals(blue.getId())).findFirst().orElseThrow().position();
+        int greenPosition = table.standings().stream()
+                .filter(row -> row.teamId().equals(green.getId())).findFirst().orElseThrow().position();
+        assertTrue(bluePosition < greenPosition);
+        competition.setTeamTieBreakPriority(TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST);
+        var byDifference = standings.standings(7L, 11L, "owner");
+        int defaultBlue = byDifference.standings().stream()
+                .filter(row -> row.teamId().equals(blue.getId())).findFirst().orElseThrow().position();
+        int defaultGreen = byDifference.standings().stream()
+                .filter(row -> row.teamId().equals(green.getId())).findFirst().orElseThrow().position();
+        assertTrue(defaultGreen < defaultBlue);
+    }
+
+    @Test
     void standingsRejectOutsidersWithoutExposingTeams() {
         actor();
         assertThrows(AccessDeniedException.class,

@@ -3,6 +3,7 @@ package com.example.desporto24.model.community;
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -42,6 +43,12 @@ public class CommunityTournament {
     @Builder.Default
     @Column(name = "round_robin_legs", nullable = false)
     private int roundRobinLegs = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "team_tiebreak_priority", nullable = false, length = 32)
+    @Builder.Default
+    private TournamentTeamTieBreakPriority teamTieBreakPriority =
+            TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST;
 
     @Column(name = "players_per_team")
     private Integer playersPerTeam;

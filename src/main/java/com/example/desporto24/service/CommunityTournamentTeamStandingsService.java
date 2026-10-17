@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
+import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.model.community.CommunityTournamentTeam;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamStandingRowResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamStandingsResponse;
@@ -107,11 +108,21 @@ public class CommunityTournamentTeamStandingsService {
             }
         }
 
-        // Points, goal difference, goals scored, wins, then stable team ID.
+        // Points always come first. Configure only the order of sporting tie-breakers.
+        // Team ID is a stable DISPLAY ordering, never a sporting tie-break or champion decision.
+        Comparator<Row> difference = Comparator.comparingInt(Row::goalDifference).reversed();
+        Comparator<Row> scored = Comparator.comparingInt((Row row) -> row.goalsFor).reversed();
+        Comparator<Row> wins = Comparator.comparingInt((Row row) -> row.won).reversed();
+        TournamentTeamTieBreakPriority priority = tournament.getTeamTieBreakPriority() == null
+                ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
+                : tournament.getTeamTieBreakPriority();
+        Comparator<Row> sporting = switch (priority) {
+            case GOALS_SCORED_FIRST -> scored.thenComparing(difference).thenComparing(wins);
+            case WINS_FIRST -> wins.thenComparing(difference).thenComparing(scored);
+            case GOAL_DIFFERENCE_FIRST -> difference.thenComparing(scored).thenComparing(wins);
+        };
         rows.sort(Comparator.comparingLong((Row row) -> row.points).reversed()
-                .thenComparing(Comparator.comparingInt(Row::goalDifference).reversed())
-                .thenComparing(Comparator.comparingInt((Row row) -> row.goalsFor).reversed())
-                .thenComparing(Comparator.comparingInt((Row row) -> row.won).reversed())
+                .thenComparing(sporting)
                 .thenComparing(row -> row.teamId));
         List<CommunityTournamentTeamStandingRowResponse> table = new ArrayList<>();
         int position = 1;

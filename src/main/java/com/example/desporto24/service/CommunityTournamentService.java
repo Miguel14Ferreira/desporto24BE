@@ -9,6 +9,7 @@ import com.example.desporto24.model.community.CommunityTournament;
 import com.example.desporto24.model.community.CommunityTournamentParticipant;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
@@ -97,6 +98,15 @@ public class CommunityTournamentService {
                     "O número de voltas aplica-se apenas aos campeonatos por equipas");
         }
 
+        if (type != TournamentEntryType.TEAM && request.teamTieBreakPriority() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Os critérios de desempate são exclusivos de campeonatos por equipas");
+        }
+
+        TournamentTeamTieBreakPriority tieBreakPriority = request.teamTieBreakPriority() == null
+                ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
+                : request.teamTieBreakPriority();
+
         CommunityTournament tournament = CommunityTournament.builder()
                 .community(community)
                 .name(request.name().trim())
@@ -104,6 +114,7 @@ public class CommunityTournamentService {
                 .entryType(type)
                 .playersPerTeam(request.playersPerTeam())
                 .roundRobinLegs(roundRobinLegs)
+                .teamTieBreakPriority(tieBreakPriority)
                 .winPoints(request.winPoints() == null ? 3 : request.winPoints())
                 .drawPoints(request.drawPoints() == null ? 1 : request.drawPoints())
                 .lossPoints(request.lossPoints() == null ? 0 : request.lossPoints())
