@@ -67,6 +67,8 @@ public class CommunityManagementService {
                 .visibility(request.visibility())
                 .owner(owner)
                 .rankingsEnabled(false)
+                .individualTournamentsEnabled(false)
+                .teamTournamentsEnabled(false)
                 .winPoints(3)
                 .drawPoints(1)
                 .lossPoints(0)
@@ -83,6 +85,21 @@ public class CommunityManagementService {
                 .build());
 
         return toResponse(saved, owner);
+    }
+
+    /**
+     * Stores the organizer's choice of modules without deleting seasons, scores or
+     * tournaments. Sessions remain available for every community.
+     */
+    public CommunityResponse updateFeatures(Long communityId, String username,
+            UpdateCommunityFeaturesRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        Community community = community(communityId);
+        community.setRankingsEnabled(request.rankingsEnabled());
+        community.setIndividualTournamentsEnabled(request.individualTournamentsEnabled());
+        community.setTeamTournamentsEnabled(request.teamTournamentsEnabled());
+        return toResponse(communityRepository.save(community), actor);
     }
 
     @Transactional(readOnly = true)
@@ -524,7 +541,9 @@ public class CommunityManagementService {
                 members,
                 community.getSports() == null || community.getSports().isEmpty()
                         ? (community.getSport() == null ? List.of() : List.of(community.getSport()))
-                        : List.copyOf(community.getSports())
+                        : List.copyOf(community.getSports()),
+                community.isIndividualTournamentsEnabled(),
+                community.isTeamTournamentsEnabled()
         );
     }
 
