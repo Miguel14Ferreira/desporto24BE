@@ -72,7 +72,7 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
-    void finalPlanDoesNotTreatTwoFormatsOfSameDateAsDifferentRounds() {
+    void rejectsEquivalentDateFormatsBeforeDiscardingHistoricalPlayers() {
         authorize();
         var file = new MockMultipartFile("file", "jornadas.csv", "text/csv",
                 ("Date,Player,Result\n"
@@ -85,15 +85,50 @@ class CommunityImportNormalizedDateTest {
                 new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
         var context = new CommunityImportContextRequest(30L, null);
 
-        var plan = service.finalRoundsPlan(10L, "organizer", file, mapping, context);
-
-        assertEquals(3, plan.distinctRounds());
-        assertEquals(1, plan.duplicateRounds());
-        assertEquals(List.of(false, true, false),
-                plan.rounds().stream().map(r -> r.duplicate()).toList());
-        assertEquals("2026-10-01", plan.rounds().get(0).parsedDate());
-        assertEquals("2026-10-01", plan.rounds().get(1).parsedDate());
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> service.confirmRounds(10L, "organizer", file, mapping, context));
+        assertTrue(error.getMessage().contains("2026-10-01"));
+        assertTrue(error.getMessage().contains("Uniformiza"));
+        verify(roundRepository, never()).save(any());
         verify(roundRepository, times(1)).existsByCommunityIdAndSeasonIdAndPlayedAt(
                 10L, 30L, Instant.parse("2026-10-01T00:00:00Z"));
+    }
+
+    @Test
+    void rejectsRepeatedPlayerInSameRoundBeforeSavingAnything() {
+        authorize();
+        var file = new MockMultipartFile("file", "duplicados.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Ana,WIN\n"
+                + "01/10/2026,ÁNA,LOSS\n").getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
+
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> service.confirmRounds(10L, "organizer", file, mapping,
+                        new CommunityImportContextRequest(30L, null)));
+        assertTrue(error.getMessage().contains("aparece mais do que uma vez"));
+        verifyNoInteractions(roundRepository);
+    }
+
+    @Test
+    void existingDatabaseRoundIsStillMarkedDuplicateWithoutConfusingSourceAliases() {
+        authorize();
+        var file = new MockMultipartFile("file", "jornada.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Ana,WIN\n").getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
+        when(roundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(eq(10L), eq(30L), any()))
+                .thenReturn(true);
+
+        var plan = service.finalRoundsPlan(10L, "organizer", file, mapping,
+                new CommunityImportContextRequest(30L, null));
+        assertEquals(1, plan.duplicateRounds());
+        assertTrue(plan.rounds().getFirst().duplicate());
     }
 }

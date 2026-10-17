@@ -388,7 +388,11 @@ public class CommunityImportService {
 
                 RoundImportAccumulator round = rounds.computeIfAbsent(
                         sourceDate, ignored -> new RoundImportAccumulator());
-                round.players.add(normalizePlayerName(player));
+                if (!round.players.add(normalizePlayerName(player))) {
+                    throw new IllegalArgumentException("O jogador " + player
+                            + " aparece mais do que uma vez na jornada " + sourceDate
+                            + ". Corrige o ficheiro antes de importar");
+                }
                 round.addResult(mapped);
             }
         } catch (IOException exception) {
@@ -453,9 +457,10 @@ public class CommunityImportService {
         }
 
         int duplicateRounds = 0;
-        // Two differently formatted dates can denote the same round in one workbook.
-        // Mark subsequent occurrences as duplicates before persisting any data.
-        Set<Instant> plannedDates = new java.util.HashSet<>();
+        // Two differently formatted source dates can refer to the same day.
+        // Skipping the second group would silently discard its participants.
+        // Require the organizer to standardize those rows until safe merging is supported.
+        java.util.Map<Instant, String> plannedDates = new java.util.HashMap<>();
         List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
         for (CommunityImportRoundsPlanResponse.RoundPlan round : plan.rounds()) {
             String resolvedDate = round.parsedDate();
@@ -470,9 +475,14 @@ public class CommunityImportService {
             Instant playedAt = LocalDate.parse(resolvedDate)
                     .atStartOfDay(java.time.ZoneOffset.UTC)
                     .toInstant();
-            boolean duplicate = !plannedDates.add(playedAt)
-                    || communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
-                            communityId, context.seasonId(), playedAt);
+            String firstSourceDate = plannedDates.putIfAbsent(playedAt, round.sourceDate());
+            if (firstSourceDate != null) {
+                throw new IllegalArgumentException("A jornada de " + resolvedDate
+                        + " aparece com datas diferentes (" + firstSourceDate + " e "
+                        + round.sourceDate() + "). Uniformiza as datas para não perder jogadores");
+            }
+            boolean duplicate = communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
+                    communityId, context.seasonId(), playedAt);
             if (duplicate) duplicateRounds++;
 
             resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
