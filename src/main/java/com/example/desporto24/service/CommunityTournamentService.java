@@ -8,6 +8,7 @@ import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityTournament;
 import com.example.desporto24.model.community.CommunityTournamentParticipant;
 import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
@@ -89,6 +90,15 @@ public class CommunityTournamentService {
                     "O tamanho da equipa só é válido em competições por equipas");
         }
 
+        TournamentFormat format = request.format() == null ? TournamentFormat.LEAGUE : request.format();
+        if (format == TournamentFormat.KNOCKOUT) {
+            if (type != TournamentEntryType.TEAM || request.roundRobinLegs() != null
+                    || request.teamTieBreakPriority() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Eliminatórias só estão disponíveis para equipas e não usam voltas ou desempates de liga");
+            }
+        }
+
         int roundRobinLegs = request.roundRobinLegs() == null ? 1 : request.roundRobinLegs();
         if (roundRobinLegs < 1 || roundRobinLegs > 2) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escolhe uma ou duas voltas");
@@ -115,6 +125,7 @@ public class CommunityTournamentService {
                 .playersPerTeam(request.playersPerTeam())
                 .roundRobinLegs(roundRobinLegs)
                 .teamTieBreakPriority(tieBreakPriority)
+                .format(format)
                 .winPoints(request.winPoints() == null ? 3 : request.winPoints())
                 .drawPoints(request.drawPoints() == null ? 1 : request.drawPoints())
                 .lossPoints(request.lossPoints() == null ? 0 : request.lossPoints())
