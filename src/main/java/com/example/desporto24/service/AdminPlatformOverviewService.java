@@ -27,6 +27,7 @@ public class AdminPlatformOverviewService {
     private final CommunityTournamentRepository tournaments;
     private final VenueRepository venues;
     private final UserReportRepository reports;
+    private final OnlinePresenceService onlinePresence;
 
     @Transactional(readOnly = true)
     public PlatformOverview snapshot() {
@@ -38,7 +39,7 @@ public class AdminPlatformOverviewService {
                 profiles.countEnabledRegisteredProfiles(),
                 profiles.countRegistrationsSince(Date.from(now.minus(7, ChronoUnit.DAYS))),
                 profiles.countRecentLoginsSince(Date.from(now.minus(15, ChronoUnit.MINUTES))),
-                null, // No verified online heartbeat/presence subsystem exists.
+                onlinePresence.countOnlineAt(now),
                 sessions.count(),
                 sessions.countUpcomingSessions(current),
                 sessions.countUpcomingSessionsBetween(current, inSevenDays),

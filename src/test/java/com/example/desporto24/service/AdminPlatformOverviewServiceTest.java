@@ -31,6 +31,7 @@ class AdminPlatformOverviewServiceTest {
     @Mock CommunityTournamentRepository tournaments;
     @Mock VenueRepository venues;
     @Mock UserReportRepository reports;
+    @Mock OnlinePresenceService onlinePresence;
     @InjectMocks AdminPlatformOverviewService service;
 
     @Test
@@ -50,6 +51,7 @@ class AdminPlatformOverviewServiceTest {
         when(tournaments.countByStatus(TournamentStatus.IN_PROGRESS)).thenReturn(3L);
         when(venues.count()).thenReturn(900L);
         when(reports.countByStatus(UserReportStatus.OPEN)).thenReturn(4L);
+        when(onlinePresence.countOnlineAt(any())).thenReturn(6L);
 
         var snapshot = service.snapshot();
 
@@ -57,7 +59,7 @@ class AdminPlatformOverviewServiceTest {
         assertEquals(107L, snapshot.enabledUsers());
         assertEquals(9L, snapshot.registrationsLast7Days());
         assertEquals(14L, snapshot.loginsLast15Minutes());
-        assertNull(snapshot.onlineUsers(), "Recent login does not prove online presence");
+        assertEquals(6L, snapshot.onlineUsers(), "Presence comes from a separate heartbeat");
         assertEquals(120L, snapshot.totalSessions());
         assertEquals(24L, snapshot.upcomingSessions());
         assertEquals(10L, snapshot.sessionsNext7Days());
@@ -71,6 +73,7 @@ class AdminPlatformOverviewServiceTest {
         assertNotNull(snapshot.generatedAt());
         verify(profiles, never()).findAll();
         verify(sessions, never()).findAll();
+        verify(onlinePresence).countOnlineAt(any());
     }
 
     @Test
