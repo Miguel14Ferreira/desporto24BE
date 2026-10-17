@@ -24,8 +24,20 @@ public record CommunityTournamentResponse(
         boolean championTied,
         String sport,
         TournamentEntryType entryType,
-        Integer playersPerTeam
+        Integer playersPerTeam,
+        Long championTeamId,
+        String championTeamName
 ) {
+    public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
+            TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
+            Instant createdAt, Instant startedAt, Instant completedAt,
+            Long championProfileId, String championUsername, String championDisplayName,
+            Long championPoints, boolean championTied, String sport,
+            TournamentEntryType entryType, Integer playersPerTeam) {
+        this(id, name, format, status, winPoints, drawPoints, lossPoints, createdAt,
+                startedAt, completedAt, championProfileId, championUsername, championDisplayName,
+                championPoints, championTied, sport, entryType, playersPerTeam, null, null);
+    }
     public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
             TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
             Instant createdAt, Instant startedAt, Instant completedAt,
@@ -67,6 +79,7 @@ public record CommunityTournamentResponse(
                 tournament.getCompletedAt(), tournament.getChampionProfileId(),
                 tournament.getChampionUsername(), tournament.getChampionDisplayName(),
                 tournament.getChampionPoints(), tournament.isChampionTied(), tournament.getSport(),
-                tournament.getEntryType(), tournament.getPlayersPerTeam());
+                tournament.getEntryType(), tournament.getPlayersPerTeam(),
+                tournament.getChampionTeamId(), tournament.getChampionTeamName());
     }
 }

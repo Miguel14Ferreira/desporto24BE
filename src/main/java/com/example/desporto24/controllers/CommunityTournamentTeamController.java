@@ -12,6 +12,8 @@ import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatch
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamMatchResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamStandingsResponse;
 import com.example.desporto24.service.CommunityTournamentTeamService;
+import com.example.desporto24.service.CommunityTournamentTeamFinalizationService;
+import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,7 @@ import java.util.List;
 public class CommunityTournamentTeamController {
     private final CommunityTournamentTeamService service;
     private final CommunityTournamentTeamScheduleService scheduleService;
+    private final CommunityTournamentTeamFinalizationService finalizationService;
     private final CommunityTournamentTeamResultService resultService;
     private final CommunityTournamentTeamStandingsService standingsService;
 
@@ -71,6 +74,13 @@ public class CommunityTournamentTeamController {
             Authentication authentication) {
         return resultService.record(communityId, tournamentId, matchId,
                 authentication.getName(), request);
+    }
+
+    @PostMapping("/complete")
+    public CommunityTournamentResponse complete(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return finalizationService.complete(communityId, tournamentId, authentication.getName());
     }
 
     @GetMapping("/standings")

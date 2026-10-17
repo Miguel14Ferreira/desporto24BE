@@ -162,6 +162,17 @@ class CommunityTournamentTeamScoringTest {
     }
 
     @Test
+    void finalizedTournamentRejectsScoreCorrections() {
+        owner();
+        tournamentForWrite();
+        competition.setStatus(TournamentStatus.COMPLETED);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> scoring.record(7L, 11L, 50L, "owner",
+                        new RecordCommunityTournamentMatchResultRequest(1, 0))).getStatusCode());
+        verifyNoInteractions(matches);
+    }
+
+    @Test
     void standingsOnlyCountCompletedFixturesAndRespectPointsAndTieBreakers() {
         actor();
         when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
