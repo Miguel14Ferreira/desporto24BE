@@ -1,0 +1,39 @@
+# All feature-specific PR workflows previously reran this complete Maven suite.
+# Run it once per pull request, and keep scoped workflows for manual diagnostics.
+name: Jynlo BE PR validation
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: be-pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Complete Java test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      AES_ENCRYPTION_KEY: ciKey1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run all backend tests once
+        run: bash ./mvnw -B -ntp test
