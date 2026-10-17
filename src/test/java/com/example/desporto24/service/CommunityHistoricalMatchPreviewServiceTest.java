@@ -72,6 +72,26 @@ class CommunityHistoricalMatchPreviewServiceTest {
     }
 
     @Test
+    void flagsEquivalentDateFormatsAsPotentialDuplicateButRetainsEveryMatch() {
+        authorize(CommunityRole.OWNER);
+        var result = service.preview(7L, "organizer",
+                file("Casa;Fora;Resultado;Data;Jornada\n"
+                   + "Águias;Lobos;2-1;01/10/2020;1\n"
+                   + "Lobos;AGUIAS;0-0;2020-10-01;1\n"
+                   + "Águias;Lobos;1-0;02/10/2020;1\n"),
+                combinedMapping());
+
+        assertEquals(3, result.acceptedRows());
+        assertEquals(3, result.rows().size());
+        assertEquals(1, result.potentialDuplicates());
+        assertFalse(result.rows().getFirst().potentialDuplicate());
+        assertTrue(result.rows().get(1).potentialDuplicate());
+        assertFalse(result.rows().get(2).potentialDuplicate());
+        assertEquals("01/10/2020", result.rows().getFirst().sourceDate());
+        assertEquals("2020-10-01", result.rows().get(1).sourceDate());
+    }
+
+    @Test
     void acceptsTwoNumericScoreColumnsAndPreservesZero() {
         authorize(CommunityRole.ADMIN);
         var mapping = new CommunityImportMappingRequest("Dados", List.of(
