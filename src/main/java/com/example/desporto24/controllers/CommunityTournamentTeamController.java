@@ -6,6 +6,11 @@ import com.example.desporto24.model.dto.community.CreateCommunityTournamentTeamR
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamScheduleSummaryResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamMatchesPageResponse;
 import com.example.desporto24.service.CommunityTournamentTeamScheduleService;
+import com.example.desporto24.service.CommunityTournamentTeamResultService;
+import com.example.desporto24.service.CommunityTournamentTeamStandingsService;
+import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
+import com.example.desporto24.model.dto.community.CommunityTournamentTeamMatchResponse;
+import com.example.desporto24.model.dto.community.CommunityTournamentTeamStandingsResponse;
 import com.example.desporto24.service.CommunityTournamentTeamService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +28,8 @@ import java.util.List;
 public class CommunityTournamentTeamController {
     private final CommunityTournamentTeamService service;
     private final CommunityTournamentTeamScheduleService scheduleService;
+    private final CommunityTournamentTeamResultService resultService;
+    private final CommunityTournamentTeamStandingsService standingsService;
 
     @GetMapping
     public List<CommunityTournamentTeamResponse> list(
@@ -54,6 +61,23 @@ public class CommunityTournamentTeamController {
             @RequestParam(defaultValue = "0") int page,
             Authentication authentication) {
         return scheduleService.matches(communityId, tournamentId, authentication.getName(), page);
+    }
+
+    @PostMapping("/matches/{matchId}/result")
+    public CommunityTournamentTeamMatchResponse recordResult(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @PathVariable Long matchId,
+            @RequestBody @Valid RecordCommunityTournamentMatchResultRequest request,
+            Authentication authentication) {
+        return resultService.record(communityId, tournamentId, matchId,
+                authentication.getName(), request);
+    }
+
+    @GetMapping("/standings")
+    public CommunityTournamentTeamStandingsResponse standings(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return standingsService.standings(communityId, tournamentId, authentication.getName());
     }
 
     @PostMapping("/{teamId}/players")
