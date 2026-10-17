@@ -52,6 +52,26 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void blocksUndatedPlayersBeforeAnyHistoricalRoundCanBeSaved() {
+        authorize();
+        var file = new MockMultipartFile("file", "historic.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Ana,WIN\n"
+                + ",Bruno,LOSS\n").getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
+        var context = new CommunityImportContextRequest(30L, null);
+
+        var error = assertThrows(IllegalArgumentException.class,
+                () -> service.confirmRounds(10L, "organizer", file, mapping, context));
+
+        assertTrue(error.getMessage().contains("1 participações sem data"));
+        verifyNoInteractions(roundRepository);
+    }
+
+    @Test
     void finalPlanDoesNotTreatTwoFormatsOfSameDateAsDifferentRounds() {
         authorize();
         var file = new MockMultipartFile("file", "jornadas.csv", "text/csv",

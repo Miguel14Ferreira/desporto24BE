@@ -438,6 +438,13 @@ public class CommunityImportService {
         validateContext(communityId, username, context);
         CommunityImportRoundsPlanResponse plan = roundsPlan(communityId, username, file, mapping);
 
+        // Never silently discard otherwise valid participants without a round date.
+        // Confirmation reuses this final plan and therefore fails before any writes.
+        if (plan.rowsWithoutRound() > 0) {
+            throw new IllegalArgumentException(
+                    "Existem " + plan.rowsWithoutRound()
+                            + " participações sem data de jornada. Corrige o ficheiro antes de importar");
+        }
         if (plan.invalidDates() > 0) {
             throw new IllegalArgumentException("Existem datas inválidas no ficheiro. Corrige-as antes de importar");
         }
