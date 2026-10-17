@@ -5,6 +5,7 @@ import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityImportService;
 import com.example.desporto24.service.CommunityStandingsArchiveService;
+import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
 import com.example.desporto24.service.CommunityManagementService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ public class CommunityController {
     private final CommunityCompetitionService competitionService;
     private final CommunityImportService communityImportService;
     private final CommunityStandingsArchiveService historicalStandingsService;
+    private final CommunityHistoricalMatchPreviewService historicalMatchPreviewService;
     private final CommunitySessionService communitySessionService;
 
     @PostMapping
@@ -315,6 +317,20 @@ public class CommunityController {
         return ResponseEntity.ok(
                 communityImportService.confirmPlayers(id, authentication.getName(), file, mapping)
         );
+    }
+
+    /**
+     * Safe read-only first step for importing real historical tournament matches.
+     * No match, participant, team or tournament is created by this endpoint.
+     */
+    @PostMapping(value = "/{id}/competition/import/matches/preview",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityHistoricalMatchPreviewResponse> previewHistoricalMatches(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchPreviewService.preview(id, authentication.getName(), file, mapping));
     }
 
     /**
