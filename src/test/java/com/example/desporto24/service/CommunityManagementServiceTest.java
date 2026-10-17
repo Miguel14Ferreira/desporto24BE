@@ -38,6 +38,57 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class CommunityManagementServiceTest {
+    @Test
+    void ownerConfiguresOptionalModulesWithoutDeletingAnyCommunityHistory() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        var actor = new Profile();
+        actor.setId(10L);
+        actor.setUsername("owner");
+        var group = Community.builder().id(9L).name("CNG").owner(actor)
+                .visibility(CommunityVisibility.PRIVATE).rankingsEnabled(true).build();
+        var member = CommunityMember.builder().community(group).profile(actor)
+                .role(CommunityRole.OWNER).build();
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(actor));
+        when(members.findByCommunityIdAndProfileId(9L, 10L)).thenReturn(Optional.of(member));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(9L)).thenReturn(List.of(member));
+        when(communities.findById(9L)).thenReturn(Optional.of(group));
+        when(communities.save(group)).thenReturn(group);
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        var changed = service.updateFeatures(9L, "owner",
+                new com.example.desporto24.model.dto.community.UpdateCommunityFeaturesRequest(
+                        false, true, false));
+        assertEquals(false, changed.rankingsEnabled());
+        assertEquals(true, changed.individualTournamentsEnabled());
+        assertEquals(false, changed.teamTournamentsEnabled());
+        verify(communities).save(group);
+    }
+
+    @Test
+    void ordinaryCommunityMemberCannotConfigureModules() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        var actor = new Profile();
+        actor.setId(10L);
+        actor.setUsername("member");
+        var group = Community.builder().id(9L).name("CNG").owner(actor).build();
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(actor));
+        when(members.findByCommunityIdAndProfileId(9L, 10L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(actor)
+                        .role(CommunityRole.MEMBER).build()));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        assertThrows(SecurityException.class, () -> service.updateFeatures(9L, "member",
+                new com.example.desporto24.model.dto.community.UpdateCommunityFeaturesRequest(
+                        true, true, true)));
+        verifyNoInteractions(communities);
+    }
+
 
     @Test
     void replacingCommunityPhotoDeletesPreviousStoredObject() {

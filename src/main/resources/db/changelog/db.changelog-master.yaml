@@ -61,3 +61,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-16-tournament-own-sport.yaml
   - include:
       file: db/changelog/changes/2026-10-17-community-tournament-teams.yaml
+  - include:
+      file: db/changelog/changes/2026-10-17-community-feature-choices.yaml

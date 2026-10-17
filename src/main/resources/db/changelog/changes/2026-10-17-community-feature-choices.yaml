@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-feature-choices
+      author: desporto24
+      changes:
+        # Existing communities retain their current competition access. New groups
+        # explicitly initialize these two switches to false until onboarding.
+        - addColumn:
+            schemaName: desporto24
+            tableName: community
+            columns:
+              - column:
+                  name: individual_tournaments_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: team_tournaments_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false

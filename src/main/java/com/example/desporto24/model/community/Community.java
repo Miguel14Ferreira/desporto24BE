@@ -58,6 +58,15 @@ public class Community {
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;
 
+    // Optional community modules. All groups always retain sessions and their history.
+    @Builder.Default
+    @Column(name = "individual_tournaments_enabled", nullable = false)
+    private boolean individualTournamentsEnabled = true;
+
+    @Builder.Default
+    @Column(name = "team_tournaments_enabled", nullable = false)
+    private boolean teamTournamentsEnabled = true;
+
     @Column(name = "win_points")
     private Integer winPoints;
 
