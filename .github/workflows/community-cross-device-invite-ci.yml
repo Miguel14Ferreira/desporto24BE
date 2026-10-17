@@ -1,16 +1,7 @@
 name: Validate community registration email invites
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - 'src/main/java/com/example/desporto24/model/dto/auth/RegistrationRequest.java'
-      - 'src/main/java/com/example/desporto24/controllers/AuthenticationController.java'
-      - 'src/main/java/com/example/desporto24/service/interfaces/AuthenticationService.java'
-      - 'src/main/java/com/example/desporto24/service/impl/AuthenticationServiceImpl.java'
-      - 'src/test/java/com/example/desporto24/model/dto/auth/RegistrationRequestValidationTest.java'
-      - 'src/test/java/com/example/desporto24/controllers/AuthenticationControllerTest.java'
-      - 'src/test/java/com/example/desporto24/service/impl/AuthenticationServiceImplTest.java'
-      - '.github/workflows/community-cross-device-invite-ci.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:

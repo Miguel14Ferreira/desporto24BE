@@ -1,20 +1,8 @@
 name: Validate session invitations
 
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
 on:
-  pull_request:
-    branches:
-      - feature/desporto24-preview-deploy
-    paths:
-      - 'src/main/java/com/example/desporto24/controller/SessionInviteController.java'
-      - 'src/main/java/com/example/desporto24/service/SessionInviteService.java'
-      - 'src/main/java/com/example/desporto24/model/session/SessionInvite.java'
-      - 'src/main/java/com/example/desporto24/repository/session/SessionInviteRepository.java'
-      - 'src/main/java/com/example/desporto24/enumeration/SessionInviteStatus.java'
-      - 'src/test/java/com/example/desporto24/service/SessionInviteServiceTest.java'
-      - 'src/main/resources/db/changelog/**'
-      - '.github/workflows/session-invite-ci.yml'
   workflow_dispatch:
-
 permissions:
   contents: read
 
