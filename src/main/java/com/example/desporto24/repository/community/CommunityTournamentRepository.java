@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.List;
 
 public interface CommunityTournamentRepository extends JpaRepository<CommunityTournament, Long> {
+    long countByStatus(com.example.desporto24.enumeration.TournamentStatus status);
+
 
     List<CommunityTournament> findByCommunityIdOrderByCreatedAtDescIdDesc(Long communityId);
 

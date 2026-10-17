@@ -20,6 +20,27 @@ import java.util.List;
 @Transactional(readOnly = true)
 public interface SessionRepository extends JpaRepository<Session, Long> {
 
+    long countByStatus(SessionStatus status);
+
+    @Query("""
+            select count(s) from Session s
+            where s.gameDate >= :from and s.status in (
+                com.example.desporto24.enumeration.SessionStatus.OPEN,
+                com.example.desporto24.enumeration.SessionStatus.FULL)
+              and (s.enabled = true or s.enabled is null)
+            """)
+    long countUpcomingSessions(@Param("from") Date from);
+
+    @Query("""
+            select count(s) from Session s
+            where s.gameDate >= :from and s.gameDate < :until
+              and s.status in (
+                  com.example.desporto24.enumeration.SessionStatus.OPEN,
+                  com.example.desporto24.enumeration.SessionStatus.FULL)
+              and (s.enabled = true or s.enabled is null)
+            """)
+    long countUpcomingSessionsBetween(@Param("from") Date from, @Param("until") Date until);
+
     Session findSessionByAddress(String address);
     Session findSessionByGameDate(Date gameDate);
     Session findSessionByUsername(String username);
