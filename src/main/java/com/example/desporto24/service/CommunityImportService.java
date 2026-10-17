@@ -28,6 +28,9 @@ import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -35,6 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -50,6 +56,9 @@ import java.util.Set;
 public class CommunityImportService {
 
     private static final int SAMPLE_ROWS = 5;
+    private static final long MAX_IMPORT_FILE_BYTES = 5L * 1024 * 1024;
+    private static final int MAX_CSV_ROWS = 20_000;
+    private static final int MAX_CSV_COLUMNS = 100;
     private static final Set<String> PLAYER_HEADERS = Set.of("player", "jogador", "nome", "name", "participante", "atleta");
     private static final Set<String> DATE_HEADERS = Set.of("data", "date", "dia", "jornada", "gameweek", "round");
     private static final Set<String> GOALS_HEADERS = Set.of("g", "gol", "golo", "golos", "goal", "goals");
@@ -98,7 +107,7 @@ public class CommunityImportService {
         requireAdmin(communityId, actor);
         validateFile(file);
 
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = openImportWorkbook(file)) {
             DataFormatter formatter = new DataFormatter();
             List<CommunityImportPreviewResponse.SheetPreview> sheets = new ArrayList<>();
             for (Sheet sheet : workbook) {
@@ -137,7 +146,7 @@ public class CommunityImportService {
 
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = openImportWorkbook(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             if (sheet == null) {
                 return new CommunityImportMappingValidationResponse(
@@ -231,7 +240,7 @@ public class CommunityImportService {
         }
 
         validateFile(file);
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = openImportWorkbook(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -304,7 +313,7 @@ public class CommunityImportService {
                 normalizedPreview(communityId, username, file, request);
 
         java.util.Map<String, String> players = new java.util.LinkedHashMap<>();
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = openImportWorkbook(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -368,7 +377,7 @@ public class CommunityImportService {
 
         java.util.Map<String, RoundImportAccumulator> rounds = new java.util.LinkedHashMap<>();
         int rowsWithoutRound = 0;
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = openImportWorkbook(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -557,7 +566,7 @@ public class CommunityImportService {
         int createdRounds = 0;
         int skippedDuplicates = 0;
         int createdEntries = 0;
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = openImportWorkbook(file)) {
             Sheet sheet = workbook.getSheet(mapping.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -971,13 +980,63 @@ public class CommunityImportService {
                 : "SUMMARY";
     }
 
+    private Workbook openImportWorkbook(MultipartFile file) throws IOException {
+        if (!file.getOriginalFilename().toLowerCase(Locale.ROOT).endsWith(".csv")) {
+            return new XSSFWorkbook(file.getInputStream());
+        }
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                file.getInputStream(), StandardCharsets.UTF_8))) {
+            reader.mark(65_536);
+            String firstLine = reader.readLine();
+            reader.reset();
+            if (firstLine == null) {
+                throw new IllegalArgumentException("O ficheiro CSV não contém dados");
+            }
+            // Portuguese Excel exports often use semicolon; Google Sheets commonly uses comma.
+            char separator = firstLine.chars().filter(ch -> ch == ';').count()
+                    > firstLine.chars().filter(ch -> ch == ',').count() ? ';' : ',';
+            CSVFormat format = CSVFormat.DEFAULT.builder()
+                    .setDelimiter(separator)
+                    .setIgnoreEmptyLines(true)
+                    .build();
+            try (CSVParser parser = format.parse(reader)) {
+                Sheet sheet = workbook.createSheet("CSV");
+                int rowIndex = 0;
+                for (CSVRecord record : parser) {
+                    if (rowIndex >= MAX_CSV_ROWS || record.size() > MAX_CSV_COLUMNS) {
+                        throw new IllegalArgumentException("O CSV ultrapassa o limite de linhas ou colunas");
+                    }
+                    Row row = sheet.createRow(rowIndex++);
+                    for (int index = 0; index < record.size(); index++) {
+                        String value = record.get(index);
+                        if (rowIndex == 1 && index == 0 && value.startsWith("\uFEFF")) {
+                            value = value.substring(1);
+                        }
+                        // String cells: input cannot become an executable spreadsheet formula.
+                        row.createCell(index, CellType.STRING).setCellValue(value);
+                    }
+                }
+            }
+            return workbook;
+        } catch (IOException | RuntimeException exception) {
+            try { workbook.close(); } catch (IOException ignored) { }
+            throw exception;
+        }
+    }
+
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Seleciona um ficheiro Excel");
+            throw new IllegalArgumentException("Seleciona um ficheiro Excel ou CSV");
+        }
+        if (file.getSize() > MAX_IMPORT_FILE_BYTES) {
+            throw new IllegalArgumentException("O ficheiro não pode ultrapassar 5 MB");
         }
         String fileName = file.getOriginalFilename();
-        if (fileName == null || !fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
-            throw new IllegalArgumentException("O ficheiro deve estar no formato .xlsx");
+        if (fileName == null || (!fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")
+                && !fileName.toLowerCase(Locale.ROOT).endsWith(".csv"))) {
+            throw new IllegalArgumentException("O ficheiro deve estar no formato .xlsx ou .csv");
         }
     }
 
