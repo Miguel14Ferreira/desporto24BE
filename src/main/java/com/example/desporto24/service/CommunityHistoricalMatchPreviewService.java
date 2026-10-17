@@ -19,6 +19,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -120,7 +123,7 @@ public class CommunityHistoricalMatchPreviewService {
                 MatchIdentity key = new MatchIdentity(
                         homeKey.compareTo(awayKey) <= 0 ? homeKey : awayKey,
                         homeKey.compareTo(awayKey) <= 0 ? awayKey : homeKey,
-                        normalize(date), normalize(round));
+                        normalizedDateKey(date), normalize(round));
                 boolean duplicate = !seen.add(key);
                 if (duplicate) {
                     candidates++;
@@ -189,6 +192,27 @@ public class CommunityHistoricalMatchPreviewService {
         if (index == null) return "";
         Cell cell = row.getCell(index, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         return cell == null ? "" : formatter.formatCellValue(cell);
+    }
+
+    /**
+     * Equivalent Portuguese and ISO dates must be compared as the same day
+     * when suggesting duplicate fixtures. Keep the original date unchanged in
+     * the preview response so no historic source data is rewritten.
+     */
+    private String normalizedDateKey(String sourceDate) {
+        String value = sourceDate.trim();
+        for (DateTimeFormatter formatter : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("d-M-uuuu"),
+                DateTimeFormatter.ofPattern("d.M.uuuu"))) {
+            try {
+                return LocalDate.parse(value, formatter).toString();
+            } catch (DateTimeParseException ignored) {
+                // Unknown/partial dates remain comparable by their source text.
+            }
+        }
+        return normalize(value);
     }
 
     private String normalize(String value) {
