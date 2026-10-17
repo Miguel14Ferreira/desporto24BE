@@ -83,6 +83,12 @@ public class CommunityTournament {
     @Column(name = "champion_display_name", length = 255)
     private String championDisplayName;
 
+    @Column(name = "champion_team_id")
+    private Long championTeamId;
+
+    @Column(name = "champion_team_name", length = 100)
+    private String championTeamName;
+
     @Column(name = "champion_points")
     private Long championPoints;
 
