@@ -75,3 +75,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-17-community-team-tiebreak-priority.yaml
   - include:
       file: db/changelog/changes/2026-10-17-community-team-knockout-format.yaml
+  - include:
+      file: db/changelog/changes/2026-10-17-online-presence.yaml
