@@ -139,6 +139,47 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void rejectsContradictoryResultFlagsInsteadOfSilentlyChoosingAWinner() {
+        Profile actor = new Profile();
+        actor.setId(5L);
+        when(profileRepository.findUserByUsernameIgnoreCase("organizer"))
+                .thenReturn(Optional.of(actor));
+        CommunityMember member = new CommunityMember();
+        member.setRole(CommunityRole.OWNER);
+        when(memberRepository.findByCommunityIdAndProfileId(10L, 5L))
+                .thenReturn(Optional.of(member));
+
+        var file = new MockMultipartFile("file", "resultados.csv", "text/csv",
+                ("Date,Player,Result,WIN,DRAW,LOSS\n"
+                + "01/10/2026,Ana,WIN,1,0,0\n"
+                + "01/10/2026,Bruno,LOSS,1,0,1\n"
+                + "01/10/2026,Carla,DRAW,1,0,0\n"
+                + "01/10/2026,Dinis,DRAW,0,1,0\n")
+                .getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT"),
+                new CommunityImportMappingRequest.ColumnMapping(3, "WIN"),
+                new CommunityImportMappingRequest.ColumnMapping(4, "DRAW"),
+                new CommunityImportMappingRequest.ColumnMapping(5, "LOSS")));
+
+        var validation = service.validateMapping(10L, "organizer", file, mapping);
+        assertEquals(2, validation.validRows());
+        assertTrue(validation.warnings().stream()
+                .anyMatch(warning -> warning.contains("contraditórios")));
+        var preview = service.normalizedPreview(10L, "organizer", file, mapping);
+        assertEquals(2, preview.acceptedRows());
+        assertEquals(2, preview.skippedRows());
+        assertTrue(preview.skipped().stream()
+                .allMatch(row -> row.reason().equals("INVALID_NUMERIC_VALUE")));
+
+        var plan = service.importPlan(10L, "organizer", file, mapping);
+        assertEquals(List.of("Ana", "Dinis"),
+                plan.players().stream().map(player -> player.displayName()).toList());
+    }
+
+    @Test
     void mergesEquivalentDateFormatsAndRetainsEveryDistinctPlayer() {
         authorize();
         var file = new MockMultipartFile("file", "jornadas.csv", "text/csv",
