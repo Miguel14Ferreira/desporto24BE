@@ -160,8 +160,14 @@ class SessionDiscoveryServiceTest {
         wrongCity.setGameDate(Date.from(from.plusSeconds(1800)));
 
         stubCandidates(match, wrongSport, full, paid, privateSession, wrongCity);
+        // The service maps candidate summaries before applying availability,
+        // price, privacy and sport filters. Stub every intermediate candidate.
         stubSummary(match, null, 4);
+        stubSummary(wrongSport, null, 4);
         stubSummary(full, null, 4);
+        stubSummary(paid, null, 4);
+        stubSummary(privateSession, null, 4);
+        stubSummary(wrongCity, null, 4);
 
         List<SessionSummaryResponse> result = service.discover(criteria(
                 "futebol", "quel", from, to, null, null, null,
@@ -178,7 +184,10 @@ class SessionDiscoveryServiceTest {
         Session expensive = session(3L, "Futebol", "Queluz", null, null, 12, false, 10, 2);
 
         stubCandidates(cheap, match, expensive);
+        // The comparator evaluates all mapped candidates before the price filter.
+        stubSummary(cheap, null, 2);
         stubSummary(match, null, 2);
+        stubSummary(expensive, null, 2);
 
         SessionSearchCriteria criteria = new SessionSearchCriteria(
                 null, null, null, null, null, null, null,
