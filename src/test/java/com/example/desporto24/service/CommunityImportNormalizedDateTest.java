@@ -418,6 +418,30 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void differentStatisticsOnSameDateAreNotMistakenForAnIdenticalImport() {
+        authorize();
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(storedRound(71L, "Import 2026-10-01")));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+        var file = new MockMultipartFile("file", "nova-jornada.csv", "text/csv",
+                ("Date,Player,Result,Goals\n01/10/2026,Ana,WIN,2\n")
+                        .getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT"),
+                new CommunityImportMappingRequest.ColumnMapping(3, "GOALS")));
+
+        var plan = service.finalRoundsPlan(10L, "organizer", file, mapping,
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(0, plan.duplicateRounds());
+        assertFalse(plan.rounds().getFirst().duplicate());
+    }
+
+    @Test
     void differentImportedGameSameDayCanBeRecordedWithoutDroppingResults() {
         authorize();
         Community community = new Community();
