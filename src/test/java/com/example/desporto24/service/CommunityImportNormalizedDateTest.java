@@ -402,6 +402,29 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void identicalImportedRoundIsDetectedEvenWhenExcelRowsAreReordered() {
+        authorize();
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(storedRound(71L, "Import 2026-10-01")));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(
+                        storedEntry("ana", CommunityMatchResult.WIN),
+                        storedEntry("bruno", CommunityMatchResult.LOSS)));
+        var file = new MockMultipartFile("file", "jornada-invertida.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Bruno,LOSS\n"
+                + "01/10/2026,ÁNA,WIN\n").getBytes(StandardCharsets.UTF_8));
+
+        var plan = service.finalRoundsPlan(10L, "organizer", file, roundMapping(),
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(1, plan.duplicateRounds());
+        assertTrue(plan.rounds().getFirst().duplicate());
+        assertEquals(2, plan.rounds().getFirst().players());
+    }
+
+    @Test
     void manuallyEnteredRoundOnSameDayDoesNotBlockHistoricalImport() {
         authorize();
         when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
