@@ -47,12 +47,24 @@ class OsmImportSafetyTests(unittest.TestCase):
         venue["tags"]["addr:state"] = "Açores"
         self.assertEqual(importer.to_payload(venue)["district"], "Região Autónoma dos Açores")
 
+    def test_city_only_is_never_used_as_postal_address(self):
+        tags = {"addr:city": "Lisboa", "addr:postcode": "1000-001"}
+        self.assertEqual(importer.address(tags), ("Lisboa", ""))
+        tags["addr:place"] = "Complexo Desportivo Municipal"
+        self.assertIn("Complexo Desportivo Municipal", importer.address(tags)[1])
+        tags.pop("addr:place")
+        tags["addr:full"] = "Rua do Campo, 3"
+        self.assertIn("Rua do Campo, 3", importer.address(tags)[1])
+
     def test_dry_run_reports_rejected_venues_without_writing_to_api(self):
         elements = [
             {"type": "node", "id": 1, "lat": 38.7, "lon": -9.1,
-             "tags": {"name": "Pavilhão A", "addr:city": "Lisboa", "sport": "basketball;volleyball"}},
+             "tags": {"name": "Pavilhão A", "addr:city": "Lisboa",
+                      "addr:street": "Rua do Desporto", "sport": "basketball;volleyball"}},
             {"type": "node", "id": 2, "tags": {"addr:city": "Lisboa"}},
             {"type": "node", "id": 3, "tags": {"name": "Campo sem localidade"}},
+            {"type": "node", "id": 4,
+             "tags": {"name": "Campo só com cidade", "addr:city": "Lisboa", "addr:postcode": "1000-001"}},
         ]
         with tempfile.TemporaryDirectory() as temp_dir:
             report_path = str(pathlib.Path(temp_dir) / "report.json")
@@ -65,12 +77,13 @@ class OsmImportSafetyTests(unittest.TestCase):
                     self.assertEqual(importer.main(), 0)
                 post.assert_not_called()
             data = json.loads(pathlib.Path(report_path).read_text(encoding="utf-8"))
-            self.assertEqual(data["osmElements"], 3)
+            self.assertEqual(data["osmElements"], 4)
             self.assertEqual(data["importable"], 1)
             self.assertEqual(data["withVerifiedDistrict"], 0)
             self.assertEqual(data["withoutVerifiedDistrict"], 1)
             self.assertEqual(data["rejected"]["missing_name"], 1)
             self.assertEqual(data["rejected"]["missing_city"], 1)
+            self.assertEqual(data["rejected"]["missing_address"], 1)
             self.assertEqual(data["sample"][0]["sports"], "Basquetebol;Voleibol")
 
 

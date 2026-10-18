@@ -153,6 +153,8 @@ def coordinates(element):
 def address(tags):
     street = (tags.get("addr:street") or "").strip()
     number = (tags.get("addr:housenumber") or "").strip()
+    place = (tags.get("addr:place") or "").strip()
+    full = (tags.get("addr:full") or "").strip()
     postcode = (tags.get("addr:postcode") or "").strip()
     city = (
         tags.get("addr:city")
@@ -162,10 +164,12 @@ def address(tags):
         or ""
     ).strip()
 
-    street_line = " ".join(part for part in (street, number) if part)
+    # City alone (or city + postcode) is not a usable venue address.
+    # Never manufacture a postal address from the venue name or coordinates.
+    location = full or (" ".join(part for part in (street, number) if part) or place)
     suffix = " ".join(part for part in (postcode, city) if part)
-    full = ", ".join(part for part in (street_line, suffix) if part)
-    return city, full
+    complete = ", ".join(part for part in (location, suffix) if part) if location else ""
+    return city, complete
 
 
 def to_payload(element):
@@ -174,7 +178,8 @@ def to_payload(element):
     city, full_address = address(tags)
     lat, lon = coordinates(element)
 
-    # The BE currently requires a meaningful name, city and address.
+    # The BE requires a meaningful name, city and address. A city by itself
+    # is not a postal address, even when OSM includes a postcode.
     if not name or not city or not full_address:
         return None
 
