@@ -338,13 +338,28 @@ public class CommunityImportService {
                     .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Seleciona uma coluna para identificar o jogador"));
+            Optional<Integer> dateColumn = request.columns().stream()
+                    .filter(mapping -> mapping.field().trim().equalsIgnoreCase("DATE"))
+                    .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
+                    .findFirst();
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
 
             for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 List<String> rowValues = values(sourceRows.get(rowIndex), formatter);
                 String displayName = valueAt(rowValues, playerColumn);
-                if (!displayName.isBlank()) {
-                    players.putIfAbsent(normalizePlayerName(displayName), displayName);
+                if (displayName.isBlank()) continue;
+                // Importing player identities must honor the same rejected rows as
+                // validation/normalized preview; invalid numeric rows must not create
+                // orphan historical players.
+                if (!numericValuesValid(mappedValues(request, rowValues))) continue;
+                String normalizedName = normalizePlayerName(displayName);
+                if (dateColumn.isPresent()) {
+                    String rawDate = valueAt(rowValues, dateColumn.get());
+                    if (!rawDate.isBlank() && !seenPlayersByRound
+                            .computeIfAbsent(importDateKey(rawDate, null), ignored -> new HashSet<>())
+                            .add(normalizedName)) continue;
                 }
+                players.putIfAbsent(normalizedName, displayName);
             }
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
