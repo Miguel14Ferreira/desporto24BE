@@ -278,8 +278,43 @@ class CommunityCompetitionServiceTest {
         assertEquals("Miguel Ferreira", overview.standings().getFirst().fullName());
         assertEquals(2, overview.standings().getFirst().games());
         assertEquals(3, overview.standings().getFirst().points());
-        assertEquals("Ferreirinha", overview.rounds().get(1).entries().getFirst().fullName());
+        // Display name stays as in the imported source, but accepted alias provides
+        // the verified profile handle in historical round details.
+        var linkedEntry = overview.rounds().get(1).entries().getFirst();
+        assertEquals("Ferreirinha", linkedEntry.fullName());
+        assertEquals("TMF14", linkedEntry.username());
+        assertEquals(1L, linkedEntry.profileId());
         assertNull(historical.getProfile());
+    }
+
+    @Test
+    void unclaimedImportedPlayersKeepOriginalNameWithoutInventedProfile() {
+        Profile target = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(target)
+                .visibility(CommunityVisibility.PRIVATE).rankingsEnabled(true).build();
+        CommunityPlayer imported = CommunityPlayer.builder().id(10L).community(community)
+                .displayName("Sem Perfil").normalizedName("sem perfil").build();
+        CommunityRound round = CommunityRound.builder().id(20L).community(community).build();
+        CommunityRoundEntry original = CommunityRoundEntry.builder().round(round)
+                .communityPlayer(imported).result(CommunityMatchResult.WIN).build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L)).thenReturn(List.of(round));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+        when(entryRepository.findByRoundIdOrderByIdAsc(20L)).thenReturn(List.of(original));
+        when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
+                .thenReturn(List.of(original));
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, target, CommunityRole.OWNER)));
+
+        var entry = service.overview(7L, "TMF14").rounds().getFirst().entries().getFirst();
+        assertEquals("Sem Perfil", entry.fullName());
+        assertNull(entry.username());
+        assertNull(entry.profileId());
+        assertNull(imported.getProfile());
     }
 
     private Profile profile(Long id, String username, String fullName) {

@@ -10,6 +10,7 @@ import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
+import jakarta.persistence.EntityManager;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -109,7 +110,7 @@ class CommunityImportWorkbookReaderTest {
         var service = new CommunityImportService(profileRepo, memberRepo,
                 mock(CommunityRepository.class), mock(CommunityPlayerRepository.class),
                 mock(CommunitySeasonRepository.class), mock(CommunityRoundRepository.class),
-                mock(CommunityRoundEntryRepository.class));
+                mock(CommunityRoundEntryRepository.class), mock(EntityManager.class));
 
         var preview = service.preview(7L, "organizer",
                 file("history.csv", "Jogador;Data;Golos\nAna;17/10/2026;2\n"));
@@ -136,7 +137,7 @@ class CommunityImportWorkbookReaderTest {
         var service = new CommunityImportService(profileRepo, memberRepo,
                 mock(CommunityRepository.class), mock(CommunityPlayerRepository.class),
                 mock(CommunitySeasonRepository.class), mock(CommunityRoundRepository.class),
-                mock(CommunityRoundEntryRepository.class));
+                mock(CommunityRoundEntryRepository.class), mock(EntityManager.class));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.preview(7L, "organizer", file("history.pdf", "data")));

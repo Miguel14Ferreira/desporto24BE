@@ -7,6 +7,7 @@ import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunityRoundEntry;
+import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.dto.community.CommunityImportContextRequest;
 import com.example.desporto24.model.dto.community.CommunityImportMappingRequest;
@@ -17,6 +18,8 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,6 +45,7 @@ class CommunityImportNormalizedDateTest {
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityPlayerRepository communityPlayerRepository;
     @Mock private CommunityRoundEntryRepository roundEntryRepository;
+    @Mock private EntityManager entityManager;
     @InjectMocks private CommunityImportService service;
 
     private void authorize() {
@@ -78,6 +82,105 @@ class CommunityImportNormalizedDateTest {
 
         assertTrue(error.getMessage().contains("1 participações sem data"));
         verifyNoInteractions(roundRepository);
+    }
+
+    @Test
+    void ignoresRejectedImportMetricsInBothPreviewAndSavedPlayerIdentities() {
+        Profile actor = new Profile();
+        actor.setId(5L);
+        when(profileRepository.findUserByUsernameIgnoreCase("organizer"))
+                .thenReturn(Optional.of(actor));
+        CommunityMember member = new CommunityMember();
+        member.setRole(CommunityRole.OWNER);
+        when(memberRepository.findByCommunityIdAndProfileId(10L, 5L))
+                .thenReturn(Optional.of(member));
+
+        var file = new MockMultipartFile("file", "metricas.csv", "text/csv",
+                ("Date,Player,Result,Goals,WIN,POINTS\n"
+                + "01/10/2026,Ana,WIN,2.0,1,3\n"
+                + "01/10/2026,Bruno,LOSS,-2,0,0\n"
+                + "01/10/2026,Carlos,WIN,1.5,1,3\n"
+                + "01/10/2026,Dina,WIN,NaN,1,3\n"
+                + "01/10/2026,Ema,WIN,Infinity,1,3\n"
+                + "01/10/2026,Filipe,WIN,2,2,3\n"
+                + "01/10/2026,Grace,WIN,1000001,1,3\n"
+                + "01/10/2026,Hugo,WIN,2,1,abc\n"
+                + "02/10/2026,Nuno,DRAW,0,0,-1\n")
+                .getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT"),
+                new CommunityImportMappingRequest.ColumnMapping(3, "GOALS"),
+                new CommunityImportMappingRequest.ColumnMapping(4, "WIN"),
+                new CommunityImportMappingRequest.ColumnMapping(5, "POINTS")));
+
+        var validation = service.validateMapping(10L, "organizer", file, mapping);
+        assertTrue(validation.valid());
+        assertEquals(2, validation.validRows());
+        assertEquals(7, validation.warnings().size());
+        var preview = service.normalizedPreview(10L, "organizer", file, mapping);
+        assertEquals(2, preview.acceptedRows());
+        assertEquals(7, preview.skippedRows());
+        assertTrue(preview.skipped().stream()
+                .allMatch(row -> row.reason().equals("INVALID_NUMERIC_VALUE")));
+
+        var plan = service.importPlan(10L, "organizer", file, mapping);
+        assertEquals(2, plan.acceptedRows());
+        assertEquals(2, plan.distinctPlayers());
+        assertEquals(List.of("Ana", "Nuno"),
+                plan.players().stream().map(player -> player.displayName()).toList());
+
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        var saved = service.confirmPlayers(10L, "organizer", file, mapping);
+        assertEquals(2, saved.createdPlayers());
+        var captor = org.mockito.ArgumentCaptor.forClass(CommunityPlayer.class);
+        verify(communityPlayerRepository, times(2)).save(captor.capture());
+        assertEquals(List.of("Ana", "Nuno"),
+                captor.getAllValues().stream().map(CommunityPlayer::getDisplayName).toList());
+    }
+
+    @Test
+    void rejectsContradictoryResultFlagsInsteadOfSilentlyChoosingAWinner() {
+        Profile actor = new Profile();
+        actor.setId(5L);
+        when(profileRepository.findUserByUsernameIgnoreCase("organizer"))
+                .thenReturn(Optional.of(actor));
+        CommunityMember member = new CommunityMember();
+        member.setRole(CommunityRole.OWNER);
+        when(memberRepository.findByCommunityIdAndProfileId(10L, 5L))
+                .thenReturn(Optional.of(member));
+
+        var file = new MockMultipartFile("file", "resultados.csv", "text/csv",
+                ("Date,Player,Result,WIN,DRAW,LOSS\n"
+                + "01/10/2026,Ana,WIN,1,0,0\n"
+                + "01/10/2026,Bruno,LOSS,1,0,1\n"
+                + "01/10/2026,Carla,DRAW,1,0,0\n"
+                + "01/10/2026,Dinis,DRAW,0,1,0\n")
+                .getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT"),
+                new CommunityImportMappingRequest.ColumnMapping(3, "WIN"),
+                new CommunityImportMappingRequest.ColumnMapping(4, "DRAW"),
+                new CommunityImportMappingRequest.ColumnMapping(5, "LOSS")));
+
+        var validation = service.validateMapping(10L, "organizer", file, mapping);
+        assertEquals(2, validation.validRows());
+        assertTrue(validation.warnings().stream()
+                .anyMatch(warning -> warning.contains("contraditórios")));
+        var preview = service.normalizedPreview(10L, "organizer", file, mapping);
+        assertEquals(2, preview.acceptedRows());
+        assertEquals(2, preview.skippedRows());
+        assertTrue(preview.skipped().stream()
+                .allMatch(row -> row.reason().equals("INVALID_NUMERIC_VALUE")));
+
+        var plan = service.importPlan(10L, "organizer", file, mapping);
+        assertEquals(List.of("Ana", "Dinis"),
+                plan.players().stream().map(player -> player.displayName()).toList());
     }
 
     @Test
@@ -225,21 +328,269 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
-    void existingDatabaseRoundIsStillMarkedDuplicateWithoutConfusingSourceAliases() {
+    void skipsARoundCreatedByAnotherImportAfterTheInitialPlan() {
         authorize();
-        var file = new MockMultipartFile("file", "jornada.csv", "text/csv",
-                ("Date,Player,Result\n"
-                + "01/10/2026,Ana,WIN\n").getBytes(StandardCharsets.UTF_8));
-        var mapping = new CommunityImportMappingRequest("Dados", List.of(
-                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
-                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
-                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
-        when(roundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(eq(10L), eq(30L), any()))
-                .thenReturn(true);
+        var file = singleRound("Ana", "WIN");
+        var mapping = roundMapping();
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        Instant playedAt = Instant.parse("2026-10-01T00:00:00Z");
+        CommunityRound existing = storedRound(71L, "Import 2026-10-01");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(10L, 30L, playedAt))
+                .thenReturn(List.of(), List.of(existing));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
 
-        var plan = service.finalRoundsPlan(10L, "organizer", file, mapping,
+        var result = service.confirmRounds(10L, "organizer", file, mapping,
                 new CommunityImportContextRequest(30L, null));
+
+        assertEquals(0, result.createdRounds());
+        assertEquals(1, result.skippedDuplicateRounds());
+        assertEquals(0, result.createdEntries());
+        verify(entityManager).lock(any(CommunitySeason.class),
+                eq(LockModeType.PESSIMISTIC_WRITE));
+        verify(roundRepository, times(2))
+                .findByCommunityIdAndSeasonIdAndPlayedAt(10L, 30L, playedAt);
+        verify(roundRepository, never()).save(any());
+        verify(roundEntryRepository, never()).save(any());
+        verifyNoInteractions(communityPlayerRepository);
+    }
+
+    @Test
+    void reimportingExistingRoundIsIdempotentWithoutRecreatingPlayers() {
+        authorize();
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        CommunityRound existing = storedRound(71L, "Import 2026-10-01");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(existing));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+
+        var result = service.confirmRounds(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(),
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(0, result.createdRounds());
+        assertEquals(1, result.skippedDuplicateRounds());
+        assertEquals(0, result.createdEntries());
+        verify(entityManager).lock(any(CommunitySeason.class),
+                eq(LockModeType.PESSIMISTIC_WRITE));
+        verify(roundRepository, never()).save(any());
+        verify(roundEntryRepository, never()).save(any());
+        verifyNoInteractions(communityPlayerRepository);
+    }
+
+    @Test
+    void existingImportedRoundIsRecognizedByItsContentsNotOnlyTheDate() {
+        authorize();
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(storedRound(71L, "Import 2026-10-01")));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+
+        var plan = service.finalRoundsPlan(10L, "organizer",
+                singleRound("ÁNA", "WIN"), roundMapping(),
+                new CommunityImportContextRequest(30L, null));
+
         assertEquals(1, plan.duplicateRounds());
         assertTrue(plan.rounds().getFirst().duplicate());
     }
+
+    @Test
+    void identicalImportedRoundIsDetectedEvenWhenExcelRowsAreReordered() {
+        authorize();
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(storedRound(71L, "Import 2026-10-01")));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(
+                        storedEntry("ana", CommunityMatchResult.WIN),
+                        storedEntry("bruno", CommunityMatchResult.LOSS)));
+        var file = new MockMultipartFile("file", "jornada-invertida.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Bruno,LOSS\n"
+                + "01/10/2026,ÁNA,WIN\n").getBytes(StandardCharsets.UTF_8));
+
+        var plan = service.finalRoundsPlan(10L, "organizer", file, roundMapping(),
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(1, plan.duplicateRounds());
+        assertTrue(plan.rounds().getFirst().duplicate());
+        assertEquals(2, plan.rounds().getFirst().players());
+    }
+
+    @Test
+    void sourceCompetitionAndRoundDifferentiateIdenticalSameDayMatches() {
+        authorize();
+        CommunityRound otherCup = storedRound(71L,
+                "Import 2026-10-01 | Competição: Liga da Amizade | Jornada: 2");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any())).thenReturn(List.of(otherCup));
+        var context = new CommunityImportContextRequest(30L, null, "Taça de Outubro", "2");
+        var plan = service.finalRoundsPlan(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(), context);
+
+        assertEquals(0, plan.duplicateRounds());
+        verifyNoInteractions(roundEntryRepository);
+    }
+
+    @Test
+    void sourceCompetitionAndRoundIdentifyAnExistingImport() {
+        authorize();
+        var stored = storedRound(71L, "Import 2026-10-01 | Competição: Liga | Jornada: 2");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any())).thenReturn(List.of(stored));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+        var plan = service.finalRoundsPlan(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(),
+                new CommunityImportContextRequest(30L, null, " Liga ", " 2 "));
+
+        assertEquals(1, plan.duplicateRounds());
+        assertTrue(plan.rounds().getFirst().duplicate());
+    }
+
+    @Test
+    void confirmationPersistsSourceCompetitionAndRoundInNewRoundName() {
+        authorize();
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        when(roundRepository.save(any(CommunityRound.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        CommunityPlayer player = new CommunityPlayer();
+        player.setNormalizedName("ana");
+        player.setDisplayName("Ana");
+        when(communityPlayerRepository.findByCommunityIdAndNormalizedName(10L, "ana"))
+                .thenReturn(Optional.of(player));
+        var context = new CommunityImportContextRequest(30L, null, " Liga ", " 2 ");
+
+        var result = service.confirmRounds(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(), context);
+
+        assertEquals(1, result.createdRounds());
+        var captured = org.mockito.ArgumentCaptor.forClass(CommunityRound.class);
+        verify(roundRepository).save(captured.capture());
+        assertEquals("Import 2026-10-01 | Competição: Liga | Jornada: 2",
+                captured.getValue().getName());
+        verify(entityManager).lock(any(CommunitySeason.class),
+                eq(LockModeType.PESSIMISTIC_WRITE));
+    }
+
+    @Test
+    void rejectsSingleRoundLabelForMultiDayFileBeforeConfirmation() {
+        authorize();
+        var file = new MockMultipartFile("file", "duas-datas.csv", "text/csv",
+                ("Date,Player,Result\n01/10/2026,Ana,WIN\n02/10/2026,Bruno,LOSS\n")
+                        .getBytes(StandardCharsets.UTF_8));
+        var context = new CommunityImportContextRequest(30L, null, "Liga", "Jornada 3");
+        var error = assertThrows(IllegalArgumentException.class, () ->
+                service.finalRoundsPlan(10L, "organizer", file, roundMapping(), context));
+
+        assertTrue(error.getMessage().contains("única data"));
+        verifyNoInteractions(roundRepository);
+    }
+
+    @Test
+    void manuallyEnteredRoundOnSameDayDoesNotBlockHistoricalImport() {
+        authorize();
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(storedRound(70L, "Amigável")));
+
+        var plan = service.finalRoundsPlan(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(),
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(0, plan.duplicateRounds());
+        assertFalse(plan.rounds().getFirst().duplicate());
+        verifyNoInteractions(roundEntryRepository);
+    }
+
+    @Test
+    void differentStatisticsOnSameDateAreNotMistakenForAnIdenticalImport() {
+        authorize();
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any()))
+                .thenReturn(List.of(storedRound(71L, "Import 2026-10-01")));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+        var file = new MockMultipartFile("file", "nova-jornada.csv", "text/csv",
+                ("Date,Player,Result,Goals\n01/10/2026,Ana,WIN,2\n")
+                        .getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT"),
+                new CommunityImportMappingRequest.ColumnMapping(3, "GOALS")));
+
+        var plan = service.finalRoundsPlan(10L, "organizer", file, mapping,
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(0, plan.duplicateRounds());
+        assertFalse(plan.rounds().getFirst().duplicate());
+    }
+
+    @Test
+    void differentImportedGameSameDayCanBeRecordedWithoutDroppingResults() {
+        authorize();
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        CommunityRound firstGame = storedRound(71L, "Import 2026-10-01");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any())).thenReturn(List.of(firstGame));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+        when(roundRepository.save(any(CommunityRound.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        CommunityPlayer player = new CommunityPlayer();
+        player.setNormalizedName("ana");
+        player.setDisplayName("Ana");
+        when(communityPlayerRepository.findByCommunityIdAndNormalizedName(10L, "ana"))
+                .thenReturn(Optional.of(player));
+
+        // Same source player and date, but this is a distinct game with a LOSS.
+        var result = service.confirmRounds(10L, "organizer",
+                singleRound("Ana", "LOSS"), roundMapping(),
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(1, result.createdRounds());
+        assertEquals(0, result.skippedDuplicateRounds());
+        assertEquals(1, result.createdEntries());
+        verify(roundRepository, times(1)).save(any());
+        verify(roundEntryRepository, times(1)).save(any());
+        verify(entityManager).lock(any(CommunitySeason.class),
+                eq(LockModeType.PESSIMISTIC_WRITE));
+    }
+
+    private MockMultipartFile singleRound(String player, String result) {
+        return new MockMultipartFile("file", "jornada.csv", "text/csv",
+                ("Date,Player,Result\n01/10/2026," + player + "," + result + "\n")
+                        .getBytes(StandardCharsets.UTF_8));
+    }
+
+    private CommunityImportMappingRequest roundMapping() {
+        return new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
+    }
+
+    private CommunityRound storedRound(Long id, String name) {
+        return CommunityRound.builder().id(id).name(name).build();
+    }
+
+    private CommunityRoundEntry storedEntry(String normalizedName,
+            CommunityMatchResult result) {
+        CommunityPlayer player = new CommunityPlayer();
+        player.setNormalizedName(normalizedName);
+        return CommunityRoundEntry.builder().communityPlayer(player).result(result).build();
+    }
+
 }
