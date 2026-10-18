@@ -30,6 +30,32 @@ SPORT_MAP = {
     "martial_arts": "Artes Marciais",
 }
 
+# Only administrative area labels explicitly supplied by OSM are accepted.
+# Never infer a district from the city, BBOX or proximity.
+import unicodedata
+
+DISTRICTS = (
+    "Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra",
+    "Évora", "Faro", "Guarda", "Leiria", "Lisboa", "Portalegre",
+    "Porto", "Santarém", "Setúbal", "Viana do Castelo", "Vila Real", "Viseu",
+)
+REGIONS = ("Região Autónoma dos Açores", "Região Autónoma da Madeira")
+
+def normalize_area(value):
+    decomposed = unicodedata.normalize("NFKD", str(value or "").strip())
+    return " ".join("".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold().split())
+
+AREA_ALIASES = {normalize_area(area): area for area in DISTRICTS + REGIONS}
+AREA_ALIASES.update({"acores": REGIONS[0], "madeira": REGIONS[1]})
+
+def verified_district(tags):
+    for key in ("addr:district", "addr:province", "addr:state"):
+        value = AREA_ALIASES.get(normalize_area(tags.get(key)))
+        if value:
+            return value
+    return None
+
+
 VENUE_TYPES = {
     "sports_centre": "Complexo desportivo",
     "pitch": "Campo desportivo",
@@ -156,6 +182,7 @@ def to_payload(element):
         "sourceReference": f"OSM:{element['type']}/{element['id']}",
         "name": name,
         "city": city,
+        "district": verified_district(tags),
         "address": full_address,
         "sports": sport_names(tags),
         "venueType": venue_type(tags),
@@ -203,6 +230,8 @@ def main():
         "dryRun": DRY_RUN,
         "osmElements": len(elements),
         "importable": len(payload),
+        "withVerifiedDistrict": sum(bool(item.get("district")) for item in payload),
+        "withoutVerifiedDistrict": sum(not item.get("district") for item in payload),
         "rejected": rejected,
         "sample": payload[:5],
     }

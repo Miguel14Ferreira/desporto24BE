@@ -55,6 +55,7 @@ public class VenueService {
                         request.sourceReference(),
                         request.name(),
                         request.city(),
+                        request.district(),
                         request.address(),
                         request.sports(),
                         request.venueType(),
@@ -68,6 +69,21 @@ public class VenueService {
             String sourceReference,
             String name,
             String city,
+            String address,
+            String sports,
+            String venueType,
+            Venue.EnvironmentType environmentType,
+            Double latitude,
+            Double longitude) {
+        return upsertOpenStreetMapVenue(sourceReference, name, city, null, address,
+                sports, venueType, environmentType, latitude, longitude);
+    }
+
+    public VenueResponse upsertOpenStreetMapVenue(
+            String sourceReference,
+            String name,
+            String city,
+            String district,
             String address,
             String sports,
             String venueType,
@@ -90,6 +106,11 @@ public class VenueService {
 
         venue.setName(normalizedName);
         venue.setCity(normalizedCity);
+        // Missing/unknown OSM district must not erase a reviewed existing value.
+        String verifiedDistrict = trimToNull(district);
+        if (verifiedDistrict != null) {
+            venue.setDistrict(verifiedDistrict);
+        }
         venue.setAddress(normalizedAddress);
         venue.setSports(trimToNull(sports));
         venue.setVenueType(trimToNull(venueType));

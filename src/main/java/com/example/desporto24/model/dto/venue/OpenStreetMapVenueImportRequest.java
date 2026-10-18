@@ -10,6 +10,7 @@ public record OpenStreetMapVenueImportRequest(
         @NotBlank @Size(max = 255) String sourceReference,
         @NotBlank @Size(max = 140) String name,
         @NotBlank @Size(max = 120) String city,
+        @Size(max = 120) String district,
         @NotBlank @Size(max = 255) String address,
         @Size(max = 255) String sports,
         @Size(max = 80) String venueType,

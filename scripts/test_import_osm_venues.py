@@ -33,6 +33,20 @@ class OsmImportSafetyTests(unittest.TestCase):
                 importer.main()
             fetch.assert_not_called()
 
+    def test_only_explicit_verified_district_is_sent_to_api(self):
+        venue = {
+            "type": "way", "id": 99, "center": {"lat": 38.7, "lon": -9.1},
+            "tags": {"name": "Pavilhão", "addr:city": "Cascais",
+                     "addr:street": "Rua do Campo", "addr:district": "Lisboa"}
+        }
+        self.assertEqual(importer.to_payload(venue)["district"], "Lisboa")
+        venue["tags"].pop("addr:district")
+        self.assertIsNone(importer.to_payload(venue)["district"])
+        venue["tags"]["addr:state"] = "Distrito inventado"
+        self.assertIsNone(importer.to_payload(venue)["district"])
+        venue["tags"]["addr:state"] = "Açores"
+        self.assertEqual(importer.to_payload(venue)["district"], "Região Autónoma dos Açores")
+
     def test_dry_run_reports_rejected_venues_without_writing_to_api(self):
         elements = [
             {"type": "node", "id": 1, "lat": 38.7, "lon": -9.1,
@@ -53,6 +67,8 @@ class OsmImportSafetyTests(unittest.TestCase):
             data = json.loads(pathlib.Path(report_path).read_text(encoding="utf-8"))
             self.assertEqual(data["osmElements"], 3)
             self.assertEqual(data["importable"], 1)
+            self.assertEqual(data["withVerifiedDistrict"], 0)
+            self.assertEqual(data["withoutVerifiedDistrict"], 1)
             self.assertEqual(data["rejected"]["missing_name"], 1)
             self.assertEqual(data["rejected"]["missing_city"], 1)
             self.assertEqual(data["sample"][0]["sports"], "Basquetebol;Voleibol")
