@@ -544,8 +544,6 @@ public class CommunityImportService {
             String resolvedDate = entry.getKey();
             RoundImportAccumulator round = entry.getValue();
             acceptedRows += round.players.size();
-            Instant playedAt = LocalDate.parse(resolvedDate)
-                    .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
             // A date collision is not itself a duplicate: different imports and
             // manually entered rounds can legitimately occur on the same day.
             boolean duplicate = round.unresolvedResults == 0 && importedRoundExists(
