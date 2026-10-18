@@ -442,7 +442,7 @@ public class CommunityImportService {
                 // Keep the first appearance per player and round. Every later appearance
                 // is omitted consistently from validation, preview, planning and persistence.
                 if (round.players.add(normalizePlayerName(player))) {
-                    round.addResult(mapped);
+                    round.addResult(normalizePlayerName(player), mapped);
                 }
             }
         } catch (IOException exception) {
@@ -530,7 +530,7 @@ public class CommunityImportService {
                 RoundImportAccumulator round = combined.computeIfAbsent(
                         resolvedDate, ignored -> new RoundImportAccumulator());
                 if (round.players.add(normalizePlayerName(player))) {
-                    round.addResult(mapped);
+                    round.addResult(normalizePlayerName(player), mapped);
                 }
             }
         } catch (IOException exception) {
@@ -546,8 +546,10 @@ public class CommunityImportService {
             acceptedRows += round.players.size();
             Instant playedAt = LocalDate.parse(resolvedDate)
                     .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
-            boolean duplicate = communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
-                    communityId, context.seasonId(), playedAt);
+            // A date collision is not itself a duplicate: different imports and
+            // manually entered rounds can legitimately occur on the same day.
+            boolean duplicate = round.unresolvedResults == 0 && importedRoundExists(
+                    communityId, context.seasonId(), resolvedDate, round.entriesByPlayer);
             if (duplicate) duplicateRounds++;
             resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
                     resolvedDate, resolvedDate, false, false, duplicate, round.players.size(),
@@ -678,11 +680,18 @@ public class CommunityImportService {
                 CommunityImportRoundsPlanResponse.RoundPlan roundPlan = item.getValue();
                 Instant playedAt = LocalDate.parse(roundPlan.parsedDate())
                         .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
-                // Re-check *after* obtaining the season lock, not just in the
-                // preview plan. Another transaction may have imported it while
-                // this confirmation was reading and validating the file.
-                if (communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
-                        communityId, season.getId(), playedAt)) {
+                // The preview is informational. Re-check after locking the season,
+                // comparing the actual source entries instead of just the date.
+                List<Row> importedRows = rowsByRound.getOrDefault(item.getKey(), List.of());
+                java.util.Map<String, java.util.Map<String, String>> importedEntries =
+                        new java.util.LinkedHashMap<>();
+                for (Row row : importedRows) {
+                    List<String> values = values(row, formatter);
+                    importedEntries.put(normalizePlayerName(valueAt(values, playerColumn)),
+                            mappedValues(mapping, values));
+                }
+                if (importedRoundExists(
+                        communityId, season.getId(), roundPlan.parsedDate(), importedEntries)) {
                     skippedDuplicates++;
                     continue;
                 }
@@ -695,7 +704,7 @@ public class CommunityImportService {
                         .build());
                 createdRounds++;
 
-                for (Row row : rowsByRound.getOrDefault(item.getKey(), List.of())) {
+                for (Row row : importedRows) {
                     List<String> values = values(row, formatter);
                     String displayName = valueAt(values, playerColumn).trim();
                     String normalizedName = normalizePlayerName(displayName);
@@ -729,6 +738,44 @@ public class CommunityImportService {
 
         return new CommunityImportRoundsResultResponse(
                 createdRounds, skippedDuplicates, createdEntries);
+    }
+
+    /**
+     * Compare the imported round itself, not merely its date. Existing manual
+     * rounds and different source competitions on the same date must not suppress
+     * another import. Works with the original "Import yyyy-MM-dd" records too.
+     *
+     * Two truly identical sets of players/results on the same day remain
+     * indistinguishable without an explicit source competition or round key.
+     */
+    private boolean importedRoundExists(Long communityId, Long seasonId, String date,
+            java.util.Map<String, java.util.Map<String, String>> sourceEntries) {
+        if (sourceEntries.isEmpty()) return false;
+        Instant playedAt = LocalDate.parse(date)
+                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        String importedName = "Import " + date;
+        return communityRoundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                        communityId, seasonId, playedAt).stream()
+                .filter(round -> importedName.equals(round.getName()))
+                .anyMatch(round -> sameImportedEntries(round.getId(), sourceEntries));
+    }
+
+    private boolean sameImportedEntries(Long roundId,
+            java.util.Map<String, java.util.Map<String, String>> sourceEntries) {
+        List<CommunityRoundEntry> existing = communityRoundEntryRepository
+                .findByRoundIdOrderByIdAsc(roundId);
+        if (existing.size() != sourceEntries.size()) return false;
+        for (CommunityRoundEntry entry : existing) {
+            CommunityPlayer player = entry.getCommunityPlayer();
+            if (player == null || player.getNormalizedName() == null) return false;
+            java.util.Map<String, String> source = sourceEntries.get(player.getNormalizedName());
+            if (source == null || entry.getResult() != importedResult(source)
+                    || entry.getGoals() != importedInt(source.get("GOALS"))
+                    || entry.getAssists() != importedInt(source.get("ASSISTS"))
+                    || entry.isMvp() != (importedInt(source.get("MVP")) > 0)
+                    || entry.isCleanSheet() || entry.getTeam() != null) return false;
+        }
+        return true;
     }
 
     private CommunityMatchResult importedResult(java.util.Map<String, String> mapped) {
@@ -844,12 +891,15 @@ public class CommunityImportService {
 
     private static final class RoundImportAccumulator {
         private final java.util.Set<String> players = new java.util.LinkedHashSet<>();
+        private final java.util.Map<String, java.util.Map<String, String>> entriesByPlayer =
+                new java.util.LinkedHashMap<>();
         private int wins;
         private int draws;
         private int losses;
         private int unresolvedResults;
 
-        private void addResult(java.util.Map<String, String> mapped) {
+        private void addResult(String normalizedPlayer, java.util.Map<String, String> mapped) {
+            entriesByPlayer.put(normalizedPlayer, java.util.Map.copyOf(mapped));
             if (positive(mapped.get("WIN"))) {
                 wins++;
                 return;
