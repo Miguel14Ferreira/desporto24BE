@@ -7,6 +7,9 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityRoundEntry;
+import com.example.desporto24.model.community.CommunityRound;
+import com.example.desporto24.model.community.CommunityPlayer;
+import com.example.desporto24.model.community.CommunityHistoricalPlayerLink;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.CreateCommunitySeasonRequest;
 import com.example.desporto24.repository.ProfileRepository;
@@ -230,6 +233,53 @@ class CommunityCompetitionServiceTest {
         assertTrue(season.isChampionFinalized());
         assertNull(closed.championUsername());
         assertNull(closed.championPoints());
+    }
+
+
+    @Test
+    void acceptedAliasCombinesHistoricalGamesWithRealProfileWithoutChangingOriginalPlayer() {
+        Profile target = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(target)
+                .visibility(CommunityVisibility.PRIVATE)
+                .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0).build();
+        CommunityPlayer historical = CommunityPlayer.builder().id(10L).community(community)
+                .displayName("Ferreirinha").normalizedName("ferreirinha").build();
+        CommunityPlayer original = CommunityPlayer.builder().id(11L).community(community)
+                .displayName("Miguel Ferreira").normalizedName("miguel ferreira").profile(target).build();
+        CommunityRound round1 = CommunityRound.builder().id(21L).community(community).build();
+        CommunityRound round2 = CommunityRound.builder().id(22L).community(community).build();
+        CommunityRoundEntry older = CommunityRoundEntry.builder().round(round1)
+                .communityPlayer(historical).result(CommunityMatchResult.WIN).build();
+        CommunityRoundEntry recent = CommunityRoundEntry.builder().round(round2)
+                .communityPlayer(original).profile(target).result(CommunityMatchResult.LOSS).build();
+        CommunityHistoricalPlayerLink accepted = CommunityHistoricalPlayerLink.builder()
+                .id(50L).community(community).player(historical).profile(target).status("ACCEPTED").build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, target, CommunityRole.OWNER)));
+        when(playerRepository.findByCommunityIdAndProfileId(7L, 1L)).thenReturn(Optional.of(original));
+        when(historicalPlayerLinkRepository.findByCommunityIdAndStatus(7L, "ACCEPTED"))
+                .thenReturn(List.of(accepted));
+        when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
+                .thenReturn(List.of(older, recent));
+        when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
+                .thenReturn(List.of(round2, round1));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+        when(entryRepository.findByRoundIdOrderByIdAsc(21L)).thenReturn(List.of(older));
+        when(entryRepository.findByRoundIdOrderByIdAsc(22L)).thenReturn(List.of(recent));
+
+        var overview = service.overview(7L, "TMF14");
+        assertEquals(1, overview.standings().size());
+        assertEquals("TMF14", overview.standings().getFirst().username());
+        assertEquals("Miguel Ferreira", overview.standings().getFirst().fullName());
+        assertEquals(2, overview.standings().getFirst().games());
+        assertEquals(3, overview.standings().getFirst().points());
+        assertEquals("Ferreirinha", overview.rounds().get(1).entries().getFirst().fullName());
+        assertNull(historical.getProfile());
     }
 
     private Profile profile(Long id, String username, String fullName) {
