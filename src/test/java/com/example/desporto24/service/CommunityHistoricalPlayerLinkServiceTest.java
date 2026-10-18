@@ -127,6 +127,117 @@ class CommunityHistoricalPlayerLinkServiceTest {
         verifyNoInteractions(entries);
     }
 
+
+    @Test
+    void ordinaryMemberCanClaimTheirOwnHistoricalNameWithoutManagerApproval() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.empty());
+        when(entries.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L)).thenReturn(List.of());
+        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
+        when(links.save(any())).thenAnswer(invocation -> {
+            CommunityHistoricalPlayerLink link = invocation.getArgument(0);
+            link.setId(90L);
+            return link;
+        });
+
+        var claimed = service.claimForMe(7L, "TMF14", 10L);
+
+        assertEquals("Ferreirinha", claimed.historicalName());
+        assertEquals("TMF14", claimed.targetUsername());
+        assertEquals("ACCEPTED", claimed.status());
+        assertNull(historical.getProfile());
+        verify(communities, never()).existsById(any());
+        verify(members, never()).findByCommunityIdAndProfileId(any(), any());
+        verify(entries, never()).save(any());
+    }
+
+    @Test
+    void nonMembersAndOtherCommunitiesCannotClaimNames() {
+        when(profiles.findUserByUsernameIgnoreCase("stranger")).thenReturn(Optional.of(stranger));
+        when(members.existsByCommunityIdAndProfileId(7L, 3L)).thenReturn(false);
+        assertThrows(AccessDeniedException.class, () -> service.claimForMe(7L, "stranger", 10L));
+        verifyNoInteractions(players, links);
+
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.claimForMe(8L, "TMF14", 10L));
+    }
+
+    @Test
+    void claimedHistoricalNameCannotBeTakenByAnotherMember() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(links.findByCommunityIdAndPlayerId(7L, 10L))
+                .thenReturn(Optional.of(link(90L, historical, owner, "ACCEPTED")));
+        assertThrows(IllegalStateException.class, () -> service.claimForMe(7L, "TMF14", 10L));
+        verify(entries, never()).save(any());
+        verify(links, never()).save(any());
+    }
+
+    @Test
+    void claimingSameNameTwiceIsSafeAndDoesNotRewriteAnyHistory() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(links.findByCommunityIdAndPlayerId(7L, 10L))
+                .thenReturn(Optional.of(link(90L, historical, target, "ACCEPTED")));
+        assertEquals("ACCEPTED", service.claimForMe(7L, "TMF14", 10L).status());
+        verifyNoInteractions(entries);
+        verify(links, never()).save(any());
+    }
+
+    @Test
+    void selfClaimRejectsTwoParticipationsBySamePersonInOneRound() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.empty());
+        CommunityRound round = CommunityRound.builder().id(77L).community(community).build();
+        CommunityPlayer existing = CommunityPlayer.builder().id(11L).community(community).profile(target).build();
+        when(entries.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L)).thenReturn(List.of(
+                CommunityRoundEntry.builder().round(round).communityPlayer(historical).build(),
+                CommunityRoundEntry.builder().round(round).communityPlayer(existing).profile(target).build()));
+        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
+        assertThrows(IllegalStateException.class, () -> service.claimForMe(7L, "TMF14", 10L));
+        verify(links, never()).save(any());
+    }
+
+    @Test
+    void onlyClaimOwnerMayReleaseItWithoutDeletingHistoricalResults() {
+        when(profiles.findUserByUsernameIgnoreCase("stranger")).thenReturn(Optional.of(stranger));
+        when(members.existsByCommunityIdAndProfileId(7L, 3L)).thenReturn(true);
+        var current = link(90L, historical, target, "ACCEPTED");
+        when(links.findByIdAndCommunityId(90L, 7L)).thenReturn(Optional.of(current));
+        assertThrows(AccessDeniedException.class, () -> service.releaseMyClaim(7L, 90L, "stranger"));
+
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        service.releaseMyClaim(7L, 90L, "TMF14");
+        assertEquals("REJECTED", current.getStatus());
+        assertNull(current.getConfirmedAt());
+        assertNull(historical.getProfile());
+        verify(links).save(current);
+        verifyNoInteractions(entries);
+    }
+
+    @Test
+    void normalMemberMayBrowseHistoricalNamesWithoutSeeingOtherProfiles() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findByCommunityIdOrderByDisplayNameAsc(7L)).thenReturn(List.of(historical));
+        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED"))
+                .thenReturn(List.of(link(90L, historical, owner, "ACCEPTED")));
+        var candidates = service.candidates(7L, "TMF14");
+        assertEquals(1, candidates.size());
+        assertEquals("ACCEPTED", candidates.getFirst().linkStatus());
+        assertNull(candidates.getFirst().linkedUsername());
+    }
+
     private void manager() {
         when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
         when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
