@@ -81,6 +81,7 @@ public class CommunityImportService {
                 .orElseThrow(() -> new IllegalArgumentException("Utilizador não encontrado"));
         requireAdmin(communityId, actor);
 
+        validateSourceLabels(request);
         CommunitySeason season = communitySeasonRepository.findById(request.seasonId())
                 .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
@@ -537,6 +538,11 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro histórico", exception);
         }
 
+        if (context.sourceRound() != null && !context.sourceRound().isBlank()
+                && combined.size() > 1) {
+            throw new IllegalArgumentException(
+                    "A jornada de origem aplica-se a uma única data. Para importar várias datas, deixa esse campo vazio");
+        }
         int duplicateRounds = 0;
         int acceptedRows = 0;
         List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
@@ -546,8 +552,9 @@ public class CommunityImportService {
             acceptedRows += round.players.size();
             // A date collision is not itself a duplicate: different imports and
             // manually entered rounds can legitimately occur on the same day.
+            String importName = importRoundName(resolvedDate, context);
             boolean duplicate = round.unresolvedResults == 0 && importedRoundExists(
-                    communityId, context.seasonId(), resolvedDate, round.entriesByPlayer);
+                    communityId, context.seasonId(), resolvedDate, importName, round.entriesByPlayer);
             if (duplicate) duplicateRounds++;
             resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
                     resolvedDate, resolvedDate, false, false, duplicate, round.players.size(),
@@ -688,15 +695,16 @@ public class CommunityImportService {
                     importedEntries.put(normalizePlayerName(valueAt(values, playerColumn)),
                             mappedValues(mapping, values));
                 }
+                String importedName = importRoundName(roundPlan.parsedDate(), context);
                 if (importedRoundExists(
-                        communityId, season.getId(), roundPlan.parsedDate(), importedEntries)) {
+                        communityId, season.getId(), roundPlan.parsedDate(), importedName, importedEntries)) {
                     skippedDuplicates++;
                     continue;
                 }
                 CommunityRound round = communityRoundRepository.save(CommunityRound.builder()
                         .community(community)
                         .season(season)
-                        .name("Import " + roundPlan.parsedDate())
+                        .name(importedName)
                         .playedAt(playedAt)
                         .createdAt(Instant.now())
                         .build());
@@ -746,15 +754,46 @@ public class CommunityImportService {
      * Two truly identical sets of players/results on the same day remain
      * indistinguishable without an explicit source competition or round key.
      */
+    private String importRoundName(String date, CommunityImportContextRequest context) {
+        String competition = sourceLabel(context.sourceCompetition());
+        String sourceRound = sourceLabel(context.sourceRound());
+        String name = "Import " + date
+                + (competition.isEmpty() ? "" : " | Competição: " + competition)
+                + (sourceRound.isEmpty() ? "" : " | Jornada: " + sourceRound);
+        if (name.length() > 100) {
+            throw new IllegalArgumentException(
+                    "A competição e a jornada de origem são demasiado longas para identificar a importação");
+        }
+        return name;
+    }
+
+    private void validateSourceLabels(CommunityImportContextRequest context) {
+        if (context == null) throw new IllegalArgumentException("Indica a época de destino");
+        for (String label : List.of(
+                sourceLabel(context.sourceCompetition()), sourceLabel(context.sourceRound()))) {
+            if (label.indexOf('|') >= 0 || label.chars().anyMatch(Character::isISOControl)) {
+                throw new IllegalArgumentException(
+                        "A identificação de origem não pode conter barras verticais ou caracteres de controlo");
+            }
+        }
+        if (sourceLabel(context.sourceCompetition()).length() > 60
+                || sourceLabel(context.sourceRound()).length() > 40) {
+            throw new IllegalArgumentException("A identificação de origem é demasiado longa");
+        }
+    }
+
+    private String sourceLabel(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ");
+    }
+
     private boolean importedRoundExists(Long communityId, Long seasonId, String date,
-            java.util.Map<String, java.util.Map<String, String>> sourceEntries) {
+            String importName, java.util.Map<String, java.util.Map<String, String>> sourceEntries) {
         if (sourceEntries.isEmpty()) return false;
         Instant playedAt = LocalDate.parse(date)
                 .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
-        String importedName = "Import " + date;
         return communityRoundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
                         communityId, seasonId, playedAt).stream()
-                .filter(round -> importedName.equals(round.getName()))
+                .filter(round -> importName.equalsIgnoreCase(round.getName()))
                 .anyMatch(round -> sameImportedEntries(round.getId(), sourceEntries));
     }
 

@@ -425,6 +425,51 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void sourceCompetitionAndRoundDifferentiateIdenticalSameDayMatches() {
+        authorize();
+        CommunityRound otherCup = storedRound(71L,
+                "Import 2026-10-01 | Competição: Liga da Amizade | Jornada: 2");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any())).thenReturn(List.of(otherCup));
+        var context = new CommunityImportContextRequest(30L, null, "Taça de Outubro", "2");
+        var plan = service.finalRoundsPlan(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(), context);
+
+        assertEquals(0, plan.duplicateRounds());
+        verifyNoInteractions(roundEntryRepository);
+    }
+
+    @Test
+    void sourceCompetitionAndRoundIdentifyAnExistingImport() {
+        authorize();
+        var stored = storedRound(71L, "Import 2026-10-01 | Competição: Liga | Jornada: 2");
+        when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                eq(10L), eq(30L), any())).thenReturn(List.of(stored));
+        when(roundEntryRepository.findByRoundIdOrderByIdAsc(71L))
+                .thenReturn(List.of(storedEntry("ana", CommunityMatchResult.WIN)));
+        var plan = service.finalRoundsPlan(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(),
+                new CommunityImportContextRequest(30L, null, " Liga ", " 2 "));
+
+        assertEquals(1, plan.duplicateRounds());
+        assertTrue(plan.rounds().getFirst().duplicate());
+    }
+
+    @Test
+    void rejectsSingleRoundLabelForMultiDayFileBeforeConfirmation() {
+        authorize();
+        var file = new MockMultipartFile("file", "duas-datas.csv", "text/csv",
+                ("Date,Player,Result\n01/10/2026,Ana,WIN\n02/10/2026,Bruno,LOSS\n")
+                        .getBytes(StandardCharsets.UTF_8));
+        var context = new CommunityImportContextRequest(30L, null, "Liga", "Jornada 3");
+        var error = assertThrows(IllegalArgumentException.class, () ->
+                service.finalRoundsPlan(10L, "organizer", file, roundMapping(), context));
+
+        assertTrue(error.getMessage().contains("única data"));
+        verifyNoInteractions(roundRepository);
+    }
+
+    @Test
     void manuallyEnteredRoundOnSameDayDoesNotBlockHistoricalImport() {
         authorize();
         when(roundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
