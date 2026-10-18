@@ -198,9 +198,9 @@ public class CommunityImportService {
                     }
                     for (CommunityImportMappingRequest.ColumnMapping mapping : numericMappings) {
                         String value = valueAt(rowValues, mapping.columnIndex());
-                        if (!value.isBlank() && !isNumber(value)) {
+                        if (!validImportMetric(mapping.field(), value)) {
                             warnings.add("Linha " + excelRow + ": " + mapping.field()
-                                    + " não é numérico ('" + value + "')");
+                                    + " exige um número inteiro válido ('" + value + "')");
                             rowValid = false;
                         }
                     }
@@ -913,10 +913,27 @@ public class CommunityImportService {
 
     private boolean numericValuesValid(java.util.Map<String, String> mapped) {
         for (String field : Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP")) {
-            String value = mapped.get(field);
-            if (value != null && !value.isBlank() && !isNumber(value)) return false;
+            if (!validImportMetric(field, mapped.get(field))) return false;
         }
         return true;
+    }
+
+    private boolean validImportMetric(String field, String raw) {
+        if (raw == null || raw.isBlank()) return true;
+        try {
+            double number = Double.parseDouble(raw.trim().replace(',', '.'));
+            if (!Double.isFinite(number) || number != Math.rint(number)
+                    || Math.abs(number) > 1_000_000) return false;
+            String normalizedField = field.trim().toUpperCase(Locale.ROOT);
+            if (Set.of("WIN", "DRAW", "LOSS", "MVP").contains(normalizedField)) {
+                return number == 0 || number == 1;
+            }
+            // A historical points deduction may be negative. Physical match
+            // statistics (goals, assists) may not.
+            return normalizedField.equals("POINTS") || number >= 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     private Double numberOrNull(String value) {
@@ -930,15 +947,6 @@ public class CommunityImportService {
 
     private String valueAt(List<String> values, int index) {
         return index >= 0 && index < values.size() ? values.get(index).trim() : "";
-    }
-
-    private boolean isNumber(String value) {
-        try {
-            Double.parseDouble(value.replace(',', '.'));
-            return true;
-        } catch (NumberFormatException exception) {
-            return false;
-        }
     }
 
     private List<CommunityImportPreviewResponse.ColumnSuggestion> suggestColumns(
