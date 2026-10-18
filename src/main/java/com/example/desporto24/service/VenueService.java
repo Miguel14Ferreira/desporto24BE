@@ -5,10 +5,12 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.venue.CreateVenueRequest;
 import com.example.desporto24.model.dto.venue.OpenStreetMapVenueImportRequest;
 import com.example.desporto24.model.dto.venue.VenueResponse;
+import com.example.desporto24.model.dto.venue.VenueSuggestionPage;
 import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +43,33 @@ public class VenueService {
                         && hasSport(venue.getSports(), sportQuery)))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /**
+     * Return exactly the frontend autocomplete contract: up to 40 results,
+     * page index and a hasMore flag. Query 41 rows to avoid a count(*) scan.
+     */
+    @Transactional(readOnly = true)
+    public VenueSuggestionPage suggest(String name, String city, String sport, int page) {
+        if (page < 0 || page > 1000) {
+            throw new IllegalArgumentException("Página de recintos inválida");
+        }
+        final int pageSize = 40;
+        List<Venue> matches = venueRepository.findSuggestions(
+                searchText(name),
+                searchText(city),
+                searchText(sport),
+                PageRequest.of(page, pageSize + 1));
+        boolean hasMore = matches.size() > pageSize;
+        return new VenueSuggestionPage(
+                matches.stream().limit(pageSize).map(this::toResponse).toList(),
+                page,
+                hasMore);
+    }
+
+    private String searchText(String input) {
+        String normalized = normalize(input);
+        return normalized == null ? "" : normalized;
     }
 
     @Transactional(readOnly = true)
