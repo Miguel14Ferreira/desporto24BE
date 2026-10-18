@@ -56,8 +56,8 @@ public class VenueService {
         }
         final int pageSize = 40;
         List<Venue> matches = venueRepository.findSuggestions(
-                searchText(name),
-                searchText(city),
+                containsPattern(name),
+                containsPattern(city),
                 searchText(sport),
                 page * pageSize);
         boolean hasMore = matches.size() > pageSize;
@@ -70,6 +70,19 @@ public class VenueService {
     private String searchText(String input) {
         String normalized = normalize(input);
         return normalized == null ? "" : normalized;
+    }
+
+    /**
+     * Escape LIKE metacharacters while preserving partial-name search.
+     * '~' is explicitly the PostgreSQL escape character in the repository query.
+     * Values remain JDBC bind parameters, never interpolated into SQL.
+     */
+    private String containsPattern(String input) {
+        String value = searchText(input);
+        if (value.isEmpty()) return "%";
+        return "%" + value.replace("~", "~~")
+                          .replace("%", "~%")
+                          .replace("_", "~_") + "%";
     }
 
     /**

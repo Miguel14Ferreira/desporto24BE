@@ -35,7 +35,7 @@ class VenueSuggestionPagingTest {
     void pagesAreBoundedAndHaveMoreUsesOneLookaheadRow() {
         List<Venue> fortyOne = IntStream.rangeClosed(1, 41)
                 .mapToObj(i -> venue(i, "Campo " + i, "Lisboa")).toList();
-        when(repository.findSuggestions("campo", "lisboa", "padel", 80))
+        when(repository.findSuggestions("%campo%", "%lisboa%", "padel", 80))
                 .thenReturn(fortyOne);
 
         var response = service.suggest("  CAMPO  ", " LISBOA ", " PADEL ", 2);
@@ -45,15 +45,15 @@ class VenueSuggestionPagingTest {
         assertEquals(1L, response.venues().getFirst().id());
         assertEquals(40L, response.venues().getLast().id());
 
-        verify(repository).findSuggestions("campo", "lisboa", "padel", 80);
+        verify(repository).findSuggestions("%campo%", "%lisboa%", "padel", 80);
         verify(repository, never()).findAllByOrderByNameAsc();
     }
 
     @Test
     void lastAndEmptyPagesDoNotClaimMoreResults() {
-        when(repository.findSuggestions("", "", "", 0))
+        when(repository.findSuggestions("%", "%", "", 0))
                 .thenReturn(List.of(venue(99L, "Campo Único", "Porto")));
-        when(repository.findSuggestions("", "", "", 40))
+        when(repository.findSuggestions("%", "%", "", 40))
                 .thenReturn(List.of());
         var last = service.suggest(null, null, null, 0);
         assertEquals(1, last.venues().size());
@@ -62,6 +62,14 @@ class VenueSuggestionPagingTest {
         assertEquals(1, empty.page());
         assertTrue(empty.venues().isEmpty());
         assertFalse(empty.hasMore());
+    }
+
+    @Test
+    void escapesLikeWildcardsAndEscapeCharacterWithoutChangingSportToken() {
+        when(repository.findSuggestions("%100~% ~_ ~~ sport%", "%porto%", "futsal", 0))
+                .thenReturn(List.of());
+        service.suggest("100% _ ~ Sport", "Porto", "FUTSAL", 0);
+        verify(repository).findSuggestions("%100~% ~_ ~~ sport%", "%porto%", "futsal", 0);
     }
 
     @Test

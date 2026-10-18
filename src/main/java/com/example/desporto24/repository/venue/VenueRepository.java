@@ -21,9 +21,9 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     @Query(value = """
             SELECT v.*
             FROM venue v
-            WHERE (:name = '' OR strpos(lower(v.name), :name) > 0
-                   OR strpos(lower(v.address), :name) > 0)
-              AND (:city = '' OR strpos(lower(v.city), :city) > 0)
+            WHERE (:namePattern = '%' OR lower(v.name) LIKE :namePattern ESCAPE '~'
+                   OR lower(v.address) LIKE :namePattern ESCAPE '~')
+              AND (:cityPattern = '%' OR lower(v.city) LIKE :cityPattern ESCAPE '~')
               AND (:sport = '' OR EXISTS (
                    SELECT 1
                    FROM regexp_split_to_table(coalesce(v.sports, ''), '[;,]') AS token
@@ -33,8 +33,8 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             LIMIT 41 OFFSET :offset
             """, nativeQuery = true)
     List<Venue> findSuggestions(
-            @Param("name") String name,
-            @Param("city") String city,
+            @Param("namePattern") String namePattern,
+            @Param("cityPattern") String cityPattern,
             @Param("sport") String sport,
             @Param("offset") int offset);
 

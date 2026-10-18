@@ -1,0 +1,38 @@
+databaseChangeLog:
+  # Requires pg_trgm on the PostgreSQL database. Review extension privileges and
+  # EXPLAIN ANALYZE on a dedicated staging DB before merging; NOT yet deployed.
+  - changeSet:
+      id: 2026-10-18-enable-pg-trgm-venue
+      author: jynlo
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: CREATE EXTENSION IF NOT EXISTS pg_trgm
+  - changeSet:
+      id: 2026-10-18-venue-suggest-name-trgm
+      author: jynlo
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: CREATE INDEX IF NOT EXISTS idx_venue_name_trgm ON venue USING gin (lower(name) gin_trgm_ops)
+  - changeSet:
+      id: 2026-10-18-venue-suggest-city-trgm
+      author: jynlo
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: CREATE INDEX IF NOT EXISTS idx_venue_city_trgm ON venue USING gin (lower(city) gin_trgm_ops)
+  - changeSet:
+      id: 2026-10-18-venue-suggest-address-trgm
+      author: jynlo
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: CREATE INDEX IF NOT EXISTS idx_venue_address_trgm ON venue USING gin (lower(address) gin_trgm_ops)
+  - changeSet:
+      id: 2026-10-18-venue-suggest-name-city-order
+      author: jynlo
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: CREATE INDEX IF NOT EXISTS idx_venue_name_city_id ON venue (lower(name), lower(city), id)
