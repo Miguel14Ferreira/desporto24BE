@@ -71,7 +71,7 @@ class FriendServiceImplTest {
         when(profileService.findUserByUsername("recipient")).thenReturn(recipientDto);
         when(profileRepository.findUserByUsername("owner<script>")).thenReturn(Optional.of(sender));
         when(profileRepository.findUserByUsername("recipient")).thenReturn(Optional.of(recipient));
-        when(friendRepository.findByProfile1OrProfile2(sender, sender)).thenReturn(List.of());
+        when(friendRepository.findConnection(1L, 2L)).thenReturn(Optional.empty());
         org.springframework.test.util.ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test/");
 
         service.sendFriendRequest(request("owner<script>", "recipient"));
@@ -113,8 +113,8 @@ class FriendServiceImplTest {
         when(profileService.findUserByUsername("ana")).thenReturn(anaDto);
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(miguel));
         when(profileRepository.findUserByUsername("ana")).thenReturn(Optional.of(ana));
-        when(friendRepository.findByProfile1OrProfile2(miguel, miguel))
-                .thenReturn(List.of());
+        when(friendRepository.findConnection(1L, 2L))
+                .thenReturn(Optional.empty());
         when(friendRequestService.hasPendingRequestBetween("miguel", "ana"))
                 .thenReturn(true);
 
@@ -138,8 +138,8 @@ class FriendServiceImplTest {
                 .thenReturn(Optional.of(miguel));
         when(profileRepository.findUserByUsername("ana"))
                 .thenReturn(Optional.of(ana));
-        when(friendRepository.findByProfile1OrProfile2(miguel, miguel))
-                .thenReturn(List.of(friendship));
+        when(friendRepository.findConnection(1L, 2L))
+                .thenReturn(Optional.of(friendship));
 
         assertThrows(
                 AccessDeniedException.class,
@@ -161,8 +161,8 @@ class FriendServiceImplTest {
                 .thenReturn(Optional.of(miguel));
         when(profileRepository.findUserByUsername("ana"))
                 .thenReturn(Optional.of(ana));
-        when(friendRepository.findByProfile1OrProfile2(miguel, miguel))
-                .thenReturn(List.of(friendship));
+        when(friendRepository.findConnection(1L, 2L))
+                .thenReturn(Optional.of(friendship));
 
         assertThrows(
                 AccessDeniedException.class,
@@ -183,8 +183,8 @@ class FriendServiceImplTest {
                 .thenReturn(Optional.of(miguel));
         when(profileRepository.findUserByUsername("ana"))
                 .thenReturn(Optional.of(ana));
-        when(friendRepository.findByProfile1OrProfile2(miguel, miguel))
-                .thenReturn(List.of(friendship));
+        when(friendRepository.findConnection(1L, 2L))
+                .thenReturn(Optional.of(friendship));
 
         service.unblockFriend("miguel", "ana");
 
