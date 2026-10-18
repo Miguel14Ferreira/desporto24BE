@@ -81,6 +81,64 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void ignoresRejectedImportMetricsInBothPreviewAndSavedPlayerIdentities() {
+        Profile actor = new Profile();
+        actor.setId(5L);
+        when(profileRepository.findUserByUsernameIgnoreCase("organizer"))
+                .thenReturn(Optional.of(actor));
+        CommunityMember member = new CommunityMember();
+        member.setRole(CommunityRole.OWNER);
+        when(memberRepository.findByCommunityIdAndProfileId(10L, 5L))
+                .thenReturn(Optional.of(member));
+
+        var file = new MockMultipartFile("file", "metricas.csv", "text/csv",
+                ("Date,Player,Result,Goals,WIN,POINTS\n"
+                + "01/10/2026,Ana,WIN,2.0,1,3\n"
+                + "01/10/2026,Bruno,LOSS,-2,0,0\n"
+                + "01/10/2026,Carlos,WIN,1.5,1,3\n"
+                + "01/10/2026,Dina,WIN,NaN,1,3\n"
+                + "01/10/2026,Ema,WIN,Infinity,1,3\n"
+                + "01/10/2026,Filipe,WIN,2,2,3\n"
+                + "01/10/2026,Grace,WIN,1000001,1,3\n"
+                + "01/10/2026,Hugo,WIN,2,1,abc\n"
+                + "02/10/2026,Nuno,DRAW,0,0,-1\n")
+                .getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT"),
+                new CommunityImportMappingRequest.ColumnMapping(3, "GOALS"),
+                new CommunityImportMappingRequest.ColumnMapping(4, "WIN"),
+                new CommunityImportMappingRequest.ColumnMapping(5, "POINTS")));
+
+        var validation = service.validateMapping(10L, "organizer", file, mapping);
+        assertTrue(validation.valid());
+        assertEquals(2, validation.validRows());
+        assertEquals(7, validation.warnings().size());
+        var preview = service.normalizedPreview(10L, "organizer", file, mapping);
+        assertEquals(2, preview.acceptedRows());
+        assertEquals(7, preview.skippedRows());
+        assertTrue(preview.skipped().stream()
+                .allMatch(row -> row.reason().equals("INVALID_NUMERIC_VALUE")));
+
+        var plan = service.importPlan(10L, "organizer", file, mapping);
+        assertEquals(2, plan.acceptedRows());
+        assertEquals(2, plan.distinctPlayers());
+        assertEquals(List.of("Ana", "Nuno"),
+                plan.players().stream().map(player -> player.displayName()).toList());
+
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        var saved = service.confirmPlayers(10L, "organizer", file, mapping);
+        assertEquals(2, saved.createdPlayers());
+        var captor = org.mockito.ArgumentCaptor.forClass(CommunityPlayer.class);
+        verify(communityPlayerRepository, times(2)).save(captor.capture());
+        assertEquals(List.of("Ana", "Nuno"),
+                captor.getAllValues().stream().map(CommunityPlayer::getDisplayName).toList());
+    }
+
+    @Test
     void mergesEquivalentDateFormatsAndRetainsEveryDistinctPlayer() {
         authorize();
         var file = new MockMultipartFile("file", "jornadas.csv", "text/csv",
