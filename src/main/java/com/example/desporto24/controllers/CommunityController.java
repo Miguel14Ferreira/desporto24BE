@@ -251,31 +251,6 @@ public class CommunityController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/competition/historical-player-links")
-    public ResponseEntity<HistoricalPlayerLinkResponse> proposeHistoricalPlayerLink(
-            @PathVariable Long id, @RequestBody @Valid ProposeHistoricalPlayerLinkRequest request,
-            Authentication authentication) {
-        return ResponseEntity.ok(historicalPlayerLinkService.propose(id, authentication.getName(), request));
-    }
-
-    @GetMapping("/{id}/competition/historical-player-links/me")
-    public ResponseEntity<List<HistoricalPlayerLinkResponse>> myHistoricalPlayerLinks(
-            @PathVariable Long id, Authentication authentication) {
-        return ResponseEntity.ok(historicalPlayerLinkService.pendingForMe(id, authentication.getName()));
-    }
-
-    @PostMapping("/{id}/competition/historical-player-links/{linkId}/accept")
-    public ResponseEntity<HistoricalPlayerLinkResponse> acceptHistoricalPlayerLink(
-            @PathVariable Long id, @PathVariable Long linkId, Authentication authentication) {
-        return ResponseEntity.ok(historicalPlayerLinkService.decide(id, linkId, authentication.getName(), true));
-    }
-
-    @PostMapping("/{id}/competition/historical-player-links/{linkId}/reject")
-    public ResponseEntity<HistoricalPlayerLinkResponse> rejectHistoricalPlayerLink(
-            @PathVariable Long id, @PathVariable Long linkId, Authentication authentication) {
-        return ResponseEntity.ok(historicalPlayerLinkService.decide(id, linkId, authentication.getName(), false));
-    }
-
     @PostMapping("/{id}/competition/import/context/validate")
     public ResponseEntity<CommunityImportContextValidationResponse> validateCompetitionImportContext(
             @PathVariable Long id,

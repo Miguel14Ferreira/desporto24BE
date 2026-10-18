@@ -1,10 +1,7 @@
 package com.example.desporto24.service;
 
-import com.example.desporto24.enumeration.CommunityRole;
-import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.*;
-import com.example.desporto24.model.dto.community.ProposeHistoricalPlayerLinkRequest;
 import com.example.desporto24.repository.ProfileRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -27,7 +24,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CommunityHistoricalPlayerLinkServiceTest {
-    @Mock CommunityRepository communities;
     @Mock CommunityMemberRepository members;
     @Mock CommunityPlayerRepository players;
     @Mock CommunityHistoricalPlayerLinkRepository links;
@@ -51,88 +47,6 @@ class CommunityHistoricalPlayerLinkServiceTest {
     }
 
     @Test
-    void managerMayProposeButOnlyTargetMayConfirm() {
-        manager();
-        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
-        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
-        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.empty());
-        when(links.save(any())).thenAnswer(invocation -> {
-            CommunityHistoricalPlayerLink link = invocation.getArgument(0);
-            link.setId(50L);
-            return link;
-        });
-
-        var proposed = service.propose(7L, "owner", new ProposeHistoricalPlayerLinkRequest(10L, "TMF14"));
-        assertEquals("PENDING", proposed.status());
-        verify(players).findByIdForUpdate(10L);
-        assertEquals("Ferreirinha", proposed.historicalName());
-        assertEquals("TMF14", proposed.targetUsername());
-        assertNull(historical.getProfile());
-
-        CommunityHistoricalPlayerLink link = link(50L, historical, target, "PENDING");
-        when(profiles.findUserByUsernameIgnoreCase("stranger")).thenReturn(Optional.of(stranger));
-        when(members.existsByCommunityIdAndProfileId(7L, 3L)).thenReturn(true);
-        when(links.findByIdAndCommunityId(50L, 7L)).thenReturn(Optional.of(link));
-        assertThrows(AccessDeniedException.class, () -> service.decide(7L, 50L, "stranger", true));
-        verify(entries, never()).save(any());
-
-        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
-        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
-        when(entries.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L)).thenReturn(List.of());
-        var accepted = service.decide(7L, 50L, "TMF14", true);
-        assertEquals("ACCEPTED", accepted.status());
-        assertNotNull(link.getConfirmedAt());
-        assertNull(historical.getProfile());
-        verify(entries, never()).save(any());
-    }
-
-    @Test
-    void disallowsCrossCommunityAndAlreadyBoundPlayers() {
-        Community otherCommunity = Community.builder().id(8L).owner(owner).build();
-        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
-        when(members.existsByCommunityIdAndProfileId(8L, 1L)).thenReturn(true);
-        when(members.findByCommunityIdAndProfileId(8L, 1L)).thenReturn(Optional.of(
-                CommunityMember.builder().community(otherCommunity).profile(owner).role(CommunityRole.OWNER).build()));
-        when(communities.existsById(8L)).thenReturn(true);
-        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
-        assertThrows(org.springframework.web.server.ResponseStatusException.class,
-                () -> service.propose(8L, "owner", new ProposeHistoricalPlayerLinkRequest(10L, "TMF14")));
-    }
-
-    @Test
-    void checksForDuplicateParticipationsInSameRound() {
-        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
-        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        var link = link(50L, historical, target, "PENDING");
-        when(links.findByIdAndCommunityId(50L, 7L)).thenReturn(Optional.of(link));
-        CommunityRound round = CommunityRound.builder().id(77L).community(community).build();
-        CommunityPlayer other = CommunityPlayer.builder().id(11L).community(community).profile(target).build();
-        when(entries.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L)).thenReturn(List.of(
-                CommunityRoundEntry.builder().round(round).communityPlayer(historical).result(CommunityMatchResult.WIN).build(),
-                CommunityRoundEntry.builder().round(round).communityPlayer(other).profile(target)
-                        .result(CommunityMatchResult.LOSS).build()));
-        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
-        assertThrows(IllegalStateException.class, () -> service.decide(7L, 50L, "TMF14", true));
-        assertEquals("PENDING", link.getStatus());
-        verify(links, never()).save(any());
-    }
-
-    @Test
-    void rejectionPreservesOriginalSourceAndDoesNotChangeStandings() {
-        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
-        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        var link = link(50L, historical, target, "PENDING");
-        when(links.findByIdAndCommunityId(50L, 7L)).thenReturn(Optional.of(link));
-        when(links.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        var rejected = service.decide(7L, 50L, "TMF14", false);
-        assertEquals("REJECTED", rejected.status());
-        assertNull(historical.getProfile());
-        verifyNoInteractions(entries);
-    }
-
-
-    @Test
     void ordinaryMemberCanClaimTheirOwnHistoricalNameWithoutManagerApproval() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
@@ -154,7 +68,6 @@ class CommunityHistoricalPlayerLinkServiceTest {
         verify(entityManager).lock(target, LockModeType.PESSIMISTIC_WRITE);
         verify(players).findByIdForUpdate(10L);
         assertNull(historical.getProfile());
-        verify(communities, never()).existsById(any());
         verify(members, never()).findByCommunityIdAndProfileId(any(), any());
         verify(entries, never()).save(any());
     }
@@ -244,12 +157,45 @@ class CommunityHistoricalPlayerLinkServiceTest {
         assertNull(candidates.getFirst().linkedUsername());
     }
 
-    private void manager() {
-        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
-        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
-        when(members.findByCommunityIdAndProfileId(7L, 1L)).thenReturn(Optional.of(
-                CommunityMember.builder().community(community).profile(owner).role(CommunityRole.OWNER).build()));
-        when(communities.existsById(7L)).thenReturn(true);
+
+    @Test
+    void aPendingManagerSuggestionNeverReservesAnotherMembersHistoricalName() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
+        var oldSuggestion = link(50L, historical, owner, "PENDING");
+        when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.of(oldSuggestion));
+        when(entries.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
+                .thenReturn(List.of());
+        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
+        when(links.save(oldSuggestion)).thenReturn(oldSuggestion);
+
+        var claimed = service.claimForMe(7L, "TMF14", 10L);
+
+        assertEquals("ACCEPTED", claimed.status());
+        assertEquals("TMF14", claimed.targetUsername());
+        assertEquals(50L, claimed.id()); // reused row, no unique-key conflict
+        assertEquals(2L, oldSuggestion.getProfile().getId());
+        assertEquals("TMF14", oldSuggestion.getProposedByUsername());
+        assertNotNull(oldSuggestion.getConfirmedAt());
+        assertNull(historical.getProfile());
+        verify(entityManager).lock(target, LockModeType.PESSIMISTIC_WRITE);
+        verify(entries, never()).save(any());
+    }
+
+    @Test
+    void pendingUnacceptedSuggestionsAppearAsAvailableToAllCommunityMembers() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findByCommunityIdOrderByDisplayNameAsc(7L)).thenReturn(List.of(historical));
+        when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
+
+        var candidates = service.candidates(7L, "TMF14");
+
+        assertEquals(1, candidates.size());
+        assertEquals("UNLINKED", candidates.getFirst().linkStatus());
+        assertNull(candidates.getFirst().linkedUsername());
+        verify(links, never()).findByCommunityIdAndStatus(7L, "PENDING");
     }
 
     private Profile profile(Long id, String username) {
