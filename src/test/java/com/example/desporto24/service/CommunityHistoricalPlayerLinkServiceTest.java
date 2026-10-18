@@ -161,7 +161,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
         verifyNoInteractions(players, links);
 
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
-        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(members.existsByCommunityIdAndProfileId(8L, 2L)).thenReturn(true);
         when(players.findById(10L)).thenReturn(Optional.of(historical));
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> service.claimForMe(8L, "TMF14", 10L));
