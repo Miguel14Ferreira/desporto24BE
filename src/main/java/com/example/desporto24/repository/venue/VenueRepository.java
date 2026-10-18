@@ -2,7 +2,6 @@ package com.example.desporto24.repository.venue;
 
 import com.example.desporto24.model.venue.Venue;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,12 +30,13 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
                    WHERE lower(btrim(token)) = :sport
               ))
             ORDER BY lower(v.name), lower(v.city), v.id
+            LIMIT 41 OFFSET :offset
             """, nativeQuery = true)
     List<Venue> findSuggestions(
             @Param("name") String name,
             @Param("city") String city,
             @Param("sport") String sport,
-            Pageable pageable);
+            @Param("offset") int offset);
 
     Optional<Venue> findByInformationSourceAndSourceReference(
             Venue.InformationSource informationSource,

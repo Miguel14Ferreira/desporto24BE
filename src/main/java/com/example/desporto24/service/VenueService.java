@@ -10,7 +10,6 @@ import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +58,7 @@ public class VenueService {
                 searchText(name),
                 searchText(city),
                 searchText(sport),
-                PageRequest.of(page, pageSize + 1));
+                page * pageSize);
         boolean hasMore = matches.size() > pageSize;
         return new VenueSuggestionPage(
                 matches.stream().limit(pageSize).map(this::toResponse).toList(),

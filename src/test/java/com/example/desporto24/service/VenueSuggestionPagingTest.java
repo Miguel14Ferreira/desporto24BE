@@ -5,9 +5,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Pageable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -37,7 +35,7 @@ class VenueSuggestionPagingTest {
     void pagesAreBoundedAndHaveMoreUsesOneLookaheadRow() {
         List<Venue> fortyOne = IntStream.rangeClosed(1, 41)
                 .mapToObj(i -> venue(i, "Campo " + i, "Lisboa")).toList();
-        when(repository.findSuggestions(eq("campo"), eq("lisboa"), eq("padel"), any(Pageable.class)))
+        when(repository.findSuggestions("campo", "lisboa", "padel", 80))
                 .thenReturn(fortyOne);
 
         var response = service.suggest("  CAMPO  ", " LISBOA ", " PADEL ", 2);
@@ -47,18 +45,16 @@ class VenueSuggestionPagingTest {
         assertEquals(1L, response.venues().getFirst().id());
         assertEquals(40L, response.venues().getLast().id());
 
-        var pageCaptor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findSuggestions(eq("campo"), eq("lisboa"), eq("padel"),
-                pageCaptor.capture());
-        assertEquals(2, pageCaptor.getValue().getPageNumber());
-        assertEquals(41, pageCaptor.getValue().getPageSize());
+        verify(repository).findSuggestions("campo", "lisboa", "padel", 80);
         verify(repository, never()).findAllByOrderByNameAsc();
     }
 
     @Test
     void lastAndEmptyPagesDoNotClaimMoreResults() {
-        when(repository.findSuggestions(eq(""), eq(""), eq(""), any(Pageable.class)))
-                .thenReturn(List.of(venue(99L, "Campo Único", "Porto")), List.of());
+        when(repository.findSuggestions("", "", "", 0))
+                .thenReturn(List.of(venue(99L, "Campo Único", "Porto")));
+        when(repository.findSuggestions("", "", "", 40))
+                .thenReturn(List.of());
         var last = service.suggest(null, null, null, 0);
         assertEquals(1, last.venues().size());
         assertFalse(last.hasMore());
