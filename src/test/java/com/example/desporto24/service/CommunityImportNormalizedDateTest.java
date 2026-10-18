@@ -17,6 +17,8 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,6 +44,7 @@ class CommunityImportNormalizedDateTest {
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityPlayerRepository communityPlayerRepository;
     @Mock private CommunityRoundEntryRepository roundEntryRepository;
+    @Mock private EntityManager entityManager;
     @InjectMocks private CommunityImportService service;
 
     private void authorize() {
@@ -321,6 +324,66 @@ class CommunityImportNormalizedDateTest {
         assertEquals(1, plan.rounds().get(1).players());
         assertEquals(1, plan.rounds().get(0).wins());
         assertEquals(1, plan.rounds().get(1).losses());
+    }
+
+    @Test
+    void skipsARoundCreatedByAnotherImportAfterTheInitialPlan() {
+        authorize();
+        var file = new MockMultipartFile("file", "jornada.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Ana,WIN\n").getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
+        var context = new CommunityImportContextRequest(30L, null);
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        Instant playedAt = Instant.parse("2026-10-01T00:00:00Z");
+        // Initial plan sees no round; a competing import creates it while
+        // this request is still parsing. Confirmation must re-check under lock.
+        when(roundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(10L, 30L, playedAt))
+                .thenReturn(false, true);
+
+        var result = service.confirmRounds(10L, "organizer", file, mapping, context);
+
+        assertEquals(0, result.createdRounds());
+        assertEquals(1, result.skippedDuplicateRounds());
+        assertEquals(0, result.createdEntries());
+        verify(entityManager).lock(argThat(season -> ((CommunitySeason) season).getId() == 30L),
+                eq(LockModeType.PESSIMISTIC_WRITE));
+        verify(roundRepository, times(2))
+                .existsByCommunityIdAndSeasonIdAndPlayedAt(10L, 30L, playedAt);
+        verify(roundRepository, never()).save(any());
+        verifyNoInteractions(roundEntryRepository, communityPlayerRepository);
+    }
+
+    @Test
+    void reimportingExistingRoundIsIdempotentWithoutRecreatingPlayers() {
+        authorize();
+        var file = new MockMultipartFile("file", "jornada.csv", "text/csv",
+                ("Date,Player,Result\n"
+                + "01/10/2026,Ana,WIN\n").getBytes(StandardCharsets.UTF_8));
+        var mapping = new CommunityImportMappingRequest("Dados", List.of(
+                new CommunityImportMappingRequest.ColumnMapping(0, "DATE"),
+                new CommunityImportMappingRequest.ColumnMapping(1, "PLAYER"),
+                new CommunityImportMappingRequest.ColumnMapping(2, "RESULT")));
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        when(roundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(eq(10L), eq(30L), any()))
+                .thenReturn(true);
+
+        var result = service.confirmRounds(10L, "organizer", file, mapping,
+                new CommunityImportContextRequest(30L, null));
+
+        assertEquals(0, result.createdRounds());
+        assertEquals(1, result.skippedDuplicateRounds());
+        assertEquals(0, result.createdEntries());
+        verify(entityManager).lock(any(CommunitySeason.class), eq(LockModeType.PESSIMISTIC_WRITE));
+        verify(roundRepository, never()).save(any());
+        verifyNoInteractions(roundEntryRepository, communityPlayerRepository);
     }
 
     @Test
