@@ -1,10 +1,11 @@
 name: Desporto24 BE Feature CI
+# Release PRs already run the complete Java suite in pr-validation.yml.
+# Avoid rerunning Maven + Docker builds on every preview deployment-branch merge.
 
 on:
   push:
     branches:
       - feature/desporto24-relaunch-clean
-      - feature/desporto24-preview-deploy
   pull_request:
     branches:
       - develop
