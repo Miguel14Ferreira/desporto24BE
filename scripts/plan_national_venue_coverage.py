@@ -16,7 +16,8 @@ UNKNOWN = "(sem distrito)"
 
 def normalized(text):
     plain = unicodedata.normalize("NFKD", str(text or "").strip())
-    return " ".join(c for c in plain if not unicodedata.combining(c)).casefold()
+    without_accents = "".join(c for c in plain if not unicodedata.combining(c))
+    return " ".join(without_accents.casefold().split())
 
 ALIASES = {normalized(name): name for name in AREAS}
 ALIASES.update({"acores": REGIONS[0], "madeira": REGIONS[1]})
