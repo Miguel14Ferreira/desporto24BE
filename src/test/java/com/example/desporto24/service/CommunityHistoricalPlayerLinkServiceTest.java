@@ -6,6 +6,8 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.*;
 import com.example.desporto24.model.dto.community.ProposeHistoricalPlayerLinkRequest;
 import com.example.desporto24.repository.ProfileRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import com.example.desporto24.repository.community.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     @Mock CommunityHistoricalPlayerLinkRepository links;
     @Mock CommunityRoundEntryRepository entries;
     @Mock ProfileRepository profiles;
+    @Mock EntityManager entityManager;
     @InjectMocks CommunityHistoricalPlayerLinkService service;
 
     Profile owner, target, stranger;
@@ -50,7 +53,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     @Test
     void managerMayProposeButOnlyTargetMayConfirm() {
         manager();
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
         when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.empty());
@@ -62,6 +65,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
 
         var proposed = service.propose(7L, "owner", new ProposeHistoricalPlayerLinkRequest(10L, "TMF14"));
         assertEquals("PENDING", proposed.status());
+        verify(players).findByIdForUpdate(10L);
         assertEquals("Ferreirinha", proposed.historicalName());
         assertEquals("TMF14", proposed.targetUsername());
         assertNull(historical.getProfile());
@@ -91,7 +95,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
         when(members.findByCommunityIdAndProfileId(8L, 1L)).thenReturn(Optional.of(
                 CommunityMember.builder().community(otherCommunity).profile(owner).role(CommunityRole.OWNER).build()));
         when(communities.existsById(8L)).thenReturn(true);
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> service.propose(8L, "owner", new ProposeHistoricalPlayerLinkRequest(10L, "TMF14")));
     }
@@ -132,7 +136,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     void ordinaryMemberCanClaimTheirOwnHistoricalNameWithoutManagerApproval() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.empty());
         when(entries.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L)).thenReturn(List.of());
         when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
@@ -147,6 +151,8 @@ class CommunityHistoricalPlayerLinkServiceTest {
         assertEquals("Ferreirinha", claimed.historicalName());
         assertEquals("TMF14", claimed.targetUsername());
         assertEquals("ACCEPTED", claimed.status());
+        verify(entityManager).lock(target, LockModeType.PESSIMISTIC_WRITE);
+        verify(players).findByIdForUpdate(10L);
         assertNull(historical.getProfile());
         verify(communities, never()).existsById(any());
         verify(members, never()).findByCommunityIdAndProfileId(any(), any());
@@ -162,7 +168,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
 
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(8L, 2L)).thenReturn(true);
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> service.claimForMe(8L, "TMF14", 10L));
     }
@@ -171,7 +177,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     void claimedHistoricalNameCannotBeTakenByAnotherMember() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         when(links.findByCommunityIdAndPlayerId(7L, 10L))
                 .thenReturn(Optional.of(link(90L, historical, owner, "ACCEPTED")));
         assertThrows(IllegalStateException.class, () -> service.claimForMe(7L, "TMF14", 10L));
@@ -183,7 +189,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     void claimingSameNameTwiceIsSafeAndDoesNotRewriteAnyHistory() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         when(links.findByCommunityIdAndPlayerId(7L, 10L))
                 .thenReturn(Optional.of(link(90L, historical, target, "ACCEPTED")));
         assertEquals("ACCEPTED", service.claimForMe(7L, "TMF14", 10L).status());
@@ -195,7 +201,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     void selfClaimRejectsTwoParticipationsBySamePersonInOneRound() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(players.findById(10L)).thenReturn(Optional.of(historical));
+        when(players.findByIdForUpdate(10L)).thenReturn(Optional.of(historical));
         when(links.findByCommunityIdAndPlayerId(7L, 10L)).thenReturn(Optional.empty());
         CommunityRound round = CommunityRound.builder().id(77L).community(community).build();
         CommunityPlayer existing = CommunityPlayer.builder().id(11L).community(community).profile(target).build();

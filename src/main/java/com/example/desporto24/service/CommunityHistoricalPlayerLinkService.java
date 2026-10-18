@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.*;
 
@@ -30,6 +32,7 @@ public class CommunityHistoricalPlayerLinkService {
     private final CommunityHistoricalPlayerLinkRepository linkRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final ProfileRepository profileRepository;
+    private final EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public List<HistoricalPlayerCandidateResponse> candidates(Long communityId, String username) {
@@ -62,7 +65,11 @@ public class CommunityHistoricalPlayerLinkService {
     public HistoricalPlayerLinkResponse claimForMe(Long communityId, String username, Long playerId) {
         Profile owner = member(communityId, username);
         if (playerId == null) throw new IllegalArgumentException("Seleciona um nome histórico");
-        CommunityPlayer player = playerRepository.findById(playerId)
+        // Lock the authenticated profile first: two different aliases cannot be claimed in
+        // overlapping rounds by this profile at the same time.
+        entityManager.lock(owner, LockModeType.PESSIMISTIC_WRITE);
+        // The link might not exist yet, so lock the source player before checking it.
+        CommunityPlayer player = playerRepository.findByIdForUpdate(playerId)
                 .filter(found -> found.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nome histórico não encontrado"));
         if (player.getProfile() != null) {
@@ -117,7 +124,7 @@ public class CommunityHistoricalPlayerLinkService {
         manager(communityId, username);
         if (request == null || request.playerId() == null || request.targetUsername() == null
                 || request.targetUsername().isBlank()) throw new IllegalArgumentException("Seleciona jogador e utilizador");
-        CommunityPlayer player = playerRepository.findById(request.playerId())
+        CommunityPlayer player = playerRepository.findByIdForUpdate(request.playerId())
                 .filter(found -> found.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Jogador histórico não encontrado"));
         if (player.getProfile() != null) throw new IllegalStateException("Este jogador já está associado a um perfil");
@@ -154,6 +161,8 @@ public class CommunityHistoricalPlayerLinkService {
     @Transactional
     public HistoricalPlayerLinkResponse decide(Long communityId, Long linkId, String username, boolean accept) {
         Profile target = member(communityId, username);
+        // Legacy pending proposals share the same profile-wide concurrency guard.
+        if (accept) entityManager.lock(target, LockModeType.PESSIMISTIC_WRITE);
         CommunityHistoricalPlayerLink link = linkRepository.findByIdAndCommunityId(linkId, communityId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Associação não encontrada"));
         if (!link.getProfile().getId().equals(target.getId())) {
