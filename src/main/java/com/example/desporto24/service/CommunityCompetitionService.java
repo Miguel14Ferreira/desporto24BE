@@ -73,6 +73,7 @@ public class CommunityCompetitionService {
                 : roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
                         communityId, seasonId);
 
+        Map<Long, Profile> confirmedAliases = acceptedAliasProfiles(communityId);
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
                 seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
@@ -81,8 +82,8 @@ public class CommunityCompetitionService {
                         .toList(),
                 seasonId,
                 activeSeasonId,
-                rounds.stream().map(this::roundResponse).toList(),
-                standings(community, seasonId)
+                rounds.stream().map(round -> roundResponse(round, confirmedAliases)).toList(),
+                standings(community, seasonId, confirmedAliases)
         );
     }
 
@@ -234,7 +235,7 @@ public class CommunityCompetitionService {
         }
 
         entryRepository.saveAll(entries);
-        return roundResponse(round);
+        return roundResponse(round, Map.of());
     }
 
     public void deleteRound(Long communityId, Long roundId, String username) {
@@ -255,13 +256,22 @@ public class CommunityCompetitionService {
         roundRepository.delete(round);
     }
 
-    private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
-        Map<String, StandingAccumulator> table = new LinkedHashMap<>();
-        Map<Long, Profile> linkedProfiles = new HashMap<>();
+    private Map<Long, Profile> acceptedAliasProfiles(Long communityId) {
+        Map<Long, Profile> aliases = new HashMap<>();
         for (CommunityHistoricalPlayerLink link : historicalPlayerLinkRepository
-                .findByCommunityIdAndStatus(community.getId(), "ACCEPTED")) {
-            linkedProfiles.put(link.getPlayer().getId(), link.getProfile());
+                .findByCommunityIdAndStatus(communityId, "ACCEPTED")) {
+            aliases.put(link.getPlayer().getId(), link.getProfile());
         }
+        return aliases;
+    }
+
+    private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
+        return standings(community, seasonId, acceptedAliasProfiles(community.getId()));
+    }
+
+    private List<CommunityStandingResponse> standings(Community community, Long seasonId,
+                                                       Map<Long, Profile> linkedProfiles) {
+        Map<String, StandingAccumulator> table = new LinkedHashMap<>();
         Set<Long> linkedProfileIds = new HashSet<>();
         for (Profile linked : linkedProfiles.values()) linkedProfileIds.add(linked.getId());
 
@@ -345,14 +355,18 @@ public class CommunityCompetitionService {
         throw new IllegalStateException("A estatística não tem jogador associado");
     }
 
-    private CommunityRoundResponse roundResponse(CommunityRound round) {
+    private CommunityRoundResponse roundResponse(CommunityRound round,
+                                                 Map<Long, Profile> confirmedAliases) {
         List<CommunityRoundEntryResponse> entries = entryRepository
                 .findByRoundIdOrderByIdAsc(round.getId())
                 .stream()
                 .map(entry -> {
+                    CommunityPlayer historicalPlayer = entry.getCommunityPlayer();
                     Profile profile = entry.getProfile() != null
                             ? entry.getProfile()
-                            : entry.getCommunityPlayer().getProfile();
+                            : historicalPlayer.getProfile() != null
+                            ? historicalPlayer.getProfile()
+                            : confirmedAliases.get(historicalPlayer.getId());
                     return new CommunityRoundEntryResponse(
                         profile == null ? null : profile.getId(),
                         profile == null ? null : profile.getUsername(),
