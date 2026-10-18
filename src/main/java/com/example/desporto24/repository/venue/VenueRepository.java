@@ -38,6 +38,22 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             @Param("sport") String sport,
             @Param("offset") int offset);
 
+    /**
+     * Inventory existing records by the district as stored. An empty district
+     * remains an explicit unknown bucket; never infer a district from city.
+     */
+    @Query(value = """
+            SELECT coalesce(nullif(btrim(v.district), ''), '(sem distrito)') AS district,
+                   count(*) AS total,
+                   count(*) FILTER (WHERE v.latitude IS NULL OR v.longitude IS NULL) AS no_coordinates,
+                   count(*) FILTER (WHERE v.sports IS NULL OR btrim(v.sports) = '') AS no_sports,
+                   count(*) FILTER (WHERE v.information_source = 'OPENSTREETMAP') AS osm_total
+            FROM venue v
+            GROUP BY 1
+            ORDER BY 1
+            """, nativeQuery = true)
+    List<Object[]> countCoverageByDistrict();
+
     Optional<Venue> findByInformationSourceAndSourceReference(
             Venue.InformationSource informationSource,
             String sourceReference);

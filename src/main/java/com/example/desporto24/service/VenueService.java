@@ -6,6 +6,7 @@ import com.example.desporto24.model.dto.venue.CreateVenueRequest;
 import com.example.desporto24.model.dto.venue.OpenStreetMapVenueImportRequest;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.dto.venue.VenueSuggestionPage;
+import com.example.desporto24.model.dto.venue.VenueCoverageReport;
 import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
@@ -69,6 +70,30 @@ public class VenueService {
     private String searchText(String input) {
         String normalized = normalize(input);
         return normalized == null ? "" : normalized;
+    }
+
+    /**
+     * An inventory of existing DB records, NOT a claim that a whole district
+     * has been mapped. Null/blank district is deliberately left unclassified.
+     */
+    @Transactional(readOnly = true)
+    public VenueCoverageReport coverage() {
+        List<VenueCoverageReport.DistrictCoverage> districts =
+                venueRepository.countCoverageByDistrict().stream()
+                        .map(row -> new VenueCoverageReport.DistrictCoverage(
+                                (String) row[0],
+                                ((Number) row[1]).longValue(),
+                                ((Number) row[2]).longValue(),
+                                ((Number) row[3]).longValue(),
+                                ((Number) row[4]).longValue()))
+                        .toList();
+        return new VenueCoverageReport(
+                districts.stream().mapToLong(VenueCoverageReport.DistrictCoverage::venues).sum(),
+                districts.stream().filter(row -> "(sem distrito)".equals(row.district()))
+                        .mapToLong(VenueCoverageReport.DistrictCoverage::venues).sum(),
+                districts.stream().mapToLong(VenueCoverageReport.DistrictCoverage::missingCoordinates).sum(),
+                districts.stream().mapToLong(VenueCoverageReport.DistrictCoverage::missingSports).sum(),
+                districts);
     }
 
     @Transactional(readOnly = true)
