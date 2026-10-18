@@ -26,6 +26,8 @@ import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.security.access.AccessDeniedException;
@@ -69,6 +71,7 @@ public class CommunityImportService {
     private final CommunitySeasonRepository communitySeasonRepository;
     private final CommunityRoundRepository communityRoundRepository;
     private final CommunityRoundEntryRepository communityRoundEntryRepository;
+    private final EntityManager entityManager;
 
     public CommunityImportContextValidationResponse validateContext(
             Long communityId,
@@ -631,6 +634,10 @@ public class CommunityImportService {
         CommunitySeason season = communitySeasonRepository.findById(context.seasonId())
                 .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
+        // Separate import requests can both see a missing date in their initial plan.
+        // Serialize confirmations of this season without introducing a global
+        // UNIQUE(date) constraint: multiple legitimate games may share a date.
+        entityManager.lock(season, LockModeType.PESSIMISTIC_WRITE);
 
         java.util.Map<String, CommunityImportRoundsPlanResponse.RoundPlan> roundsBySource =
                 plan.rounds().stream().collect(java.util.stream.Collectors.toMap(
@@ -669,13 +676,16 @@ public class CommunityImportService {
             for (java.util.Map.Entry<String, CommunityImportRoundsPlanResponse.RoundPlan> item
                     : roundsBySource.entrySet()) {
                 CommunityImportRoundsPlanResponse.RoundPlan roundPlan = item.getValue();
-                if (roundPlan.duplicate()) {
+                Instant playedAt = LocalDate.parse(roundPlan.parsedDate())
+                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+                // Re-check *after* obtaining the season lock, not just in the
+                // preview plan. Another transaction may have imported it while
+                // this confirmation was reading and validating the file.
+                if (communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
+                        communityId, season.getId(), playedAt)) {
                     skippedDuplicates++;
                     continue;
                 }
-
-                Instant playedAt = LocalDate.parse(roundPlan.parsedDate())
-                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
                 CommunityRound round = communityRoundRepository.save(CommunityRound.builder()
                         .community(community)
                         .season(season)
