@@ -85,7 +85,12 @@ class CommunityHistoricalPlayerLinkServiceTest {
 
     @Test
     void disallowsCrossCommunityAndAlreadyBoundPlayers() {
-        manager();
+        Community otherCommunity = Community.builder().id(8L).owner(owner).build();
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.existsByCommunityIdAndProfileId(8L, 1L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(8L, 1L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(otherCommunity).profile(owner).role(CommunityRole.OWNER).build()));
+        when(communities.existsById(8L)).thenReturn(true);
         when(players.findById(10L)).thenReturn(Optional.of(historical));
         assertThrows(org.springframework.web.server.ResponseStatusException.class,
                 () -> service.propose(8L, "owner", new ProposeHistoricalPlayerLinkRequest(10L, "TMF14")));
