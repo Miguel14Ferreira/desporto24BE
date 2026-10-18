@@ -204,6 +204,11 @@ public class CommunityImportService {
                             rowValid = false;
                         }
                     }
+                    if (rowValid && !numericValuesValid(mappedValues(request, rowValues))) {
+                        warnings.add("Linha " + excelRow
+                                + ": os resultados V/E/D ou o campo RESULT são contraditórios");
+                        rowValid = false;
+                    }
                     if (rowValid && dateColumn != null) {
                         String date = valueAt(rowValues, dateColumn);
                         if (!date.isBlank() && !seenPlayersByRound
@@ -914,6 +919,25 @@ public class CommunityImportService {
     private boolean numericValuesValid(java.util.Map<String, String> mapped) {
         for (String field : Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP")) {
             if (!validImportMetric(field, mapped.get(field))) return false;
+        }
+        // Never silently turn a WIN+LOSS row into a WIN by field precedence.
+        String flaggedResult = null;
+        for (String field : List.of("WIN", "DRAW", "LOSS")) {
+            String value = mapped.get(field);
+            if (value == null || value.isBlank()
+                    || Double.parseDouble(value.trim().replace(',', '.')) == 0) continue;
+            if (flaggedResult != null) return false;
+            flaggedResult = field;
+        }
+        String result = mapped.get("RESULT");
+        if (flaggedResult != null && result != null && !result.isBlank()) {
+            String textual = switch (result.trim().toUpperCase(Locale.ROOT)) {
+                case "W", "WIN", "V", "VITORIA", "VITÓRIA" -> "WIN";
+                case "DRAW", "E", "EMPATE" -> "DRAW";
+                case "L", "LOSS", "DERROTA" -> "LOSS";
+                default -> null;
+            };
+            if (!flaggedResult.equals(textual)) return false;
         }
         return true;
     }
