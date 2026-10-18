@@ -230,6 +230,27 @@ public class CommunityController {
         return ResponseEntity.ok(historicalPlayerLinkService.candidates(id, authentication.getName()));
     }
 
+
+    @PostMapping("/{id}/competition/historical-player-links/claim")
+    public ResponseEntity<HistoricalPlayerLinkResponse> claimHistoricalName(
+            @PathVariable Long id, @RequestBody @Valid ClaimHistoricalPlayerRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.claimForMe(id, authentication.getName(), request.playerId()));
+    }
+
+    @GetMapping("/{id}/competition/historical-player-links/my-claims")
+    public ResponseEntity<List<HistoricalPlayerLinkResponse>> myHistoricalClaims(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.myClaims(id, authentication.getName()));
+    }
+
+    @DeleteMapping("/{id}/competition/historical-player-links/my-claims/{linkId}")
+    public ResponseEntity<Void> removeMyHistoricalClaim(
+            @PathVariable Long id, @PathVariable Long linkId, Authentication authentication) {
+        historicalPlayerLinkService.releaseMyClaim(id, linkId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/competition/historical-player-links")
     public ResponseEntity<HistoricalPlayerLinkResponse> proposeHistoricalPlayerLink(
             @PathVariable Long id, @RequestBody @Valid ProposeHistoricalPlayerLinkRequest request,
