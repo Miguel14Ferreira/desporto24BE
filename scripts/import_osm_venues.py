@@ -14,6 +14,7 @@ CHUNK_SIZE = int(os.getenv("D24_IMPORT_CHUNK_SIZE", "100"))
 DRY_RUN = os.getenv("D24_DRY_RUN", "true").lower() in {"1", "true", "yes"}
 CONFIRM_IMPORT = os.getenv("D24_CONFIRM_IMPORT", "") == "I_UNDERSTAND"
 REPORT_PATH = os.getenv("D24_IMPORT_REPORT_PATH")
+OFFLINE_FILE = os.getenv("D24_OSM_INPUT_FILE")
 
 SPORT_MAP = {
     "soccer": "Futebol",
@@ -67,6 +68,11 @@ VENUE_TYPES = {
 
 
 def require_env():
+    if OFFLINE_FILE:
+        # Local pilot fixtures are ALWAYS read-only, regardless of any token.
+        if not DRY_RUN:
+            raise SystemExit("Local OSM files are dry-run only; set D24_DRY_RUN=true")
+        return
     if not BBOX:
         raise SystemExit("Missing D24_OSM_BBOX (south,west,north,east)")
     try:
@@ -113,6 +119,25 @@ def fetch_osm():
     )
     with urllib.request.urlopen(req, timeout=180) as response:
         return json.load(response)
+
+
+def load_osm_fixture():
+    """Read a bounded, already-downloaded OSM response without network access."""
+    from pathlib import Path
+
+    source = Path(OFFLINE_FILE)
+    if not source.is_file():
+        raise SystemExit("D24_OSM_INPUT_FILE must be an existing local JSON file")
+    if source.stat().st_size > 10_000_000:
+        raise SystemExit("Local OSM fixture exceeds 10 MB pilot limit")
+    try:
+        with source.open(encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Cannot read OSM fixture JSON: {exc}") from exc
+    if not isinstance(data, dict) or not isinstance(data.get("elements"), list) or len(data["elements"]) > 10_000:
+        raise SystemExit("Expected OSM JSON object with up to 10,000 elements")
+    return data
 
 
 def sport_names(tags):
@@ -215,7 +240,7 @@ def post_chunk(chunk):
 
 def main():
     require_env()
-    osm = fetch_osm()
+    osm = load_osm_fixture() if OFFLINE_FILE else fetch_osm()
     elements = osm.get("elements", [])
     payload = []
     rejected = {"missing_name": 0, "missing_city": 0, "missing_address": 0}
@@ -231,7 +256,8 @@ def main():
             rejected[reason] += 1
 
     report = {
-        "bbox": BBOX,
+        "bbox": None if OFFLINE_FILE else BBOX,
+        "inputMode": "local-file" if OFFLINE_FILE else "overpass",
         "dryRun": DRY_RUN,
         "osmElements": len(elements),
         "importable": len(payload),

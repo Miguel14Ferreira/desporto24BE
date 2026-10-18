@@ -47,6 +47,62 @@ class OsmImportSafetyTests(unittest.TestCase):
         venue["tags"]["addr:state"] = "Açores"
         self.assertEqual(importer.to_payload(venue)["district"], "Região Autónoma dos Açores")
 
+    def test_local_fixture_dry_run_does_not_contact_overpass_or_api(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = pathlib.Path(temp_dir) / "municipio.json"
+            report = pathlib.Path(temp_dir) / "report.json"
+            source.write_text(json.dumps({"elements": [
+                {"type": "node", "id": 12, "lat": 38.7, "lon": -9.1,
+                 "tags": {"name": "Campo local", "addr:city": "Lisboa",
+                          "addr:street": "Rua Central", "addr:district": "Lisboa"}}
+            ]}), encoding="utf-8")
+            with (
+                patch.object(importer, "OFFLINE_FILE", str(source)),
+                patch.object(importer, "BBOX", None),
+                patch.object(importer, "DRY_RUN", True),
+                patch.object(importer, "REPORT_PATH", str(report)),
+                patch.object(importer, "fetch_osm") as fetch,
+                patch.object(importer, "post_chunk") as post,
+            ):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(importer.main(), 0)
+                fetch.assert_not_called()
+                post.assert_not_called()
+            result = json.loads(report.read_text(encoding="utf-8"))
+            self.assertEqual(result["inputMode"], "local-file")
+            self.assertIsNone(result["bbox"])
+            self.assertEqual(result["importable"], 1)
+            self.assertEqual(result["withVerifiedDistrict"], 1)
+
+    def test_local_fixture_refuses_write_even_with_token_and_confirmation(self):
+        with (
+            patch.object(importer, "OFFLINE_FILE", "pilot.json"),
+            patch.object(importer, "DRY_RUN", False),
+            patch.object(importer, "ADMIN_TOKEN", "fake"),
+            patch.object(importer, "CONFIRM_IMPORT", True),
+            patch.object(importer, "fetch_osm") as fetch,
+            patch.object(importer, "post_chunk") as post,
+        ):
+            with self.assertRaises(SystemExit):
+                importer.main()
+            fetch.assert_not_called()
+            post.assert_not_called()
+
+    def test_local_fixture_rejects_invalid_format_without_network(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = pathlib.Path(temp_dir) / "invalid.json"
+            source.write_text("{invalid", encoding="utf-8")
+            with (
+                patch.object(importer, "OFFLINE_FILE", str(source)),
+                patch.object(importer, "DRY_RUN", True),
+                patch.object(importer, "fetch_osm") as fetch,
+                patch.object(importer, "post_chunk") as post,
+            ):
+                with self.assertRaises(SystemExit):
+                    importer.main()
+                fetch.assert_not_called()
+                post.assert_not_called()
+
     def test_city_only_is_never_used_as_postal_address(self):
         tags = {"addr:city": "Lisboa", "addr:postcode": "1000-001"}
         self.assertEqual(importer.address(tags), ("Lisboa", ""))
