@@ -456,6 +456,33 @@ class CommunityImportNormalizedDateTest {
     }
 
     @Test
+    void confirmationPersistsSourceCompetitionAndRoundInNewRoundName() {
+        authorize();
+        Community community = new Community();
+        community.setId(10L);
+        when(communityRepository.findById(10L)).thenReturn(Optional.of(community));
+        when(roundRepository.save(any(CommunityRound.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        CommunityPlayer player = new CommunityPlayer();
+        player.setNormalizedName("ana");
+        player.setDisplayName("Ana");
+        when(communityPlayerRepository.findByCommunityIdAndNormalizedName(10L, "ana"))
+                .thenReturn(Optional.of(player));
+        var context = new CommunityImportContextRequest(30L, null, " Liga ", " 2 ");
+
+        var result = service.confirmRounds(10L, "organizer",
+                singleRound("Ana", "WIN"), roundMapping(), context);
+
+        assertEquals(1, result.createdRounds());
+        var captured = org.mockito.ArgumentCaptor.forClass(CommunityRound.class);
+        verify(roundRepository).save(captured.capture());
+        assertEquals("Import 2026-10-01 | Competição: Liga | Jornada: 2",
+                captured.getValue().getName());
+        verify(entityManager).lock(any(CommunitySeason.class),
+                eq(LockModeType.PESSIMISTIC_WRITE));
+    }
+
+    @Test
     void rejectsSingleRoundLabelForMultiDayFileBeforeConfirmation() {
         authorize();
         var file = new MockMultipartFile("file", "duas-datas.csv", "text/csv",
