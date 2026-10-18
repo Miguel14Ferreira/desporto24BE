@@ -17,7 +17,8 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * Two-sided consent: OWNER/ADMIN suggests an identity, the target member accepts or rejects it.
+ * Community members directly claim their own imported name with explicit confirmation.
+ * Legacy manager proposals remain supported until old pending requests are resolved.
  * No imported result, player name, or round entry is ever changed.
  */
 @Service
@@ -32,7 +33,7 @@ public class CommunityHistoricalPlayerLinkService {
 
     @Transactional(readOnly = true)
     public List<HistoricalPlayerCandidateResponse> candidates(Long communityId, String username) {
-        manager(communityId, username);
+        Profile viewer = member(communityId, username);
         Map<Long, CommunityHistoricalPlayerLink> links = new HashMap<>();
         for (CommunityHistoricalPlayerLink link : linkRepository.findByCommunityIdAndStatus(communityId, "ACCEPTED")) {
             links.put(link.getPlayer().getId(), link);
@@ -41,14 +42,73 @@ public class CommunityHistoricalPlayerLinkService {
             links.put(link.getPlayer().getId(), link);
         }
         return playerRepository.findByCommunityIdOrderByDisplayNameAsc(communityId).stream()
+                .filter(player -> player.getProfile() == null)
                 .map(player -> {
                     CommunityHistoricalPlayerLink link = links.get(player.getId());
-                    Profile profile = link == null ? player.getProfile() : link.getProfile();
+                    Profile owner = link == null ? null : link.getProfile();
                     return new HistoricalPlayerCandidateResponse(
                             player.getId(), player.getDisplayName(),
-                            profile == null ? null : profile.getUsername(),
-                            link == null ? player.getProfile() == null ? "UNLINKED" : "ACCEPTED" : link.getStatus());
+                            owner != null && owner.getId().equals(viewer.getId()) ? owner.getUsername() : null,
+                            link == null ? "UNLINKED" : link.getStatus());
                 }).toList();
+    }
+
+
+    /**
+     * A member claims an unlinked historical name for their own authenticated account,
+     * without requesting approval from the community manager.
+     */
+    @Transactional
+    public HistoricalPlayerLinkResponse claimForMe(Long communityId, String username, Long playerId) {
+        Profile owner = member(communityId, username);
+        if (playerId == null) throw new IllegalArgumentException("Seleciona um nome histórico");
+        CommunityPlayer player = playerRepository.findById(playerId)
+                .filter(found -> found.getCommunity().getId().equals(communityId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nome histórico não encontrado"));
+        if (player.getProfile() != null) {
+            throw new IllegalStateException("Este jogador já tem um perfil associado");
+        }
+        CommunityHistoricalPlayerLink link = linkRepository.findByCommunityIdAndPlayerId(communityId, playerId)
+                .orElse(null);
+        if (link != null && ("ACCEPTED".equals(link.getStatus()) || "PENDING".equals(link.getStatus()))) {
+            if ("ACCEPTED".equals(link.getStatus()) && link.getProfile().getId().equals(owner.getId())) {
+                return response(link); // harmless retry, never changes old results
+            }
+            throw new IllegalStateException("Este nome já está associado ou tem uma associação pendente");
+        }
+        validateNoOverlappingRounds(communityId, playerId, owner.getId());
+        if (link == null) link = CommunityHistoricalPlayerLink.builder()
+                .community(player.getCommunity()).player(player).build();
+        link.setProfile(owner);
+        link.setStatus("ACCEPTED");
+        link.setProposedByUsername(username); // unchanged DB column; self-claimed by authenticated user
+        link.setCreatedAt(Instant.now());
+        link.setConfirmedAt(Instant.now());
+        return response(linkRepository.save(link));
+    }
+
+    @Transactional(readOnly = true)
+    public List<HistoricalPlayerLinkResponse> myClaims(Long communityId, String username) {
+        Profile owner = member(communityId, username);
+        return linkRepository.findByCommunityIdAndProfileIdAndStatus(communityId, owner.getId(), "ACCEPTED")
+                .stream().map(this::response).toList();
+    }
+
+    @Transactional
+    public void releaseMyClaim(Long communityId, Long linkId, String username) {
+        Profile owner = member(communityId, username);
+        CommunityHistoricalPlayerLink link = linkRepository.findByIdAndCommunityId(linkId, communityId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Associação não encontrada"));
+        if (!link.getProfile().getId().equals(owner.getId())) {
+            throw new AccessDeniedException("Só o titular pode remover esta associação");
+        }
+        if (!"ACCEPTED".equals(link.getStatus())) {
+            throw new IllegalStateException("Esta associação já não está ativa");
+        }
+        // Keep the original imported player and entries: only the association is released.
+        link.setStatus("REJECTED");
+        link.setConfirmedAt(null);
+        linkRepository.save(link);
     }
 
     @Transactional
@@ -100,36 +160,39 @@ public class CommunityHistoricalPlayerLinkService {
             throw new AccessDeniedException("Só o jogador pode confirmar ou recusar esta associação");
         }
         if (!"PENDING".equals(link.getStatus())) throw new IllegalStateException("Esta proposta já foi tratada");
-        if (accept) {
-            // A profile may have several historical aliases, but never two participations in one round.
-            Set<Long> historicalRoundIds = new HashSet<>();
-            List<CommunityRoundEntry> entries = entryRepository
-                    .findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(communityId);
-            for (CommunityRoundEntry entry : entries) {
-                if (entry.getCommunityPlayer().getId().equals(link.getPlayer().getId())) {
-                    historicalRoundIds.add(entry.getRound().getId());
-                }
-            }
-            Map<Long, Long> confirmedLinks = new HashMap<>();
-            for (CommunityHistoricalPlayerLink other : linkRepository.findByCommunityIdAndStatus(communityId, "ACCEPTED")) {
-                confirmedLinks.put(other.getPlayer().getId(), other.getProfile().getId());
-            }
-            for (CommunityRoundEntry entry : entries) {
-                if (entry.getCommunityPlayer().getId().equals(link.getPlayer().getId()) ||
-                        !historicalRoundIds.contains(entry.getRound().getId())) continue;
-                Profile existing = entry.getProfile() != null ? entry.getProfile()
-                        : entry.getCommunityPlayer().getProfile();
-                Long profileId = existing == null ? confirmedLinks.get(entry.getCommunityPlayer().getId())
-                        : existing.getId();
-                if (target.getId().equals(profileId)) {
-                    throw new IllegalStateException(
-                            "Este perfil já tem uma participação na mesma jornada; resolve o conflito antes de associar");
-                }
-            }
-        }
+        if (accept) validateNoOverlappingRounds(communityId, link.getPlayer().getId(), target.getId());
         link.setStatus(accept ? "ACCEPTED" : "REJECTED");
         link.setConfirmedAt(accept ? Instant.now() : null);
         return response(linkRepository.save(link));
+    }
+
+
+    private void validateNoOverlappingRounds(Long communityId, Long playerId, Long profileId) {
+        // A profile may have several aliases, but never two participations in one round.
+        Set<Long> historicalRoundIds = new HashSet<>();
+        List<CommunityRoundEntry> entries = entryRepository
+                .findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(communityId);
+        for (CommunityRoundEntry entry : entries) {
+            if (entry.getCommunityPlayer().getId().equals(playerId)) {
+                historicalRoundIds.add(entry.getRound().getId());
+            }
+        }
+        Map<Long, Long> confirmedLinks = new HashMap<>();
+        for (CommunityHistoricalPlayerLink other : linkRepository.findByCommunityIdAndStatus(communityId, "ACCEPTED")) {
+            confirmedLinks.put(other.getPlayer().getId(), other.getProfile().getId());
+        }
+        for (CommunityRoundEntry entry : entries) {
+            if (entry.getCommunityPlayer().getId().equals(playerId) ||
+                    !historicalRoundIds.contains(entry.getRound().getId())) continue;
+            Profile existing = entry.getProfile() != null ? entry.getProfile()
+                    : entry.getCommunityPlayer().getProfile();
+            Long otherProfile = existing == null ? confirmedLinks.get(entry.getCommunityPlayer().getId())
+                    : existing.getId();
+            if (profileId.equals(otherProfile)) {
+                throw new IllegalStateException(
+                        "Este perfil já tem uma participação na mesma jornada; resolve o conflito antes de associar");
+            }
+        }
     }
 
     private HistoricalPlayerLinkResponse response(CommunityHistoricalPlayerLink link) {
