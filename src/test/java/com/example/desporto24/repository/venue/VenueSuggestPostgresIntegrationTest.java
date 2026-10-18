@@ -5,6 +5,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.data.jpa.repository.Query;
 
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -16,7 +17,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Optional real PostgreSQL smoke test, requiring an explicitly designated TEST database.
@@ -28,7 +28,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * JYNLO_VENUE_TEST_PG_PASSWORD=...
  * JYNLO_ALLOW_PG_SQL_SMOKE=YES_TEST_DATABASE_ONLY
  *
- * The Maven CI skips it unless the opt-in environment is present.
+ * Only loopback hosts (NOT Render/prod), exact /jynlo_test and explicit port
+ * are accepted. Never tunnel a live DB into the local test port.
+ * The Maven CI skips the integration method unless the opt-in env is present.
  */
 class VenueSuggestPostgresIntegrationTest {
     private static final Pattern PARAMETER = Pattern.compile(
@@ -39,14 +41,21 @@ class VenueSuggestPostgresIntegrationTest {
                                   matches = "YES_TEST_DATABASE_ONLY")
     void realPostgresFiltersTokensAndPaginatesWithStableIds() throws Exception {
         String url = System.getenv("JYNLO_VENUE_TEST_PG_URL");
-        assumeTrue(url != null && url.startsWith("jdbc:postgresql:")
-                && !url.isBlank(), "Explicit isolated PostgreSQL test URL required");
+        assertTrue(isIsolatedTestDatabaseUrl(url),
+                "SQL smoke test requires a loopback PostgreSQL server and exact jynlo_test DB");
         try (Connection connection = DriverManager.getConnection(
                 url,
                 System.getenv("JYNLO_VENUE_TEST_PG_USER"),
                 System.getenv("JYNLO_VENUE_TEST_PG_PASSWORD"))) {
             connection.setAutoCommit(false);
             try {
+                // Check server-reported DB name BEFORE even creating a temporary table.
+                try (Statement probe = connection.createStatement();
+                     ResultSet identity = probe.executeQuery("SELECT current_database()")) {
+                    assertTrue(identity.next(), "PostgreSQL identity query returned no rows");
+                    assertEquals("jynlo_test", identity.getString(1),
+                            "Never execute the fixture against any other database");
+                }
                 try (Statement statement = connection.createStatement()) {
                     statement.execute("""
                             CREATE TEMP TABLE venue (
@@ -97,6 +106,40 @@ class VenueSuggestPostgresIntegrationTest {
                 connection.rollback(); // No changes persist in test database.
             }
         }
+    }
+
+    /**
+     * A token alone must never enable tests against production.
+     * This is a best-effort safeguard: never tunnel production to localhost.
+     */
+    static boolean isIsolatedTestDatabaseUrl(String url) {
+        if (url == null || !url.startsWith("jdbc:postgresql://")) return false;
+        try {
+            URI uri = URI.create(url.substring("jdbc:".length()));
+            String host = uri.getHost();
+            return host != null
+                    && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host)
+                        || "::1".equals(host) || "[::1]".equals(host))
+                    && "/jynlo_test".equals(uri.getPath())
+                    && uri.getPort() > 0 && uri.getPort() <= 65535
+                    && uri.getUserInfo() == null
+                    && uri.getRawQuery() == null
+                    && uri.getFragment() == null;
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    @Test
+    void sqlSmokeRejectsRemoteAndProductionDatabaseUrlsEvenWhenOptedIn() {
+        assertTrue(isIsolatedTestDatabaseUrl("jdbc:postgresql://localhost:5432/jynlo_test"));
+        assertTrue(isIsolatedTestDatabaseUrl("jdbc:postgresql://127.0.0.1:5433/jynlo_test"));
+        assertFalse(isIsolatedTestDatabaseUrl("jdbc:postgresql://db.internal:5432/jynlo_test"));
+        assertFalse(isIsolatedTestDatabaseUrl("jdbc:postgresql://localhost:5432/desporto24_preview_db"));
+        assertFalse(isIsolatedTestDatabaseUrl("jdbc:postgresql://localhost:5432/jynlo_test?currentSchema=public"));
+        assertFalse(isIsolatedTestDatabaseUrl("jdbc:postgresql://localhost:5432/postgres"));
+        assertFalse(isIsolatedTestDatabaseUrl("jdbc:postgresql://prod.example.com:5432/desporto24"));
+        assertFalse(isIsolatedTestDatabaseUrl(null));
     }
 
     /** Execute the repository annotation itself, not a copy of its SQL. */
