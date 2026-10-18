@@ -10,7 +10,10 @@ ADMIN_TOKEN = os.getenv("DESPORTO24_ADMIN_TOKEN")
 BBOX = os.getenv("D24_OSM_BBOX")
 OVERPASS_URL = os.getenv("D24_OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 CHUNK_SIZE = int(os.getenv("D24_IMPORT_CHUNK_SIZE", "100"))
-DRY_RUN = os.getenv("D24_DRY_RUN", "false").lower() in {"1", "true", "yes"}
+# No write is permitted by default. A real import needs BOTH explicit switches.
+DRY_RUN = os.getenv("D24_DRY_RUN", "true").lower() in {"1", "true", "yes"}
+CONFIRM_IMPORT = os.getenv("D24_CONFIRM_IMPORT", "") == "I_UNDERSTAND"
+REPORT_PATH = os.getenv("D24_IMPORT_REPORT_PATH")
 
 SPORT_MAP = {
     "soccer": "Futebol",
@@ -38,10 +41,26 @@ VENUE_TYPES = {
 
 
 def require_env():
-    if not DRY_RUN and not ADMIN_TOKEN:
-        raise SystemExit("Missing DESPORTO24_ADMIN_TOKEN")
     if not BBOX:
         raise SystemExit("Missing D24_OSM_BBOX (south,west,north,east)")
+    try:
+        coords = [float(x.strip()) for x in BBOX.split(",")]
+        if len(coords) != 4:
+            raise ValueError("Expected four bbox values")
+        south, west, north, east = coords
+        if not (-90 <= south < north <= 90 and -180 <= west < east <= 180):
+            raise ValueError("Bounding box values out of range")
+    except ValueError as exc:
+        raise SystemExit("Invalid D24_OSM_BBOX: use south,west,north,east") from exc
+    if not 1 <= CHUNK_SIZE <= 1000:
+        raise SystemExit("D24_IMPORT_CHUNK_SIZE must be between 1 and 1000")
+    if not DRY_RUN:
+        if not ADMIN_TOKEN:
+            raise SystemExit("Missing DESPORTO24_ADMIN_TOKEN")
+        if not CONFIRM_IMPORT:
+            raise SystemExit(
+                'Real imports require D24_CONFIRM_IMPORT=I_UNDERSTAND (and D24_DRY_RUN=false)'
+            )
 
 
 def overpass_query():
@@ -165,14 +184,41 @@ def post_chunk(chunk):
 def main():
     require_env()
     osm = fetch_osm()
-    payload = [item for item in (to_payload(e) for e in osm.get("elements", [])) if item]
+    elements = osm.get("elements", [])
+    payload = []
+    rejected = {"missing_name": 0, "missing_city": 0, "missing_address": 0}
+    for element in elements:
+        candidate = to_payload(element)
+        if candidate:
+            payload.append(candidate)
+        else:
+            tags = element.get("tags") or {}
+            city, full_address = address(tags)
+            reason = ("missing_name" if not (tags.get("name") or "").strip()
+                      else "missing_city" if not city else "missing_address")
+            rejected[reason] += 1
 
+    report = {
+        "bbox": BBOX,
+        "dryRun": DRY_RUN,
+        "osmElements": len(elements),
+        "importable": len(payload),
+        "rejected": rejected,
+        "sample": payload[:5],
+    }
+    if REPORT_PATH:
+        with open(REPORT_PATH, "w", encoding="utf-8") as report_file:
+            json.dump(report, report_file, ensure_ascii=False, indent=2)
+            report_file.write("\n")
+        print(f"Review report written to {REPORT_PATH}")
+
+    print(f"Found {len(payload)}/{len(elements)} importable OSM elements; rejected {rejected}")
     if not payload:
         print("No importable venues found. Check bbox/data completeness.")
         return 0
 
     if DRY_RUN:
-        print(f"Dry run: {len(payload)} importable venues found.")
+        print("DRY RUN: nothing was sent to the Jynlo API.")
         print(json.dumps(payload[:5], ensure_ascii=False, indent=2))
         return 0
 
