@@ -1,10 +1,7 @@
 name: National venue Portalegre dry-run
 
+# Large OSM + CAOP downloads are manually requested, never PR-automatic.
 on:
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - '.github/workflows/national-venue-portalegre-dryrun.yml'
   workflow_dispatch:
 
 permissions:

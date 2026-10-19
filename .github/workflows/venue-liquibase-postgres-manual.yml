@@ -1,14 +1,8 @@
 name: Venue Liquibase PostgreSQL dry-run (manual)
 
+# PostgreSQL container smoke test only by explicit choice.
+# This workflow must be present in the default branch before Actions UI dispatch.
 on:
-  # A feature-only workflow cannot be dispatched from the Actions UI
-  # until it exists on the default branch. This narrow PR trigger allows
-  # the SQL to be checked without merging or deploying anything.
-  pull_request:
-    branches: [feature/desporto24-preview-deploy]
-    paths:
-      - '.github/workflows/venue-liquibase-postgres-manual.yml'
-      - 'src/main/resources/db/changelog/venue-imports/drafts/**'
   workflow_dispatch:
 
 concurrency:
