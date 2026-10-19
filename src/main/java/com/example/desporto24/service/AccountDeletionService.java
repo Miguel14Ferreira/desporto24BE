@@ -103,6 +103,10 @@ public class AccountDeletionService {
                 .map(SocialPost::getImageStorageKey)
                 .filter(key -> key != null && !key.isBlank())
                 .forEach(mediaKeys::add);
+        ownPosts.stream()
+                .map(SocialPost::getVideoStorageKey)
+                .filter(key -> key != null && !key.isBlank())
+                .forEach(mediaKeys::add);
 
         cancelOwnedSessions(profile, anonymousUsername, anonymousUserId);
         leaveFutureSessions(profile, now);
@@ -224,6 +228,7 @@ public class AccountDeletionService {
 
         profile.setLoginAttempts(0);
         profile.setNotLocked(false);
+        profile.setModerationSuspendedAt(null);
         profile.setEnabled(false);
         profile.setMFA(false);
         profile.setMfaSecret(null);

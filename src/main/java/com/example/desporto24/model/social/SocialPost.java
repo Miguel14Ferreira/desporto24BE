@@ -37,6 +37,12 @@ public class SocialPost {
     @Column(name = "image_storage_key", length = 800)
     private String imageStorageKey;
 
+    @Column(name = "video_url", length = 1200)
+    private String videoUrl;
+
+    @Column(name = "video_storage_key", length = 800)
+    private String videoStorageKey;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }

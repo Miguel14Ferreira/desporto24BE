@@ -229,7 +229,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private void validateProfileStatus(Profile profile) {
-        if (Boolean.FALSE.equals(profile.getNotLocked())) {
+        if (profile.getModerationSuspendedAt() != null || Boolean.FALSE.equals(profile.getNotLocked())) {
             throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
         if (Boolean.FALSE.equals(profile.getEnabled())) {
@@ -464,7 +464,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         Profile profile = profileRepository.findUserByUsername(confirmationToken.getProfile())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_EMAIL));
         updatePassword(profile, newPassword);
-        profile.setNotLocked(true);
+        // Password reset cannot remove a moderation suspension.
+        profile.setNotLocked(profile.getModerationSuspendedAt() == null);
         profile.setLoginAttempts(0);
         profile.setStatusId(OFFLINE);
         invalidateExistingTokens(profile);

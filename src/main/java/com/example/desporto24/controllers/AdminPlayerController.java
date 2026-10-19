@@ -40,13 +40,13 @@ public class AdminPlayerController {
                 .map(profile -> new PlayerSummary(
                         profile.getId(), profile.getUsername(), profile.getFullName(),
                         profile.getNickname(), profile.getRole(),
-                        profile.getEnabled(), profile.getNotLocked()))
+                        profile.getEnabled(), profile.getNotLocked(), profile.getModerationSuspendedAt()))
                 .toList();
         return new PlayerSearchResponse(players, page, results.hasNext());
     }
 
     public record PlayerSummary(
             Long id, String username, String fullName, String nickname,
-            String role, Boolean enabled, Boolean notLocked) {}
+            String role, Boolean enabled, Boolean notLocked, java.time.Instant moderationSuspendedAt) {}
     public record PlayerSearchResponse(List<PlayerSummary> players, int page, boolean hasMore) {}
 }

@@ -2,17 +2,32 @@ name: National venue importer safety checks
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [feature/desporto24-preview-deploy]
     paths:
       - 'scripts/import_osm_venues_national.py'
       - 'scripts/test_import_osm_venues_national.py'
+      - 'scripts/generate_verified_venue_liquibase.py'
+      - 'scripts/test_generate_verified_venue_liquibase.py'
+      - 'scripts/test_portalegre_liquibase_draft.py'
+      - 'scripts/test_venue_district_backfill_draft.py'
+      - 'src/main/resources/db/changelog/venue-imports/drafts/**'
+      - 'docs/venue-imports/portalegre-2026-10-19-source-review.json'
       - '.github/workflows/national-venue-import-ci.yml'
+
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: venue-parser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   parser-tests:
+    # No CI minutes while a work-in-progress PR is in draft state.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -22,5 +37,8 @@ jobs:
           python-version: '3.12'
       - name: Compile and run conversion tests (no network, DB or PBF required)
         run: |
-          python -m py_compile scripts/import_osm_venues_national.py
+          python -m py_compile scripts/import_osm_venues_national.py scripts/generate_verified_venue_liquibase.py
           python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
+          python -m unittest discover -s scripts -p 'test_generate_verified_venue_liquibase.py' -v
+          python -m unittest discover -s scripts -p 'test_portalegre_liquibase_draft.py' -v
+          python -m unittest discover -s scripts -p 'test_venue_district_backfill_draft.py' -v

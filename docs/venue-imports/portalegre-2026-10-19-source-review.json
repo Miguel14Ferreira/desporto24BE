@@ -1,0 +1,230 @@
+{
+  "title": "Portalegre OSM shortlist — source corroboration, NOT an authorization to import",
+  "reviewedAt": "2026-10-19",
+  "origin": "Original read-only OSM PBF pilot: https://github.com/Miguel14Ferreira/desporto24BE/actions/runs/39241121093",
+  "reviewStatus": "INDEPENDENT_SOURCES_FOUND__AWAITING_OPERATOR_APPROVAL",
+  "limitations": [
+    "Independent sources confirm the named venue type/existence but do not establish availability for all user sessions.",
+    "GPS comes from OSM; only Estádio Patalino has independently cross-checked geographic coordinates.",
+    "Exact duplicate aliases in the existing database have NOT been checked because PostgreSQL read access is unavailable.",
+    "The SQL and changelog exist only as draft files and are not included in the master Liquibase changelog.",
+    "CAOP2025 municipality correlation has not run successfully yet."
+  ],
+  "shortlisted": [
+    {
+      "osmReference": "OSM:WAY:157099522",
+      "osmUrl": "https://www.openstreetmap.org/way/157099522",
+      "name": "Recinto Multiusos de Ponte de Sor",
+      "city": "Ponte de Sor",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 39.2550475,
+        "longitude": -8.0119079,
+        "address": "Zona Desportiva de Ponte de Sor"
+      },
+      "sourceUrl": "https://www.cm-pontedesor.pt/infraestruturas-desporto/",
+      "sourceNote": "Município descreve recinto multiusos de relva sintética; coordenadas provenientes do OSM; confirmar morada formal e eventual duplicado na BD.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:426295154",
+      "osmUrl": "https://www.openstreetmap.org/way/426295154",
+      "name": "Campo de Futebol Sintético de Sousel",
+      "city": "Sousel",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 38.9544786,
+        "longitude": -7.6714955,
+        "address": "Estrada da Circunvalação, 7470-210, Sousel"
+      },
+      "sourceUrl": "https://cm-sousel.pt/sou-municipe/desporto/instalacoes-e-equipamentos/",
+      "sourceNote": "Município confirma campo de relva sintética no Complexo Desportivo; morada e coordenadas do OSM; confirmar endereço específico.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:426296888",
+      "osmUrl": "https://www.openstreetmap.org/way/426296888",
+      "name": "Pavilhão Gimnodesportivo de Sousel",
+      "city": "Sousel",
+      "district": "Portalegre",
+      "sports": "Futsal",
+      "location": {
+        "latitude": 38.9553066,
+        "longitude": -7.6708754,
+        "address": "Estrada da Circunvalação, 7470-210, Sousel"
+      },
+      "sourceUrl": "https://cm-sousel.pt/sou-municipe/desporto/instalacoes-e-equipamentos/",
+      "sourceNote": "Município confirma pavilhão e prática de futsal; há obras na cobertura em setembro de 2026, pelo que a disponibilidade atual exige confirmação.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:429474882",
+      "osmUrl": "https://www.openstreetmap.org/way/429474882",
+      "name": "Campo de Futebol de Cano",
+      "city": "Cano",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 38.9627718,
+        "longitude": -7.7639828,
+        "address": "Largo do Rossio, 7470-022, Cano"
+      },
+      "sourceUrl": "https://www.cm-sousel.pt/wp-content/uploads/2023/05/PMEPC_SOUSEL_PARTE_II_VCP.pdf",
+      "sourceNote": "Plano Municipal de Emergência de Sousel enumera o Campo de Futebol de Cano; GPS e morada do OSM.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:429475622",
+      "osmUrl": "https://www.openstreetmap.org/way/429475622",
+      "name": "Polidesportivo de Cano",
+      "city": "Cano",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 38.9632269,
+        "longitude": -7.7628395,
+        "address": "Largo do Rossio, 7470-022, Cano"
+      },
+      "sourceUrl": "https://www.cm-sousel.pt/wp-content/uploads/2023/05/PMEPC_SOUSEL_PARTE_II_VCP.pdf",
+      "sourceNote": "Plano Municipal de Emergência de Sousel enumera Polidesportivo de Cano; Futebol é modalidade declarada no OSM, ainda sem confirmação municipal específica.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:429476238",
+      "osmUrl": "https://www.openstreetmap.org/way/429476238",
+      "name": "Campo de Futebol de Casa Branca",
+      "city": "Casa Branca",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 38.9503679,
+        "longitude": -7.8053164,
+        "address": "Rua D. Rodrigo Mendia de Castro, 7470-999, Casa Branca"
+      },
+      "sourceUrl": "https://www.cm-sousel.pt/wp-content/uploads/2023/05/PMEPC_SOUSEL_PARTE_II_VCP.pdf",
+      "sourceNote": "Plano Municipal de Emergência de Sousel enumera Campo de Futebol de Casa Branca; endereço e GPS provenientes do OSM.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:429477908",
+      "osmUrl": "https://www.openstreetmap.org/way/429477908",
+      "name": "Campo de Futebol de Santo Amaro",
+      "city": "Santo Amaro",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 38.9705205,
+        "longitude": -7.5836824,
+        "address": "Rua Visconde D’Asseca, 7470-155, Santo Amaro"
+      },
+      "sourceUrl": "https://www.cm-sousel.pt/wp-content/uploads/2023/05/PMEPC_SOUSEL_PARTE_II_VCP.pdf",
+      "sourceNote": "Plano Municipal de Emergência de Sousel enumera Campo de Futebol de Santo Amaro; endereço e GPS provenientes do OSM.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:1275651401",
+      "osmUrl": "https://www.openstreetmap.org/way/1275651401",
+      "name": "Estádio Municipal de Ponte de Sor",
+      "city": "Ponte de Sor",
+      "district": "Portalegre",
+      "sports": "Futebol;Atletismo",
+      "location": {
+        "latitude": 39.2539045,
+        "longitude": -8.0132653,
+        "address": "Zona Desportiva de Ponte de Sor"
+      },
+      "sourceUrl": "https://www.cm-pontedesor.pt/torneio-da-amizade-em-ponte-de-sor/",
+      "sourceNote": "Município confirma Estádio Municipal; relatório municipal identifica Futebol e Atletismo; rua exata difere entre fontes, utilizar zona genérica.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    },
+    {
+      "osmReference": "OSM:WAY:1348549266",
+      "osmUrl": "https://www.openstreetmap.org/way/1348549266",
+      "name": "Estádio Patalino",
+      "city": "Elvas",
+      "district": "Portalegre",
+      "sports": "Futebol",
+      "location": {
+        "latitude": 38.8772886,
+        "longitude": -7.1577876,
+        "address": "Rossio do Meio, 7350-135, Elvas"
+      },
+      "sourceUrl": "https://arquitecturaaqui.eu/pt/obras/19583/estadio-patalino-elvas",
+      "sourceNote": "Arquitectura Aqui confirma Estádio Patalino em Elvas (coordenadas próprias a aproximadamente 17 m do OSM); endereço e utilização futebol verificados também em fontes desportivas.",
+      "needs": [
+        "Confirm availability and actual public access",
+        "Verify alternative names against existing production venue records",
+        "Confirm GPS and address",
+        "Authorize only after backup"
+      ]
+    }
+  ],
+  "excludedOrPending": [
+    {
+      "id": 1,
+      "name": "Ginásio GymnoB",
+      "reason": "Apenas diretório comercial encontrado; falta confirmação independente de estado/identidade e qualidade do registo.",
+      "evidence": "https://www.portalegreonline.com/academia/ginasio-gymnob/"
+    },
+    {
+      "id": 3,
+      "name": "Campo de Ténis — Ponte de Sor",
+      "reason": "Nome genérico, morada por confirmar e potencial sobreposição com polidesportivo municipal.",
+      "evidence": "https://www.cm-pontedesor.pt/infraestruturas-desporto/"
+    },
+    {
+      "id": 4,
+      "name": "Polidesportivo — Mora",
+      "reason": "Mora pertence ao distrito de Évora, apesar de surgir no extrato Portalegre. Reclassificar com limites administrativos.",
+      "evidence": "https://www.openstreetmap.org/way/383543126"
+    },
+    {
+      "id": 11,
+      "name": "Piscina Municipal Terrugem Elvas",
+      "reason": "Morada por confirmar e informação independente insuficiente para a localização precisa.",
+      "evidence": "https://www.openstreetmap.org/way/1117194292"
+    }
+  ]
+}

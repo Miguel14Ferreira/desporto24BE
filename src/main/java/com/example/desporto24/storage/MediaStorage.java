@@ -6,5 +6,6 @@ import java.net.URI;
 
 public interface MediaStorage {
     URI store(String key, MultipartFile file);
+    URI storeVideo(String key, MultipartFile file);
     void delete(String key);
 }
