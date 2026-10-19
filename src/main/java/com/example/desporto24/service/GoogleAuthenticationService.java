@@ -82,7 +82,7 @@ public class GoogleAuthenticationService {
             throw new BadCredentialsException("Esta conta já está associada a outra identidade Google");
         }
 
-        if (Boolean.FALSE.equals(profile.getNotLocked())) {
+        if (profile.getModerationSuspendedAt() != null || Boolean.FALSE.equals(profile.getNotLocked())) {
             throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
 
