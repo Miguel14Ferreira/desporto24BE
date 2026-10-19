@@ -1,0 +1,262 @@
+{
+  "reviewedAt": "2026-10-19",
+  "recordCount": 13,
+  "notOSMExtract": true,
+  "venues": [
+    {
+      "district": "Évora",
+      "city": "Évora",
+      "name": "Complexo Desportivo de Évora",
+      "address": "Estrada das Alcáçovas (N380), Évora",
+      "sports": [
+        "Atletismo",
+        "Futebol"
+      ],
+      "sourceUrl": "https://www.cm-evora.pt/visitante/lazer-visitar/complexo-desportivo-de-evora/",
+      "access": "football pitch and athletics track for clubs/associations; fitness circuit has separate public conditions",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Évora",
+      "city": "Évora",
+      "name": "Piscinas Municipais de Évora",
+      "address": "Avenida Engenheiro Arantes de Oliveira, 7000-758 Évora",
+      "sports": [
+        "Natação"
+      ],
+      "sourceUrl": "https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/",
+      "access": "seasonal opening must be checked; multiple basins belong to one complex",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Castelo Branco",
+      "city": "Castelo Branco",
+      "name": "Pista de Atletismo de Castelo Branco",
+      "address": "Parque Urbano, Castelo Branco",
+      "sports": [
+        "Atletismo"
+      ],
+      "sourceUrl": "https://www.cm-castelobranco.pt/municipe/areas-de-acao/desporto-lazer/pista-de-atletismo/",
+      "access": "registration required according to official page",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Castelo Branco",
+      "city": "Castelo Branco",
+      "name": "Piscina Praia de Castelo Branco",
+      "address": "Avenida do Empresário, 6000 Castelo Branco",
+      "sports": [],
+      "sourceUrl": "https://www.cm-castelobranco.pt/municipe/areas-de-acao/desporto-lazer/piscina-praia/",
+      "access": "recreational aquatic complex; do not infer competitive swimming",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Castelo Branco",
+      "city": "Castelo Branco",
+      "name": "Pavilhão Municipal de Castelo Branco",
+      "address": "Avenida Rotary, 6000 Castelo Branco",
+      "sports": [],
+      "sourceUrl": "https://www.cm-castelobranco.pt/visitante/contactos-uteis/",
+      "access": "existence/address corroborated, modalities not established",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Castelo Branco",
+      "city": "Castelo Branco",
+      "name": "Estádio Municipal de Castelo Branco",
+      "address": "Vale do Romeiro, Estrada Nacional 18, Castelo Branco",
+      "sports": [],
+      "sourceUrl": "https://www.cm-castelobranco.pt/visitante/contactos-uteis/",
+      "access": "existence/address corroborated, modalities and current public usage not established",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Castelo Branco",
+      "city": "Alcains",
+      "name": "Piscinas Municipais de Alcains",
+      "address": null,
+      "sports": [],
+      "sourceUrl": "https://www.cm-castelobranco.pt/municipe/noticias/detalhe-noticia/?id=22913",
+      "access": "municipal reopening reported for summer 2026; do not assume open in October",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Santarém",
+      "city": "Santarém",
+      "name": "Complexo Aquático Municipal de Santarém",
+      "address": "Jardim de Cima, 2005-444 Santarém",
+      "sports": [
+        "Natação",
+        "Polo Aquático",
+        "Natação Artística",
+        "Canoagem"
+      ],
+      "sourceUrl": "https://viversantarem.pt/instalacoes-desportivas/",
+      "access": "different indoor/outdoor areas and seasonal access; verify precise building/court reference",
+      "location": {
+        "latitude": 39.264102742942576,
+        "longitude": -8.669450010048992,
+        "sourceUrl": "https://viversantarem.pt/complexo-aquatico-de-santarem/",
+        "boundaryCheck": "CAOP2025:Santarém/Santarém"
+      },
+      "osmSourceReference": null,
+      "coordinatesVerified": true,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Santarém",
+      "city": "Santarém",
+      "name": "Piscinas Municipais do Sacapeito",
+      "address": "Praceta Cidade de Badajoz, Urbanização do Sacapeito, 2005-213 Santarém",
+      "sports": [
+        "Natação"
+      ],
+      "sourceUrl": "https://viversantarem.pt/instalacoes-desportivas/",
+      "access": "verify timetable/operational status before displaying",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Santarém",
+      "city": "Santarém",
+      "name": "Pavilhão Desportivo Municipal",
+      "address": "Largo Comendador Paulino da Cunha e Silva, 2005-134 Santarém",
+      "sports": [
+        "Futsal",
+        "Andebol",
+        "Hóquei em Patins",
+        "Patinagem",
+        "Voleibol",
+        "Corfebol",
+        "Basquetebol"
+      ],
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "access": "official games and bookings may limit public usage",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Santarém",
+      "city": "Santarém",
+      "name": "Nave Desportiva Municipal",
+      "address": "Largo Comendador Paulino da Cunha e Silva, 2005-134 Santarém",
+      "sports": [
+        "Futsal",
+        "Andebol",
+        "Voleibol",
+        "Basquetebol"
+      ],
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "access": "official games and bookings may limit public usage; separate from municipal pavilion",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Santarém",
+      "city": "Santarém",
+      "name": "Pavilhão Desportivo EX-EPC",
+      "address": "Rua dos Ex-Combatentes do Ultramar, 2005-246 Santarém",
+      "sports": [
+        "Basquetebol",
+        "Boxe",
+        "Esgrima",
+        "Voleibol",
+        "Tiro"
+      ],
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "access": "official games and bookings may limit public usage",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    },
+    {
+      "district": "Santarém",
+      "city": "Santarém",
+      "name": "Pavilhão da EB 2/3 Mem Ramires",
+      "address": "Rua Doutor Virgílio Arruda, 2000-217 Santarém",
+      "sports": [
+        "Futsal",
+        "Andebol",
+        "Basquetebol",
+        "Ginástica",
+        "Dança Desportiva",
+        "Voleibol",
+        "Badminton"
+      ],
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "access": "school sports facility; access limitations require confirmation",
+      "osmSourceReference": null,
+      "coordinatesVerified": false,
+      "independentSource": "municipal_or_municipal_company",
+      "stageStatus": "NEEDS_OSM_ID_AND_PRODUCTION_DUPLICATE_REVIEW",
+      "approvedForImport": false,
+      "productionDuplicatesChecked": false,
+      "currentOpenStatus": "unknown"
+    }
+  ]
+}
