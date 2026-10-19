@@ -56,8 +56,12 @@ duplicados mais distantes ou com coordenadas desatualizadas.
 ### Teste de compatibilidade PostgreSQL (sem Render)
 
 O workflow `.github/workflows/venue-liquibase-postgres-manual.yml`
-corre **apenas mediante execução manual**, para evitar consumir minutos
-do GitHub Actions enquanto o arranque dos runners estiver bloqueado.
+é acionado por alterações aos drafts SQL num PR dirigido à branch
+`feature/desporto24-preview-deploy`, e suporta também execução manual
+**após o workflow existir na branch padrão do GitHub**. O filtro de paths
+e a opção `cancel-in-progress` evitam testes repetidos sem necessidade.
+Os runners podem continuar bloqueados pela infraestrutura/billing GitHub; nesse
+caso não há qualquer resultado PostgreSQL aprovado.
 Cria um PostgreSQL 16 temporário, testa a inserção de 9 recintos,
 a reaplicação idempotente e a preservação de registos COMMUNITY.
 Depois executa o SQL de preflight sem efetuar alterações adicionais.
