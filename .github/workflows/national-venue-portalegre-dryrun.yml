@@ -35,10 +35,19 @@ jobs:
           GPKG="$(find "${RUNNER_TEMP}/caop" -iname '*.gpkg' -type f -print -quit)"
           test -n "$GPKG"
           ogrinfo -ro -so "$GPKG" cont_municipios
+          ogrinfo -ro -so "$GPKG" cont_distritos
           ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
             "${RUNNER_TEMP}/caop/municipios.geojson" "$GPKG" cont_municipios
-          python -c 'import json,sys; p=json.load(open(sys.argv[1])); print("CAOP municipality features:", len(p["features"])); assert 250 <= len(p["features"]) <= 320' \
-            "${RUNNER_TEMP}/caop/municipios.geojson"
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "${RUNNER_TEMP}/caop/distritos.geojson" "$GPKG" cont_distritos
+          python - "${RUNNER_TEMP}/caop/municipios.geojson" "${RUNNER_TEMP}/caop/distritos.geojson" <<'PY'
+          import json, sys
+          municipalities = json.load(open(sys.argv[1]))["features"]
+          districts = json.load(open(sys.argv[2]))["features"]
+          print(f"CAOP municipalities: {len(municipalities)}; districts: {len(districts)}")
+          assert 250 <= len(municipalities) <= 320
+          assert len(districts) == 18
+          PY
       - name: Compare original baseline and CAOP-enriched Portalegre (zero production writes)
         shell: bash
         run: |
@@ -47,7 +56,8 @@ jobs:
           python scripts/import_osm_venues_national.py --district portalegre --cache-dir "$WORK"
           cp "$WORK/national-report.json" "$WORK/baseline-report.json"
           python scripts/import_osm_venues_national.py --district portalegre --cache-dir "$WORK" \
-            --municipalities-geojson "${RUNNER_TEMP}/caop/municipios.geojson"
+            --municipalities-geojson "${RUNNER_TEMP}/caop/municipios.geojson" \
+            --districts-geojson "${RUNNER_TEMP}/caop/distritos.geojson"
           echo '--- PORTALEGRE BASELINE (NO DB WRITES) ---'
           cat "$WORK/baseline-report.json"
           echo '--- PORTALEGRE WITH OFFICIAL MUNICIPALITIES (NO DB WRITES) ---'
@@ -59,8 +69,14 @@ jobs:
           print("Ready before CAOP:", baseline["import_ready"])
           print("Ready after CAOP:", enhanced["import_ready"])
           print("Quarantined after CAOP:", enhanced["review_required"])
-          if enhanced["import_ready"] < baseline["import_ready"]:
-              raise SystemExit("Quality regression: official polygons reduced ready count")
+          if baseline["import_ready"] != 0:
+              raise SystemExit("Without official districts, imports must be quarantined")
+          if not enhanced["districts_verified"] or not enhanced["municipalities_verified"]:
+              raise SystemExit("Missing CAOP geometry verification in improved run")
+          if enhanced["import_ready"] < 1:
+              print("No import-ready venues: inspect tags and quality; do not force publication")
+          print("Cross-district OSM objects discarded:",
+                json.load(open(sys.argv[2]))["portalegre"].get("skipped_other_district", 0))
           PY
       - name: Keep only preview outputs for 1 day
         if: always()
