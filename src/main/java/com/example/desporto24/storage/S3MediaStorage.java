@@ -31,7 +31,15 @@ public class S3MediaStorage implements MediaStorage {
 
     @Override
     public URI store(String key, MultipartFile file) {
-        MediaStorageSupport.ValidatedMedia media = MediaStorageSupport.validate(file);
+        return storeValidated(key, MediaStorageSupport.validate(file));
+    }
+
+    @Override
+    public URI storeVideo(String key, MultipartFile file) {
+        return storeValidated(key, MediaStorageSupport.validateVideo(file));
+    }
+
+    private URI storeValidated(String key, MediaStorageSupport.ValidatedMedia media) {
         String objectKey = key + media.extension();
         MediaStorageProperties.S3 s3 = properties.getS3();
 

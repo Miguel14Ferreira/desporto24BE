@@ -123,6 +123,37 @@ public class SocialFeedService {
         return postItem(post, author);
     }
 
+    public FeedItemResponse createPostWithMedia(
+            String username, String content, MultipartFile image,
+            MultipartFile video, Long sessionId) {
+        if (image != null && !image.isEmpty() && video != null && !video.isEmpty()) {
+            throw new IllegalArgumentException("Only one photo or video per post");
+        }
+        if (video == null || video.isEmpty()) {
+            return createPostWithImage(username, content, image, sessionId);
+        }
+        String normalized = content == null ? "" : content.trim();
+        if (normalized.isBlank() || normalized.length() > 1000) {
+            throw new IllegalArgumentException("A publicação deve ter entre 1 e 1000 caracteres");
+        }
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+        Profile author = profile(username);
+        Session linkedSession = resolvePublicSession(sessionId);
+        String baseKey = "posts/" + author.getId() + "/" + UUID.randomUUID();
+        URI uri = mediaStorage.storeVideo(baseKey, video);
+        SocialPost post = postRepository.save(SocialPost.builder()
+                .author(author)
+                .session(linkedSession)
+                .content(normalized)
+                .videoUrl(uri.toString())
+                .videoStorageKey(storageKey(uri))
+                .createdAt(Instant.now())
+                .build());
+        return postItem(post, author);
+    }
+
     public void deletePost(Long postId, String username) {
         Profile actor = profile(username);
         SocialPost post = postRepository.findById(postId)
@@ -143,6 +174,10 @@ public class SocialFeedService {
                 && !post.getImageStorageKey().isBlank()
         ) {
             mediaStorage.delete(post.getImageStorageKey());
+        }
+        if (mediaStorage != null && post.getVideoStorageKey() != null
+                && !post.getVideoStorageKey().isBlank()) {
+            mediaStorage.delete(post.getVideoStorageKey());
         }
     }
 
@@ -255,7 +290,8 @@ public class SocialFeedService {
                 likeCounts.getOrDefault(post.getId(), 0L),
                 likedPostIds.contains(post.getId()),
                 commentCounts.getOrDefault(post.getId(), 0L),
-                publicSessionImage(linkedSession)
+                publicSessionImage(linkedSession),
+                post.getVideoUrl()
         );
     }
 
@@ -288,7 +324,8 @@ public class SocialFeedService {
                 0,
                 false,
                 0,
-                publicSessionImage(session)
+                publicSessionImage(session),
+                null
         );
     }
 
@@ -315,7 +352,8 @@ public class SocialFeedService {
                 0,
                 false,
                 0,
-                publicSessionImage(session)
+                publicSessionImage(session),
+                null
         );
     }
 
