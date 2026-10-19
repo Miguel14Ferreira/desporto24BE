@@ -1,0 +1,19 @@
+databaseChangeLog:
+  # Add only after external read-only duplicate preflight and database backup.
+  - changeSet:
+      id: 2026-10-19-first-official-district-venues-v1
+      author: jynlo-venues
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        tableExists:
+          schemaName: desporto24
+          tableName: venue
+      changes:
+        - sqlFile:
+            path: 2026-10-19-first-official-district-venues.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
