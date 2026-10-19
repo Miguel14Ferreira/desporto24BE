@@ -95,3 +95,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-19-portalegre-source-checked.yaml
   - include:
       file: db/changelog/changes/2026-10-19-first-official-district-venues.yaml
+  - include:
+      file: db/changelog/changes/2026-10-19-pestana-7-source-corroborated.yaml
