@@ -48,7 +48,7 @@ def run(selected, cache, municipalities, districts, stage_fn=stage):
             if isinstance(record, dict):
                 report[slug] = (record if record.get('status') in
                                 ('processed', 'failed') else
-                                {'status': 'legacy_unverified', **record})
+                                {**record, 'status': 'legacy_unverified'})
     else:
         report = {}
     for slug in selected:

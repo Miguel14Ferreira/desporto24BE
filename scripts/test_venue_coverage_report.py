@@ -44,6 +44,17 @@ class VenueCoverageReportTest(unittest.TestCase):
         self.assertEqual("", beja["candidatos_osm"])
         self.assertEqual("", portalegre["candidatos_osm"])
 
+    def test_explicit_unknown_status_cannot_be_reported_as_coverage(self):
+        with self.assertRaisesRegex(ValueError, "unknown coverage status"):
+            extract({"portalegre": {"status": "old_import",
+                                   "candidates": 1992, "prepared": 20,
+                                   "import_ready": 4, "review_required": 16}})
+        # Older status-less input is still supported by the CSV exporter.
+        rows = extract({"portalegre": {"candidates": 10, "prepared": 4,
+                                       "import_ready": 1, "review_required": 3}})
+        self.assertEqual(10, next(row for row in rows
+                                  if row["distrito"] == "Portalegre")["candidatos_osm"])
+
     def test_writes_utf8_excel_friendly_semicolon_csv(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "report.json"
