@@ -42,11 +42,30 @@ class NationalVenueImportTests(unittest.TestCase):
         self.assertEqual("outside_mainland", national.build_venue(
             {"leisure": "pitch"}, "way", 5, (32.7, -16.9), "Faro")[1])
 
+    def test_official_municipality_lookup_resolves_missing_city(self):
+        import tempfile
+        import json
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "municipios.geojson"
+            path.write_text(json.dumps({
+                "type": "FeatureCollection", "features": [{
+                    "type": "Feature",
+                    "properties": {"Municipio": "Portalegre"},
+                    "geometry": {"type": "Polygon", "coordinates": [[
+                        [-7.6, 39.1], [-7.1, 39.1], [-7.1, 39.5],
+                        [-7.6, 39.5], [-7.6, 39.1]
+                    ]]}
+                }]
+            }), encoding="utf-8")
+            lookup = national.MunicipalityLookup(path)
+            self.assertEqual("Portalegre", lookup.find(39.3, -7.35))
+            self.assertIsNone(lookup.find(40.1, -7.35))
+
     def test_quality_gate_quarantines_incomplete_venues(self):
         self.assertFalse(national.is_import_ready("name_to_verify"))
         self.assertFalse(national.is_import_ready("sports_to_verify"))
         self.assertFalse(national.is_import_ready("municipality_to_verify"))
-        self.assertFalse(national.is_import_ready("address_to_verify"))
+        self.assertTrue(national.is_import_ready("address_to_verify"))
         self.assertTrue(national.is_import_ready("ok"))
 
     def test_sufficiently_tagged_venue_is_importable(self):

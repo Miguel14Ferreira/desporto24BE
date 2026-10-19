@@ -139,6 +139,62 @@ def build_venue(tags, osm_type, osm_id, coords, district):
     return result, ",".join(flags) or "ok"
 
 
+def _inside_ring(lon, lat, ring):
+    """Ray casting on GeoJSON lon/lat coordinates."""
+    inside = False
+    j = len(ring) - 1
+    for i in range(len(ring)):
+        xi, yi = ring[i][:2]
+        xj, yj = ring[j][:2]
+        if ((yi > lat) != (yj > lat)):
+            intersection_x = (xj - xi) * (lat - yi) / (yj - yi) + xi
+            if lon < intersection_x:
+                inside = not inside
+        j = i
+    return inside
+
+
+def _contains_polygon(lon, lat, polygon):
+    return bool(polygon) and _inside_ring(lon, lat, polygon[0]) and not any(
+        _inside_ring(lon, lat, hole) for hole in polygon[1:])
+
+
+class MunicipalityLookup:
+    """Optional official CAOP municipality boundary lookup; requires WGS84 GeoJSON."""
+
+    def __init__(self, path):
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        if raw.get("type") != "FeatureCollection":
+            raise ValueError("Expected a WGS84 GeoJSON FeatureCollection")
+        self.municipalities = []
+        for feature in raw.get("features", []):
+            props = feature.get("properties") or {}
+            name = next((str(props[k]).strip() for k in (
+                "Municipio", "MUNICIPIO", "municipio", "Município",
+                "concelho", "Concelho", "name", "nome", "NAME_2")
+                if props.get(k)), None)
+            geom = feature.get("geometry") or {}
+            if not name or geom.get("type") not in {"Polygon", "MultiPolygon"}:
+                continue
+            polygons = ([geom["coordinates"]] if geom["type"] == "Polygon"
+                        else geom["coordinates"])
+            for poly in polygons:
+                if not poly or not poly[0]:
+                    continue
+                xs = [pt[0] for pt in poly[0]]
+                ys = [pt[1] for pt in poly[0]]
+                self.municipalities.append((min(xs), min(ys), max(xs), max(ys),
+                                            name, poly))
+        if not self.municipalities:
+            raise ValueError("No named municipality polygons in boundary data")
+
+    def find(self, lat, lon):
+        for minx, miny, maxx, maxy, name, poly in self.municipalities:
+            if minx <= lon <= maxx and miny <= lat <= maxy and _contains_polygon(lon, lat, poly):
+                return name
+        return None
+
+
 def element_coordinates(obj, is_node):
     try:
         if is_node:
@@ -156,17 +212,18 @@ def element_coordinates(obj, is_node):
 
 
 def is_import_ready(quality):
-    """Never publish records with synthetic names, missing municipality,
-    unconfirmed address or inferred unknown sporting activity."""
-    return quality == "ok"
+    """Name, municipality and sport must be known. A venue with an explicit
+    geo point may be published with address clearly marked 'to confirm'."""
+    return set(quality.split(",")).issubset({"ok", "address_to_verify"})
 
 
 class VenueHandler(osmium.SimpleHandler if osmium else object):
-    def __init__(self, output, review, district):
+    def __init__(self, output, review, district, municipality_lookup=None):
         super().__init__()
         self.output = output
         self.review = review
         self.district = district
+        self.municipality_lookup = municipality_lookup
         self.counts = Counter()
 
     def record(self, obj, kind):
@@ -174,8 +231,14 @@ class VenueHandler(osmium.SimpleHandler if osmium else object):
         if (tags.get("leisure") or "").strip().lower() not in LEISURE and tags.get("building") != "sports_hall":
             return
         self.counts["candidates"] += 1
-        venue, quality = build_venue(
-            tags, kind, int(obj.id), element_coordinates(obj, kind == "node"), self.district)
+        coords = element_coordinates(obj, kind == "node")
+        if coords and self.municipality_lookup and not any(tags.get(k) for k in (
+                "addr:city", "addr:town", "addr:village", "addr:municipality",
+                "is_in:city", "addr:suburb")):
+            municipality = self.municipality_lookup.find(*coords)
+            if municipality:
+                tags["addr:municipality"] = municipality
+        venue, quality = build_venue(tags, kind, int(obj.id), coords, self.district)
         if venue is None:
             self.counts["skipped_" + quality] += 1
             return
@@ -231,7 +294,7 @@ def download(slug, path, force=False):
     raise AssertionError("unreachable")
 
 
-def stage(slug, workdir, refresh=False):
+def stage(slug, workdir, refresh=False, municipality_lookup=None):
     if osmium is None:
         raise SystemExit("Install the parser first: python -m pip install osmium")
     pbf = workdir / f"{slug}-latest.osm.pbf"
@@ -244,7 +307,7 @@ def stage(slug, workdir, refresh=False):
     try:
         with tmp.open("w", encoding="utf-8") as stream, \
                 review_tmp.open("w", encoding="utf-8") as review:
-            handler = VenueHandler(stream, review, DISTRICTS[slug])
+            handler = VenueHandler(stream, review, DISTRICTS[slug], municipality_lookup)
             handler.apply_file(str(pbf), locations=True)
         tmp.replace(target)
         review_tmp.replace(review_path)
@@ -320,6 +383,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--district", choices=["all", *DISTRICTS], default="all")
     parser.add_argument("--cache-dir", type=Path, default=Path(".cache/jynlo-venues"))
+    parser.add_argument("--municipalities-geojson", type=Path,
+                        help="Official CAOP2025 municipality polygons in EPSG:4326 GeoJSON")
     parser.add_argument("--refresh", action="store_true",
                         help="Download a fresh snapshot instead of reusing cached extracts")
     parser.add_argument("--apply", action="store_true", help="Write to API (off by default)")
@@ -336,10 +401,13 @@ def main(argv=None):
         parser.error("D24_ADMIN_TOKEN is required for authenticated imports")
     slugs = list(DISTRICTS) if args.district == "all" else [args.district]
     args.cache_dir.mkdir(parents=True, exist_ok=True)
+    municipality_lookup = (
+        MunicipalityLookup(args.municipalities_geojson)
+        if args.municipalities_geojson else None)
     report = {}
     for slug in slugs:
         print(f"[{slug}] Preparing district snapshot", flush=True)
-        staged, stats = stage(slug, args.cache_dir, args.refresh)
+        staged, stats = stage(slug, args.cache_dir, args.refresh, municipality_lookup)
         report[slug] = stats
         print(f"[{slug}] {stats.get('prepared', 0)} candidates: "
               f"{stats.get('import_ready', 0)} ready, "

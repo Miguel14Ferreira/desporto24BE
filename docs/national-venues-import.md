@@ -19,12 +19,23 @@ percentagens de cobertura sem denominador oficial por concelho.
 - Complementar com fonte oficial SNID após validar URL, licença e qualidade.
   **Não misturar fontes com licenças incompatíveis num dataset derivado.**
 
+## Completar concelhos sem APIs pagas
+
+A fonte oficial [CAOP2025 da DGT](https://www.dgterritorio.gov.pt/atividades/cartografia/cartografia-tematica/caop),
+sob licença CC BY 4.0, permite associar recintos a municípios pelas coordenadas.
+Descarregar o GeoPackage oficial continental e converter **apenas a camada de
+municípios** para GeoJSON em WGS84 (EPSG:4326), usando ogr2ogr/QGIS.
+Identificar a camada no QGIS/`ogrinfo`, pois o seu nome pode variar.
+
+Usar `--municipalities-geojson /caminho/municipios.geojson` no importador.
+Assim já não dependemos do campo `addr:city` para a maior parte dos recintos.
+
 ## Preparar e auditar sem escrever no servidor
 
 ```bash
 python3 -m pip install osmium
 python3 -m unittest discover -s scripts -p 'test_import_osm_venues_national.py'
-python3 scripts/import_osm_venues_national.py --district all
+python3 scripts/import_osm_venues_national.py --district all --municipalities-geojson /caminho/municipios.geojson
 ```
 
 Pela primeira vez são percorridos **todos os 18 distritos** de forma automática,
@@ -67,7 +78,7 @@ com origem diferente. Em caso de erro HTTP parar e inspecionar.
 - Relatório dos 18 distritos processados e sumário por distrito/concelho.
 - Sem blocos de dados por importar por causa de RAM/timeout; auditar erros.
 - Pesquisa por distrito/localidade e por modalidade com paginação e índices.
-- Recintos sem nome/morada/modalidade em quarentena, não publicados automaticamente; podem ser corrigidos por colaboradores.
+- Recintos sem nome/modalidade/concelho em quarentena, não publicados automaticamente. A ausência de rua explícita é apresentada como 'morada por confirmar', com coordenadas OSM verificáveis; podem ser corrigidos por colaboradores.
 - Propor fontes municipais/regionais para as lacunas de OSM/SNID, com licença.
 - Confirmar número antes e depois na BD, com duplicados e erros discriminados.
 - Não declarar «todos os recintos» sem processo de validação territorial.
