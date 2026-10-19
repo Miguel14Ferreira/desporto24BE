@@ -83,7 +83,7 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     /** Grouped coverage report; no full-table entity loading. */
     @Query("""
            SELECT v.district, COUNT(v),
-              SUM(CASE WHEN v.sports IS NULL OR v.sports = '' THEN 1 ELSE 0 END),
+              SUM(CASE WHEN v.sports IS NULL OR TRIM(v.sports) = '' THEN 1 ELSE 0 END),
               SUM(CASE WHEN v.latitude IS NULL OR v.longitude IS NULL THEN 1 ELSE 0 END)
            FROM Venue v GROUP BY v.district
            """)

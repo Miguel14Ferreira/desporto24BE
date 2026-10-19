@@ -40,6 +40,14 @@ class VenueQualityByCityRepositoryTest {
         assertEquals(2L, ((Number) top.getFirst()[2]).longValue());
         assertEquals(2L, ((Number) top.getFirst()[3]).longValue());
         assertEquals(3L, ((Number) top.getFirst()[4]).longValue());
+
+        var districtBreakdown = repository.coverageByDistrict();
+        long missingSports = districtBreakdown.stream()
+                .mapToLong(row -> ((Number) row[2]).longValue())
+                .sum();
+        assertEquals(2L, missingSports,
+                "District totals must include null AND whitespace-only sports");
+
     }
 
     private void add(String name, String city, String sport, String district) {
