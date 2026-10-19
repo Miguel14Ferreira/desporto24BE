@@ -30,3 +30,9 @@ All 24 INSERTs are guarded with NOT EXISTS + ON CONFLICT DO NOTHING. **0–24 ac
 This branch has **no merge, no deploy, no DB writes and no workflow runs requested**. GitHub Actions minutes are constrained. Current assistant environment does not support a real PostgreSQL MCP connection (SSL/TLS/allowlist blocked) or a Maven checkout of the private repository.
 
 Source provenance: OpenStreetMap contributors (ODbL); DGT CAOP2025 (CC BY 4.0); municipal source links in venue manifests.
+
+## Unified read-only preflight for all 24 candidates
+
+Before any merge, run `src/main/resources/db/changelog/venue-imports/preflight-24-venues-READONLY.sql` using a **SELECT-only role** against the current Render production catalogue. This query enumerates the 24 proposed source references directly from the three INSERT scripts and returns matching existing records by source reference, exact normalised name/city, or short-distance GPS proximity. A `NO_MATCH_FOUND` result is **not** a confirmation of non-duplication: spellings, shared complexes, geocodes and alternate sources still require manual review. There may be several rows per candidate. The lateral match window is capped at 20 results per candidate.
+
+The test `scripts/test_venue_release_preflight.py` statically checks that the preflight still covers the same 24 source IDs and contains no SQL mutations. Neither the SQL nor this test has been run against PostgreSQL or the user's live data here.
