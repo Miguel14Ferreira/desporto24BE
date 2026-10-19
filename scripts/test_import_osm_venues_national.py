@@ -42,6 +42,22 @@ class NationalVenueImportTests(unittest.TestCase):
         self.assertEqual("outside_mainland", national.build_venue(
             {"leisure": "pitch"}, "way", 5, (32.7, -16.9), "Faro")[1])
 
+    def test_quality_gate_quarantines_incomplete_venues(self):
+        self.assertFalse(national.is_import_ready("name_to_verify"))
+        self.assertFalse(national.is_import_ready("sports_to_verify"))
+        self.assertFalse(national.is_import_ready("municipality_to_verify"))
+        self.assertFalse(national.is_import_ready("address_to_verify"))
+        self.assertTrue(national.is_import_ready("ok"))
+
+    def test_sufficiently_tagged_venue_is_importable(self):
+        venue, quality = national.build_venue(
+            {"leisure": "pitch", "sport": "soccer", "name": "Campo Verde",
+             "addr:city": "Portalegre", "addr:street": "Rua da Escola"},
+            "way", 888, (39.294, -7.432), "Portalegre")
+        self.assertEqual("ok", quality)
+        self.assertTrue(national.is_import_ready(quality))
+        self.assertEqual("Futebol", venue["sports"])
+
     def test_unnamed_are_explicitly_tentative(self):
         venue, quality = national.build_venue(
             {"leisure": "swimming_pool"}, "node", 9,

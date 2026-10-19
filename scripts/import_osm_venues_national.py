@@ -56,7 +56,7 @@ SPORTS = {
     "skateboard": "Skate", "skating": "Patinagem",
     "gymnastics": "Ginástica", "gym": "Ginásio", "fitness": "Ginásio",
     "weightlifting": "Halterofilismo", "boxing": "Boxe",
-    "martial_arts": "Artes Marciais Chinesas",
+    # The generic OSM 'martial_arts' tag is not a specific Chinese discipline.
     "karate": "Karaté", "judo": "Judo", "taekwondo": "Taekwondo",
     "squash": "Squash", "pickleball": "Pickleball",
     "cycling": "Ciclismo", "bmx": "BMX", "karting": "Karting",
@@ -155,10 +155,17 @@ def element_coordinates(obj, is_node):
         return None
 
 
+def is_import_ready(quality):
+    """Never publish records with synthetic names, missing municipality,
+    unconfirmed address or inferred unknown sporting activity."""
+    return quality == "ok"
+
+
 class VenueHandler(osmium.SimpleHandler if osmium else object):
-    def __init__(self, output, district):
+    def __init__(self, output, review, district):
         super().__init__()
         self.output = output
+        self.review = review
         self.district = district
         self.counts = Counter()
 
@@ -172,8 +179,14 @@ class VenueHandler(osmium.SimpleHandler if osmium else object):
         if venue is None:
             self.counts["skipped_" + quality] += 1
             return
-        self.output.write(json.dumps(venue, ensure_ascii=False) + "\n")
         self.counts["prepared"] += 1
+        if is_import_ready(quality):
+            self.output.write(json.dumps(venue, ensure_ascii=False) + "\n")
+            self.counts["import_ready"] += 1
+        else:
+            self.review.write(json.dumps({"venue": venue, "quality": quality},
+                                         ensure_ascii=False) + "\n")
+            self.counts["review_required"] += 1
         for flag in quality.split(","):
             self.counts[flag] += 1
 
@@ -224,19 +237,25 @@ def stage(slug, workdir, refresh=False):
     pbf = workdir / f"{slug}-latest.osm.pbf"
     download(slug, pbf, force=refresh)
     target = workdir / f"{slug}-venues.jsonl"
-    # Snapshot reproducibility: output is refreshed alongside every parser run.
+    review_path = workdir / f"{slug}-review.jsonl"
+    # Snapshot reproducibility: output and quarantine are always replaced together.
     tmp = target.with_suffix(".jsonl.tmp")
+    review_tmp = review_path.with_suffix(".jsonl.tmp")
     try:
-        with tmp.open("w", encoding="utf-8") as stream:
-            handler = VenueHandler(stream, DISTRICTS[slug])
+        with tmp.open("w", encoding="utf-8") as stream, \
+                review_tmp.open("w", encoding="utf-8") as review:
+            handler = VenueHandler(stream, review, DISTRICTS[slug])
             handler.apply_file(str(pbf), locations=True)
         tmp.replace(target)
+        review_tmp.replace(review_path)
     finally:
         tmp.unlink(missing_ok=True)
+        review_tmp.unlink(missing_ok=True)
     stats = dict(sorted(handler.counts.items()))
     stats["source_bytes"] = pbf.stat().st_size
     stats["source"] = f"{BASE_URL}/{slug}-latest.osm.pbf"
     stats["sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
+    stats["review_sha256"] = hashlib.sha256(review_path.read_bytes()).hexdigest()
     return target, stats
 
 
@@ -322,7 +341,9 @@ def main(argv=None):
         print(f"[{slug}] Preparing district snapshot", flush=True)
         staged, stats = stage(slug, args.cache_dir, args.refresh)
         report[slug] = stats
-        print(f"[{slug}] {stats.get('prepared', 0)} prepared; quality flags: "
+        print(f"[{slug}] {stats.get('prepared', 0)} candidates: "
+              f"{stats.get('import_ready', 0)} ready, "
+              f"{stats.get('review_required', 0)} quarantined; "
               f"name={stats.get('name_to_verify', 0)}, "
               f"municipality={stats.get('municipality_to_verify', 0)}, "
               f"sports={stats.get('sports_to_verify', 0)}", flush=True)
@@ -333,9 +354,11 @@ def main(argv=None):
     report["summary"] = {
         "districts": len(slugs),
         "prepared": sum(v.get("prepared", 0) for v in report.values()),
+        "import_ready": sum(v.get("import_ready", 0) for v in report.values()),
+        "review_required": sum(v.get("review_required", 0) for v in report.values()),
         "submitted": sum(v.get("submitted", 0) for v in report.values()),
         "mode": "apply" if args.apply else "dry-run",
-        "note": "No claim of completeness; relation-only geometries need a separate pass."
+        "note": "Only quality='ok' records can be imported; records with missing values are quarantined for review. No claim of full coverage; relation-only geometries need separate handling."
     }
     path = args.cache_dir / "national-report.json"
     path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")

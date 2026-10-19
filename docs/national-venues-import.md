@@ -28,8 +28,8 @@ python3 scripts/import_osm_venues_national.py --district all
 ```
 
 Pela primeira vez são percorridos **todos os 18 distritos** de forma automática,
-sem BBOX manual. Cada distrito produz um ficheiro JSONL e contagens
-`candidates`, `prepared`, `name_to_verify`, `municipality_to_verify`,
+sem BBOX manual. Cada distrito produz **dois** ficheiros JSONL: `*-venues.jsonl` com dados aptos a importar e `*-review.jsonl` com os registos incompletos, **nunca submetidos automaticamente**. Contagens
+`candidates`, `prepared`, `import_ready`, `review_required`, `name_to_verify`, `municipality_to_verify`,
 `address_to_verify`, `sports_to_verify`, `skipped_restricted_access`.
 O resumo consolidado é `.cache/jynlo-venues/national-report.json`. Não
 partilhar o relatório com tokens nem adicionar o cache ao Git.
@@ -67,7 +67,7 @@ com origem diferente. Em caso de erro HTTP parar e inspecionar.
 - Relatório dos 18 distritos processados e sumário por distrito/concelho.
 - Sem blocos de dados por importar por causa de RAM/timeout; auditar erros.
 - Pesquisa por distrito/localidade e por modalidade com paginação e índices.
-- Recintos sem nome/morada/modalidade sinalizados para correção humana.
+- Recintos sem nome/morada/modalidade em quarentena, não publicados automaticamente; podem ser corrigidos por colaboradores.
 - Propor fontes municipais/regionais para as lacunas de OSM/SNID, com licença.
 - Confirmar número antes e depois na BD, com duplicados e erros discriminados.
 - Não declarar «todos os recintos» sem processo de validação territorial.
