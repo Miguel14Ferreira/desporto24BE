@@ -1,0 +1,92 @@
+name: National venue Portalegre dry-run
+
+# Large OSM + CAOP downloads are manually requested, never PR-automatic.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portalegre-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PBF parser and GDAL command line tool
+        run: |
+          python -m pip install --quiet osmium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin
+      - name: Validate parser locally without contacting application
+        run: python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
+      - name: Download CAOP2025 municipalities from official DGT (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/caop" "${RUNNER_TEMP}/jynlo-venue-preview"
+          curl --fail --location --retry 2 --connect-timeout 25 --max-time 210 \
+            --output "${RUNNER_TEMP}/caop/caop2025.zip" \
+            https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip
+          unzip -q "${RUNNER_TEMP}/caop/caop2025.zip" -d "${RUNNER_TEMP}/caop"
+          GPKG="$(find "${RUNNER_TEMP}/caop" -iname '*.gpkg' -type f -print -quit)"
+          test -n "$GPKG"
+          ogrinfo -ro -so "$GPKG" cont_municipios
+          ogrinfo -ro -so "$GPKG" cont_distritos
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "${RUNNER_TEMP}/caop/municipios.geojson" "$GPKG" cont_municipios
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "${RUNNER_TEMP}/caop/distritos.geojson" "$GPKG" cont_distritos
+          python - "${RUNNER_TEMP}/caop/municipios.geojson" "${RUNNER_TEMP}/caop/distritos.geojson" <<'PY'
+          import json, sys
+          municipalities = json.load(open(sys.argv[1]))["features"]
+          districts = json.load(open(sys.argv[2]))["features"]
+          print(f"CAOP municipalities: {len(municipalities)}; districts: {len(districts)}")
+          assert 250 <= len(municipalities) <= 320
+          assert len(districts) == 18
+          PY
+      - name: Compare original baseline and CAOP-enriched Portalegre (zero production writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK="${RUNNER_TEMP}/jynlo-venue-preview"
+          python scripts/import_osm_venues_national.py --district portalegre --cache-dir "$WORK"
+          cp "$WORK/national-report.json" "$WORK/baseline-report.json"
+          python scripts/import_osm_venues_national.py --district portalegre --cache-dir "$WORK" \
+            --municipalities-geojson "${RUNNER_TEMP}/caop/municipios.geojson" \
+            --districts-geojson "${RUNNER_TEMP}/caop/distritos.geojson"
+          echo '--- PORTALEGRE BASELINE (NO DB WRITES) ---'
+          cat "$WORK/baseline-report.json"
+          echo '--- PORTALEGRE WITH OFFICIAL MUNICIPALITIES (NO DB WRITES) ---'
+          cat "$WORK/national-report.json"
+          python - "$WORK/baseline-report.json" "$WORK/national-report.json" <<'PY'
+          import json, sys
+          baseline=json.load(open(sys.argv[1]))["summary"]
+          enhanced=json.load(open(sys.argv[2]))["summary"]
+          print("Ready before CAOP:", baseline["import_ready"])
+          print("Ready after CAOP:", enhanced["import_ready"])
+          print("Quarantined after CAOP:", enhanced["review_required"])
+          if baseline["import_ready"] != 0:
+              raise SystemExit("Without official districts, imports must be quarantined")
+          if not enhanced["districts_verified"] or not enhanced["municipalities_verified"]:
+              raise SystemExit("Missing CAOP geometry verification in improved run")
+          if enhanced["import_ready"] < 1:
+              print("No import-ready venues: inspect tags and quality; do not force publication")
+          print("Cross-district OSM objects discarded:",
+                json.load(open(sys.argv[2]))["portalegre"].get("skipped_other_district", 0))
+          PY
+      - name: Keep only preview outputs for 1 day
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portalegre-venue-caop-preview
+          path: |
+            ${{ runner.temp }}/jynlo-venue-preview/baseline-report.json
+            ${{ runner.temp }}/jynlo-venue-preview/national-report.json
+            ${{ runner.temp }}/jynlo-venue-preview/portalegre-venues.jsonl
+            ${{ runner.temp }}/jynlo-venue-preview/portalegre-review.jsonl
+          retention-days: 1
+          if-no-files-found: warn

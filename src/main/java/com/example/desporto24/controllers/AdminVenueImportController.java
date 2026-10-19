@@ -38,6 +38,25 @@ public class AdminVenueImportController {
     private volatile Instant snidImportFinishedAt;
     private volatile SnidVenueImportData.ImportResult snidImportResult;
 
+    @GetMapping("/coverage")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Map<String, Object> catalogueCoverage() {
+        List<Map<String, Object>> byDistrict = venueRepository.coverageByDistrict().stream()
+                .map(row -> {
+                    Map<String, Object> entry = new java.util.LinkedHashMap<String, Object>();
+                    String district = row[0] instanceof String value && !value.isBlank()
+                            ? value : "(sem distrito)";
+                    entry.put("district", district);
+                    entry.put("total", ((Number) row[1]).longValue());
+                    entry.put("withoutSports", ((Number) row[2]).longValue());
+                    entry.put("withoutCoordinates", ((Number) row[3]).longValue());
+                    return entry;
+                }).sorted(java.util.Comparator.comparing(v -> (String) v.get("district")))
+                .toList();
+        return Map.of("total", venueRepository.count(), "districts", byDistrict);
+    }
+
     @GetMapping("/imports/snid/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Map<String, Object> snidImportStatus() {
@@ -129,8 +148,13 @@ public class AdminVenueImportController {
     }
 
     @PostMapping("/imports/openstreetmap")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public List<VenueResponse> importOpenStreetMapVenues(
-            @RequestBody @Valid List<OpenStreetMapVenueImportRequest> requests) {
+            @RequestBody @Valid List<@Valid OpenStreetMapVenueImportRequest> requests) {
+        if (requests.isEmpty() || requests.size() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Import requires between 1 and 100 venues per request");
+        }
         return venueService.importOpenStreetMapVenues(requests);
     }
 }
