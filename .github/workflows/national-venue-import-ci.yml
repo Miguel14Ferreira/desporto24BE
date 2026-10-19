@@ -1,0 +1,26 @@
+name: National venue importer safety checks
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'scripts/import_osm_venues_national.py'
+      - 'scripts/test_import_osm_venues_national.py'
+      - '.github/workflows/national-venue-import-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parser-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run conversion tests (no network, DB or PBF required)
+        run: |
+          python -m py_compile scripts/import_osm_venues_national.py
+          python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
