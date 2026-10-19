@@ -174,7 +174,8 @@ public class VenueService {
                         request.venueType(),
                         request.environmentType(),
                         request.latitude(),
-                        request.longitude()))
+                        request.longitude(),
+                        request.district()))
                 .toList();
     }
 
@@ -188,6 +189,14 @@ public class VenueService {
             Venue.EnvironmentType environmentType,
             Double latitude,
             Double longitude) {
+        return upsertOpenStreetMapVenue(sourceReference, name, city, address,
+                sports, venueType, environmentType, latitude, longitude, null);
+    }
+
+    public VenueResponse upsertOpenStreetMapVenue(
+            String sourceReference, String name, String city, String address,
+            String sports, String venueType, Venue.EnvironmentType environmentType,
+            Double latitude, Double longitude, String district) {
         String normalizedSourceReference = requireText(sourceReference, "Referência externa obrigatória");
         String normalizedName = requireText(name, "Nome do recinto obrigatório");
         String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
@@ -200,24 +209,60 @@ public class VenueService {
             throw new IllegalArgumentException("Modalidade inválida no recinto");
         }
 
+        String stableReference = normalizedSourceReference.replaceFirst(
+                "(?i)^OSM:(NODE|WAY|RELATION)[/:]([0-9]+)$", "OSM:$1:$2");
+        String[] parts = stableReference.split(":", -1);
+        if (parts.length == 3 && parts[0].equalsIgnoreCase("OSM")) {
+            stableReference = "OSM:" + parts[1].toUpperCase(java.util.Locale.ROOT) + ":" + parts[2];
+        }
+        if (!stableReference.matches("OSM:(NODE|WAY|RELATION):[1-9][0-9]*")) {
+            throw new IllegalArgumentException("Invalid OSM source reference");
+        }
+        if (latitude == null || longitude == null
+                || !Double.isFinite(latitude) || !Double.isFinite(longitude)
+                || latitude < 36.8 || latitude > 42.3 || longitude < -9.6 || longitude > -6.0) {
+            throw new IllegalArgumentException("Coordinates must be in mainland Portugal");
+        }
+        String normalizedDistrict = trimToNull(district);
+        if (normalizedDistrict != null && !java.util.Set.of(
+                "Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra",
+                "Évora", "Faro", "Guarda", "Leiria", "Lisboa", "Portalegre",
+                "Porto", "Santarém", "Setúbal", "Viana do Castelo", "Vila Real", "Viseu"
+        ).contains(normalizedDistrict)) {
+            throw new IllegalArgumentException("Unknown mainland Portugal district");
+        }
         Venue existingBySource = venueRepository.findByInformationSourceAndSourceReference(
-                Venue.InformationSource.OPENSTREETMAP, normalizedSourceReference).orElse(null);
+                Venue.InformationSource.OPENSTREETMAP, stableReference).orElse(null);
         if (existingBySource == null && latitude != null && longitude != null) {
             // Reuse an exact matching venue from any source without overwriting it.
-            Venue existingByLocation = venueRepository
-                    .findFirstByNameIgnoreCaseAndLatitudeAndLongitude(
-                            normalizedName, latitude, longitude).orElse(null);
-            if (existingByLocation != null) {
-                return toResponse(existingByLocation);
+            // Narrow geographic candidate check, without merging different named courts.
+            List<Venue> nearby = venueRepository
+                    .findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                            latitude - 0.00023, latitude + 0.00023,
+                            longitude - 0.00035, longitude + 0.00035);
+            String normalizedComparable = normalizedName.toLowerCase(java.util.Locale.ROOT)
+                    .replaceAll("[^\\p{L}\\p{N}]+", "");
+            for (Venue candidate : nearby) {
+                if (candidate.getLatitude() == null || candidate.getLongitude() == null
+                        || candidate.getName() == null) continue;
+                String otherName = candidate.getName().toLowerCase(java.util.Locale.ROOT)
+                        .replaceAll("[^\\p{L}\\p{N}]+", "");
+                if (normalizedComparable.equals(otherName)
+                        && distanceCalculator.kilometres(
+                                latitude, longitude,
+                                candidate.getLatitude(), candidate.getLongitude()) <= 0.03) {
+                    return toResponse(candidate);
+                }
             }
         }
         Venue venue = existingBySource != null ? existingBySource : Venue.builder()
                 .informationSource(Venue.InformationSource.OPENSTREETMAP)
-                .sourceReference(normalizedSourceReference)
+                .sourceReference(stableReference)
                 .createdAt(Instant.now())
                 .build();
 
         venue.setName(normalizedName);
+        if (normalizedDistrict != null) venue.setDistrict(normalizedDistrict);
         venue.setCity(normalizedCity);
         venue.setAddress(normalizedAddress);
         venue.setSports(trimToNull(sports));

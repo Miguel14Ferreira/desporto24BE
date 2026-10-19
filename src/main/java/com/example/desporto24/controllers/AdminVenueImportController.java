@@ -129,8 +129,13 @@ public class AdminVenueImportController {
     }
 
     @PostMapping("/imports/openstreetmap")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public List<VenueResponse> importOpenStreetMapVenues(
-            @RequestBody @Valid List<OpenStreetMapVenueImportRequest> requests) {
+            @RequestBody @Valid List<@Valid OpenStreetMapVenueImportRequest> requests) {
+        if (requests.isEmpty() || requests.size() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Import requires between 1 and 100 venues per request");
+        }
         return venueService.importOpenStreetMapVenues(requests);
     }
 }

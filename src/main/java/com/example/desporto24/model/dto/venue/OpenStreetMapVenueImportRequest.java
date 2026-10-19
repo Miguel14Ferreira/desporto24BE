@@ -15,6 +15,14 @@ public record OpenStreetMapVenueImportRequest(
         @Size(max = 80) String venueType,
         Venue.EnvironmentType environmentType,
         @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
-        @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude
+        @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
+        @Size(max = 120) String district
 ) {
+    public OpenStreetMapVenueImportRequest(
+            String sourceReference, String name, String city, String address,
+            String sports, String venueType, Venue.EnvironmentType environmentType,
+            Double latitude, Double longitude) {
+        this(sourceReference, name, city, address, sports, venueType,
+                environmentType, latitude, longitude, null);
+    }
 }
