@@ -63,6 +63,19 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
            """)
     List<Object[]> coverageByDistrict();
 
+    /** Aggregate-only quality report; one bounded database page of city names. */
+    @Query("""
+           SELECT v.city, COUNT(v),
+                  SUM(CASE WHEN v.sports IS NULL OR TRIM(v.sports) = '' THEN 1 ELSE 0 END),
+                  SUM(CASE WHEN v.district IS NULL OR TRIM(v.district) = '' THEN 1 ELSE 0 END),
+                  SUM(CASE WHEN v.latitude IS NULL OR v.longitude IS NULL THEN 1 ELSE 0 END)
+           FROM Venue v
+           GROUP BY v.city
+           ORDER BY SUM(CASE WHEN v.sports IS NULL OR TRIM(v.sports) = '' THEN 1 ELSE 0 END) DESC,
+                    COUNT(v) DESC, v.city
+           """)
+    List<Object[]> qualityByCity(Pageable pageable);
+
 
     List<Venue> findByCityContainingIgnoreCaseOrderByNameAsc(String city);
 
