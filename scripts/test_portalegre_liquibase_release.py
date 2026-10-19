@@ -18,7 +18,7 @@ SQL = CHANGES / "2026-10-19-portalegre-source-checked.sql"
 YAML = CHANGES / "2026-10-19-portalegre-source-checked.yaml"
 
 def executable(sql):
-    return re.sub(r"(?m)^--[^\\n]*\\n?", "", sql).strip()
+    return re.sub(r"(?m)^--[^\n]*\n?", "", sql).strip()
 
 class FirstPortalegreReleaseTest(unittest.TestCase):
     def test_liquibase_resource_paths_resolve_from_classpath(self):
@@ -40,7 +40,7 @@ class FirstPortalegreReleaseTest(unittest.TestCase):
         self.assertEqual(sql.count("INSERT INTO desporto24.venue"), 9)
         self.assertEqual(sql.count("WHERE NOT EXISTS"), 9)
         self.assertEqual(sql.count("ON CONFLICT DO NOTHING"), 9)
-        self.assertNotRegex(executable(sql), r"\\b(?:UPDATE|DELETE|DROP|ALTER|TRUNCATE)\\b")
+        self.assertNotRegex(executable(sql), r"\b(?:UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b")
 
     def test_release_is_idempotent_and_preserves_prior_venues(self):
         sql = SQL.read_text(encoding="utf-8")
