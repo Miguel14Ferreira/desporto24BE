@@ -144,22 +144,12 @@ class SessionDiscoveryServiceTest {
         Session match = session(1L, "Futebol", "Queluz", null, null, 0, false, 10, 4);
         match.setGameDate(Date.from(from.plusSeconds(1800)));
 
-        Session wrongSport = session(2L, "Padel", "Queluz", null, null, 0, false, 10, 4);
-        wrongSport.setGameDate(Date.from(from.plusSeconds(1800)));
-
         Session full = session(3L, "Futebol", "Queluz", null, null, 0, false, 4, 4);
         full.setGameDate(Date.from(from.plusSeconds(1800)));
 
-        Session paid = session(4L, "Futebol", "Queluz", null, null, 8, false, 10, 4);
-        paid.setGameDate(Date.from(from.plusSeconds(1800)));
-
-        Session privateSession = session(5L, "Futebol", "Queluz", null, null, 0, true, 10, 4);
-        privateSession.setGameDate(Date.from(from.plusSeconds(1800)));
-
-        Session wrongCity = session(6L, "Futebol", "Lisboa", null, null, 0, false, 10, 4);
-        wrongCity.setGameDate(Date.from(from.plusSeconds(1800)));
-
-        stubCandidates(match, wrongSport, full, paid, privateSession, wrongCity);
+        // Sport, city, date, free-only and privacy are filtered by the SQL
+        // repository. Only availability ("available") is filtered in service.
+        stubCandidates(match, full);
         stubSummary(match, null, 4);
         stubSummary(full, null, 4);
 
@@ -169,15 +159,18 @@ class SessionDiscoveryServiceTest {
         ));
 
         assertEquals(List.of(1L), result.stream().map(SessionSummaryResponse::id).toList());
+        verify(sessionRepository).discoverCandidates(
+                anyCollection(), any(Date.class), eq("futebol"), eq("quel"),
+                eq(Date.from(from)), eq(Date.from(to)), eq(false), eq(true),
+                isNull(), isNull());
     }
 
     @Test
     void filtersByMinimumAndMaximumPrice() {
-        Session cheap = session(1L, "Futebol", "Queluz", null, null, 2, false, 10, 2);
         Session match = session(2L, "Futebol", "Queluz", null, null, 6, false, 10, 2);
-        Session expensive = session(3L, "Futebol", "Queluz", null, null, 12, false, 10, 2);
 
-        stubCandidates(cheap, match, expensive);
+        // Price bounds are handled by discoverCandidates, not by a Java stream.
+        stubCandidates(match);
         stubSummary(match, null, 2);
 
         SessionSearchCriteria criteria = new SessionSearchCriteria(
@@ -188,6 +181,10 @@ class SessionDiscoveryServiceTest {
         List<SessionSummaryResponse> result = service.discover(criteria);
 
         assertEquals(List.of(2L), result.stream().map(SessionSummaryResponse::id).toList());
+        verify(sessionRepository).discoverCandidates(
+                anyCollection(), any(Date.class), eq(""), eq(""),
+                isNull(), isNull(), isNull(), eq(false),
+                eq(BigDecimal.valueOf(5)), eq(BigDecimal.valueOf(10)));
     }
 
     @Test
