@@ -9,6 +9,7 @@ on:
       - 'scripts/generate_verified_venue_liquibase.py'
       - 'scripts/test_generate_verified_venue_liquibase.py'
       - 'scripts/test_portalegre_liquibase_draft.py'
+      - 'scripts/test_venue_district_backfill_draft.py'
       - 'src/main/resources/db/changelog/venue-imports/drafts/**'
       - 'docs/venue-imports/portalegre-2026-10-19-source-review.json'
       - '.github/workflows/national-venue-import-ci.yml'
@@ -31,3 +32,4 @@ jobs:
           python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
           python -m unittest discover -s scripts -p 'test_generate_verified_venue_liquibase.py' -v
           python -m unittest discover -s scripts -p 'test_portalegre_liquibase_draft.py' -v
+          python -m unittest discover -s scripts -p 'test_venue_district_backfill_draft.py' -v
