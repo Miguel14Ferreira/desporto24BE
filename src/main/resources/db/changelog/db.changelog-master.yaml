@@ -84,4 +84,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-18-community-historical-player-link.yaml
   - include:
+      file: db/changelog/changes/2026-10-19-admin-player-moderation.yaml
+  - include:
       file: db/changelog/changes/2026-10-19-feed-video.yaml

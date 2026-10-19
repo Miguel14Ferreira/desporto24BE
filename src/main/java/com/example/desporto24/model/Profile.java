@@ -71,6 +71,9 @@ public class Profile implements Serializable {
     private Boolean isFirstTimeLogin;
     private long tokenVersion;
 
+    @Column(name = "moderation_suspended_at")
+    private Instant moderationSuspendedAt;
+
     @Column(name = "terms_accepted_at")
     private Instant termsAcceptedAt;
 
