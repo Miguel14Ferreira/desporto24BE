@@ -186,6 +186,23 @@ class NationalVenueImportTests(unittest.TestCase):
         self.assertTrue(national.is_import_ready(quality))
         self.assertEqual("Futebol", venue["sports"])
 
+    def test_numbered_or_generic_venues_are_quarantined(self):
+        for name in ("01", "02", "03", "04", "Campo", "Piscina",
+                     "Campo de Futebol", "Pavilhão Desportivo"):
+            with self.subTest(name=name):
+                venue, quality = national.build_venue(
+                    {"leisure": "pitch", "sport": "soccer", "name": name,
+                     "addr:city": "Portalegre", "addr:street": "Rua da Escola"},
+                    "way", 123, (39.3, -7.4), "Portalegre")
+                self.assertEqual(name, venue["name"])
+                self.assertIn("name_to_verify", quality)
+                self.assertFalse(national.is_import_ready(quality))
+        venue, quality = national.build_venue(
+            {"leisure": "pitch", "sport": "soccer", "name": "Campo de Futebol de Sousel",
+             "addr:city": "Sousel", "addr:street": "Rua do Campo"},
+            "way", 455, (39.3, -7.4), "Portalegre")
+        self.assertNotIn("name_to_verify", quality)
+
     def test_unnamed_are_explicitly_tentative(self):
         venue, quality = national.build_venue(
             {"leisure": "swimming_pool"}, "node", 9,
