@@ -87,6 +87,35 @@ class MediaStorageTest {
                         new byte[(20 * 1024 * 1024) + 1])));
     }
 
+    @Test
+    void storesMp4VideoWithCorrectExtension() {
+        byte[] header = new byte[] {
+                0, 0, 0, 24, 'f', 't', 'y', 'p',
+                'i', 's', 'o', 'm', 0, 0, 0, 0,
+                'i', 's', 'o', 'm', 'm', 'p', '4', '2'
+        };
+        var file = new MockMultipartFile("video", "clip.bin", "video/mp4", header);
+        var uri = storage().storeVideo("posts/1/clip", file);
+        assertEquals("/media/posts/1/clip.mp4", uri.toString());
+        assertTrue(Files.exists(tempDir.resolve("posts/1/clip.mp4")));
+    }
+
+    @Test
+    void storesWebmVideoWithCorrectExtension() {
+        byte[] header = new byte[] {
+                0x1A, 0x45, (byte) 0xDF, (byte) 0xA3, (byte) 0x9F,
+                0x42, (byte) 0x86, (byte) 0x81, 0x01,
+                0x42, (byte) 0xF7, (byte) 0x81, 0x01,
+                0x42, (byte) 0xF2, (byte) 0x81, 0x04,
+                0x42, (byte) 0xF3, (byte) 0x81, 0x08,
+                0x42, (byte) 0x82, (byte) 0x84, 'w', 'e', 'b', 'm'
+        };
+        var file = new MockMultipartFile("video", "clip.bin", "video/webm", header);
+        var uri = storage().storeVideo("posts/1/clip", file);
+        assertEquals("/media/posts/1/clip.webm", uri.toString());
+        assertTrue(Files.exists(tempDir.resolve("posts/1/clip.webm")));
+    }
+
     private LocalMediaStorage storage() {
         MediaStorageProperties properties = new MediaStorageProperties();
         properties.setLocalRoot(tempDir.toString());
