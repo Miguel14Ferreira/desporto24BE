@@ -21,7 +21,7 @@ class VenuePagedSearchServiceTest {
     void normalizesAccentsAndReturnsASmallPageInsteadOfReadingEverything() {
         Venue venue = Venue.builder().id(7L).name("Pavilhão da Estação")
                 .city("Lisboa").address("Rua A").sports("Futsal").build();
-        when(repository.suggest("pavilhao", "estacao", "futsal",
+        when(repository.suggest("pavilhao", "estacao", "futsal", "",
                 PageRequest.of(1, 40)))
                 .thenReturn(new SliceImpl<>(List.of(venue), PageRequest.of(1, 40), true));
         var page = service.suggest("PAVILHÃO", "Estação", "Futsal", 1);
@@ -29,17 +29,17 @@ class VenuePagedSearchServiceTest {
         assertEquals(1, page.page());
         assertTrue(page.hasMore());
         assertEquals(List.of(7L), page.venues().stream().map(v -> v.id()).toList());
-        verify(repository).suggest("pavilhao", "estacao", "futsal", PageRequest.of(1, 40));
+        verify(repository).suggest("pavilhao", "estacao", "futsal", "", PageRequest.of(1, 40));
         verify(repository, never()).findAllByOrderByNameAsc();
     }
 
     @Test
     void treatsLikeWildcardsAsLiteralText() {
-        when(repository.suggest("campo!_!%", "", "",
+        when(repository.suggest("campo!_!%", "", "", "",
                 PageRequest.of(0, 40)))
                 .thenReturn(new SliceImpl<>(List.of()));
         service.suggest("Campo_%", null, null, 0);
-        verify(repository).suggest("campo!_!%", "", "", PageRequest.of(0, 40));
+        verify(repository).suggest("campo!_!%", "", "", "", PageRequest.of(0, 40));
     }
 
     @Test
@@ -47,6 +47,17 @@ class VenuePagedSearchServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.suggest(null, null, null, -1));
         assertThrows(IllegalArgumentException.class, () -> service.suggest(null, null, null, 1001));
         assertThrows(IllegalArgumentException.class, () -> service.suggest("x".repeat(121), null, null, 0));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.suggest("", "", "Padel", 0, "Paris"));
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void normalizesAccentedDistrictAndFiltersInTheDatabase() {
+        when(repository.suggest("", "", "padel", "évora", PageRequest.of(0, 40)))
+                .thenReturn(new SliceImpl<>(List.of()));
+        service.suggest("", "", "Padel", 0, "ÉVORA");
+        verify(repository).suggest("", "", "padel", "évora", PageRequest.of(0, 40));
+        verify(repository, never()).findAllByOrderByNameAsc();
     }
 }

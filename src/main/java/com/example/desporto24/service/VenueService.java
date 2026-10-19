@@ -78,6 +78,12 @@ public class VenueService {
 
     @Transactional(readOnly = true)
     public VenueSearchPageResponse suggest(String name, String city, String sport, int page) {
+        return suggest(name, city, sport, page, null);
+    }
+
+    @Transactional(readOnly = true)
+    public VenueSearchPageResponse suggest(
+            String name, String city, String sport, int page, String district) {
         if (page < 0 || page > VENUE_SUGGEST_MAX_PAGE) {
             throw new IllegalArgumentException("Página de pesquisa de recintos inválida");
         }
@@ -86,6 +92,7 @@ public class VenueService {
                 escapeSearchPattern(normalizeSearchFilter(name)),
                 escapeSearchPattern(normalizeSearchFilter(city)),
                 escapeSearchPattern(sportFilter),
+                ContinentalDistricts.normalizeFilter(district),
                 PageRequest.of(page, VENUE_SUGGEST_PAGE_SIZE));
         return new VenueSearchPageResponse(
                 venues.getContent().stream().map(this::toResponse).toList(),
@@ -290,6 +297,7 @@ public class VenueService {
         Venue venue = venueRepository.save(Venue.builder()
                 .name(request.name().trim())
                 .city(request.city().trim())
+                .district(ContinentalDistricts.normalizeOptional(request.district()))
                 .address(request.address().trim())
                 .sports(trimToNull(request.sports()))
                 .venueType(trimToNull(request.venueType()))

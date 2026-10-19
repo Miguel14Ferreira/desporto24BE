@@ -52,8 +52,14 @@ public class VenueController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String sport,
-            @RequestParam(defaultValue = "0") int page) {
-        return venueService.suggest(name, city, sport, page);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String district) {
+        return venueService.suggest(name, city, sport, page, district);
+    }
+
+    /** Retain the old Java caller signature; HTTP clients use the district-aware endpoint. */
+    public VenueSearchPageResponse suggest(String name, String city, String sport, int page) {
+        return suggest(name, city, sport, page, null);
     }
 
     @PostMapping("/resolve-map-link")

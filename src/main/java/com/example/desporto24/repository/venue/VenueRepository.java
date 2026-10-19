@@ -28,6 +28,7 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
                   LOWER(FUNCTION('translate', v.city,
                     'áàâãäéèêëíìîïóòôõöúùûüç',
                     'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :city, '%') ESCAPE '!')
+             AND (:district = '' OR LOWER(COALESCE(v.district, '')) = :district)
              AND (:sport = '' OR
                   LOWER(FUNCTION('translate',
                     CONCAT(';', REPLACE(REPLACE(COALESCE(v.sports, ''), ' ', ''), ',', ';'), ';'),
@@ -40,6 +41,7 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             @Param("name") String name,
             @Param("city") String city,
             @Param("sport") String sport,
+            @Param("district") String district,
             Pageable pageable);
 
     /** Only the fields needed for import deduplication, not complete Venue entities. */

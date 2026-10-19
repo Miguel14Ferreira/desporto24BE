@@ -36,20 +36,41 @@ class VenuePagedSearchRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        var first = repository.suggest("pavilhao", "lisboa", "futsal", PageRequest.of(0, 1));
-        var second = repository.suggest("pavilhao", "lisboa", "futsal", PageRequest.of(1, 1));
+        var first = repository.suggest("pavilhao", "lisboa", "futsal", "", PageRequest.of(0, 1));
+        var second = repository.suggest("pavilhao", "lisboa", "futsal", "", PageRequest.of(1, 1));
         assertEquals(1, first.getContent().size());
         assertTrue(first.hasNext());
         assertEquals(1, second.getContent().size());
         assertFalse(second.hasNext());
         assertNotEquals(first.getContent().get(0).getId(), second.getContent().get(0).getId());
 
-        var football = repository.suggest("", "", "futebol", PageRequest.of(0, 40));
+        var football = repository.suggest("", "", "futebol", "", PageRequest.of(0, 40));
         assertEquals(1, football.getContent().size());
         assertEquals("Pavilhão Norte", football.getContent().get(0).getName());
 
-        var tennis = repository.suggest("tenis", "porto", "tenis", PageRequest.of(0, 40));
+        var tennis = repository.suggest("tenis", "porto", "tenis", "", PageRequest.of(0, 40));
         assertEquals("Campo do Ténis", tennis.getContent().get(0).getName());
+    }
+
+    @Test
+    void filtersByDistrictWithoutIncludingLegacyUnclassifiedVenues() {
+        entityManager.persist(Venue.builder().name("Campo da Cidade").city("Lisboa")
+                .district("Lisboa").address("Rua A").sports("Padel")
+                .informationSource(Venue.InformationSource.COMMUNITY)
+                .createdAt(Instant.now()).build());
+        entityManager.persist(Venue.builder().name("Campo da Cidade").city("Porto")
+                .district("Porto").address("Rua B").sports("Padel")
+                .informationSource(Venue.InformationSource.COMMUNITY)
+                .createdAt(Instant.now()).build());
+        persist("Campo antigo", "Lisboa", "Padel"); // Still findable by unrestricted legacy search.
+        entityManager.flush();
+        entityManager.clear();
+
+        var district = repository.suggest("", "", "padel", "lisboa", PageRequest.of(0, 40));
+        assertEquals(1, district.getContent().size());
+        assertEquals("Lisboa", district.getContent().getFirst().getDistrict());
+        var fallback = repository.suggest("campo antigo", "", "padel", "", PageRequest.of(0, 40));
+        assertEquals(1, fallback.getContent().size());
     }
 
     private void persist(String name, String city, String sports) {
