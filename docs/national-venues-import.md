@@ -19,6 +19,21 @@ percentagens de cobertura sem denominador oficial por concelho.
 - Complementar com fonte oficial SNID após validar URL, licença e qualidade.
   **Não misturar fontes com licenças incompatíveis num dataset derivado.**
 
+## Piloto de Portalegre com CAOP2025
+
+O workflow de simulação `.github/workflows/national-venue-portalegre-dryrun.yml` descarrega o
+GeoPackage oficial **CAOP2025** da Direção-Geral do Território (CC BY 4.0),
+converte a camada `cont_municipios` com GDAL para GeoJSON em EPSG:4326,
+e compara **duas execuções com o mesmo extrato OSM**: sem concelhos e com concelhos
+oficiais. Não existe qualquer API de escrita ou token para a base de dados.
+
+Origem do ficheiro: https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip
+
+Além de contagens globais, o relatório inclui os tipos de instalação para
+distinguir piscinas privadas/sem nome de campos, pavilhões e complexos
+efetivamente identificados. **Não importar piscinas sem nome ou recintos
+com acesso não verificado apenas para aumentar o número de entradas.**
+
 ## Completar concelhos sem APIs pagas
 
 A fonte oficial [CAOP2025 da DGT](https://www.dgterritorio.gov.pt/atividades/cartografia/cartografia-tematica/caop),

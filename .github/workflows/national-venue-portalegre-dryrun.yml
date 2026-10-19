@@ -13,27 +13,65 @@ permissions:
 jobs:
   portalegre-preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install offline parser dependency
-        run: python -m pip install --quiet osmium
-      - name: Validate parser code without accessing production
-        run: python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
-      - name: Download Portalegre OSM extract and stage local-only report
+      - name: Install PBF parser and GDAL command line tool
         run: |
-          python scripts/import_osm_venues_national.py --district portalegre --cache-dir "${RUNNER_TEMP}/jynlo-venue-preview"
-          echo '--- PORTALEGRE PREVIEW ONLY (NO DB WRITES) ---'
-          cat "${RUNNER_TEMP}/jynlo-venue-preview/national-report.json"
-      - name: Upload report and review samples
+          python -m pip install --quiet osmium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin
+      - name: Validate parser locally without contacting application
+        run: python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
+      - name: Download CAOP2025 municipalities from official DGT (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/caop" "${RUNNER_TEMP}/jynlo-venue-preview"
+          curl --fail --location --retry 2 --connect-timeout 25 --max-time 210 \
+            --output "${RUNNER_TEMP}/caop/caop2025.zip" \
+            https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip
+          unzip -q "${RUNNER_TEMP}/caop/caop2025.zip" -d "${RUNNER_TEMP}/caop"
+          GPKG="$(find "${RUNNER_TEMP}/caop" -iname '*.gpkg' -type f -print -quit)"
+          test -n "$GPKG"
+          ogrinfo -ro -so "$GPKG" cont_municipios
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "${RUNNER_TEMP}/caop/municipios.geojson" "$GPKG" cont_municipios
+          python -c 'import json,sys; p=json.load(open(sys.argv[1])); print("CAOP municipality features:", len(p["features"])); assert 250 <= len(p["features"]) <= 320' \
+            "${RUNNER_TEMP}/caop/municipios.geojson"
+      - name: Compare original baseline and CAOP-enriched Portalegre (zero production writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK="${RUNNER_TEMP}/jynlo-venue-preview"
+          python scripts/import_osm_venues_national.py --district portalegre --cache-dir "$WORK"
+          cp "$WORK/national-report.json" "$WORK/baseline-report.json"
+          python scripts/import_osm_venues_national.py --district portalegre --cache-dir "$WORK" \
+            --municipalities-geojson "${RUNNER_TEMP}/caop/municipios.geojson"
+          echo '--- PORTALEGRE BASELINE (NO DB WRITES) ---'
+          cat "$WORK/baseline-report.json"
+          echo '--- PORTALEGRE WITH OFFICIAL MUNICIPALITIES (NO DB WRITES) ---'
+          cat "$WORK/national-report.json"
+          python - "$WORK/baseline-report.json" "$WORK/national-report.json" <<'PY'
+          import json, sys
+          baseline=json.load(open(sys.argv[1]))["summary"]
+          enhanced=json.load(open(sys.argv[2]))["summary"]
+          print("Ready before CAOP:", baseline["import_ready"])
+          print("Ready after CAOP:", enhanced["import_ready"])
+          print("Quarantined after CAOP:", enhanced["review_required"])
+          if enhanced["import_ready"] < baseline["import_ready"]:
+              raise SystemExit("Quality regression: official polygons reduced ready count")
+          PY
+      - name: Keep only preview outputs for 1 day
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: portalegre-venue-preview
+          name: portalegre-venue-caop-preview
           path: |
+            ${{ runner.temp }}/jynlo-venue-preview/baseline-report.json
             ${{ runner.temp }}/jynlo-venue-preview/national-report.json
             ${{ runner.temp }}/jynlo-venue-preview/portalegre-venues.jsonl
             ${{ runner.temp }}/jynlo-venue-preview/portalegre-review.jsonl

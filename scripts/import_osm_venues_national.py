@@ -231,6 +231,8 @@ class VenueHandler(osmium.SimpleHandler if osmium else object):
         if (tags.get("leisure") or "").strip().lower() not in LEISURE and tags.get("building") != "sports_hall":
             return
         self.counts["candidates"] += 1
+        facility_type = (tags.get("leisure") or tags.get("building") or "unknown").strip().lower()
+        self.counts["type_" + facility_type + "_candidates"] += 1
         coords = element_coordinates(obj, kind == "node")
         if coords and self.municipality_lookup and not any(tags.get(k) for k in (
                 "addr:city", "addr:town", "addr:village", "addr:municipality",
@@ -246,10 +248,12 @@ class VenueHandler(osmium.SimpleHandler if osmium else object):
         if is_import_ready(quality):
             self.output.write(json.dumps(venue, ensure_ascii=False) + "\n")
             self.counts["import_ready"] += 1
+            self.counts["type_" + facility_type + "_ready"] += 1
         else:
             self.review.write(json.dumps({"venue": venue, "quality": quality},
                                          ensure_ascii=False) + "\n")
             self.counts["review_required"] += 1
+            self.counts["type_" + facility_type + "_review"] += 1
         for flag in quality.split(","):
             self.counts[flag] += 1
 
