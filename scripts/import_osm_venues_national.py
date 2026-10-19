@@ -12,6 +12,8 @@ from collections import Counter
 import hashlib
 import json
 import os
+import re
+import unicodedata
 from pathlib import Path
 import sys
 import time
@@ -79,6 +81,23 @@ DENY_ACCESS = {"private", "no", "residents"}
 DENY_STATUS = {"demolished", "abandoned", "construction", "proposed", "disused"}
 
 
+GENERIC_NAMES = {
+    "piscina", "piscina municipal", "campo", "campo desportivo",
+    "campo de futebol", "campo de jogos", "pavilhao", "pavilhao desportivo",
+    "ginasio", "estadio", "complexo desportivo", "centro desportivo",
+    "polidesportivo", "ringue",
+}
+
+
+def is_identifiable_name(name):
+    """Unqualified labels or numbered pitches are review candidates, not public names."""
+    value = unicodedata.normalize("NFKD", name.strip().casefold())
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    value = re.sub(r"\s+", " ", value).strip()
+    return bool(value) and value not in GENERIC_NAMES and not bool(
+        re.fullmatch(r"\d+(?:[\s./-]+\d+)*", value))
+
+
 def build_venue(tags, osm_type, osm_id, coords, district):
     """Pure converter. Preserve unknown information as unknown, never invent modalities."""
     if (tags.get("access") or "").lower() in DENY_ACCESS:
@@ -98,7 +117,7 @@ def build_venue(tags, osm_type, osm_id, coords, district):
     if not (36.8 <= lat <= 42.3 and -9.6 <= lon <= -6.0):
         return None, "outside_mainland"
     name = (tags.get("name:pt") or tags.get("name") or "").strip()
-    missing_name = not name
+    missing_name = not is_identifiable_name(name)
     if not name:
         name = f"{kind} (OSM #{osm_id})"
     city = next((str(tags[k]).strip() for k in (
