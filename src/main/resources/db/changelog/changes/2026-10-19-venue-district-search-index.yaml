@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-19-venue-district-search-index
+      author: desporto24
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: venue
+            indexName: idx_venue_district_name
+            columns:
+              - column:
+                  name: district
+              - column:
+                  name: name

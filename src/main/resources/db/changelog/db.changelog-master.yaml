@@ -87,3 +87,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-19-admin-player-moderation.yaml
   - include:
       file: db/changelog/changes/2026-10-19-feed-video.yaml
+  - include:
+      file: db/changelog/changes/2026-10-19-venue-district-search-index.yaml

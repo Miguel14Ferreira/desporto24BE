@@ -20,11 +20,17 @@ class VenuePagedSearchControllerTest {
 
     @Test
     void forwardsFiltersAndPageWithoutChangingLegacySearch() {
-        when(service.suggest("  Pavilhão ", " Lisboa ", "Futsal", 2))
+        when(service.suggest("  Pavilhão ", " Lisboa ", "Futsal", 2, null))
                 .thenReturn(new VenueSearchPageResponse(List.of(), 2, false));
         var response = controller.suggest("  Pavilhão ", " Lisboa ", "Futsal", 2);
         assertEquals(2, response.page());
-        verify(service).suggest("  Pavilhão ", " Lisboa ", "Futsal", 2);
+        verify(service).suggest("  Pavilhão ", " Lisboa ", "Futsal", 2, null);
         verify(service, never()).search(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void forwardsDistrictToBackendInsteadOfLoadingAllVenues() {
+        controller.suggest("Campo", "", "Padel", 0, "Setúbal");
+        verify(service).suggest("Campo", "", "Padel", 0, "Setúbal");
     }
 }
