@@ -47,9 +47,9 @@ Usar **ambas as fontes CAOP** no importador:
 `--districts-geojson /caminho/distritos.geojson`.
 Se a geometria oficial indicar um distrito diferente do extrato PBF, o
 elemento é excluído desse distrito e pertence ao extrato do distrito real.
-Sem correspondência com o polígono de distrito, o recinto fica em revisão,
-mesmo com nome e modalidade. O concelho oficial prevalece sobre a localidade
-textual do OpenStreetMap quando ambos são fornecidos.
+Sem correspondência com os polígonos **de distrito ou de município**, o recinto fica em revisão,
+mesmo que o OpenStreetMap apresente uma localidade textual, nome e modalidade.
+O concelho oficial prevalece sobre o texto de localidade do OpenStreetMap.
 
 ## Preparar e auditar sem escrever no servidor
 
