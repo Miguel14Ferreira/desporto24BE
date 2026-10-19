@@ -67,7 +67,9 @@ public class VenueService {
         String cityQuery = normalize(city);
         List<Venue> venues = cityQuery == null
                 ? venueRepository.findAllByOrderByNameAsc()
-                : venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc(cityQuery);
+                : VenueMunicipalityAliases.isCascais(cityQuery)
+                    ? venueRepository.findByCityAliases(VenueMunicipalityAliases.cascaisParishes())
+                    : venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc(cityQuery);
 
         return venues.stream()
                 .filter(venue -> sportQuery == null
@@ -88,12 +90,18 @@ public class VenueService {
             throw new IllegalArgumentException("Página de pesquisa de recintos inválida");
         }
         String sportFilter = normalizeSearchFilter(sport).replace(" ", "");
-        var venues = venueRepository.suggest(
-                escapeSearchPattern(normalizeSearchFilter(name)),
-                escapeSearchPattern(normalizeSearchFilter(city)),
-                escapeSearchPattern(sportFilter),
-                ContinentalDistricts.normalizeFilter(district),
-                PageRequest.of(page, VENUE_SUGGEST_PAGE_SIZE));
+        String normalizedCity = normalizeSearchFilter(city);
+        String normalizedName = escapeSearchPattern(normalizeSearchFilter(name));
+        String normalizedSport = escapeSearchPattern(sportFilter);
+        String normalizedDistrict = ContinentalDistricts.normalizeFilter(district);
+        var pageable = PageRequest.of(page, VENUE_SUGGEST_PAGE_SIZE);
+        var venues = VenueMunicipalityAliases.isCascais(normalizedCity)
+                ? venueRepository.suggestMunicipality(
+                        normalizedName, normalizedSport, normalizedDistrict,
+                        VenueMunicipalityAliases.cascaisParishes(), pageable)
+                : venueRepository.suggest(
+                        normalizedName, escapeSearchPattern(normalizedCity), normalizedSport,
+                        normalizedDistrict, pageable);
         return new VenueSearchPageResponse(
                 venues.getContent().stream().map(this::toResponse).toList(),
                 page, venues.hasNext());

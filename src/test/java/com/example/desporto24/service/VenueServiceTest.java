@@ -274,6 +274,19 @@ class VenueServiceTest {
     }
 
     @Test
+    void searchesCascaisAcrossLegacyParishNamesWithoutRewritingUserData() {
+        Venue parish = Venue.builder().id(77L).name("Campo Parede")
+                .city("U.F. Carcavelos e Parede").address("Rua A")
+                .sports("Futebol;Padel").build();
+        when(venueRepository.findByCityAliases(VenueMunicipalityAliases.cascaisParishes()))
+                .thenReturn(List.of(parish));
+        var result = service.search("Cascais", "Padel");
+        assertEquals(1, result.size());
+        assertEquals("U.F. Carcavelos e Parede", result.getFirst().city());
+        verify(venueRepository, never()).findByCityContainingIgnoreCaseOrderByNameAsc(any());
+    }
+
+    @Test
     void searchesImportedNationalVenuesByCityAndSport() {
         Venue porto = Venue.builder()
                 .id(261L)
