@@ -66,7 +66,7 @@ class VenuePagedSearchRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        var district = repository.suggest("", "", "padel", "lisboa", PageRequest.of(0, 40));
+        var district = repository.suggest("", "", "padel", "Lisboa", PageRequest.of(0, 40));
         assertEquals(1, district.getContent().size());
         assertEquals("Lisboa", district.getContent().getFirst().getDistrict());
         var fallback = repository.suggest("campo antigo", "", "padel", "", PageRequest.of(0, 40));
