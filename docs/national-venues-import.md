@@ -133,3 +133,23 @@ Portalegre sem arriscar repetir o erro observado com o município de Mora
 (que pertence ao distrito de Évora). Os números do primeiro piloto antigo
 não são diretamente comparáveis com o novo critério de validação.
 O cruzamento com a CAOP ainda não foi executado com dados reais nesta etapa.
+
+
+## Triagem de nomes e duplicados a partir do piloto real
+
+A primeira recolha de Portalegre encontrou quatro campos com os nomes
+`01`, `02`, `03` e `04`, e dois objetos distintos denominados
+«Praça de Touros» separados por cerca de 1,3 metros.
+O importador mantém esses elementos na fonte, mas assinala os
+nomes numéricos e rótulos genéricos (por exemplo `Piscina` ou
+`Campo de Futebol`) com `name_to_verify` para não os publicar
+como instalações identificadas.
+
+A proximidade espacial deve ser auditada antes de gerar SQL: um recinto
+pode conter diferentes campos lado a lado, pelo que a proximidade não
+autoriza apagar ou fundir automaticamente os elementos OSM.
+
+**Limitação:** a cartografia oficial CAOP2025 não foi descarregada neste
+ambiente e o piloto enriquecido ainda não foi executado. Os totais de
+importação permanecem por confirmar; não divulgar cobertura nacional
+como concluída.
