@@ -53,3 +53,11 @@ Render documentation: https://render.com/docs/postgresql-backups ; https://rende
 
 ### Source quality consistency regression
 The existing `coverageByDistrict` summary previously counted `sports = ''` as empty, but omitted `sports = ' '`. The new admin quality query correctly uses `TRIM(sports)`, so the two aggregates could disagree. This release now consistently uses `TRIM(sports) = ''` for both; `VenueQualityByCityRepositoryTest` includes a whitespace-only sports case. Tests still require actual execution.
+
+## Manual owner read-only queries: exact release decision inputs
+
+The owner can run `src/main/resources/db/changelog/venue-imports/preflight-venue-baseline-READONLY.sql` in pgAdmin or DBeaver using their own credentials. This file contains **four SELECT queries only**: catalogue counts, per-district counts, top 30 incomplete localities, and discovery of Liquibase tracking table schema. Export **only query-result CSVs or screenshots** (no credentials, connection strings or secrets).
+
+Next run `src/main/resources/db/changelog/venue-imports/preflight-24-venues-READONLY.sql` — also read-only — to compare exactly the 24 proposed venue IDs/names/coordinates with production rows. Results can have multiple matches per proposal. Treat `NO_MATCH_FOUND` as inconclusive for aliases; manually review and decide. Both preflight scripts are outside the active Liquibase master and do not run on startup.
+
+Do not deploy until backup/restore availability and PostgreSQL 16 integration tests are verified. Database networking does **not** need to be opened.
