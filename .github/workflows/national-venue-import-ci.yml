@@ -6,6 +6,8 @@ on:
     paths:
       - 'scripts/import_osm_venues_national.py'
       - 'scripts/test_import_osm_venues_national.py'
+      - 'scripts/generate_verified_venue_liquibase.py'
+      - 'scripts/test_generate_verified_venue_liquibase.py'
       - '.github/workflows/national-venue-import-ci.yml'
 
 permissions:
@@ -22,5 +24,6 @@ jobs:
           python-version: '3.12'
       - name: Compile and run conversion tests (no network, DB or PBF required)
         run: |
-          python -m py_compile scripts/import_osm_venues_national.py
+          python -m py_compile scripts/import_osm_venues_national.py scripts/generate_verified_venue_liquibase.py
           python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
+          python -m unittest discover -s scripts -p 'test_generate_verified_venue_liquibase.py' -v
