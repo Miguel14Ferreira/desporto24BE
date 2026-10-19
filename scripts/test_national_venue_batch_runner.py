@@ -42,6 +42,22 @@ class NationalVenueBatchRunnerTest(unittest.TestCase):
             self.assertEqual(2, data['summary']['districts_processed'])
             self.assertEqual(2, data['summary']['import_ready_needs_approval'])
 
+    def test_legacy_report_not_counted_as_officially_verified(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d)
+            (folder/'national-report.json').write_text(json.dumps({
+                'portalegre': {'candidates': 2079, 'import_ready': 13},
+                'summary': {'districts': 1}
+            }))
+            (folder/'evora-latest.osm.pbf').write_bytes(b'0' * 1_000_001)
+            status = run(['evora'], folder, None, None, lambda *args: (
+                folder/'x', {'candidates': 1, 'import_ready': 0,
+                             'review_required': 1}))
+            self.assertEqual(0, status)
+            report = json.loads((folder/'national-report.json').read_text())
+            self.assertEqual(1, report['summary']['districts_processed'])
+            self.assertEqual('legacy_unverified', report['portalegre']['status'])
+
     def test_completed_without_any_failure(self):
         with tempfile.TemporaryDirectory() as d:
             folder = Path(d)
