@@ -54,10 +54,10 @@ class VenuePagedSearchServiceTest {
 
     @Test
     void normalizesAccentedDistrictAndFiltersInTheDatabase() {
-        when(repository.suggest("", "", "padel", "évora", PageRequest.of(0, 40)))
+        when(repository.suggest("", "", "padel", "Évora", PageRequest.of(0, 40)))
                 .thenReturn(new SliceImpl<>(List.of()));
         service.suggest("", "", "Padel", 0, "ÉVORA");
-        verify(repository).suggest("", "", "padel", "évora", PageRequest.of(0, 40));
+        verify(repository).suggest("", "", "padel", "Évora", PageRequest.of(0, 40));
         verify(repository, never()).findAllByOrderByNameAsc();
     }
 }

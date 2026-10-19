@@ -9,7 +9,7 @@ class ContinentalDistrictsTest {
         assertEquals(18, ContinentalDistricts.NAMES.size());
         assertEquals("Évora", ContinentalDistricts.normalizeOptional("  EVORA "));
         assertEquals("Bragança", ContinentalDistricts.normalizeOptional("braganca"));
-        assertEquals("setúbal", ContinentalDistricts.normalizeFilter("SETUBAL"));
+        assertEquals("Setúbal", ContinentalDistricts.normalizeFilter("SETUBAL"));
         assertNull(ContinentalDistricts.normalizeOptional(null));
         assertEquals("", ContinentalDistricts.normalizeFilter(""));
     }

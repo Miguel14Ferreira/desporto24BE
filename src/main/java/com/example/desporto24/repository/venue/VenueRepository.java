@@ -28,7 +28,7 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
                   LOWER(FUNCTION('translate', v.city,
                     'áàâãäéèêëíìîïóòôõöúùûüç',
                     'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :city, '%') ESCAPE '!')
-             AND (:district = '' OR LOWER(COALESCE(v.district, '')) = :district)
+             AND (:district = '' OR v.district = :district)
              AND (:sport = '' OR
                   LOWER(FUNCTION('translate',
                     CONCAT(';', REPLACE(REPLACE(COALESCE(v.sports, ''), ' ', ''), ',', ';'), ';'),

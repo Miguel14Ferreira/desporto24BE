@@ -30,6 +30,6 @@ public final class ContinentalDistricts {
 
     public static String normalizeFilter(String district) {
         String canonical = normalizeOptional(district);
-        return canonical == null ? "" : canonical.toLowerCase(Locale.ROOT);
+        return canonical == null ? "" : canonical;
     }
 }
