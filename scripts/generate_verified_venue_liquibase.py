@@ -142,8 +142,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = {ref})
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM({literal(row['name'])}))
-         AND existing.latitude BETWEEN {row['latitude'] - 0.00030:.7f} AND {row['latitude'] + 0.00030:.7f}
-         AND existing.longitude BETWEEN {row['longitude'] - 0.00040:.7f} AND {row['longitude'] + 0.00040:.7f})
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM({literal(row['city'])}))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN {row['latitude'] - 0.00030:.7f} AND {row['latitude'] + 0.00030:.7f}
+                  AND existing.longitude BETWEEN {row['longitude'] - 0.00040:.7f} AND {row['longitude'] + 0.00040:.7f})))
 )
 ON CONFLICT DO NOTHING;""")
     return header + "\n\n".join(statements) + "\n"

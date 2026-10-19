@@ -18,8 +18,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:157099522')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Recinto Multiusos de Ponte de Sor'))
-         AND existing.latitude BETWEEN 39.2547475 AND 39.2553475
-         AND existing.longitude BETWEEN -8.0123079 AND -8.0115079)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Ponte de Sor'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 39.2547475 AND 39.2553475
+                  AND existing.longitude BETWEEN -8.0123079 AND -8.0115079)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -36,8 +38,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:426295154')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Campo de Futebol Sintético de Sousel'))
-         AND existing.latitude BETWEEN 38.9541786 AND 38.9547786
-         AND existing.longitude BETWEEN -7.6718955 AND -7.6710955)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Sousel'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.9541786 AND 38.9547786
+                  AND existing.longitude BETWEEN -7.6718955 AND -7.6710955)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -54,8 +58,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:426296888')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Pavilhão Gimnodesportivo de Sousel'))
-         AND existing.latitude BETWEEN 38.9550066 AND 38.9556066
-         AND existing.longitude BETWEEN -7.6712754 AND -7.6704754)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Sousel'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.9550066 AND 38.9556066
+                  AND existing.longitude BETWEEN -7.6712754 AND -7.6704754)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -72,8 +78,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:429474882')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Campo de Futebol de Cano'))
-         AND existing.latitude BETWEEN 38.9624718 AND 38.9630718
-         AND existing.longitude BETWEEN -7.7643828 AND -7.7635828)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Cano'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.9624718 AND 38.9630718
+                  AND existing.longitude BETWEEN -7.7643828 AND -7.7635828)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -90,8 +98,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:429475622')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Polidesportivo de Cano'))
-         AND existing.latitude BETWEEN 38.9629269 AND 38.9635269
-         AND existing.longitude BETWEEN -7.7632395 AND -7.7624395)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Cano'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.9629269 AND 38.9635269
+                  AND existing.longitude BETWEEN -7.7632395 AND -7.7624395)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -108,8 +118,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:429476238')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Campo de Futebol de Casa Branca'))
-         AND existing.latitude BETWEEN 38.9500679 AND 38.9506679
-         AND existing.longitude BETWEEN -7.8057164 AND -7.8049164)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Casa Branca'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.9500679 AND 38.9506679
+                  AND existing.longitude BETWEEN -7.8057164 AND -7.8049164)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -126,8 +138,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:429477908')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Campo de Futebol de Santo Amaro'))
-         AND existing.latitude BETWEEN 38.9702205 AND 38.9708205
-         AND existing.longitude BETWEEN -7.5840824 AND -7.5832824)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Santo Amaro'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.9702205 AND 38.9708205
+                  AND existing.longitude BETWEEN -7.5840824 AND -7.5832824)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -144,8 +158,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:1275651401')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Estádio Municipal de Ponte de Sor'))
-         AND existing.latitude BETWEEN 39.2536045 AND 39.2542045
-         AND existing.longitude BETWEEN -8.0136653 AND -8.0128653)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Ponte de Sor'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 39.2536045 AND 39.2542045
+                  AND existing.longitude BETWEEN -8.0136653 AND -8.0128653)))
 )
 ON CONFLICT DO NOTHING;
 
@@ -162,8 +178,10 @@ WHERE NOT EXISTS (
   WHERE (existing.information_source = 'OPENSTREETMAP'
          AND existing.source_reference = 'OSM:WAY:1348549266')
      OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Estádio Patalino'))
-         AND existing.latitude BETWEEN 38.8769886 AND 38.8775886
-         AND existing.longitude BETWEEN -7.1581876 AND -7.1573876)
+         AND ((LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Elvas'))
+               AND (existing.latitude IS NULL OR existing.longitude IS NULL))
+              OR (existing.latitude BETWEEN 38.8769886 AND 38.8775886
+                  AND existing.longitude BETWEEN -7.1581876 AND -7.1573876)))
 )
 ON CONFLICT DO NOTHING;
 
