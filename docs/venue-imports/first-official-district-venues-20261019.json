@@ -1,0 +1,141 @@
+{
+  "reviewedAt": "2026-10-19",
+  "status": "STAGED_FOR_DB_PREFLIGHT_NOT_IMPORTED",
+  "total": 8,
+  "records": [
+    {
+      "internalReference": "JYNLO:DOCUMENTED:EVORA:COMPLEXO_DESPORTIVO_DE_EVORA",
+      "name": "Complexo Desportivo de Évora",
+      "city": "Évora",
+      "district": "Évora",
+      "sports": [
+        "Atletismo",
+        "Futebol"
+      ],
+      "location": null,
+      "address": "Estrada das Alcáçovas (N380), Évora",
+      "sourceUrl": "https://www.cm-evora.pt/visitante/lazer-visitar/complexo-desportivo-de-evora/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:EVORA:PISCINAS_MUNICIPAIS_DE_EVORA",
+      "name": "Piscinas Municipais de Évora",
+      "city": "Évora",
+      "district": "Évora",
+      "sports": [
+        "Natação"
+      ],
+      "location": null,
+      "address": "Avenida Engenheiro Arantes de Oliveira, 7000-758 Évora",
+      "sourceUrl": "https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:CASTELO_BRANCO:PISTA_DE_ATLETISMO_DE_CASTELO_BRANCO",
+      "name": "Pista de Atletismo de Castelo Branco",
+      "city": "Castelo Branco",
+      "district": "Castelo Branco",
+      "sports": [
+        "Atletismo"
+      ],
+      "location": null,
+      "address": "Parque Urbano, Castelo Branco",
+      "sourceUrl": "https://www.cm-castelobranco.pt/municipe/areas-de-acao/desporto-lazer/pista-de-atletismo/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:SANTAREM:COMPLEXO_AQUATICO_MUNICIPAL_DE_SANTAREM",
+      "name": "Complexo Aquático Municipal de Santarém",
+      "city": "Santarém",
+      "district": "Santarém",
+      "sports": [
+        "Natação",
+        "Polo Aquático",
+        "Natação Artística",
+        "Canoagem"
+      ],
+      "location": {
+        "latitude": 39.264102742942576,
+        "longitude": -8.669450010048992,
+        "sourceUrl": "https://viversantarem.pt/complexo-aquatico-de-santarem/",
+        "boundaryCheck": "CAOP2025:Santarém/Santarém"
+      },
+      "address": "Jardim de Cima, 2005-444 Santarém",
+      "sourceUrl": "https://viversantarem.pt/instalacoes-desportivas/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:SANTAREM:PISCINAS_MUNICIPAIS_DO_SACAPEITO",
+      "name": "Piscinas Municipais do Sacapeito",
+      "city": "Santarém",
+      "district": "Santarém",
+      "sports": [
+        "Natação"
+      ],
+      "location": null,
+      "address": "Praceta Cidade de Badajoz, Urbanização do Sacapeito, 2005-213 Santarém",
+      "sourceUrl": "https://viversantarem.pt/instalacoes-desportivas/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:SANTAREM:PAVILHAO_DESPORTIVO_MUNICIPAL",
+      "name": "Pavilhão Desportivo Municipal",
+      "city": "Santarém",
+      "district": "Santarém",
+      "sports": [
+        "Futsal",
+        "Andebol",
+        "Hóquei em Patins",
+        "Patinagem",
+        "Voleibol",
+        "Corfebol",
+        "Basquetebol"
+      ],
+      "location": null,
+      "address": "Largo Comendador Paulino da Cunha e Silva, 2005-134 Santarém",
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:SANTAREM:NAVE_DESPORTIVA_MUNICIPAL",
+      "name": "Nave Desportiva Municipal",
+      "city": "Santarém",
+      "district": "Santarém",
+      "sports": [
+        "Futsal",
+        "Andebol",
+        "Voleibol",
+        "Basquetebol"
+      ],
+      "location": null,
+      "address": "Largo Comendador Paulino da Cunha e Silva, 2005-134 Santarém",
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    },
+    {
+      "internalReference": "JYNLO:DOCUMENTED:SANTAREM:PAVILHAO_DESPORTIVO_EX_EPC",
+      "name": "Pavilhão Desportivo EX-EPC",
+      "city": "Santarém",
+      "district": "Santarém",
+      "sports": [
+        "Basquetebol",
+        "Boxe",
+        "Esgrima",
+        "Voleibol",
+        "Tiro"
+      ],
+      "location": null,
+      "address": "Rua dos Ex-Combatentes do Ultramar, 2005-246 Santarém",
+      "sourceUrl": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "accessStatus": "not confirmed for public drop-in or sessions",
+      "productionDuplicatesChecked": false
+    }
+  ]
+}
