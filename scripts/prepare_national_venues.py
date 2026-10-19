@@ -17,9 +17,26 @@ from import_osm_venues_national import (
 from national_venue_batch_runner import checkpoint
 
 
-def valid_cached_output(cache: Path, slug: str, previous: dict) -> bool:
+def boundary_fingerprint(municipalities_geojson: Path, districts_geojson: Path) -> str:
+    """Identify the *contents* of the exact official boundary files used."""
+    hasher = hashlib.sha256()
+    for key, path in ((b'municipalities', municipalities_geojson),
+                      (b'districts', districts_geojson)):
+        hasher.update(key)
+        with path.open('rb') as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def valid_cached_output(cache: Path, slug: str, previous: dict,
+                        expected_boundary_fingerprint: str | None = None) -> bool:
     """Skip only complete local results whose content still matches the checkpoint."""
     if previous.get("status") != "processed":
+        return False
+    # Old reports or changed CAOP polygons must never reuse a stale classification.
+    if (expected_boundary_fingerprint is not None and
+            previous.get("boundary_fingerprint") != expected_boundary_fingerprint):
         return False
     for suffix, digest_key in (("-venues.jsonl", "sha256"),
                                ("-review.jsonl", "review_sha256")):
@@ -34,7 +51,7 @@ def valid_cached_output(cache: Path, slug: str, previous: dict) -> bool:
 
 
 def stage_districts(selected, cache, municipalities, districts, *, refresh=False,
-                    stage_fn=stage):
+                    boundary_fingerprint_value=None, stage_fn=stage):
     cache.mkdir(parents=True, exist_ok=True)
     path = cache / "national-report.json"
     old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
@@ -50,7 +67,8 @@ def stage_districts(selected, cache, municipalities, districts, *, refresh=False
     failed = []
     for slug in selected:
         previous = report.get(slug, {})
-        if not refresh and valid_cached_output(cache, slug, previous):
+        if not refresh and valid_cached_output(
+                cache, slug, previous, boundary_fingerprint_value):
             print(f"[{slug}] Already processed and checksums match; skipping.", flush=True)
             checkpoint(report, selected, path)
             continue
@@ -58,7 +76,10 @@ def stage_districts(selected, cache, municipalities, districts, *, refresh=False
             # Unlike the offline-only runner, stage() downloads a missing PBF
             # from OpenStreetMap FR and reuses a cached snapshot by default.
             _, counters = stage_fn(slug, cache, refresh, municipalities, districts)
-            report[slug] = {"status": "processed", **counters}
+            report[slug] = {
+                "status": "processed", **counters,
+                "boundary_fingerprint": boundary_fingerprint_value,
+            }
         except (OSError, RuntimeError, ValueError) as exc:
             failed.append(slug)
             report[slug] = {"status": "failed",
@@ -82,8 +103,11 @@ def main(argv=None):
     municipalities = MunicipalityLookup(args.municipalities_geojson)
     districts = DistrictLookup(args.districts_geojson)
     selected = list(DISTRICTS) if args.district == "all" else [args.district]
+    fingerprint = boundary_fingerprint(args.municipalities_geojson,
+                                       args.districts_geojson)
     return stage_districts(selected, args.cache_dir, municipalities, districts,
-                           refresh=args.refresh)
+                           refresh=args.refresh,
+                           boundary_fingerprint_value=fingerprint)
 
 
 if __name__ == "__main__":

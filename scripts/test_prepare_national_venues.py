@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from import_osm_venues_national import DISTRICTS
-from prepare_national_venues import stage_districts
+from prepare_national_venues import stage_districts, boundary_fingerprint
 
 
 def fake_stage(slug, cache, refresh, municipalities, districts):
@@ -46,6 +46,41 @@ class ResumableNationalStagingTest(unittest.TestCase):
                 raise AssertionError("Network should not be called")
             self.assertEqual(stage_districts(["portalegre"], cache, None, None,
                                              stage_fn=should_not_download), 0)
+
+    def test_official_caop_change_invalidates_cached_classification(self):
+        with TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            self.assertEqual(stage_districts(
+                ["portalegre"], cache, None, None, stage_fn=fake_stage,
+                boundary_fingerprint_value="caop-2025-first"), 0)
+            def should_not_download(*args):
+                raise AssertionError("Already validated with same official boundaries")
+            self.assertEqual(stage_districts(
+                ["portalegre"], cache, None, None,
+                stage_fn=should_not_download,
+                boundary_fingerprint_value="caop-2025-first"), 0)
+            self.assertEqual(stage_districts(
+                ["portalegre"], cache, None, None,
+                stage_fn=fake_stage,
+                boundary_fingerprint_value="caop-2025-updated"), 0)
+            report = json.loads((cache / "national-report.json").read_text())
+            self.assertEqual(report["portalegre"]["boundary_fingerprint"],
+                             "caop-2025-updated")
+
+    def test_fingerprint_uses_both_official_geometry_files(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            municipalities = root / "municipalities.geojson"
+            districts = root / "districts.geojson"
+            municipalities.write_text("municipalities-v1")
+            districts.write_text("districts-v1")
+            old = boundary_fingerprint(municipalities, districts)
+            self.assertEqual(old, boundary_fingerprint(municipalities, districts))
+            districts.write_text("districts-v2")
+            self.assertNotEqual(old, boundary_fingerprint(municipalities, districts))
+            districts.write_text("districts-v1")
+            municipalities.write_text("municipalities-v2")
+            self.assertNotEqual(old, boundary_fingerprint(municipalities, districts))
 
     def test_corrupted_snapshot_restages(self):
         with TemporaryDirectory() as tmp:
