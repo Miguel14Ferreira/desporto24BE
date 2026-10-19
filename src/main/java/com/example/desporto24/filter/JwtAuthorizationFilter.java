@@ -50,6 +50,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                         .orElse(null);
 
                 boolean profileActive = profile != null
+                        && profile.getModerationSuspendedAt() == null
                         && !Boolean.FALSE.equals(profile.getNotLocked())
                         && !Boolean.FALSE.equals(profile.getEnabled());
 

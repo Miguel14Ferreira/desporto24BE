@@ -224,6 +224,7 @@ public class AccountDeletionService {
 
         profile.setLoginAttempts(0);
         profile.setNotLocked(false);
+        profile.setModerationSuspendedAt(null);
         profile.setEnabled(false);
         profile.setMFA(false);
         profile.setMfaSecret(null);
