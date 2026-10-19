@@ -33,6 +33,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class SessionMineServiceTest {
@@ -100,9 +101,9 @@ class SessionMineServiceTest {
         SessionSummaryResponse joinedSummary = summary(joined);
         SessionSummaryResponse waitlistedSummary = summary(waitlisted);
 
-        when(sessionViewMapper.toSummary(created, null)).thenReturn(createdSummary);
-        when(sessionViewMapper.toSummary(joined, null)).thenReturn(joinedSummary);
-        when(sessionViewMapper.toSummary(waitlisted, null)).thenReturn(waitlistedSummary);
+        when(sessionViewMapper.toSummary(eq(created), isNull(), isNull(), anyMap())).thenReturn(createdSummary);
+        when(sessionViewMapper.toSummary(eq(joined), isNull(), isNull(), anyMap())).thenReturn(joinedSummary);
+        when(sessionViewMapper.toSummary(eq(waitlisted), isNull(), isNull(), anyMap())).thenReturn(waitlistedSummary);
 
         MySessionsResponse result = service.mine("miguel");
 
@@ -110,7 +111,7 @@ class SessionMineServiceTest {
         assertEquals(List.of(joinedSummary), result.joined());
         assertEquals(List.of(waitlistedSummary), result.waitlisted());
 
-        verify(sessionViewMapper, times(1)).toSummary(created, null);
+        verify(sessionViewMapper, times(1)).toSummary(eq(created), isNull(), isNull(), anyMap());
     }
 
     private Profile profile(Long id, String username) {

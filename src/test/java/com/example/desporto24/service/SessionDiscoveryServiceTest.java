@@ -222,7 +222,7 @@ class SessionDiscoveryServiceTest {
     }
 
     private void stubSummary(Session session, Double distance, int participants) {
-        when(sessionViewMapper.toSummary(session, distance)).thenReturn(new SessionSummaryResponse(
+        when(sessionViewMapper.toSummary(eq(session), eq(distance), isNull(), anyMap())).thenReturn(new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
                 session.getCity(),

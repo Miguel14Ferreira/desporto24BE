@@ -189,7 +189,7 @@ class VenueServiceTest {
                 .sports(null)
                 .build();
 
-        when(venueRepository.findAllByOrderByNameAsc())
+        when(venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc("lis"))
                 .thenReturn(List.of(matching, unspecified));
 
         var results = service.search("lis", "PADEL");
