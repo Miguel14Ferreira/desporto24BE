@@ -126,6 +126,35 @@ class PortalegreDraftTest(unittest.TestCase):
         ).fetchone()
         self.assertEqual(("Nome mantido do utilizador", "Rua Original"), original)
 
+    def test_legacy_venue_without_gps_is_not_duplicated(self):
+        con = sample_database()
+        con.execute("""
+            INSERT INTO desporto24.venue
+            (name, city, address, information_source, created_at)
+            VALUES ('Estádio Patalino', 'Elvas', 'Morada comunitária antiga',
+                    'COMMUNITY', CURRENT_TIMESTAMP)
+        """)
+        con.executescript(self.sql)
+        self.assertEqual(9, len(rows(con)))  # old record + 8 new
+        unchanged = con.execute("""
+            SELECT address, latitude, longitude FROM desporto24.venue
+            WHERE name='Estádio Patalino'
+        """).fetchone()
+        self.assertEqual(('Morada comunitária antiga', None, None), unchanged)
+        con.executescript(self.sql)
+        self.assertEqual(9, len(rows(con)))
+
+    def test_unrelated_city_with_same_name_does_not_block_a_venue(self):
+        con = sample_database()
+        con.execute("""
+            INSERT INTO desporto24.venue
+            (name, city, address, information_source, created_at)
+            VALUES ('Estádio Patalino', 'Coimbra', 'Recinto homónimo',
+                    'COMMUNITY', CURRENT_TIMESTAMP)
+        """)
+        con.executescript(self.sql)
+        self.assertEqual(10, len(rows(con)))
+
     def test_existing_community_location_and_name_is_not_overwritten(self):
         con = sample_database()
         con.execute("""

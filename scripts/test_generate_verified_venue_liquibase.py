@@ -60,6 +60,33 @@ class VenueSeedGeneratorTest(unittest.TestCase):
         self.assertNotIn("UPDATE ", sql)
         self.assertNotIn("DELETE FROM", sql)
 
+    def test_generated_seed_blocks_same_city_duplicate_without_gps(self):
+        import sqlite3
+        db = sqlite3.connect(':memory:')
+        db.create_function('BTRIM', 1, lambda text: None if text is None else text.strip())
+        db.execute("ATTACH DATABASE ':memory:' AS desporto24")
+        db.executescript("""
+            CREATE TABLE desporto24.venue (
+                name TEXT, city TEXT, district TEXT, address TEXT, sports TEXT,
+                venue_type TEXT, environment_type TEXT, latitude REAL, longitude REAL,
+                information_source TEXT, source_reference TEXT,
+                indoor BOOLEAN, changing_rooms BOOLEAN, parking BOOLEAN,
+                lighting BOOLEAN, created_at TEXT,
+                UNIQUE(information_source, source_reference)
+            );
+        """)
+        item = gen.validate(sample())
+        sql = gen.render_sql([item])
+        db.execute("INSERT INTO desporto24.venue(name,city,information_source) "
+                   "VALUES (?, ?, 'COMMUNITY')", (item["name"], item["city"]))
+        db.executescript(sql)
+        self.assertEqual(1, db.execute("SELECT COUNT(*) FROM desporto24.venue").fetchone()[0])
+        db.execute("DELETE FROM desporto24.venue")
+        db.execute("INSERT INTO desporto24.venue(name,city,information_source) "
+                   "VALUES (?, ?, 'COMMUNITY')", (item["name"], "Coimbra"))
+        db.executescript(sql)
+        self.assertEqual(2, db.execute("SELECT COUNT(*) FROM desporto24.venue").fetchone()[0])
+
     def test_migration_is_opt_in_and_content_addressed(self):
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "approved.jsonl"

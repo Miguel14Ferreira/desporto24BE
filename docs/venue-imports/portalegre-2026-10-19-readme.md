@@ -80,3 +80,13 @@ consulta continua a ser exclusivamente de leitura e **não** foi executada
 contra a base de dados Render (ligação SSL/TLS do conector recusada).
 Os testes SQLite de simulação registam a função PostgreSQL `BTRIM`
 localmente para que a avaliação de SQL não termine com um falso erro.
+
+## Regra adicional — recintos antigos sem coordenadas
+
+Antes de inserir, o SQL verifica também se já existe um recinto com o
+**mesmo nome e a mesma localidade**, mas com latitude ou longitude em falta.
+O registo existente tem prioridade e não é alterado. Um recinto homónimo
+noutra cidade continua a poder ser inserido. Esta proteção foi aplicada ao
+lote de nove recintos e ao gerador Liquibase para todos os distritos.
+
+Testes offline adicionais cobrem os dois casos e a reaplicação idempotente.
