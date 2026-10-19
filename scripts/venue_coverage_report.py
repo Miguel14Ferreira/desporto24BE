@@ -49,6 +49,13 @@ def extract(data):
             continue
         if not isinstance(info, dict):
             raise ValueError(f"Invalid district stats: {slug}")
+        if info.get("status") in ("failed", "legacy_unverified"):
+            row = dict.fromkeys(COLUMNS, "")
+            row.update(distrito=display_name, estado=(
+                "falha na recolha" if info["status"] == "failed"
+                else "recolha antiga, sem verificação CAOP"))
+            result.append(row)
+            continue
         values = {}
         for column, key in COUNT_FIELDS.items():
             value = info.get(key, 0)
@@ -75,7 +82,10 @@ def write_report(source, destination):
         writer = csv.DictWriter(handle, fieldnames=COLUMNS, delimiter=";")
         writer.writeheader()
         writer.writerows(rows)
-    return sum(data.get(slug) is not None for slug in DISTRICTS), out
+    return sum(
+        isinstance(data.get(slug), dict)
+        and data[slug].get("status", "processed") == "processed"
+        for slug in DISTRICTS), out
 
 
 def main():
