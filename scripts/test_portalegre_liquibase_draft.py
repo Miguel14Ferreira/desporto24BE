@@ -88,8 +88,8 @@ class PortalegreDraftTest(unittest.TestCase):
         self.assertIn("NO_MATCH_FOUND_REVIEW_BEFORE_INSERT", preflight)
         self.assertIn("LOWER(BTRIM(v.city))", preflight)
         self.assertNotRegex(
-            re.sub(r"(?m)^--[^\\n]*", "", preflight),
-            r"\\b(?:INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER)\\b"
+            re.sub(r"(?m)^--[^\n]*", "", preflight),
+            r"\b(?:INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER)\b"
         )
 
     def test_never_mutates_existing_venue_records(self):
