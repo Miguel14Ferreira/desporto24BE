@@ -257,14 +257,19 @@ class VenueHandler(osmium.SimpleHandler if osmium else object):
             # OSM extract bounds can include a municipality from a neighbouring district.
             self.counts["skipped_other_district"] += 1
             return
-        if coords and self.municipality_lookup:
-            municipality = self.municipality_lookup.find(*coords)
-            if municipality:
-                # CAOP geometry is more reliable than an OSM town/locality text tag.
-                tags["addr:city"] = municipality
+        municipality = self.municipality_lookup.find(*coords) if (
+            coords and self.municipality_lookup) else None
+        if municipality:
+            # CAOP geometry is more reliable than an OSM town/locality text tag.
+            tags["addr:city"] = municipality
         venue, quality = build_venue(tags, kind, int(obj.id), coords, self.district)
-        if venue and not district:
-            quality = (quality + ",district_to_verify") if quality != "ok" else "district_to_verify"
+        if venue:
+            flags = [] if quality == "ok" else quality.split(",")
+            if not district and "district_to_verify" not in flags:
+                flags.append("district_to_verify")
+            if not municipality and "municipality_to_verify" not in flags:
+                flags.append("municipality_to_verify")
+            quality = ",".join(flags) or "ok"
         if venue is None:
             self.counts["skipped_" + quality] += 1
             return
