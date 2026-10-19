@@ -40,3 +40,28 @@ de estar visível na Jynlo (PR do frontend dedicado).
 6. Publicar FE com crédito OSM e BE de forma coordenada, e medir inserções.
 
 Não há operações automáticas de produção associadas a este commit.
+
+
+## Diagnóstico de duplicados sem acesso de escrita
+
+A consulta `src/main/resources/db/changelog/venue-imports/drafts/2026-10-19-portalegre-preflight-READONLY.sql` executa apenas um `SELECT` na BD e mostra
+qualquer recinto existente a até 150 m dos nove candidatos, inclusive
+com nomes alternativos, além de correspondências pela referência OSM.
+**Não executar o changeset antes de rever esse relatório**. A consulta
+não modifica dados e pode ser executada por um utilizador PostgreSQL com
+permissão exclusiva de leitura (quando essa ligação estiver disponível).
+A ausência de candidatos no relatório não comprova que não existam
+duplicados mais distantes ou com coordenadas desatualizadas.
+
+### Teste de compatibilidade PostgreSQL (sem Render)
+
+O workflow `.github/workflows/venue-liquibase-postgres-manual.yml`
+corre **apenas mediante execução manual**, para evitar consumir minutos
+do GitHub Actions enquanto o arranque dos runners estiver bloqueado.
+Cria um PostgreSQL 16 temporário, testa a inserção de 9 recintos,
+a reaplicação idempotente e a preservação de registos COMMUNITY.
+Depois executa o SQL de preflight sem efetuar alterações adicionais.
+
+É um teste do SQL numa *tabela de teste com as colunas relevantes*,
+não substitui testes de Liquibase contra o esquema completo real nem
+uma revisão de duplicados na base de produção. Não usa segredos Render.
