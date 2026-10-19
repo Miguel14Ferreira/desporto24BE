@@ -61,3 +61,18 @@ The owner can run `src/main/resources/db/changelog/venue-imports/preflight-venue
 Next run `src/main/resources/db/changelog/venue-imports/preflight-24-venues-READONLY.sql` — also read-only — to compare exactly the 24 proposed venue IDs/names/coordinates with production rows. Results can have multiple matches per proposal. Treat `NO_MATCH_FOUND` as inconclusive for aliases; manually review and decide. Both preflight scripts are outside the active Liquibase master and do not run on startup.
 
 Do not deploy until backup/restore availability and PostgreSQL 16 integration tests are verified. Database networking does **not** need to be opened.
+
+
+## Results received from owner — production preflight, 19 October 2026
+
+These are **results of read-only SQL personally run by the owner** against the currently available Render PostgreSQL catalogue; they are not a staging test or authorization for INSERTs.
+
+- Current venue count: **228**. Without sports: **169**; without district: **3**; without coordinates: **0**. `information_source`: **226 OFFICIAL**, **2 OPENSTREETMAP**, **0 COMMUNITY**.
+- Unified 24-venue preflight: **24 rows, all `NO_MATCH_FOUND`** by source-reference, matching normalized name + city, or near-location rectangle when coordinates exist. No matched existing id was returned. This result establishes **no match under the query's criteria only**, not a complete deduplication guarantee. Particularly, **14 of the proposed 24 have no coordinates** and therefore were not spatially checked.
+- Backfill preview: main mapping **1 Coimbra → Coimbra**, **1 Porto → Porto**; Lisbon geographic mapping **1 Parede → Lisboa**. Exactly **3 historical rows** qualify for district backfill, matching the baseline count. No current district values would be overwritten.
+- New venue insert proposals: **10 have coordinates** (nine Portalegre OSM + one Santarém official) and **14 have `NULL` coordinates**. The existing frontend `venue-details.component.html` renders its Google Maps link only if *both* coordinates exist. **Those 14 cards would have no coordinate-based map link** unless data is enriched or a suitable UI fallback is implemented.
+
+### Release interpretation
+Read-only duplicate and backfill queries **completed**, but the matches are inconclusive for aliases/compound complexes; manual source/nearby review remains. The existing 169 records without sports must **not** be inferred as suitable for sport filters. To work on them independently, execute the new SELECT-only `src/main/resources/db/changelog/venue-imports/preflight-missing-sports-READONLY.sql`, export its result grid as CSV and cross-check official/OSM descriptions before generating UPDATE changesets. Do not apply blind venue-type-based sport updates.
+
+The following are still **BLOCKING**: verified Render database backup/restore path, PostgreSQL 16 Liquibase and Java test execution, manual duplicate/source review especially the 14 candidates without GPS, and explicit authorization before a production migration. No production data was changed.
