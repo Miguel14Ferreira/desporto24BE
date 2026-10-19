@@ -1,0 +1,41 @@
+name: National venue Portalegre dry-run
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - '.github/workflows/national-venue-portalegre-dryrun.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portalegre-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install offline parser dependency
+        run: python -m pip install --quiet osmium
+      - name: Validate parser code without accessing production
+        run: python -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
+      - name: Download Portalegre OSM extract and stage local-only report
+        run: |
+          python scripts/import_osm_venues_national.py --district portalegre --cache-dir "${RUNNER_TEMP}/jynlo-venue-preview"
+          echo '--- PORTALEGRE PREVIEW ONLY (NO DB WRITES) ---'
+          cat "${RUNNER_TEMP}/jynlo-venue-preview/national-report.json"
+      - name: Upload report and review samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portalegre-venue-preview
+          path: |
+            ${{ runner.temp }}/jynlo-venue-preview/national-report.json
+            ${{ runner.temp }}/jynlo-venue-preview/portalegre-venues.jsonl
+            ${{ runner.temp }}/jynlo-venue-preview/portalegre-review.jsonl
+          retention-days: 1
+          if-no-files-found: warn
