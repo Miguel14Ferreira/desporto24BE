@@ -79,11 +79,23 @@ class NationalVenueImportTests(unittest.TestCase):
                      [-8.4, 39.0], [-8.4, 38.0]]]}}
             ]}), encoding="utf-8")
             lookup = national.DistrictLookup(p)
+            municipalities = Path(directory) / "municipalities.geojson"
+            municipalities.write_text(json.dumps({
+                "type": "FeatureCollection", "features": [{
+                    "type": "Feature", "properties": {"municipio": "Portalegre"},
+                    "geometry": {"type": "Polygon", "coordinates": [[
+                        [-8.4, 39.0], [-7.5, 39.0], [-7.5, 40.0],
+                        [-8.4, 40.0], [-8.4, 39.0]
+                    ]]}
+                }]
+            }), encoding="utf-8")
+            city_lookup = national.MunicipalityLookup(municipalities)
             self.assertEqual("Portalegre", lookup.find(39.5, -8.0))
             self.assertEqual("Évora", lookup.find(38.8, -8.0))
             self.assertIsNone(lookup.find(40.3, -8.0))
             ready, review = io.StringIO(), io.StringIO()
             handler = national.VenueHandler(ready, review, "Portalegre",
+                                           municipality_lookup=city_lookup,
                                            district_lookup=lookup)
             class Position:
                 def __init__(self, lat, lon):
@@ -103,6 +115,44 @@ class NationalVenueImportTests(unittest.TestCase):
             self.assertEqual(1, len(review.getvalue().splitlines()))
             self.assertIn("district_to_verify", review.getvalue())
             self.assertEqual(1, handler.counts["skipped_other_district"])
+
+    def test_unverified_osm_city_is_quarantined_even_if_district_is_known(self):
+        import io
+        import json
+        import tempfile
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            municipality_path = Path(folder) / "municipios.geojson"
+            municipality_path.write_text(json.dumps({
+                "type": "FeatureCollection", "features": [{
+                    "properties": {"municipio": "Mora"}, "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": [[
+                        [-8.4, 38.5], [-7.5, 38.5], [-7.5, 39.0],
+                        [-8.4, 39.0], [-8.4, 38.5]]]}}]
+            }), encoding="utf-8")
+            district_path = Path(folder) / "distritos.geojson"
+            district_path.write_text(json.dumps({
+                "type": "FeatureCollection", "features": [{
+                    "properties": {"distrito": "Portalegre"}, "type": "Feature",
+                    "geometry": {"type": "Polygon", "coordinates": [[
+                        [-8.4, 39.0], [-7.5, 39.0], [-7.5, 40.0],
+                        [-8.4, 40.0], [-8.4, 39.0]]]}}]
+            }), encoding="utf-8")
+            ready, review = io.StringIO(), io.StringIO()
+            handler = national.VenueHandler(
+                ready, review, "Portalegre",
+                municipality_lookup=national.MunicipalityLookup(municipality_path),
+                district_lookup=national.DistrictLookup(district_path))
+            class Position:
+                lat, lon = 39.5, -8.0
+                def valid(self): return True
+            tags = [SimpleNamespace(k=k, v=v) for k, v in {
+                "leisure": "pitch", "name": "Campo", "sport": "soccer",
+                "addr:city": "Elvas", "addr:street": "Rua Exemplo"
+            }.items()]
+            handler.node(SimpleNamespace(id=10, location=Position(), tags=tags))
+            self.assertEqual("", ready.getvalue())
+            self.assertIn("municipality_to_verify", review.getvalue())
 
     def test_without_official_district_polygons_every_venue_needs_review(self):
         import io
