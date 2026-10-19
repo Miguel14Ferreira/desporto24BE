@@ -44,6 +44,32 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             @Param("district") String district,
             Pageable pageable);
 
+    /** Covers historical Cascais parish names without modifying city or exposing other municipalities. */
+    @Query("""
+           SELECT v FROM Venue v
+           WHERE (:name = '' OR
+                  LOWER(FUNCTION('translate', v.name,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :name, '%') ESCAPE '!')
+             AND LOWER(FUNCTION('translate', v.city,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) IN :cityAliases
+             AND (:district = '' OR v.district = :district)
+             AND (:sport = '' OR
+                  LOWER(FUNCTION('translate',
+                    CONCAT(';', REPLACE(REPLACE(COALESCE(v.sports, ''), ' ', ''), ',', ';'), ';'),
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc'))
+                    LIKE CONCAT('%;', :sport, ';%') ESCAPE '!')
+           ORDER BY LOWER(v.name), LOWER(v.city), v.id
+           """)
+    Slice<Venue> suggestMunicipality(
+            @Param("name") String name,
+            @Param("sport") String sport,
+            @Param("district") String district,
+            @Param("cityAliases") List<String> cityAliases,
+            Pageable pageable);
+
     /** Only the fields needed for import deduplication, not complete Venue entities. */
     interface VenueDeduplicationView {
         String getName();
@@ -65,6 +91,17 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
 
 
     List<Venue> findByCityContainingIgnoreCaseOrderByNameAsc(String city);
+
+    @Query("""
+           SELECT v FROM Venue v
+           WHERE LOWER(FUNCTION('translate', v.city,
+             'áàâãäéèêëíìîïóòôõöúùûüç',
+             'aaaaaeeeeiiiiooooouuuuc')) IN :cityAliases
+           ORDER BY LOWER(v.name), v.id
+           """)
+    List<Venue> findByCityAliases(@Param("cityAliases") List<String> cityAliases);
+
+
 
     List<Venue> findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
             Double minLatitude, Double maxLatitude, Double minLongitude, Double maxLongitude);
