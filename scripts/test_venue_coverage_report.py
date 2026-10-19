@@ -32,6 +32,18 @@ class VenueCoverageReportTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 extract(payload)
 
+    def test_failed_and_legacy_districts_are_not_zero_venues(self):
+        rows = extract({
+            "beja": {"status": "failed", "error": "FileNotFoundError"},
+            "portalegre": {"status": "legacy_unverified", "candidates": 2079},
+        })
+        beja = next(r for r in rows if r["distrito"] == "Beja")
+        portalegre = next(r for r in rows if r["distrito"] == "Portalegre")
+        self.assertIn("falha", beja["estado"])
+        self.assertIn("sem verificação", portalegre["estado"])
+        self.assertEqual("", beja["candidatos_osm"])
+        self.assertEqual("", portalegre["candidatos_osm"])
+
     def test_writes_utf8_excel_friendly_semicolon_csv(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "report.json"
