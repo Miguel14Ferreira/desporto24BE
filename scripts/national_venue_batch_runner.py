@@ -22,6 +22,8 @@ def checkpoint(report, selected, destination):
         'districts_processed': len(finished),
         'districts_failed': failed,
         'districts_unprocessed': [slug for slug in DISTRICTS if slug not in report],
+        'districts_legacy_unverified': [slug for slug, v in report.items()
+                                        if v.get('status') == 'legacy_unverified'],
         'candidates_osm': sum(v.get('candidates', 0) for v in finished),
         'import_ready_needs_approval': sum(v.get('import_ready', 0) for v in finished),
         'review_required': sum(v.get('review_required', 0) for v in finished),
@@ -40,8 +42,13 @@ def run(selected, cache, municipalities, districts, stage_fn=stage):
     out = cache / 'national-report.json'
     if out.exists():
         previous = json.loads(out.read_text(encoding='utf-8'))
-        report = {slug: previous[slug] for slug in DISTRICTS
-                  if isinstance(previous.get(slug), dict)}
+        report = {}
+        for slug in DISTRICTS:
+            record = previous.get(slug)
+            if isinstance(record, dict):
+                report[slug] = (record if record.get('status') in
+                                ('processed', 'failed') else
+                                {'status': 'legacy_unverified', **record})
     else:
         report = {}
     for slug in selected:
