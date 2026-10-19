@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-19-feed-video
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: social_post
+            columns:
+              - column:
+                  name: video_url
+                  type: VARCHAR(1200)
+              - column:
+                  name: video_storage_key
+                  type: VARCHAR(800)

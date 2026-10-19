@@ -45,17 +45,14 @@ public class SocialFeedController {
             value = "/posts",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
-    public FeedItemResponse createPostWithImage(
+    public FeedItemResponse createPostWithMedia(
             @RequestPart("content") String content,
             @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "video", required = false) MultipartFile video,
             @RequestPart(value = "sessionId", required = false) Long sessionId,
             Authentication authentication) {
-        return feedService.createPostWithImage(
-                authentication.getName(),
-                content,
-                image,
-                sessionId
-        );
+        return feedService.createPostWithMedia(
+                authentication.getName(), content, image, video, sessionId);
     }
 
     @PutMapping("/attendance/{sessionId}/hide")

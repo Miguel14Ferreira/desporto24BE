@@ -69,6 +69,24 @@ class MediaStorageTest {
         assertTrue(Files.exists(tempDir.resolve("sessions/42/photo.png")));
     }
 
+    @Test
+    void neverAcceptsVideoThroughImageOnlyStorage() {
+        var fakeVideo = new MockMultipartFile("photo", "example.mp4", "video/mp4",
+                new byte[] {0,0,0,16,'f','t','y','p','i','s','o','m',0,0,0,0});
+        assertThrows(IllegalArgumentException.class,
+                () -> storage().store("profiles/2/photo", fakeVideo));
+    }
+
+    @Test
+    void rejectsFakeAndOversizedVideos() {
+        assertThrows(IllegalArgumentException.class, () -> storage().storeVideo("posts/1/video",
+                new MockMultipartFile("video", "fake.mp4", "video/mp4",
+                        "not actually a video".getBytes())));
+        assertThrows(IllegalArgumentException.class, () -> storage().storeVideo("posts/1/video",
+                new MockMultipartFile("video", "large.mp4", "video/mp4",
+                        new byte[(20 * 1024 * 1024) + 1])));
+    }
+
     private LocalMediaStorage storage() {
         MediaStorageProperties properties = new MediaStorageProperties();
         properties.setLocalRoot(tempDir.toString());
