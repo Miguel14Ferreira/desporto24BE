@@ -18,7 +18,7 @@ class CommunityInviteEmailListenerTest {
                 7L, "friend@example.test", "owner<script>", "CNG & Friends"));
         ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
         verify(sender).send(eq("friend@example.test"),
-                eq("Convite para uma comunidade | Community invitation — Desporto24"), html.capture());
+                eq("Convite para uma comunidade | Community invitation — Jynlo"), html.capture());
         String body = html.getValue();
         assertTrue(body.contains("owner&lt;script&gt;"));
         assertTrue(body.contains("CNG &amp; Friends"));
