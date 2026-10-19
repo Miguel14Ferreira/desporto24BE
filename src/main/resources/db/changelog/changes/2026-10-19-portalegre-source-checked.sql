@@ -1,8 +1,8 @@
--- PROPOSTA — NÃO ATIVAR SEM REVISÃO E APROVAÇÃO DO PROPRIETÁRIO.
+-- IMPORTAÇÃO CONTROLADA: só executar após revisão e backup.
 -- Portalegre: 9 recintos corroborados por fontes independentes e coordenadas OSM.
 -- Estes registos NÃO passaram por comparação exaustiva com a BD em produção.
 -- Dados geográficos: OpenStreetMap contributors, ODbL https://www.openstreetmap.org/copyright
--- Changelog NÃO incluído em db.changelog-master.yaml. Nenhum UPDATE ou DELETE.
+-- Changelog ativado apenas após integração deste branch. Nenhum UPDATE ou DELETE.
 -- Inserções condicionais por origem e nome+proximidade; não impedem todos os alias.
 
 -- Recinto Multiusos de Ponte de Sor | OSM:WAY:157099522 | https://www.cm-pontedesor.pt/infraestruturas-desporto/

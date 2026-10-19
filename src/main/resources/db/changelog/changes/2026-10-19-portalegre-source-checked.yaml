@@ -1,6 +1,6 @@
 databaseChangeLog:
-  # REVISÃO PENDENTE: Não incluir no master até confirmação humana e backup.
-  # SQL não pode substituir verificação de duplicados com nomes alternativos.
+  # Executa apenas após merge/deploy autorizado, preflight read-only e backup.
+  # O SQL é apenas INSERT condicional; nomes alternativos exigem revisão prévia.
   - changeSet:
       id: 2026-10-19-portalegre-source-checked-v1
       author: jynlo-venues
