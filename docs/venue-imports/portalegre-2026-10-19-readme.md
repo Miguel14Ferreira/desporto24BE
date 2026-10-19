@@ -65,3 +65,14 @@ Depois executa o SQL de preflight sem efetuar alterações adicionais.
 É um teste do SQL numa *tabela de teste com as colunas relevantes*,
 não substitui testes de Liquibase contra o esquema completo real nem
 uma revisão de duplicados na base de produção. Não usa segredos Render.
+
+## Proteção contra duplicados sem coordenadas (19/10)
+
+O preflight também procura recintos históricos cuja latitude/longitude sejam
+nulas, comparando **nome e cidade**, além de referências OSM e vizinhos a
+150 metros. Um nome coincidente numa cidade com coordenadas diferentes
+continua a exigir revisão, em vez de ser inserido silenciosamente. Esta
+consulta continua a ser exclusivamente de leitura e **não** foi executada
+contra a base de dados Render (ligação SSL/TLS do conector recusada).
+Os testes SQLite de simulação registam a função PostgreSQL `BTRIM`
+localmente para que a avaliação de SQL não termine com um falso erro.

@@ -23,6 +23,8 @@ MASTER = ROOT / "src/main/resources/db/changelog/db.changelog-master.yaml"
 
 def sample_database():
     con = sqlite3.connect(":memory:")
+    # PostgreSQL provides BTRIM; this test-only SQLite connection does not.
+    con.create_function("BTRIM", 1, lambda s: None if s is None else s.strip())
     con.execute("ATTACH DATABASE ':memory:' AS desporto24")
     con.execute("""
         CREATE TABLE desporto24.venue (
@@ -77,6 +79,18 @@ class PortalegreDraftTest(unittest.TestCase):
             reference = item["osmReference"]
             self.assertEqual(2, self.sql.count("'" + reference + "'"))
         self.assertNotIn("OSM:WAY:383543126", self.sql)  # Mora belongs to Évora.
+
+    def test_duplicate_preflight_detects_legacy_names_without_coordinates(self):
+        preflight = (DRAFTS / "2026-10-19-portalegre-preflight-READONLY.sql").read_text(
+            encoding="utf-8")
+        self.assertEqual(9, preflight.count("('OSM:WAY:"))
+        self.assertIn("SAME_NAME_CITY_MISSING_GPS_REVIEW", preflight)
+        self.assertIn("NO_MATCH_FOUND_REVIEW_BEFORE_INSERT", preflight)
+        self.assertIn("LOWER(BTRIM(v.city))", preflight)
+        self.assertNotRegex(
+            re.sub(r"(?m)^--[^\\n]*", "", preflight),
+            r"\\b(?:INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER)\\b"
+        )
 
     def test_never_mutates_existing_venue_records(self):
         executable = re.sub(r"(?m)^--[^\n]*", "", self.sql)

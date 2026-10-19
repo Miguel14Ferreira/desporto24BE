@@ -10,6 +10,8 @@ MASTER = ROOT / "src/main/resources/db/changelog/db.changelog-master.yaml"
 
 def db():
     con = sqlite3.connect(":memory:")
+    # PostgreSQL provides BTRIM; this test-only SQLite connection does not.
+    con.create_function("BTRIM", 1, lambda s: None if s is None else s.strip())
     con.execute("ATTACH DATABASE ':memory:' AS desporto24")
     con.execute("CREATE TABLE desporto24.venue (city TEXT, district TEXT, latitude REAL, longitude REAL)")
     return con
