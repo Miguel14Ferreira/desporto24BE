@@ -224,11 +224,12 @@ class JwtExpiryRefreshContractTest {
     void untrustedOriginCannotRefreshEvenWithAValidCookie() throws Exception {
         String refresh = jwt.generateRefreshToken(new ProfilePrincipal(profile));
 
+        // The real CORS filter rejects a foreign Origin before MVC handles the
+        // request, so the response is HTTP 403 without a JSON advice body.
         mvc.perform(post("/api/auth/refresh")
                         .header(HttpHeaders.ORIGIN, "https://d24sports.com.attacker.invalid")
                         .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.httpStatusCode").value(403));
+                .andExpect(status().isForbidden());
 
         verify(auth, never()).refresh(anyString());
     }
