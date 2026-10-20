@@ -1,0 +1,121 @@
+name: One-time national OSM / official CAOP2025 venue extraction
+on:
+  push:
+    branches: ['analysis/national-venue-source-staging-20261020']
+    paths: ['.github/workflows/national-all-venues-stage.yml']
+permissions:
+  contents: write
+jobs:
+  national:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare authoritative CAOP and offline parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y gdal-bin unzip
+          python3 -m pip install -q osmium
+          mkdir -p .cache/caop .cache/jynlo-venues
+          curl -fsSL --retry 2 --connect-timeout 20 --max-time 180 \
+            -o .cache/caop/caop2025.zip \
+            https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip
+          unzip -q .cache/caop/caop2025.zip -d .cache/caop
+          GPKG="$(find .cache/caop -type f -name '*.gpkg' | head -1)"
+          test -n "$GPKG"
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 \
+            .cache/caop/municipios.geojson "$GPKG" cont_municipios
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 \
+            .cache/caop/distritos.geojson "$GPKG" cont_distritos
+          python3 - <<'PY'
+          import json
+          m=json.load(open('.cache/caop/municipios.geojson'))['features']
+          d=json.load(open('.cache/caop/distritos.geojson'))['features']
+          assert len(m)==278 and len(d)==18, (len(m), len(d))
+          print('PASS: 278 official municipalities and 18 official districts')
+          PY
+      - name: Stage all 18 OSM extracts without API or database credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_national_venues.py \
+            --district all --cache-dir .cache/jynlo-venues \
+            --municipalities-geojson .cache/caop/municipios.geojson \
+            --districts-geojson .cache/caop/distritos.geojson
+      - name: Aggregate only import-ready, source-attributed candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, hashlib
+          from collections import Counter
+          root=pathlib.Path('.cache/jynlo-venues')
+          report=json.loads((root/'national-report.json').read_text())
+          districts={k:v for k,v in report.items() if k!='summary'}
+          if len(districts)!=18 or any(v.get('status')!='processed' for v in districts.values()):
+              raise SystemExit(f'Incomplete national coverage: {[(k,v.get("status")) for k,v in districts.items()]}')
+          seen=set()
+          candidates=[]
+          counts=Counter()
+          for slug,stats in districts.items():
+              if stats.get('import_ready',0)<0:raise SystemExit('Invalid candidate count')
+              source=root/f'{slug}-venues.jsonl'
+              for line in source.open(encoding='utf-8'):
+                  item=json.loads(line)
+                  key=item['sourceReference']
+                  if key in seen:
+                      raise SystemExit('Repeated OSM ID across districts: '+key)
+                  seen.add(key)
+                  if item.get('district') is None or not item.get('sports') or not item.get('city'):
+                      raise SystemExit('Candidate has unchecked mandatory field')
+                  counts[item['district']]+=1
+                  candidates.append(item)
+          if len(candidates)<50 or len(candidates)>15000:
+              raise SystemExit('Unexpected vetted national candidate size')
+          output=pathlib.Path('data/venues/osm-caop2025-20261020')
+          output.mkdir(parents=True,exist_ok=True)
+          ready=output/'national-ready.jsonl'
+          ready.write_text(''.join(json.dumps(x,ensure_ascii=False,sort_keys=True)+'\n' for x in candidates),encoding='utf-8')
+          summary={'districts_processed':len(districts),'import_ready':len(candidates),
+                   'review_required':sum(x.get('review_required',0) for x in districts.values()),
+                   'by_district':dict(sorted(counts.items())),
+                   'sha256':hashlib.sha256(ready.read_bytes()).hexdigest(),
+                   'import_status':'STAGED_ONLY_NO_LIVE_DB_WRITES',
+                   'sources':['OpenStreetMap / ODbL','DGT CAOP2025 / CC BY 4.0']}
+          (output/'summary.json').write_text(json.dumps(summary,indent=2,ensure_ascii=False),encoding='utf-8')
+          (output/'README.md').write_text(
+              '# Jynlo candidate catalogue (not imported)\n'
+              '18 OSM district PBF snapshots joined to official DGT CAOP2025 municipalities and districts.\n'
+              'Attribution: © OpenStreetMap contributors, ODbL 1.0; CAOP2025 © DGT, CC BY 4.0.\n'
+              'This subset contains only source-tagged, geographically checked candidate records.\n'
+              'Still requires LIVE database duplicate preflight and explicit approval before import.\n'
+              'Quarantined candidate data is not included.\n',encoding='utf-8')
+          print('NATIONAL_RESULT',json.dumps(summary,ensure_ascii=False),flush=True)
+          PY
+      - name: Preserve bounded staged data in its own Git branch, not develop
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Jynlo CI source auditor'
+          git config user.email 'ci@example.invalid'
+          git checkout -B data/national-venue-candidates-20261020
+          git add data/venues/osm-caop2025-20261020
+          git commit -m 'data(venues): stage 18 mainland districts from official CAOP and OSM, no import'
+          git push origin HEAD:refs/heads/data/national-venue-candidates-20261020
+          echo 'STAGED_BRANCH=data/national-venue-candidates-20261020'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portugal-mainland-18-district-venue-report
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            .cache/jynlo-venues/national-report.json
+            data/venues/osm-caop2025-20261020/summary.json
