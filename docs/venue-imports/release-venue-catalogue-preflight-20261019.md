@@ -1,6 +1,6 @@
 # Jynlo — Release candidate: venue catalogue & discoverability
 
-**DRAFT — NOT LIVE. Requires PostgreSQL 16 tests, a verified backup and production read-only duplicate checks before any merge.**
+**DRAFT — NOT LIVE. Isolated PostgreSQL 16 Liquibase integration tests PASSED; a verified production backup, final real-database preflight and explicit publish approval remain mandatory.**
 
 This candidate combines the contents of BE #118, #122, #123 and the single-file safety removal in #117 without overwriting the shared VenueRepository.
 
@@ -24,6 +24,14 @@ The original 24 candidates and the newer 13 candidates total **37 conditional IN
 
 The separate `preflight-national-municipal-batch-13-READONLY.sql` covers all thirteen proposed 2026-10-20 rows. `docs/venue-imports/national-municipal-batch-13-live-preflight-20261020.md` records the owner's earlier live **SELECT-only** results (13 rows, `NO_MATCH_FOUND` under source/name/address rules); that is not proof against aliases or facilities within the same sports complex. **The São Jacinto pool entry was corrected after that run and needs a fresh single-candidate preflight.** Follow the documented backup, PostgreSQL 16 and deduplication gates for **all 37 candidates**; this documentation update has not changed the live database or authorized deployment.
 
+
+## PostgreSQL 16 Liquibase proof (GitHub Actions, 20 October 2026)
+
+- [**Workflow #39427378090 — success**](https://github.com/Miguel14Ferreira/desporto24BE/actions/runs/39427378090) on commit `ab45fce`, using `postgres:16` and Liquibase 4.33.0 with the **five actual venue-release YAML changeSets and SQL files**, not the draft scripts. The test used an isolated synthetic venue table and five preexisting community fixtures; it did **not** connect to the Render database.
+- First update recorded **5 new changeSets**; the fixture had **36 new proposed venues** after respecting one preexisting same-name/city community venue (out of 37 conditional proposals). Second update recorded **0** new changeSets, preserved the venue count and prevented duplicate inserts.
+- Assertions covered preserving community address/source, not overwriting nonempty district, applying known-city backfill, and bounding Cacém district inference by coordinates.
+- This closes the **isolated PostgreSQL 16 SQL/Liquibase smoke-test gate**; it does **not** establish equivalence to the full production schema, safe rollout on the live 228-row catalogue, or verified backup/restore. Those remain release blockers.
+
 ## Mandatory gates before release
 - [ ] Verify current Render PostgreSQL backup and ability to restore. Do not change the database allowlist, TLS or credentials merely to bypass connector problems.
 - [ ] Run the read-only preflight scripts for Portalegre, Pestana and official venues on the *actual* catalogue. Manually reconcile alternative names, GPS adjacency and pre-existing community venues.
@@ -41,7 +49,7 @@ Source provenance: OpenStreetMap contributors (ODbL); DGT CAOP2025 (CC BY 4.0); 
 
 Before any merge, run `src/main/resources/db/changelog/venue-imports/preflight-24-venues-READONLY.sql` using a **SELECT-only role** against the current Render production catalogue. This query enumerates the 24 proposed source references directly from the three INSERT scripts and returns matching existing records by source reference, exact normalised name/city, or short-distance GPS proximity. A `NO_MATCH_FOUND` result is **not** a confirmation of non-duplication: spellings, shared complexes, geocodes and alternate sources still require manual review. There may be several rows per candidate. The lateral match window is capped at 20 results per candidate.
 
-The test `scripts/test_venue_release_preflight.py` statically checks that the preflight still covers the same 24 source IDs and contains no SQL mutations. Neither the SQL nor this test has been run against PostgreSQL or the user's live data here.
+The test `scripts/test_venue_release_preflight.py` statically checks that the preflight covers the first 24 source IDs and contains no SQL mutations. The venue migration integration CI now uses a disposable PostgreSQL 16 test fixture; this is **not** a fresh live production duplicate preflight.
 
 
 ## Render database backup and exact release gate (reviewed 19 October 2026)
@@ -58,7 +66,7 @@ The active `desporto24-db` compute plan reported by Render is `0.1c-256mb`, whic
 Render documentation: https://render.com/docs/postgresql-backups ; https://render.com/docs/compute-plans .
 
 ### Source quality consistency regression
-The existing `coverageByDistrict` summary previously counted `sports = ''` as empty, but omitted `sports = ' '`. The new admin quality query correctly uses `TRIM(sports)`, so the two aggregates could disagree. This release now consistently uses `TRIM(sports) = ''` for both; `VenueQualityByCityRepositoryTest` includes a whitespace-only sports case. Tests still require actual execution.
+The existing `coverageByDistrict` summary previously counted `sports = ''` as empty, but omitted `sports = ' '`. The new admin quality query correctly uses `TRIM(sports)`, so the two aggregates could disagree. This release now consistently uses `TRIM(sports) = ''` for both; `VenueQualityByCityRepositoryTest` includes a whitespace-only sports case. Java and isolated PostgreSQL 16 migration suites have executed successfully in GitHub Actions; production preflight/backup are separate gates.
 
 ## Manual owner read-only queries: exact release decision inputs
 
@@ -66,7 +74,7 @@ The owner can run `src/main/resources/db/changelog/venue-imports/preflight-venue
 
 Next run `src/main/resources/db/changelog/venue-imports/preflight-24-venues-READONLY.sql` — also read-only — to compare exactly the 24 proposed venue IDs/names/coordinates with production rows. Results can have multiple matches per proposal. Treat `NO_MATCH_FOUND` as inconclusive for aliases; manually review and decide. Both preflight scripts are outside the active Liquibase master and do not run on startup.
 
-Do not deploy until backup/restore availability and PostgreSQL 16 integration tests are verified. Database networking does **not** need to be opened.
+PostgreSQL 16 migration CI has passed on a synthetic fixture, but do not deploy until production backup/restore availability and final live duplicate checks are verified. Database networking does **not** need to be opened.
 
 
 ## Results received from owner — production preflight, 19 October 2026
@@ -81,4 +89,4 @@ These are **results of read-only SQL personally run by the owner** against the c
 ### Release interpretation
 Read-only duplicate and backfill queries **completed**, but the matches are inconclusive for aliases/compound complexes; manual source/nearby review remains. The existing 169 records without sports must **not** be inferred as suitable for sport filters. To work on them independently, execute the new SELECT-only `src/main/resources/db/changelog/venue-imports/preflight-missing-sports-READONLY.sql`, export its result grid as CSV and cross-check official/OSM descriptions before generating UPDATE changesets. Do not apply blind venue-type-based sport updates.
 
-The following are still **BLOCKING**: verified Render database backup/restore path, PostgreSQL 16 Liquibase and Java test execution, manual duplicate/source review especially the 14 candidates without GPS, and explicit authorization before a production migration. No production data was changed.
+The following are still **BLOCKING**: verified Render database backup/restore path, final preflight for the corrected São Jacinto entry, manual duplicate/source review especially candidates without GPS, representative production-schema compatibility review, and explicit authorization before a production migration. Java and isolated PostgreSQL 16 Liquibase tests have now passed. No production data was changed.
