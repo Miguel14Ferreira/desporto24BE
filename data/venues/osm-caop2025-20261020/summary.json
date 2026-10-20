@@ -1,0 +1,31 @@
+{
+  "districts_processed": 18,
+  "import_ready": 3513,
+  "review_required": 42468,
+  "by_district": {
+    "Aveiro": 440,
+    "Beja": 105,
+    "Braga": 328,
+    "Bragança": 39,
+    "Castelo Branco": 64,
+    "Coimbra": 172,
+    "Faro": 162,
+    "Guarda": 53,
+    "Leiria": 165,
+    "Lisboa": 488,
+    "Portalegre": 97,
+    "Porto": 518,
+    "Santarém": 135,
+    "Setúbal": 246,
+    "Viana do Castelo": 69,
+    "Vila Real": 230,
+    "Viseu": 121,
+    "Évora": 81
+  },
+  "sha256": "7e0aa22c1f7a3136047127784bc5148583e3b52bdf4247aa6bf94bc966d9d0b8",
+  "import_status": "STAGED_ONLY_NO_LIVE_DB_WRITES",
+  "sources": [
+    "OpenStreetMap / ODbL",
+    "DGT CAOP2025 / CC BY 4.0"
+  ]
+}
