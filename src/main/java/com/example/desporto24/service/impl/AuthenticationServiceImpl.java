@@ -100,8 +100,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String suppliedUsername = credentials.getUsername() == null
                 ? ""
                 : credentials.getUsername().trim();
+        // Throttle before looking up a user: unknown usernames must not bypass
+        // failed-login limits or reveal whether an account exists.
+        loginAttemptService.requireAttemptAllowed(suppliedUsername);
         Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
-                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+                .orElseThrow(() -> {
+                    loginAttemptService.recordMissingAccountAttempt(suppliedUsername);
+                    return new BadCredentialsException(INCORRECT_CREDENTIALS);
+                });
 
         validateProfileStatus(profile);
         loginAttemptService.handleLoginAttempt(profile.getUsername(), credentials.getPassword(), profile);

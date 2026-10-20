@@ -16,6 +16,7 @@ import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.GoogleAuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
+import com.example.desporto24.security.RefreshOriginValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -47,6 +48,7 @@ public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
     private final SensitiveActionRateLimiter sensitiveActionRateLimiter;
+    private final RefreshOriginValidator refreshOriginValidator;
     private final GoogleAuthenticationService googleAuthenticationService;
 
     @Value("${desporto.app.refreshExpirationMs:604800000}")
@@ -107,7 +109,11 @@ public class AuthenticationController {
     @PostMapping("/refresh")
     @Operation(summary = "Refresh session", description = "Rotates the HttpOnly refresh cookie and returns a fresh access token.")
     public ResponseEntity<LoginResponse> refresh(
-            @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
+            @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken,
+            @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin) {
+        // The refresh cookie is sent automatically by the browser. An exact allowed
+        // Origin is required even though general stateless API CSRF is disabled.
+        refreshOriginValidator.requireAllowedOrigin(origin);
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new BadCredentialsException(INCORRECT_CREDENTIALS);
         }

@@ -14,6 +14,7 @@ import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
+import com.example.desporto24.security.RefreshOriginValidator;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
@@ -67,7 +68,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JWTokenProvider.class,
         JwtAuthenticationEntryPoint.class,
         JwtAccessDeniedHandler.class,
-        ExceptionHandling.class
+        ExceptionHandling.class,
+        RefreshOriginValidator.class
 })
 @TestPropertySource(properties = {
         "desporto.cors.allowed-origins=http://localhost:4200",
@@ -151,6 +153,7 @@ class JwtExpiryRefreshContractTest {
 
         // The browser's HttpOnly refresh cookie can obtain a fresh signed JWT.
         var response = mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
                         .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value(recovered))
@@ -184,7 +187,8 @@ class JwtExpiryRefreshContractTest {
 
     @Test
     void refreshWithNoCookieIsRejectedWithoutAttemptingTheRefreshService() throws Exception {
-        mvc.perform(post("/api/auth/refresh"))
+        mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200"))
                 .andExpect(status().isBadRequest());
         verify(auth, never()).refresh(anyString());
     }
@@ -194,9 +198,29 @@ class JwtExpiryRefreshContractTest {
         when(auth.refresh("invalid-cookie")).thenThrow(
                 new BadCredentialsException("Invalid test credential"));
         mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
                         .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, "invalid-cookie")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.httpStatusCode").value(400));
         verify(auth).refresh("invalid-cookie");
     }
+    @Test
+    void refreshRejectsMissingOriginBeforeAuthenticationServiceIsCalled() throws Exception {
+        String refresh = jwt.generateRefreshToken(new ProfilePrincipal(profile));
+        mvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
+                .andExpect(status().isForbidden());
+        verify(auth, never()).refresh(anyString());
+    }
+
+    @Test
+    void refreshRejectsCrossSiteOriginBeforeAuthenticationServiceIsCalled() throws Exception {
+        String refresh = jwt.generateRefreshToken(new ProfilePrincipal(profile));
+        mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "https://untrusted.example")
+                        .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
+                .andExpect(status().isForbidden());
+        verify(auth, never()).refresh(anyString());
+    }
+
 }
