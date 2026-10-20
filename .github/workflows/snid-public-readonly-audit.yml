@@ -43,7 +43,8 @@ jobs:
                           print('RESOURCE', x.get('title'), 'bytes', x.get('filesize'),
                                 'updated', x.get('last_modified') or x.get('modified'))
                       candidates.sort(key=lambda x: str(x.get('last_modified') or x.get('modified') or x.get('title')),reverse=True)
-                      if candidates: chosen = candidates[0]; break
+                      if candidates:
+                          chosen = next((x for x in candidates if '20260508' in str(x.get('title'))),candidates[0]); break
                   if chosen:break
               except Exception as e:
                   print('SEARCH_UNAVAILABLE', type(e).__name__, str(e)[:130])
