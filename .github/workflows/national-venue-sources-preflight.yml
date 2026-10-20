@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Fetch authoritative official boundaries and one OSM pilot extract
         shell: bash
         run: |
@@ -51,3 +55,47 @@ jobs:
             https://download.openstreetmap.fr/extracts/europe/portugal/portalegre-latest.osm.pbf
           du -h /tmp/venue-sources/portalegre-latest.osm.pbf
           echo 'PASS: official boundaries and OSM district obtained with no Jynlo API or DB access.'
+
+      - name: Convert CAOP to WGS84 and stage real Portalegre venues
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install -q osmium
+          GPKG="$(find /tmp/venue-sources/caop -type f -name '*.gpkg' | head -1)"
+          mkdir -p /tmp/venue-sources/wgs84 .cache/jynlo-venues
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 \
+            /tmp/venue-sources/wgs84/municipios.geojson "$GPKG" cont_municipios
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 \
+            /tmp/venue-sources/wgs84/distritos.geojson "$GPKG" cont_distritos
+          python3 - <<'PY'
+          import json
+          for item in ('municipios','distritos'):
+              path=f'/tmp/venue-sources/wgs84/{item}.geojson'
+              doc=json.load(open(path))
+              print('CAOP_CONVERTED',item,len(doc['features']),flush=True)
+          PY
+          cp /tmp/venue-sources/portalegre-latest.osm.pbf .cache/jynlo-venues/portalegre-latest.osm.pbf
+          python3 scripts/prepare_national_venues.py \
+            --district portalegre \
+            --cache-dir .cache/jynlo-venues \
+            --municipalities-geojson /tmp/venue-sources/wgs84/municipios.geojson \
+            --districts-geojson /tmp/venue-sources/wgs84/distritos.geojson
+          echo "=== PORTALEGRE REPORT ==="
+          python3 - <<'PY'
+          import json
+          r=json.load(open('.cache/jynlo-venues/national-report.json'))['portalegre']
+          print('PORTALEGRE_COUNTS',json.dumps({k:v for k,v in r.items()
+                  if isinstance(v,int) or k=='status'},ensure_ascii=False),flush=True)
+          if r['status']!='processed' or r['import_ready']<1:
+              raise SystemExit('No eligible pilot venues; audit stage needed')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jynlo-portalegre-osm-caop2025-reviewed
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            .cache/jynlo-venues/*-venues.jsonl
+            .cache/jynlo-venues/*-review.jsonl
+            .cache/jynlo-venues/national-report.json
