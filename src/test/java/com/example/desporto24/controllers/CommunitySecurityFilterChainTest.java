@@ -21,12 +21,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 403 (rather than 401). Keep expectations aligned with that explicit policy.
  */
 @WebMvcTest(controllers = CommunityController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({
         SecurityConfiguration.class,
         JwtAuthorizationFilter.class,
@@ -62,7 +67,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class CommunitySecurityFilterChainTest {
 
-    @Autowired private MockMvc mvc;
+    @Autowired private WebApplicationContext webContext;
+    @Autowired private FilterChainProxy springSecurityFilterChain;
+    private MockMvc mvc;
 
     @MockitoBean private JWTokenProvider tokens;
     @MockitoBean private ProfileRepository profiles;
@@ -77,6 +84,12 @@ class CommunitySecurityFilterChainTest {
 
     @BeforeEach
     void configureAccounts() {
+        // Apply the real Spring Security chain exactly once. Spring Boot's
+        // MockMvc filter auto-registration otherwise executes the JWT filter
+        // outside and again inside the security chain, losing authentication.
+        mvc = MockMvcBuilders.webAppContextSetup(webContext)
+                .addFilters(springSecurityFilterChain)
+                .build();
         stubToken("fixture-owner-token", "fixture-owner", 7L, true);
         stubToken("fixture-member-token", "fixture-member", 3L, true);
         stubToken("fixture-stale-token", "fixture-stale", 2L, false);
