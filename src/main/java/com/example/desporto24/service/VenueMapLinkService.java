@@ -30,7 +30,16 @@ public class VenueMapLinkService {
             .build();
 
     public ResolveVenueMapLinkResponse resolve(String rawUrl) {
-        URI resolved = resolveRedirects(parseAndValidate(rawUrl));
+        URI source = parseAndValidate(rawUrl);
+        // Full Google Maps URLs already expose the point. Avoid an unnecessary
+        // outbound Google request (which can fail or be rate-limited).
+        // Shortened links still require the existing HTTPS redirect validation.
+        double[] direct = coordinates(source.toString());
+        if (direct != null) {
+            return new ResolveVenueMapLinkResponse(source.toString(), direct[0], direct[1]);
+        }
+
+        URI resolved = resolveRedirects(source);
         double[] coordinates = coordinates(resolved.toString());
 
         if (coordinates == null) {
@@ -129,7 +138,7 @@ public class VenueMapLinkService {
     }
 
     private Matcher firstMatch(String decoded) {
-        for (Pattern pattern : new Pattern[]{AT_COORDINATES, DATA_COORDINATES, QUERY_COORDINATES}) {
+        for (Pattern pattern : new Pattern[]{DATA_COORDINATES, QUERY_COORDINATES, AT_COORDINATES}) {
             Matcher matcher = pattern.matcher(decoded);
             if (matcher.find()) {
                 return matcher;
