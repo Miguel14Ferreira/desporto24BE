@@ -72,6 +72,13 @@ public class ExceptionHandling {
         return createHttpResponse(FORBIDDEN,NOT_ENOUGH_PERMISSION);
     }
 
+    // Community services use SecurityException for membership/role denials.
+    // Without this handler, the generic Exception handler returns HTTP 500.
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<HttpResponse> communitySecurityException(){
+        return createHttpResponse(FORBIDDEN, NOT_ENOUGH_PERMISSION);
+    }
+
     @ExceptionHandler(LockedException.class)
     public ResponseEntity<HttpResponse> lockedException(){
         return createHttpResponse(UNAUTHORIZED,ACCOUNT_LOCKED);
