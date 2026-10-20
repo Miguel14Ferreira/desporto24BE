@@ -30,7 +30,16 @@ public class VenueMapLinkService {
             .build();
 
     public ResolveVenueMapLinkResponse resolve(String rawUrl) {
-        URI resolved = resolveRedirects(parseAndValidate(rawUrl));
+        URI submitted = parseAndValidate(rawUrl);
+        // Coordinates embedded in a genuine Google Maps URL are sufficient;
+        // do not require an unnecessary outgoing network request to Google.
+        double[] directCoordinates = coordinates(submitted.toString());
+        if (directCoordinates != null) {
+            return new ResolveVenueMapLinkResponse(
+                    submitted.toString(), directCoordinates[0], directCoordinates[1]);
+        }
+
+        URI resolved = resolveRedirects(submitted);
         double[] coordinates = coordinates(resolved.toString());
 
         if (coordinates == null) {
@@ -129,7 +138,9 @@ public class VenueMapLinkService {
     }
 
     private Matcher firstMatch(String decoded) {
-        for (Pattern pattern : new Pattern[]{AT_COORDINATES, DATA_COORDINATES, QUERY_COORDINATES}) {
+        // !3d/!4d and explicit search query identify the place. Google Maps
+        // @lat,lon commonly describes only the map *viewport*, not the venue.
+        for (Pattern pattern : new Pattern[]{DATA_COORDINATES, QUERY_COORDINATES, AT_COORDINATES}) {
             Matcher matcher = pattern.matcher(decoded);
             if (matcher.find()) {
                 return matcher;
