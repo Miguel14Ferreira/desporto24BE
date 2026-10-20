@@ -222,20 +222,20 @@ WHERE NOT EXISTS (
 )
 ON CONFLICT DO NOTHING;
 
--- Aveiro: Piscinas Municipais de São Jacinto
--- Municipal evidence: https://www.cm-aveiro.pt/municipio/comunicacao/noticias
--- Review: Municipality announced reopening 24 July 2026; address sourced separately from independent mapped street-directory; public swimming season is NOT confirmed beyond opening announcement.
+-- Aveiro: Piscina Municipal de São Jacinto
+-- Municipal evidence: https://www.cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao
+-- Review: Municipality announced reopening 24 July 2026; no street address confirmed by municipality; seasonality applies; official September 2026 municipal report documents summer use, not current October opening.
 INSERT INTO desporto24.venue
   (name, city, district, address, sports, venue_type, environment_type,
    latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
-SELECT 'Piscinas Municipais de São Jacinto', 'São Jacinto', 'Aveiro', 'Avenida Ria-Mar, São Jacinto, Aveiro', 'Natação', 'Piscina', 'OUTDOOR',
-       NULL, NULL, 'OFFICIAL', 'JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO', 'https://www.cm-aveiro.pt/municipio/comunicacao/noticias',
+SELECT 'Piscina Municipal de São Jacinto', 'São Jacinto', 'Aveiro', 'São Jacinto, Aveiro', 'Natação', 'Piscina', 'OUTDOOR',
+       NULL, NULL, 'OFFICIAL', 'JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO', 'https://www.cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao',
        FALSE, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue AS existing
   WHERE (existing.information_source = 'OFFICIAL' AND existing.source_reference = 'JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO')
-     OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Piscinas Municipais de São Jacinto'))
+     OR (LOWER(BTRIM(existing.name)) = LOWER(BTRIM('Piscina Municipal de São Jacinto'))
          AND LOWER(BTRIM(existing.city)) = LOWER(BTRIM('São Jacinto')))
 )
 ON CONFLICT DO NOTHING;

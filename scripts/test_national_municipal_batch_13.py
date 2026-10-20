@@ -82,6 +82,9 @@ class NationalMunicipalBatch13Tests(unittest.TestCase):
             self.assertFalse(venue["productionDuplicateChecked"])
             self.assertIn(venue["sourceReference"], self.sql)
             self.assertIn(venue["name"].replace("'", "''"), self.sql)
+        self.assertIn('Piscina Municipal de São Jacinto', self.sql)
+        self.assertNotIn('Piscinas Municipais de São Jacinto', self.sql)
+        self.assertNotIn('Avenida Ria-Mar, São Jacinto', self.sql)
 
 if __name__ == "__main__":
     unittest.main()

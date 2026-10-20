@@ -223,10 +223,10 @@
     },
     {
       "sourceReference": "JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO",
-      "name": "Piscinas Municipais de São Jacinto",
+      "name": "Piscina Municipal de São Jacinto",
       "city": "São Jacinto",
       "district": "Aveiro",
-      "address": "Avenida Ria-Mar, São Jacinto, Aveiro",
+      "address": "São Jacinto, Aveiro",
       "sports": [
         "Natação"
       ],
@@ -234,9 +234,16 @@
       "environmentType": "OUTDOOR",
       "latitude": null,
       "longitude": null,
-      "sourceUrl": "https://www.cm-aveiro.pt/municipio/comunicacao/noticias",
-      "verificationNote": "Municipality announced reopening 24 July 2026; address sourced separately from independent mapped street-directory; public swimming season is NOT confirmed beyond opening announcement.",
+      "sourceUrl": "https://www.cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao",
+      "verificationNote": "Official September 2026 municipal report confirms 5,200 uses in summer 2026. Municipal source names venue in singular. Exact street address remains unverified; seasonal operation, do not assert October opening.",
       "productionDuplicateChecked": false
     }
-  ]
+  ],
+  "preflightResults": {
+    "ownerRunDate": "2026-10-20",
+    "total": 13,
+    "noMatchFound": 13,
+    "matchDetected": 0,
+    "notes": "All 13 original candidates had NO_MATCH_FOUND in user-run read-only PostgreSQL SQL. Afterward the Aveiro candidate name and address were corrected to official form; the 12 others retain their preflight, but Aveiro requires a fresh read-only duplicate check before release."
+  }
 }

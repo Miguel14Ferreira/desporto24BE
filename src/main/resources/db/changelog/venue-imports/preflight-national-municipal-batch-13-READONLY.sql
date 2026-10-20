@@ -16,7 +16,7 @@ WITH proposed (source_reference, name, city, district, address, sports) AS (
   ('JYNLO:DOCUMENTED:VISEU:PISCINAS_MUNICIPAIS_FONTelo', 'Piscinas Municipais de Viseu', 'Viseu', 'Viseu', 'Avenida José Relvas, Parque do Fontelo, 3500-143 Viseu', 'Natação'),
   ('JYNLO:DOCUMENTED:VISEU:TENIS_FONTelo', 'Campos de Ténis do Parque do Fontelo', 'Viseu', 'Viseu', 'Rua Anacleto Pinto, Parque do Fontelo, 3500-143 Viseu', 'Ténis'),
   ('JYNLO:DOCUMENTED:GUARDA:PISCINAS_MUNICIPAIS', 'Piscinas Municipais da Guarda', 'Guarda', 'Guarda', 'Bairro Nossa Senhora dos Remédios, 6300-509 Guarda', 'Natação'),
-  ('JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO', 'Piscinas Municipais de São Jacinto', 'São Jacinto', 'Aveiro', 'Avenida Ria-Mar, São Jacinto, Aveiro', 'Natação')
+  ('JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO', 'Piscina Municipal de São Jacinto', 'São Jacinto', 'Aveiro', 'São Jacinto, Aveiro', 'Natação')
 )
 SELECT p.district AS proposed_district, p.city AS proposed_city,
        p.name AS proposed_name, p.sports AS proposed_sports, p.source_reference AS proposed_reference,
