@@ -9,6 +9,7 @@ import com.example.desporto24.service.VenueService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,6 +34,11 @@ public class AdminVenueImportController {
     private final SnidVenueImportData snidVenueImportData;
     private final TaskExecutor taskExecutor;
     private final AtomicBoolean snidImportRunning = new AtomicBoolean(false);
+
+    // Bulk inserts are release-controlled. Admin access alone cannot trigger
+    // thousands of inserts before source quality and duplicates are reviewed.
+    @Value("${desporto.venues.snid.import-enabled:false}")
+    private boolean snidImportEnabled;
     private volatile String snidImportStatus = "NOT_STARTED";
     private volatile Instant snidImportStartedAt;
     private volatile Instant snidImportFinishedAt;
@@ -62,6 +68,7 @@ public class AdminVenueImportController {
     public Map<String, Object> snidImportStatus() {
         Map<String, Object> result = new java.util.LinkedHashMap<>();
         result.put("status", snidImportStatus);
+        result.put("importEnabled", snidImportEnabled);
         result.put("running", snidImportRunning.get());
         result.put("startedAt", snidImportStartedAt);
         result.put("finishedAt", snidImportFinishedAt);
@@ -81,6 +88,10 @@ public class AdminVenueImportController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @org.springframework.web.bind.annotation.ResponseStatus(HttpStatus.ACCEPTED)
     public void importSnidVenues() {
+        if (!snidImportEnabled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "A importação SNID exige aprovação e ativação explícita");
+        }
         if (!snidImportRunning.compareAndSet(false, true)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "SNID import already running");
         }
