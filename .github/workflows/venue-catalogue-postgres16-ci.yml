@@ -98,7 +98,7 @@ jobs:
             (name, city, district, address, information_source, created_at)
           VALUES ('Piscinas Municipais de São Jacinto', 'São Jacinto', 'Aveiro',
                   'Morada alternativa não confirmada', 'COMMUNITY', NOW());
-          \\i src/main/resources/db/changelog/venue-imports/preflight-sao-jacinto-READONLY.sql
+          \i src/main/resources/db/changelog/venue-imports/preflight-sao-jacinto-READONLY.sql
           ROLLBACK;
           SQL
           )"
