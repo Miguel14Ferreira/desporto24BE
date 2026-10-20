@@ -1,0 +1,36 @@
+name: Temporary inspect BE merge conflicts
+on:
+  push:
+    branches: ['integration/inspect-develop-20261020']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Inspect three-way conflict without modifying any remote ref
+        shell: bash
+        run: |
+          set -eu
+          git config user.name "Jynlo CI inspection"
+          git config user.email "ci@example.invalid"
+          git fetch origin develop feature/desporto24-preview-deploy
+          echo "=== CHECKED OUT ==="
+          git rev-parse HEAD
+          echo "=== MERGE BASE ==="
+          git merge-base HEAD origin/feature/desporto24-preview-deploy
+          git merge --no-edit --no-commit --no-ff origin/feature/desporto24-preview-deploy || true
+          echo "=== CONFLICTING FILES ==="
+          git diff --name-only --diff-filter=U
+          echo "=== CONFLICT HUNKS (bounded) ==="
+          for f in $(git diff --name-only --diff-filter=U); do
+            echo "--- $f ---"
+            grep -n -A 12 -B 4 -m 5 '^<<<<<<< ' "$f" || true
+          done
+          git merge --abort || true
+          echo "No remote ref modified."
