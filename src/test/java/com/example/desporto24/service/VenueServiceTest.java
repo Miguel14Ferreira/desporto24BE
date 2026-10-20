@@ -33,6 +33,22 @@ class VenueServiceTest {
     private VenueService service;
 
     @Test
+    void exposesPersistedDistrictAlongsideCityInVenueResponses() {
+        var venue = Venue.builder()
+                .id(321L)
+                .name("Pavilhão do Porto")
+                .city("Matosinhos")
+                .district("Porto")
+                .address("Morada de teste")
+                .build();
+
+        var response = service.toResponse(venue);
+
+        assertEquals("Matosinhos", response.city());
+        assertEquals("Porto", response.district());
+    }
+
+    @Test
     void createsReusableVenueWithAmenities() {
         Profile creator = new Profile();
         creator.setId(1L);
