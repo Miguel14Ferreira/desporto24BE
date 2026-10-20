@@ -1,0 +1,61 @@
+name: Temporary resolve and test BE develop integration
+on:
+  push:
+    branches: ['integration/inspect-develop-20261020']
+    paths: ['.github/workflows/resolve-develop-integration.yml']
+permissions:
+  contents: write
+jobs:
+  merge-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      AES_ENCRYPTION_KEY: ciKey1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Three-way merge in a new scratch branch, not develop
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Jynlo CI integrator'
+          git config user.email 'ci@example.invalid'
+          git fetch origin develop feature/desporto24-preview-deploy
+          test "$(git rev-parse origin/develop)" = "58790144944977749f22fe8c9d54c4880e73e02e"
+          test "$(git rev-parse origin/feature/desporto24-preview-deploy)" = "ac07f09c492d36c74c6fcb02456a7b56e3e3ec33"
+          git checkout -B integration/validated-preview-merge-20261020 origin/develop
+          git merge --no-commit --no-ff origin/feature/desporto24-preview-deploy || true
+          expected="$(printf '%s\n' \
+            src/test/java/com/example/desporto24/service/CommunityCompetitionServiceTest.java \
+            src/test/java/com/example/desporto24/service/UserBlockServiceTest.java \
+            src/test/java/com/example/desporto24/service/impl/AuthenticationServiceImplTest.java)"
+          actual="$(git diff --name-only --diff-filter=U)"
+          if [ "$actual" != "$expected" ]; then
+            echo "Unexpected conflict files: $actual"
+            exit 1
+          fi
+          # These three are *only Java test fixtures*. Preview test versions include
+          # the newer APIs, MFA checks and updated community mock dependencies.
+          git checkout --theirs -- \
+            src/test/java/com/example/desporto24/service/CommunityCompetitionServiceTest.java \
+            src/test/java/com/example/desporto24/service/UserBlockServiceTest.java \
+            src/test/java/com/example/desporto24/service/impl/AuthenticationServiceImplTest.java
+          git add -A
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git commit -m 'Merge validated BE preview into develop (reconcile updated Java tests)'
+          git log -1 --format='Merge parents: %P'
+          git status --porcelain
+      - name: Run the complete 741-test Java suite before publication
+        run: bash ./mvnw -B -ntp test
+      - name: Publish validated integration branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin HEAD:refs/heads/integration/validated-preview-merge-20261020
+          echo 'Pushed test-validated merge to a scratch branch; develop and LIVE untouched.'
