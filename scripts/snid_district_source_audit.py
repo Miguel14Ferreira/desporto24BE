@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -216,8 +217,13 @@ def analyse(records):
     summary = dict(total_records=0, named_with_coordinates=0, mainland_bbox_candidates=0,
                    outside_mainland_bbox=0, missing_or_unknown_district=0,
                    sports_in_named_geolocated=0, excluded_institutions=0)
+    fields_seen = Counter()
+    sports_shapes = Counter()
     for record in records:
         summary["total_records"] += 1
+        fields_seen.update(str(key) for key in record if len(str(key)) <= 80)
+        raw_sports = record.get("sports")
+        sports_shapes["missing" if "sports" not in record else type(raw_sports).__name__] += 1
         category = record.get("category")
         if isinstance(category, dict):
             category = category.get("name", "")
@@ -247,6 +253,8 @@ def analyse(records):
                 row["com_nome_coordenadas_e_modalidade"] += 1
                 continue
         row["por_rever"] += 1
+    summary["source_field_presence"] = dict(sorted(fields_seen.items()))
+    summary["sports_field_shapes"] = dict(sorted(sports_shapes.items()))
     rows = []
     for district in DISTRICTS:
         rows.append({"distrito": district, **counts[district],
