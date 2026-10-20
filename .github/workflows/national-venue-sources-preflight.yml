@@ -27,6 +27,17 @@ jobs:
           find /tmp/venue-sources/caop -type f -name '*.gpkg' -print
           GPKG="$(find /tmp/venue-sources/caop -type f -name '*.gpkg' | head -1)"
           test -n "$GPKG"
+          echo "=== OFFICIAL SCHEMA ==="
+          GPKG="$GPKG" python3 - <<'PY'
+          import os, sqlite3
+          with sqlite3.connect(os.environ["GPKG"]) as db:
+              for layer in ('cont_distritos','cont_municipios'):
+                  names=[r[1] for r in db.execute(f"PRAGMA table_info({layer})")]
+                  sample=db.execute(f"SELECT * FROM {layer} LIMIT 1").fetchone()
+                  print('SOURCE_LAYER', layer, 'COLUMNS', names, flush=True)
+                  print('SOURCE_SAMPLE_ATTRS', layer,
+                        [(n,str(v)[:70]) for n,v in zip(names,sample) if n.lower() not in ('geom','geometry')][:15], flush=True)
+          PY
           echo "=== OFFICIAL LAYER NAMES ==="
           ogrinfo -ro "$GPKG" | head -90
           echo "=== OFFICIAL COLUMN DETAILS ==="
