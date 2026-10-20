@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.server.ResponseStatusException;
 import jakarta.persistence.NoResultException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
@@ -70,6 +71,13 @@ public class ExceptionHandling {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<HttpResponse> accessDeniedException(){
         return createHttpResponse(FORBIDDEN,NOT_ENOUGH_PERMISSION);
+    }
+
+    // Community services use SecurityException for membership/role denials.
+    // Without this handler, the generic Exception handler returns HTTP 500.
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<HttpResponse> communitySecurityException(){
+        return createHttpResponse(FORBIDDEN, NOT_ENOUGH_PERMISSION);
     }
 
     @ExceptionHandler(LockedException.class)
@@ -149,6 +157,19 @@ public class ExceptionHandling {
     public ResponseEntity<HttpResponse> methodNotSupportedException(HttpRequestMethodNotSupportedException exception){
         HttpMethod supportedMethod = Objects.requireNonNull(exception.getSupportedHttpMethods()).iterator().next();
         return createHttpResponse(METHOD_NOT_ALLOWED, String.format(METHOD_IS_NOT_ALLOWED, supportedMethod));
+    }
+
+    // Preserve deliberate HTTP statuses from security guards and rate limiters.
+    // Otherwise the catch-all Exception handler turns 403/429 into HTTP 500.
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<HttpResponse> responseStatusException(ResponseStatusException exception) {
+        HttpStatus status = HttpStatus.resolve(exception.getStatusCode().value());
+        if (status == null) {
+            return createHttpResponse(INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MSG);
+        }
+        String message = exception.getReason();
+        return createHttpResponse(status,
+                message == null || message.isBlank() ? status.getReasonPhrase() : message);
     }
 
     @ExceptionHandler(Exception.class)

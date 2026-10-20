@@ -1,57 +1,92 @@
 package com.example.desporto24.service;
 
-import com.example.desporto24.exception.AccountDisabledException;
 import com.example.desporto24.exception.EmailNotVerifiedException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
+import com.google.common.base.Ticker;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import static com.example.desporto24.constant.UserImplConstant.*;
-import static java.util.concurrent.TimeUnit.MINUTES;
 
+/**
+ * Temporary per-username failed-login throttle. Distinct from administrative
+ * account suspension: a guessed password must NEVER flip Profile.notLocked.
+ *
+ * This bounded, in-process cache is an MVP control, NOT distributed IP throttling.
+ */
 @Service
 public class LoginAttemptService {
     private static final int MAXIMUM_NUMBER_OF_ATTEMPTS = 5;
-    private static final int ATTEMPT_INCREMENT = 1;
+    private static final int LOCK_WINDOW_MINUTES = 15;
+
     private final ProfileRepository profileRepository;
     private final PasswordHashService passwordHashService;
+    private final Cache<String, Integer> failures;
 
+    @Autowired
     public LoginAttemptService(ProfileRepository profileRepository, PasswordHashService passwordHashService) {
-        this.profileRepository = profileRepository;
-        this.passwordHashService = passwordHashService;
-        CacheBuilder.newBuilder().expireAfterWrite(15, MINUTES)
-                .maximumSize(100).build(new CacheLoader<String, Integer>() {
-                    public @NotNull Integer load(@NotNull String key) {
-                        return 0;
-                    }
-                });
+        this(profileRepository, passwordHashService, Ticker.systemTicker());
     }
 
-    public void handleLoginAttempt(String username, String password, Profile profile)
-            throws AccountDisabledException, EmailNotVerifiedException, BadCredentialsException {
+    // Test clock lets us verify that a blocked user can retry without waiting 15 minutes.
+    LoginAttemptService(ProfileRepository profileRepository, PasswordHashService passwordHashService,
+                        Ticker ticker) {
+        this.profileRepository = profileRepository;
+        this.passwordHashService = passwordHashService;
+        this.failures = CacheBuilder.newBuilder()
+                .expireAfterWrite(LOCK_WINDOW_MINUTES, TimeUnit.MINUTES)
+                .maximumSize(10_000)
+                .ticker(ticker)
+                .build();
+    }
 
-        if (profile.getLoginAttempts() >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
-            profile.setNotLocked(false);
-            profileRepository.save(profile);
-            throw new AccountDisabledException(ACCOUNT_DISABLED);
+    public void requireAttemptAllowed(String username) {
+        Integer count = failures.getIfPresent(normalize(username));
+        if (count != null && count >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Demasiadas tentativas de login. Tenta novamente dentro de 15 minutos.");
         }
-        if (!profile.getEnabled()) {
+    }
+
+    public void recordMissingAccountAttempt(String username) {
+        recordFailure(username);
+    }
+
+    public void handleLoginAttempt(String username, String password, Profile profile) {
+        requireAttemptAllowed(username);
+        if (!Boolean.TRUE.equals(profile.getEnabled())) {
             throw new EmailNotVerifiedException(TOKEN_NOT_VERIFIED);
         }
         if (!profile.getUsername().equals(username) || !passwordHashService.matchesAndUpgrade(profile, password)) {
-            handleInvalidLogin(profile);
+            // Save only a diagnostic counter, never the administrative lock flag.
+            profile.setLoginAttempts(recordFailure(username));
+            profileRepository.save(profile);
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
         }
+        failures.invalidate(normalize(username));
     }
 
-    private void handleInvalidLogin(Profile profile) {
-        int attempts = profile.getLoginAttempts() + ATTEMPT_INCREMENT;
-        profile.setLoginAttempts(attempts);
-        profileRepository.save(profile);
-        throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+    private int recordFailure(String username) {
+        final int[] count = new int[1];
+        failures.asMap().compute(normalize(username), (key, previous) -> {
+            count[0] = previous == null
+                    ? 1 : Math.min(MAXIMUM_NUMBER_OF_ATTEMPTS, previous + 1);
+            return count[0];
+        });
+        return count[0];
+    }
+
+    private String normalize(String username) {
+        return username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
     }
 }

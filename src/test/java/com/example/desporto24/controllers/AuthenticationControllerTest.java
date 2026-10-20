@@ -9,18 +9,25 @@ import com.example.desporto24.model.dto.auth.PasswordResetConfirmRequest;
 import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
+import com.example.desporto24.security.RefreshOriginValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import org.springframework.web.server.ResponseStatusException;
 import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.OK;
 
@@ -36,8 +43,51 @@ class AuthenticationControllerTest {
     @Mock
     private SensitiveActionRateLimiter sensitiveActionRateLimiter;
 
+    @Mock
+    private RefreshOriginValidator refreshOriginValidator;
+
     @InjectMocks
     private AuthenticationController controller;
+
+    @Test
+    void refreshRejectsUnexpectedOriginBeforeLookingUpRefreshCookie() {
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN))
+                .when(refreshOriginValidator).requireAllowedOrigin("https://attacker.example");
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.refresh("stolen-or-cross-site-cookie", "https://attacker.example")
+        );
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    void refreshWithExpectedOriginContinuesToRotateSecureCookie() {
+        ProfileDTO profile = credentials();
+        when(authenticationService.refresh("old-token"))
+                .thenReturn(new LoginResponse(false, null, null, "jwt", profile));
+        when(authenticationService.createRefreshToken("miguel")).thenReturn("new-token");
+
+        ResponseEntity<LoginResponse> response = controller.refresh("old-token", "https://d24sports.com");
+
+        assertEquals(OK, response.getStatusCode());
+        verify(refreshOriginValidator).requireAllowedOrigin("https://d24sports.com");
+        verify(authenticationService).refresh("old-token");
+        String cookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertNotNull(cookie);
+        assertTrue(cookie.contains("HttpOnly"));
+        assertTrue(cookie.contains("Secure"));
+        assertTrue(cookie.contains("SameSite=None"));
+    }
+
+    @Test
+    void refreshWithoutCookieIsStillRejectedAfterOriginValidation() {
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> controller.refresh(null, "https://d24sports.com"));
+        verify(refreshOriginValidator).requireAllowedOrigin("https://d24sports.com");
+        verifyNoInteractions(authenticationService);
+    }
 
     @Test
     void registrationUsesWhitelistedRequest() {
