@@ -49,7 +49,12 @@ def extract(data):
             continue
         if not isinstance(info, dict):
             raise ValueError(f"Invalid district stats: {slug}")
-        if info.get("status") in ("failed", "legacy_unverified"):
+        # Unknown explicit statuses must never be presented as verified previews.
+        # Status-less reports from the legacy direct-import CLI remain supported.
+        status = info.get("status")
+        if status not in (None, "processed", "failed", "legacy_unverified"):
+            raise ValueError(f"{slug}: unknown coverage status {status!r}")
+        if status in ("failed", "legacy_unverified"):
             row = dict.fromkeys(COLUMNS, "")
             row.update(distrito=display_name, estado=(
                 "falha na recolha" if info["status"] == "failed"
