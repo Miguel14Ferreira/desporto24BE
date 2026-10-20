@@ -1,0 +1,42 @@
+name: Temporary CAOP2025 and OSM national source preflight
+on:
+  push:
+    branches: ['analysis/national-venue-source-staging-20261020']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch authoritative official boundaries and one OSM pilot extract
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin unzip
+          mkdir -p /tmp/venue-sources
+          curl -fsSL --retry 2 --connect-timeout 20 --max-time 150 \
+            -o /tmp/venue-sources/caop2025.zip \
+            https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip
+          echo "=== OFFICIAL ZIP ==="
+          du -h /tmp/venue-sources/caop2025.zip
+          unzip -Z1 /tmp/venue-sources/caop2025.zip | head -30
+          unzip -q /tmp/venue-sources/caop2025.zip -d /tmp/venue-sources/caop
+          echo "=== GPKG FILES ==="
+          find /tmp/venue-sources/caop -type f -name '*.gpkg' -print
+          GPKG="$(find /tmp/venue-sources/caop -type f -name '*.gpkg' | head -1)"
+          test -n "$GPKG"
+          echo "=== OFFICIAL LAYER NAMES ==="
+          ogrinfo -ro "$GPKG" | head -90
+          echo "=== OFFICIAL COLUMN DETAILS ==="
+          for layer in $(ogrinfo -ro "$GPKG" | sed -nE 's/^[0-9]+: ([^ ]+).*/\1/p' | head -20); do
+            echo "LAYER: $layer"
+            ogrinfo -ro -so "$GPKG" "$layer" | head -50
+          done
+          echo "=== OSM PORTALEGRE EXTRACT ==="
+          curl -fsSL --retry 2 --connect-timeout 20 --max-time 150 \
+            -o /tmp/venue-sources/portalegre-latest.osm.pbf \
+            https://download.openstreetmap.fr/extracts/europe/portugal/portalegre-latest.osm.pbf
+          du -h /tmp/venue-sources/portalegre-latest.osm.pbf
+          echo 'PASS: official boundaries and OSM district obtained with no Jynlo API or DB access.'
