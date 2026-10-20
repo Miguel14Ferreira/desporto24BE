@@ -4,19 +4,25 @@
 
 This candidate combines the contents of BE #118, #122, #123 and the single-file safety removal in #117 without overwriting the shared VenueRepository.
 
-## Data changes: 4 PostgreSQL Liquibase changesets
+## Data changes: 5 PostgreSQL Liquibase changesets (37 conditional candidates)
 1. `2026-10-19-backfill-known-districts.yaml`: only sets district on rows where it is NULL/blank, using explicitly reviewed locality mappings.
 2. `2026-10-19-portalegre-source-checked.yaml`: 9 source-backed, CAOP-checked OSM venue candidates.
 3. `2026-10-19-first-official-district-venues.yaml`: 8 municipal venue candidates from Évora, Castelo Branco and Santarém.
 4. `2026-10-19-pestana-7-source-corroborated.yaml`: 7 from the Pestana sports spreadsheets corroborated by official operator pages (Porto, Maia, Lisboa, Mira).
+5. `2026-10-20-national-municipal-batch-13.yaml`: 13 additional source-reviewed municipal venues in Braga, Viseu, Guarda and Aveiro; deliberately no GPS, no guarantees of access, booking or opening hours.
 
-All 24 INSERTs are guarded with NOT EXISTS + ON CONFLICT DO NOTHING. **0–24 actual rows**, never claim 24 confirmed or assume address/GPS for every row. No automatic sport enrichment for the 169/228 historic facilities without sports in the earlier pilot analysis.
+The original 24 candidates and the newer 13 candidates total **37 conditional INSERTs**, guarded with NOT EXISTS + ON CONFLICT DO NOTHING. **0–37 actual new rows** after deployment, never claim 37 confirmed or assume precise addresses/GPS. No automatic sport enrichment for the 169/228 historic facilities without sports in the earlier pilot analysis.
 
 ## Existing-venue discovery & diagnostics
 - Searching Cascais in `GET /api/venues` and `GET /api/venues/suggest` also searches known Cascais parish names, using bounded queries and preserving original user city/address fields.
 - Admin-only `GET /api/admin/venues/quality?limit=50` reports aggregate completeness by original locality and district, with limit 1–100 and ADMIN/SUPER_ADMIN authorization; no venue full-table read, coordinates, or user records.
 - `VenueRepository` intentionally includes both the new municipality queries and the new aggregate query from separate PRs.
 - Removes the legacy `PilotNationalVenuesImportOnReady` application-ready listener, which otherwise inserts two hard-coded OSM venues at restart if absent. Existing records remain untouched; explicit import/admin controllers are preserved.
+
+
+## Extra 13-candidate municipal preflight (20 October 2026)
+
+The separate `preflight-national-municipal-batch-13-READONLY.sql` covers all thirteen proposed 2026-10-20 rows. `docs/venue-imports/national-municipal-batch-13-live-preflight-20261020.md` records the owner's earlier live **SELECT-only** results (13 rows, `NO_MATCH_FOUND` under source/name/address rules); that is not proof against aliases or facilities within the same sports complex. **The São Jacinto pool entry was corrected after that run and needs a fresh single-candidate preflight.** Follow the documented backup, PostgreSQL 16 and deduplication gates for **all 37 candidates**; this documentation update has not changed the live database or authorized deployment.
 
 ## Mandatory gates before release
 - [ ] Verify current Render PostgreSQL backup and ability to restore. Do not change the database allowlist, TLS or credentials merely to bypass connector problems.
@@ -31,7 +37,7 @@ This branch has **no merge, no deploy, no DB writes and no workflow runs request
 
 Source provenance: OpenStreetMap contributors (ODbL); DGT CAOP2025 (CC BY 4.0); municipal source links in venue manifests.
 
-## Unified read-only preflight for all 24 candidates
+## Original unified read-only preflight for the first 24 candidates
 
 Before any merge, run `src/main/resources/db/changelog/venue-imports/preflight-24-venues-READONLY.sql` using a **SELECT-only role** against the current Render production catalogue. This query enumerates the 24 proposed source references directly from the three INSERT scripts and returns matching existing records by source reference, exact normalised name/city, or short-distance GPS proximity. A `NO_MATCH_FOUND` result is **not** a confirmation of non-duplication: spellings, shared complexes, geocodes and alternate sources still require manual review. There may be several rows per candidate. The lateral match window is capped at 20 results per candidate.
 
