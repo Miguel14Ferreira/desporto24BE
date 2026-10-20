@@ -8,8 +8,11 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
+import com.example.desporto24.model.session.SessionOrganizerExclusion;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,14 +41,16 @@ import static org.junit.jupiter.api.Assertions.*;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.datasource.hikari.schema=PUBLIC"
 })
-@Import({WaitlistPromotionService.class, SessionNotificationService.class})
+@Import({WaitlistPromotionService.class, SessionNotificationService.class, PilotEventService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class WaitlistPromotionServiceTest {
 
     @Autowired private WaitlistPromotionService service;
     @Autowired private ProfileRepository profileRepository;
+    @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
+    @Autowired private SessionOrganizerExclusionRepository exclusionRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @MockitoBean private VenueService venueService;
     @MockitoBean private PilotEventService pilotEventService;
@@ -55,8 +60,10 @@ class WaitlistPromotionServiceTest {
 
     @BeforeEach
     void setUp() {
+        pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
+        exclusionRepository.deleteAll();
         sessionRepository.deleteAll();
         profileRepository.deleteAll();
 
@@ -97,6 +104,24 @@ class WaitlistPromotionServiceTest {
                 session.getId(), normalPriority.getId()).isEmpty());
         assertTrue(waitlistRepository.findBySessionIdAndProfileId(
                 session.getId(), reducedPriority.getId()).isPresent());
+    }
+
+    @Test
+    void excludedWaitlistedPlayerIsSkippedButNotRemovedFromExistingWaitlist() {
+        Profile excluded = profile("excluded");
+        Profile eligible = profile("eligible");
+        waitlisted(excluded, Instant.parse("2026-09-25T10:00:00Z"));
+        waitlisted(eligible, Instant.parse("2026-09-25T10:01:00Z"));
+        exclusionRepository.saveAndFlush(SessionOrganizerExclusion.builder()
+                .organizer(creator).excluded(excluded).createdAt(Instant.now()).build());
+
+        var promoted = service.promoteNext(session, Instant.now()).orElseThrow();
+
+        assertEquals(eligible.getId(), promoted.getProfile().getId());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), excluded.getId()).isPresent());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), eligible.getId()).isEmpty());
     }
 
     @Test
@@ -141,6 +166,38 @@ class WaitlistPromotionServiceTest {
 
         assertEquals(old.getId(), promoted.getId());
         assertNull(promoted.getTeamCode());
+    }
+
+    @Test
+    void externalConfirmedPlayersPreventPromotionWhenNoSeatIsFree() {
+        session.setExternalConfirmedParticipants(1);
+        sessionRepository.saveAndFlush(session);
+        Profile waiting = profile("waitingExternal");
+        waitlisted(waiting, Instant.now());
+
+        Optional<SessionParticipant> promoted = service.promoteNext(session, Instant.now());
+
+        assertTrue(promoted.isEmpty());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), waiting.getId()).isPresent());
+        assertEquals(SessionStatus.FULL,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void startedSessionDoesNotPromoteWaitlistedPlayer() {
+        Profile waiting = profile("waitingAfterStart");
+        waitlisted(waiting, Instant.now().minusSeconds(600));
+        session.setGameDate(Date.from(Instant.now().minusSeconds(60)));
+        sessionRepository.saveAndFlush(session);
+
+        Optional<SessionParticipant> promoted = service.promoteNext(session, Instant.now());
+
+        assertTrue(promoted.isEmpty());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), waiting.getId()).isPresent());
+        assertTrue(participantRepository.findBySessionIdAndProfileIdAndState(
+                session.getId(), waiting.getId(), ParticipantState.ACTIVE).isEmpty());
     }
 
     @Test

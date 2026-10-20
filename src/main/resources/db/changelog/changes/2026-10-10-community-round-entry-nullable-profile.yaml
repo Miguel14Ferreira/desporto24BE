@@ -1,0 +1,28 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-10-community-round-entry-nullable-profile
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists:
+              schemaName: desporto24
+              tableName: community_round_entry
+          - columnExists:
+              schemaName: desporto24
+              tableName: community_round_entry
+              columnName: profile_id
+          - sqlCheck:
+              expectedResult: "1"
+              sql: >-
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = 'desporto24'
+                  AND table_name = 'community_round_entry'
+                  AND column_name = 'profile_id'
+                  AND is_nullable = 'NO'
+      changes:
+        - dropNotNullConstraint:
+            schemaName: desporto24
+            tableName: community_round_entry
+            columnName: profile_id
+            columnDataType: bigint

@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-11-venue-information-source-constraint
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        tableExists:
+          schemaName: desporto24
+          tableName: venue
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.venue
+              DROP CONSTRAINT IF EXISTS venue_information_source_check;
+              ALTER TABLE desporto24.venue
+              ADD CONSTRAINT venue_information_source_check
+              CHECK (information_source IN ('COMMUNITY', 'OFFICIAL', 'OPENSTREETMAP'));

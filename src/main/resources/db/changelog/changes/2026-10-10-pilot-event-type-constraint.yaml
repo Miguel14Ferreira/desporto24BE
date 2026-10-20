@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-10-pilot-event-type-constraint
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        tableExists:
+          schemaName: desporto24
+          tableName: pilot_event
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.pilot_event
+              DROP CONSTRAINT IF EXISTS pilot_event_event_type_check;
+              ALTER TABLE desporto24.pilot_event
+              ADD CONSTRAINT pilot_event_event_type_check
+              CHECK (event_type IN (
+                'ACCESS',
+                'REGISTRATION_COMPLETED',
+                'SESSION_SEARCHED',
+                'SESSION_CREATED',
+                'SESSION_JOINED',
+                'ATTENDANCE_CONFIRMED',
+                'SESSION_COMPLETED',
+                'OPERATIONAL_INTERVENTION'
+              ));

@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-online-presence
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: profile_presence
+            columns:
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: last_seen_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: fk_presence_profile
+            baseTableSchemaName: desporto24
+            baseTableName: profile_presence
+            baseColumnNames: profile_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: profile
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: desporto24
+            tableName: profile_presence
+            indexName: idx_profile_presence_last_seen_at
+            columns:
+              - column:
+                  name: last_seen_at

@@ -10,6 +10,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/communities")
@@ -23,7 +25,7 @@ public class CommunityDiscoveryController {
 
     @GetMapping("/{id}/presentation")
     public CommunityDiscoveryResponse presentation(@PathVariable Long id) {
-        var community = repository.findById(id)
+        var community = repository.findWithSportsById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Community not found"));
         return new CommunityDiscoveryResponse(
                 community.getId(),
@@ -31,7 +33,8 @@ public class CommunityDiscoveryController {
                 community.getDescription(),
                 community.getSport(),
                 community.getPhotoUrl(),
-                community.getVisibility()
+                community.getVisibility(),
+                community.getSports()
         );
     }
 
@@ -45,12 +48,25 @@ public class CommunityDiscoveryController {
         }
         String nameTerm = name.trim().toLowerCase(Locale.ROOT);
         String sportTerm = sport.trim().toLowerCase(Locale.ROOT);
-        if (nameTerm.isEmpty() && sportTerm.isEmpty()) {
-            return new SearchResponse(List.of(), page, false);
+        // An unfiltered browse only discovers public communities.
+        // Explicit searches retain existing visibility behaviour.
+        var results = nameTerm.isEmpty() && sportTerm.isEmpty()
+                ? repository.discoverPublicPresentations(PageRequest.of(page, 20))
+                : repository.searchPresentations(
+                        escape(nameTerm), escape(sportTerm), PageRequest.of(page, 20));
+        // Enrich only the current page, preserving the original sort order and page boundaries.
+        var presentations = results.getContent();
+        if (presentations.isEmpty()) {
+            return new SearchResponse(presentations, page, results.hasNext());
         }
-        var results = repository.searchPresentations(
-                escape(nameTerm), escape(sportTerm), PageRequest.of(page, 20));
-        return new SearchResponse(results.getContent(), page, results.hasNext());
+        var ids = presentations.stream().map(CommunityDiscoveryResponse::id).toList();
+        var byId = repository.findAllWithSportsByIdIn(ids).stream()
+                .collect(Collectors.toMap(community -> community.getId(), Function.identity()));
+        var enriched = presentations.stream()
+                .map(item -> item.withSports(
+                        byId.containsKey(item.id()) ? byId.get(item.id()).getSports() : null))
+                .toList();
+        return new SearchResponse(enriched, page, results.hasNext());
     }
 
     private String escape(String value) {

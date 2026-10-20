@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "community")
@@ -30,6 +32,14 @@ public class Community {
     @Column(length = 100)
     private String sport;
 
+    // Explicitly ordered; "sport" remains the legacy primary modality.
+    @ElementCollection
+    @CollectionTable(name = "community_sport", joinColumns = @JoinColumn(name = "community_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "sport", nullable = false, length = 100)
+    @Builder.Default
+    private List<String> sports = new ArrayList<>();
+
     @Column(name = "photo_url", length = 1000)
     private String photoUrl;
 
@@ -47,6 +57,15 @@ public class Community {
 
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;
+
+    // Optional community modules. All groups always retain sessions and their history.
+    @Builder.Default
+    @Column(name = "individual_tournaments_enabled", nullable = false)
+    private boolean individualTournamentsEnabled = true;
+
+    @Builder.Default
+    @Column(name = "team_tournaments_enabled", nullable = false)
+    private boolean teamTournamentsEnabled = true;
 
     @Column(name = "win_points")
     private Integer winPoints;

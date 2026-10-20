@@ -4,6 +4,7 @@ import com.example.desporto24.model.dto.venue.CreateVenueRequest;
 import com.example.desporto24.model.dto.venue.CreateVenueSportConditionRequest;
 import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.dto.venue.VenueResponse;
+import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
 import com.example.desporto24.model.dto.venue.VenueSportConditionResponse;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkRequest;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkResponse;
@@ -35,8 +36,30 @@ public class VenueController {
     @GetMapping
     public List<VenueResponse> search(
             @RequestParam(required = false) String city,
-            @RequestParam(required = false) String sport) {
-        return venueService.search(city, sport);
+            @RequestParam(required = false) String sport,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Double radiusKm) {
+        return venueService.search(city, sport, latitude, longitude, radiusKm);
+    }
+
+    /**
+     * Bounded search for autocomplete. The legacy GET /api/venues remains unchanged.
+     * Filters are optional for the first page, but no request returns an unlimited list.
+     */
+    @GetMapping("/suggest")
+    public VenueSearchPageResponse suggest(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String sport,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String district) {
+        return venueService.suggest(name, city, sport, page, district);
+    }
+
+    /** Retain the old Java caller signature; HTTP clients use the district-aware endpoint. */
+    public VenueSearchPageResponse suggest(String name, String city, String sport, int page) {
+        return suggest(name, city, sport, page, null);
     }
 
     @PostMapping("/resolve-map-link")

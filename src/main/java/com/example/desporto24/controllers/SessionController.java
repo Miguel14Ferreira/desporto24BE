@@ -5,13 +5,17 @@ import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
 import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
+import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmationsRequest;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
+import com.example.desporto24.service.SessionOrganizerExclusionService;
+import com.example.desporto24.model.dto.session.SessionOrganizerExclusionResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -34,11 +38,13 @@ public class SessionController {
 
     private final SessionService sessionService;
     private final SessionTeamSuggestionService sessionTeamSuggestionService;
+    private final SessionOrganizerExclusionService exclusionService;
 
     @GetMapping
     public List<SessionSummaryResponse> discover(
             @RequestParam(required = false) String sport,
             @RequestParam(required = false) String city,
+            @RequestParam(required = false) String query,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false)
@@ -55,7 +61,7 @@ public class SessionController {
             Authentication authentication) {
         SessionSearchCriteria criteria = new SessionSearchCriteria(
                 sport, city, from, to, latitude, longitude, radiusKm,
-                availability, privateGame, freeOnly, minPrice, maxPrice, sort
+                availability, privateGame, freeOnly, minPrice, maxPrice, sort, query
         );
 
         if (authentication == null
@@ -70,6 +76,11 @@ public class SessionController {
     @GetMapping("/mine")
     public MySessionsResponse mine(Authentication authentication) {
         return sessionService.mine(authentication.getName());
+    }
+
+    @GetMapping("/{id}/public-preview")
+    public SessionPublicPreviewResponse publicPreview(@PathVariable Long id) {
+        return sessionService.publicPreview(id);
     }
 
     @GetMapping("/{id}")
@@ -112,6 +123,39 @@ public class SessionController {
             Authentication authentication) {
         JoinSessionRequest effectiveRequest = request == null ? new JoinSessionRequest(null) : request;
         return sessionService.join(id, effectiveRequest, authentication.getName());
+    }
+
+    @PatchMapping("/{id}/external-confirmations")
+    public SessionDetailResponse updateExternalConfirmations(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateSessionExternalConfirmationsRequest request,
+            Authentication authentication) {
+        return sessionService.updateExternalConfirmations(
+                id, request.externalConfirmedParticipants(), authentication.getName());
+    }
+
+    @PutMapping("/{id}/participants/{participantId}/future-exclusion")
+    public SessionOrganizerExclusionResponse excludeFromFutureSessions(
+            @PathVariable Long id, @PathVariable Long participantId,
+            Authentication authentication) {
+        return new SessionOrganizerExclusionResponse(
+                exclusionService.excludeAfterNoShow(id, participantId, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/participants/{participantId}/future-exclusion")
+    public SessionOrganizerExclusionResponse exclusionStatus(
+            @PathVariable Long id, @PathVariable Long participantId,
+            Authentication authentication) {
+        return new SessionOrganizerExclusionResponse(
+                exclusionService.status(id, participantId, authentication.getName()));
+    }
+
+    @DeleteMapping("/{id}/participants/{participantId}/future-exclusion")
+    public SessionOrganizerExclusionResponse removeFutureExclusion(
+            @PathVariable Long id, @PathVariable Long participantId,
+            Authentication authentication) {
+        return new SessionOrganizerExclusionResponse(
+                exclusionService.remove(id, participantId, authentication.getName()));
     }
 
     @PostMapping("/{id}/leave")

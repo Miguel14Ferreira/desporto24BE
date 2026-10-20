@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
@@ -11,6 +13,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.impl.SessionServiceImpl;
@@ -26,6 +29,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -40,6 +44,7 @@ class SessionDiscoveryServiceTest {
     @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private VenueRepository venueRepository;
     @Mock private SessionParticipantRepository participantRepository;
+    @Mock private SessionOrganizerExclusionRepository exclusionRepository;
     @Mock private SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
     @Mock private SessionDistanceCalculator distanceCalculator;
@@ -61,6 +66,7 @@ class SessionDiscoveryServiceTest {
                 communityMemberRepository,
                 venueRepository,
                 participantRepository,
+                exclusionRepository,
                 waitlistRepository,
                 sessionViewMapper,
                 distanceCalculator,
@@ -74,6 +80,41 @@ class SessionDiscoveryServiceTest {
     }
 
     @Test
+    void recurrenceSeriesDoesNotExposeCommunityOnlySessionsToOutsiders() {
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        viewer.setUsername("outsider");
+        when(profileRepository.findUserByUsername("outsider")).thenReturn(Optional.of(viewer));
+
+        Session publicSession = new Session();
+        publicSession.setId(1L);
+        publicSession.setAudience(SessionAudience.PUBLIC);
+        publicSession.setRecurrenceSeriesId("series-one");
+
+        Session privateSession = new Session();
+        privateSession.setId(2L);
+        privateSession.setAudience(SessionAudience.COMMUNITY_ONLY);
+        privateSession.setRecurrenceSeriesId("series-one");
+        privateSession.setCommunity(
+                com.example.desporto24.model.community.Community.builder().id(10L).build());
+
+        when(sessionRepository.findById(1L)).thenReturn(Optional.of(publicSession));
+        when(sessionRepository.findByRecurrenceSeriesIdOrderByGameDateAsc("series-one"))
+                .thenReturn(List.of(publicSession, privateSession));
+        when(communityMemberRepository.existsByCommunityIdAndProfileId(10L, 7L))
+                .thenReturn(false);
+        SessionSummaryResponse visibleSummary = mock(SessionSummaryResponse.class);
+        when(sessionViewMapper.toSummary(eq(publicSession), isNull(), anyMap(), anySet(), anySet()))
+                .thenReturn(visibleSummary);
+
+        List<SessionSummaryResponse> result = service.series(1L, "outsider");
+
+        assertEquals(List.of(visibleSummary), result);
+        verify(sessionViewMapper, never()).toSummary(
+                eq(privateSession), isNull(), anyMap(), anySet(), anySet());
+    }
+
+    @Test
     void authenticatedDiscoveryRecordsPilotSearchAfterSuccessfulDiscovery() {
         Profile profile = new Profile();
         profile.setId(7L);
@@ -81,7 +122,7 @@ class SessionDiscoveryServiceTest {
 
         when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
         when(sessionRepository.discoverCandidates(
-                anyCollection(), any(Date.class), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
+                anyCollection(), any(Date.class), anyString(), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
                 nullable(Boolean.class), anyBoolean(), nullable(java.math.BigDecimal.class), nullable(java.math.BigDecimal.class)))
                 .thenReturn(List.of());
 
@@ -92,6 +133,76 @@ class SessionDiscoveryServiceTest {
 
         assertTrue(result.isEmpty());
         verify(pilotEventService).recordSessionSearched(profile);
+    }
+
+    @Test
+    void authenticatedDiscoveryIncludesParticipantAndWaitlistFlagsWithoutPerSessionQueries() {
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        viewer.setUsername("miguel");
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(viewer));
+
+        Session joined = session(1L, "Padel", "Lisboa", null, null, 0, false, 4, 2);
+        Session waitlisted = session(2L, "Padel", "Lisboa", null, null, 0, false, 4, 4);
+        Session available = session(3L, "Padel", "Lisboa", null, null, 0, false, 4, 1);
+        stubCandidates(joined, waitlisted, available);
+
+        Set<Long> allIds = Set.of(1L, 2L, 3L);
+        Set<Long> joinedIds = Set.of(1L);
+        Set<Long> waitlistedIds = Set.of(2L);
+        when(participantRepository.findSessionIdsByProfileAndState(
+                allIds, 7L, ParticipantState.ACTIVE)).thenReturn(joinedIds);
+        when(waitlistRepository.findSessionIdsByProfile(allIds, 7L)).thenReturn(waitlistedIds);
+        when(sessionViewMapper.toSummary(
+                any(Session.class), isNull(), anyMap(), eq(joinedIds), eq(waitlistedIds)))
+                .thenAnswer(invocation -> {
+                    Session candidate = invocation.getArgument(0);
+                    return new SessionSummaryResponse(
+                            candidate.getId(), candidate.getSport(), candidate.getCity(),
+                            candidate.getGameDate().toInstant(), null, 2, 4,
+                            candidate.getPriceAmount(), false, candidate.getStatus(),
+                            SessionAudience.PUBLIC, joinedIds.contains(candidate.getId()),
+                            waitlistedIds.contains(candidate.getId()), null);
+                });
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, null, null, null,
+                null, null, null, null
+        ), "miguel");
+
+        assertEquals(3, result.size());
+        assertTrue(result.get(0).joinedByViewer());
+        assertFalse(result.get(0).waitlistedByViewer());
+        assertFalse(result.get(1).joinedByViewer());
+        assertTrue(result.get(1).waitlistedByViewer());
+        assertFalse(result.get(2).joinedByViewer());
+        assertFalse(result.get(2).waitlistedByViewer());
+
+        verify(participantRepository).findSessionIdsByProfileAndState(
+                allIds, 7L, ParticipantState.ACTIVE);
+        verify(waitlistRepository).findSessionIdsByProfile(allIds, 7L);
+        verify(sessionViewMapper, times(3)).toSummary(
+                any(Session.class), isNull(), anyMap(), eq(joinedIds), eq(waitlistedIds));
+        verify(pilotEventService).recordSessionSearched(viewer);
+    }
+
+    @Test
+    void anonymousDiscoveryDoesNotLookUpPersonalMemberships() {
+        Session available = session(4L, "Padel", "Lisboa", null, null, 0, false, 4, 1);
+        stubCandidates(available);
+        stubSummary(available, null, 1);
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, null, null, null,
+                null, null, null, null
+        ));
+
+        assertEquals(1, result.size());
+        assertFalse(result.getFirst().joinedByViewer());
+        assertFalse(result.getFirst().waitlistedByViewer());
+        verify(participantRepository, never()).findSessionIdsByProfileAndState(
+                anySet(), anyLong(), any());
+        verify(waitlistRepository, never()).findSessionIdsByProfile(anySet(), anyLong());
     }
 
     @Test
@@ -115,6 +226,32 @@ class SessionDiscoveryServiceTest {
 
         assertEquals(List.of(2L, 1L), result.stream().map(SessionSummaryResponse::id).toList());
         assertTrue(result.stream().allMatch(v -> v.distanceKm() <= 25.0));
+    }
+
+    @Test
+    void appliesDistanceAndAvailabilityBeforeReturningEligibleSessions() {
+        Session fullNearby = session(1L, "Futebol", "Lisboa", 38.75, -9.25, 0, false, 4, 4);
+        Session farAway = session(2L, "Futebol", "Sintra", 38.85, -9.40, 0, false, 10, 2);
+        Session eligible = session(3L, "Futebol", "Amadora", 38.76, -9.24, 0, false, 10, 2);
+
+        stubCandidates(fullNearby, farAway, eligible);
+        when(distanceCalculator.kilometres(38.75, -9.25, fullNearby.getLatitude(), fullNearby.getLongitude())).thenReturn(2.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, farAway.getLatitude(), farAway.getLongitude())).thenReturn(40.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, eligible.getLatitude(), eligible.getLongitude())).thenReturn(3.0);
+        stubSummary(fullNearby, 2.0, 4);
+        stubSummary(farAway, 40.0, 2);
+        stubSummary(eligible, 3.0, 2);
+
+        List<SessionSummaryResponse> result = service.discover(criteria(
+                null, null, null, null, 38.75, -9.25, 25.0,
+                "available", false, null, "date"
+        ));
+
+        assertEquals(List.of(3L), result.stream().map(SessionSummaryResponse::id).toList());
+        verify(sessionRepository, never()).discoverCandidatesPage(
+                anyCollection(), any(Date.class), anyString(), anyString(), anyString(),
+                nullable(Date.class), nullable(Date.class), nullable(Boolean.class), anyBoolean(),
+                nullable(BigDecimal.class), nullable(BigDecimal.class), any());
     }
 
     @Test
@@ -159,7 +296,7 @@ class SessionDiscoveryServiceTest {
         Session wrongCity = session(6L, "Futebol", "Lisboa", null, null, 0, false, 10, 4);
         wrongCity.setGameDate(Date.from(from.plusSeconds(1800)));
 
-        stubCandidates(match, wrongSport, full, paid, privateSession, wrongCity);
+        stubCandidates(match, full);
         stubSummary(match, null, 4);
         stubSummary(full, null, 4);
 
@@ -177,7 +314,7 @@ class SessionDiscoveryServiceTest {
         Session match = session(2L, "Futebol", "Queluz", null, null, 6, false, 10, 2);
         Session expensive = session(3L, "Futebol", "Queluz", null, null, 12, false, 10, 2);
 
-        stubCandidates(cheap, match, expensive);
+        stubCandidates(match);
         stubSummary(match, null, 2);
 
         SessionSearchCriteria criteria = new SessionSearchCriteria(
@@ -216,13 +353,15 @@ class SessionDiscoveryServiceTest {
 
     private void stubCandidates(Session... sessions) {
         when(sessionRepository.discoverCandidates(
-                anyCollection(), any(Date.class), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
+                anyCollection(), any(Date.class), anyString(), anyString(), anyString(), nullable(Date.class), nullable(Date.class),
                 nullable(Boolean.class), anyBoolean(), nullable(java.math.BigDecimal.class), nullable(java.math.BigDecimal.class)))
                 .thenReturn(List.of(sessions));
     }
 
     private void stubSummary(Session session, Double distance, int participants) {
-        when(sessionViewMapper.toSummary(session, distance)).thenReturn(new SessionSummaryResponse(
+        when(sessionViewMapper.toSummary(
+                eq(session), eq(distance), anyMap(), anySet(), anySet()))
+                .thenReturn(new SessionSummaryResponse(
                 session.getId(),
                 session.getSport(),
                 session.getCity(),

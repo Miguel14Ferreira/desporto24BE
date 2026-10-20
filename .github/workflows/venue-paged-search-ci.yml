@@ -1,0 +1,20 @@
+name: Validate paginated venue suggestions
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Execute backend tests
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp test

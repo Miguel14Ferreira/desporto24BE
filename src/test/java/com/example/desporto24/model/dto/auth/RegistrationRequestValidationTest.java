@@ -25,6 +25,41 @@ class RegistrationRequestValidationTest {
     }
 
     @Test
+    void returnSessionIdMustBePositiveWhenProvided() {
+        RegistrationRequest base = validRequest();
+        RegistrationRequest invalid = new RegistrationRequest(
+                base.username(), base.password(), base.nickname(), base.dateOfBirth(),
+                base.country(), base.indicativePhone(), base.phone(), base.gender(),
+                base.email(), base.acceptedLegalTerms(), -42L
+        );
+        RegistrationRequest valid = new RegistrationRequest(
+                base.username(), base.password(), base.nickname(), base.dateOfBirth(),
+                base.country(), base.indicativePhone(), base.phone(), base.gender(),
+                base.email(), base.acceptedLegalTerms(), 42L
+        );
+
+        assertFalse(validator.validate(invalid).isEmpty());
+        assertTrue(validator.validate(valid).isEmpty());
+    }
+
+    @Test
+    void returnCommunityIdMustBePositiveWhenProvided() {
+        RegistrationRequest base = validRequest();
+        RegistrationRequest invalid = new RegistrationRequest(
+                base.username(), base.password(), base.nickname(), base.dateOfBirth(),
+                base.country(), base.indicativePhone(), base.phone(), base.gender(),
+                base.email(), base.acceptedLegalTerms(), null, -42L
+        );
+        RegistrationRequest valid = new RegistrationRequest(
+                base.username(), base.password(), base.nickname(), base.dateOfBirth(),
+                base.country(), base.indicativePhone(), base.phone(), base.gender(),
+                base.email(), base.acceptedLegalTerms(), null, 42L
+        );
+        assertFalse(validator.validate(invalid).isEmpty());
+        assertTrue(validator.validate(valid).isEmpty());
+    }
+
+    @Test
     void blankRequiredFieldsAreRejected() {
         RegistrationRequest request = new RegistrationRequest(
                 "", "", null, "", "", "", "", null, "", false

@@ -33,8 +33,31 @@ public record CreateSessionRequest(
         Long communityId,
         Long venueId,
         SessionRecurrence recurrence,
-        @Min(2) @Max(52) Integer recurrenceOccurrences
+        @Min(2) @Max(52) Integer recurrenceOccurrences,
+        // Excludes the organiser, who is automatically registered in Jynlo.
+        @Min(0) @Max(99) Integer externalConfirmedParticipants
 ) {
+    // Keep existing Java callers compatible with the former record constructor.
+    public CreateSessionRequest(
+            String sport,
+            Instant gameDate,
+            String city,
+            String address,
+            Integer maxParticipants,
+            BigDecimal priceAmount,
+            boolean privateGame,
+            String password,
+            Double latitude,
+            Double longitude,
+            Long communityId,
+            Long venueId,
+            SessionRecurrence recurrence,
+            Integer recurrenceOccurrences) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId,
+                venueId, recurrence, recurrenceOccurrences, null);
+    }
+
     public CreateSessionRequest(
             String sport,
             Instant gameDate,

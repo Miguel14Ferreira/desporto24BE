@@ -1,0 +1,49 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-13-session-organizer-exclusion
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: session_organizer_exclusion
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_session_organizer_exclusion
+                    nullable: false
+              - column:
+                  name: organizer_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: excluded_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: session_organizer_exclusion
+            baseColumnNames: organizer_profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_session_organizer_exclusion_organizer
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: session_organizer_exclusion
+            baseColumnNames: excluded_profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_session_organizer_exclusion_excluded
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: session_organizer_exclusion
+            columnNames: organizer_profile_id, excluded_profile_id
+            constraintName: uk_session_organizer_exclusion

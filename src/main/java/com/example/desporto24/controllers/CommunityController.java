@@ -4,7 +4,11 @@ import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityImportService;
+import com.example.desporto24.service.CommunityStandingsArchiveService;
+import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
+import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityManagementService;
+import com.example.desporto24.service.CommunityHistoricalPlayerLinkService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +26,11 @@ public class CommunityController {
 
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
+    private final CommunityHistoricalPlayerLinkService historicalPlayerLinkService;
     private final CommunityImportService communityImportService;
+    private final CommunityStandingsArchiveService historicalStandingsService;
+    private final CommunityHistoricalMatchPreviewService historicalMatchPreviewService;
+    private final CommunityHistoricalMatchArchiveService historicalMatchArchiveService;
     private final CommunitySessionService communitySessionService;
 
     @PostMapping
@@ -87,6 +95,22 @@ public class CommunityController {
             Authentication authentication) {
         service.rejectJoinRequest(id, requestId, authentication.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/features")
+    public ResponseEntity<CommunityResponse> updateFeatures(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCommunityFeaturesRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateFeatures(id, authentication.getName(), request));
+    }
+
+    @PutMapping("/{id}/sports")
+    public ResponseEntity<CommunityResponse> updateSports(
+            @PathVariable Long id,
+            @RequestBody @Valid UpdateCommunitySportsRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateSports(id, authentication.getName(), request));
     }
 
     @PutMapping("/{id}/visibility")
@@ -200,6 +224,33 @@ public class CommunityController {
         );
     }
 
+    @GetMapping("/{id}/competition/historical-players")
+    public ResponseEntity<List<HistoricalPlayerCandidateResponse>> historicalPlayerCandidates(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.candidates(id, authentication.getName()));
+    }
+
+
+    @PostMapping("/{id}/competition/historical-player-links/claim")
+    public ResponseEntity<HistoricalPlayerLinkResponse> claimHistoricalName(
+            @PathVariable Long id, @RequestBody @Valid ClaimHistoricalPlayerRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.claimForMe(id, authentication.getName(), request.playerId()));
+    }
+
+    @GetMapping("/{id}/competition/historical-player-links/my-claims")
+    public ResponseEntity<List<HistoricalPlayerLinkResponse>> myHistoricalClaims(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalPlayerLinkService.myClaims(id, authentication.getName()));
+    }
+
+    @DeleteMapping("/{id}/competition/historical-player-links/my-claims/{linkId}")
+    public ResponseEntity<Void> removeMyHistoricalClaim(
+            @PathVariable Long id, @PathVariable Long linkId, Authentication authentication) {
+        historicalPlayerLinkService.releaseMyClaim(id, linkId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/competition/import/context/validate")
     public ResponseEntity<CommunityImportContextValidationResponse> validateCompetitionImportContext(
             @PathVariable Long id,
@@ -297,6 +348,83 @@ public class CommunityController {
         return ResponseEntity.ok(
                 communityImportService.confirmPlayers(id, authentication.getName(), file, mapping)
         );
+    }
+
+    /**
+     * Safe read-only first step for importing real historical tournament matches.
+     * No match, participant, team or tournament is created by this endpoint.
+     */
+    @PostMapping(value = "/{id}/competition/import/matches/preview",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityHistoricalMatchPreviewResponse> previewHistoricalMatches(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchPreviewService.preview(id, authentication.getName(), file, mapping));
+    }
+
+    /** Preserve real old fixtures in a separate archive, never a live tournament. */
+    @PostMapping(value = "/{id}/competition/import/matches/confirm",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityHistoricalMatchArchiveResponse> confirmHistoricalMatches(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityHistoricalMatchArchiveConfirmRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.confirm(
+                id, authentication.getName(), file, mapping, context));
+    }
+
+    @GetMapping("/{id}/competition/match-archives")
+    public ResponseEntity<List<CommunityHistoricalMatchArchiveSummaryResponse>> historicalMatchArchives(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.list(id, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/competition/match-archives/{archiveId}")
+    public ResponseEntity<CommunityHistoricalMatchArchiveResponse> historicalMatchArchive(
+            @PathVariable Long id, @PathVariable Long archiveId, Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.detail(
+                id, archiveId, authentication.getName()));
+    }
+
+    /**
+     * Archived rankings do not invent matches or alter the live standings.
+     * The same workbook and mapping must be sent to preview and confirmation.
+     */
+    @PostMapping(value = "/{id}/competition/import/standings/preview",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityStandingsArchivePreviewResponse> previewHistoricalStandings(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.preview(id, authentication.getName(), file, mapping));
+    }
+
+    @PostMapping(value = "/{id}/competition/import/standings/confirm",
+            consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CommunityStandingsArchiveResponse> confirmHistoricalStandings(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
+            @RequestPart("context") @Valid CommunityStandingsArchiveConfirmRequest context,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.confirm(id, authentication.getName(), file, mapping, context));
+    }
+
+    @GetMapping("/{id}/competition/standings-archives")
+    public ResponseEntity<List<CommunityStandingsArchiveSummaryResponse>> historicalStandingsArchives(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.list(id, authentication.getName()));
+    }
+
+    @GetMapping("/{id}/competition/standings-archives/{archiveId}")
+    public ResponseEntity<CommunityStandingsArchiveResponse> historicalStandingsArchive(
+            @PathVariable Long id, @PathVariable Long archiveId, Authentication authentication) {
+        return ResponseEntity.ok(historicalStandingsService.detail(id, archiveId, authentication.getName()));
     }
 
     @PostMapping("/{id}/rounds")

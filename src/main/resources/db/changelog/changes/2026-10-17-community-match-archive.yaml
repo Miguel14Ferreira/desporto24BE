@@ -1,0 +1,142 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-match-archive
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_match_archive
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: community_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: entry_type
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_filename
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by_username
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - createTable:
+            schemaName: desporto24
+            tableName: community_match_archive_row
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: archive_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_row
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: home_name
+                  type: VARCHAR(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: away_name
+                  type: VARCHAR(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: home_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: away_score
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_date
+                  type: VARCHAR(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_round
+                  type: VARCHAR(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: potential_duplicate
+                  type: BOOLEAN
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            constraintName: fk_match_archive_community
+            baseTableSchemaName: desporto24
+            baseTableName: community_match_archive
+            baseColumnNames: community_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_match_archive_row_archive
+            baseTableSchemaName: desporto24
+            baseTableName: community_match_archive_row
+            baseColumnNames: archive_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_match_archive
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_match_archive_row
+            columnNames: archive_id, source_row
+            constraintName: uk_match_archive_source_row
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_match_archive
+            indexName: idx_match_archive_community_created
+            columns:
+              - column:
+                  name: community_id
+              - column:
+                  name: created_at
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_match_archive_row
+            indexName: idx_match_archive_row_order
+            columns:
+              - column:
+                  name: archive_id
+              - column:
+                  name: source_row

@@ -47,7 +47,6 @@ class AuthenticationServiceImplTest {
     private static final String TEST_PASSWORD = "not-a-real-password";
     private static final String TEST_CHALLENGE_ID = "challenge-id-fixture";
     private static final String TEST_CHALLENGE_HASH = "$2a$fixture-hash";
-    private static final String TEST_MFA_SECRET = "JBSWY3DPEHPK3PXP";
 
     @Mock private LoginAttemptService loginAttemptService;
     @Mock private ProfileService profileService;
@@ -200,17 +199,19 @@ class AuthenticationServiceImplTest {
                 "912345678",
                 "outro",
                 "fixture@example.test",
-        true
+                true,
+                42L
         );
 
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.empty());
         when(profileRepository.findUserByEmail("fixture@example.test")).thenReturn(Optional.empty());
+        when(passwordHashService.encode(TEST_PASSWORD)).thenReturn("bcrypt-password");
         when(profileMapper.toEntity(any(ProfileDTO.class))).thenAnswer(invocation -> {
             ProfileDTO dto = invocation.getArgument(0);
             Profile profile = new Profile();
             profile.setUserId(dto.getUserId());
             profile.setUsername(dto.getUsername());
-            profile.setPassword("bcrypt-password");
+            profile.setPassword(dto.getPassword());
             profile.setNotLocked(dto.getNotLocked());
             profile.setEnabled(dto.getEnabled());
             profile.setMFA(dto.getMFA());
@@ -243,6 +244,88 @@ class AuthenticationServiceImplTest {
         assertTrue(html.getValue().contains("15 minutos"));
         assertTrue(html.getValue().contains("15 minutes"));
         assertTrue(html.getValue().contains("https://example.test/?confirmRegistration="));
+        assertTrue(html.getValue().contains("returnSessionId=42"));
+    }
+
+    @Test
+    void resendConfirmationPreservesSharedSessionDestination() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME, 42L);
+
+        verify(confirmationTokenService).deleteByProfile(TEST_USERNAME);
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("returnSessionId=42"));
+    }
+
+    @Test
+    void resendConfirmationCarriesCommunityInviteAcrossDevices() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME, null, 42L);
+
+        verify(confirmationTokenService).deleteByProfile(TEST_USERNAME);
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("returnCommunityId=42"));
+        assertFalse(html.getValue().contains("returnSessionId="));
+    }
+
+    @Test
+    void sessionLinkTakesPrecedenceOverCommunityLink() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME, 7L, 42L);
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("returnSessionId=7"));
+        assertFalse(html.getValue().contains("returnCommunityId="));
+    }
+
+    @Test
+    void legacyResendConfirmationDoesNotRequireSessionDestination() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME);
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("confirmRegistration="));
+        assertFalse(html.getValue().contains("returnSessionId="));
     }
 
     @Test
@@ -334,32 +417,42 @@ class AuthenticationServiceImplTest {
     @Test
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
         Profile profile = activeProfile(true);
+        // Configured MFA uses an authenticator secret, not an SMS challenge.
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
         when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME)).thenReturn(Optional.of(profile));
 
         LoginResponse response = service().login(credentials());
 
         assertTrue(response.mfaRequired());
         assertNotNull(response.challengeId());
+        assertNotNull(response.challengeExpiresAt());
         assertNull(response.token());
         assertNull(response.profile());
-        verifyNoInteractions(jwtTokenProvider);
-        verify(mfaVerificationService).saveConfirmationMFA(any());
+        verify(mfaVerificationService).saveConfirmationMFA(argThat(challenge ->
+                response.challengeId().equals(challenge.getChallengeId())
+                        && TEST_USERNAME.equals(challenge.getPerfil())
+                        && challenge.getExpiredAt() != null));
+        verifyNoInteractions(jwtTokenProvider, totpService, passwordEncoder);
+        verify(profileRepository, never()).save(any(Profile.class));
     }
 
     @Test
     void wrongMfaCodeNeverGeneratesJwt() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
         Profile profile = activeProfile(true);
+        String totpSecret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(totpSecret, profile.getUserId()));
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
         when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
-        when(totpService.verify(TEST_MFA_SECRET, "wrong")).thenReturn(false);
+        when(totpService.verify(totpSecret, "wrong")).thenReturn(false);
 
         assertThrows(
                 BadCredentialsException.class,
                 () -> service().confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong"))
         );
 
+        verify(totpService).verify(totpSecret, "wrong");
         verifyNoInteractions(jwtTokenProvider);
         verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
     }
@@ -400,14 +493,16 @@ class AuthenticationServiceImplTest {
     void confirmedMfaChallengeIsSingleUse() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
         Profile profile = activeProfile(true);
+        String totpSecret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(totpSecret, profile.getUserId()));
         ProfileDTO safeProfile = safeProfile();
 
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
-        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
-        when(totpService.verify(TEST_MFA_SECRET, TEST_MFA_CODE)).thenReturn(true);
+        when(totpService.verify(totpSecret, TEST_MFA_CODE)).thenReturn(true);
         when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
                 .thenReturn(true)
                 .thenReturn(false);
+        when(profileRepository.findUserByUsername(TEST_USERNAME)).thenReturn(Optional.of(profile));
         when(profileRepository.save(profile)).thenReturn(profile);
         when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("jwt-token");
         when(profileMapper.toDto(profile)).thenReturn(safeProfile);
@@ -419,6 +514,8 @@ class AuthenticationServiceImplTest {
                 SMSAlreadyConfirmedException.class,
                 () -> service().confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, TEST_MFA_CODE))
         );
+        verify(totpService, times(2)).verify(totpSecret, TEST_MFA_CODE);
+        verify(mfaVerificationService, times(2)).confirmIfPending(eq(TEST_CHALLENGE_ID), any());
         verify(jwtTokenProvider, times(1)).generateJwtToken(any(ProfilePrincipal.class));
     }
 
@@ -461,9 +558,6 @@ class AuthenticationServiceImplTest {
         profile.setEnabled(true);
         profile.setNotLocked(true);
         profile.setMFA(mfa);
-        if (mfa) {
-            profile.setMfaSecret(AES.encryptString(TEST_MFA_SECRET, profile.getUserId()));
-        }
         return profile;
     }
 

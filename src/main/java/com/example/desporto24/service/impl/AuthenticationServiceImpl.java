@@ -229,7 +229,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     private void validateProfileStatus(Profile profile) {
-        if (Boolean.FALSE.equals(profile.getNotLocked())) {
+        if (profile.getModerationSuspendedAt() != null || Boolean.FALSE.equals(profile.getNotLocked())) {
             throw new AccountDisabledException(ACCOUNT_DISABLED);
         }
         if (Boolean.FALSE.equals(profile.getEnabled())) {
@@ -269,7 +269,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         ProfileDTO profileDTO = new ProfileDTO();
         profileDTO.setUserId(generateUserId());
         profileDTO.setUsername(request.username().trim());
-        profileDTO.setPassword(request.password());
+        profileDTO.setPassword(passwordHashService.encode(request.password()));
         profileDTO.setNickname(trimToNull(request.nickname()));
         profileDTO.setDateOfBirth(request.dateOfBirth());
         profileDTO.setCountry(request.country().trim());
@@ -300,7 +300,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             createWelcomeNotification(profileDTO, null);
             pilotEventService.recordRegistrationCompleted(savedProfile, cohort);
         } else {
-            sendSignUpEmail(profileDTO);
+            sendSignUpEmail(profileDTO, request.returnSessionId(), request.returnCommunityId());
         }
     }
 
@@ -341,7 +341,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         profileDTO.setProfilePicUrl(uri.toString());
     }
 
-    private void sendSignUpEmail(ProfileDTO profileDTO)  {
+    private void sendSignUpEmail(ProfileDTO profileDTO) {
+        sendSignUpEmail(profileDTO, null, null);
+    }
+
+    private void sendSignUpEmail(ProfileDTO profileDTO, Long returnSessionId, Long returnCommunityId) {
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(
                 token, LocalDateTime.now(), LocalDateTime.now().plusMinutes(15), profileDTO.getUsername()
@@ -349,7 +353,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
 
         String link = uiAppUrl.replaceAll("/+$", "")
-                + "/?confirmRegistration=" + token;
+                + "/?confirmRegistration=" + token
+                + (returnSessionId != null && returnSessionId > 0
+                        ? "&returnSessionId=" + returnSessionId
+                        : returnCommunityId != null && returnCommunityId > 0
+                            ? "&returnCommunityId=" + returnCommunityId
+                            : "");
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
         emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
                 buildRegistrationEmail(profileDTO.getUsername(), link));
@@ -359,6 +368,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public void resendRegistrationConfirmation(String username) {
+        resendRegistrationConfirmation(username, null, null);
+    }
+
+    @Override
+    public void resendRegistrationConfirmation(String username, Long returnSessionId) {
+        resendRegistrationConfirmation(username, returnSessionId, null);
+    }
+
+    @Override
+    public void resendRegistrationConfirmation(
+            String username, Long returnSessionId, Long returnCommunityId) {
         String suppliedUsername = username == null ? "" : username.trim();
         Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
@@ -370,7 +390,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.deleteByProfile(profile.getUsername());
 
         ProfileDTO profileDTO = profileMapper.toDto(profile);
-        sendSignUpEmail(profileDTO);
+        sendSignUpEmail(profileDTO, returnSessionId, returnCommunityId);
     }
 
     private void createWelcomeNotification(ProfileDTO profileDTO, String token) {
@@ -444,7 +464,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         Profile profile = profileRepository.findUserByUsername(confirmationToken.getProfile())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_EMAIL));
         updatePassword(profile, newPassword);
-        profile.setNotLocked(true);
+        // Password reset cannot remove a moderation suspension.
+        profile.setNotLocked(profile.getModerationSuspendedAt() == null);
         profile.setLoginAttempts(0);
         profile.setStatusId(OFFLINE);
         invalidateExistingTokens(profile);

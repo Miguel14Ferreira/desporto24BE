@@ -5,13 +5,16 @@ import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.dto.session.SessionTeamPlayerResponse;
 import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
+import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmationsRequest;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
+import com.example.desporto24.service.SessionOrganizerExclusionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +35,7 @@ class SessionControllerTest {
 
     @Mock private SessionService sessionService;
     @Mock private SessionTeamSuggestionService sessionTeamSuggestionService;
+    @Mock private SessionOrganizerExclusionService exclusionService;
     @Mock private Authentication authentication;
 
     @InjectMocks private SessionController controller;
@@ -43,7 +47,7 @@ class SessionControllerTest {
         when(sessionService.discover(any(), eq("miguel"))).thenReturn(List.of());
 
         List<?> response = controller.discover(
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, authentication
         );
 
@@ -57,13 +61,25 @@ class SessionControllerTest {
         when(sessionService.discover(any())).thenReturn(List.of());
 
         List<?> response = controller.discover(
-                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null
         );
 
         assertTrue(response.isEmpty());
         verify(sessionService).discover(any());
         verify(sessionService, never()).discover(any(), anyString());
+    }
+
+    @Test
+    void publicPreviewWorksWithoutAuthentication() {
+        SessionPublicPreviewResponse preview = new SessionPublicPreviewResponse(
+                7L, "Futebol", "Parede", Instant.parse("2026-10-20T19:00:00Z"),
+                10, 8, BigDecimal.ZERO, SessionStatus.OPEN, null);
+        when(sessionService.publicPreview(7L)).thenReturn(preview);
+
+        assertEquals(preview, controller.publicPreview(7L));
+        assertEquals(8, preview.participantCount());
+        verify(sessionService).publicPreview(7L);
     }
 
     @Test
@@ -83,6 +99,17 @@ class SessionControllerTest {
         assertEquals(201, response.getStatusCode().value());
         assertEquals(detail, response.getBody());
         verify(sessionService).create(request, "miguel");
+    }
+
+    @Test
+    void updateExternalConfirmationsUsesAuthenticatedCreator() {
+        when(authentication.getName()).thenReturn("miguel");
+        var request = new UpdateSessionExternalConfirmationsRequest(7);
+        SessionDetailResponse detail = detail("Rua do Campo", true);
+        when(sessionService.updateExternalConfirmations(1L, 7, "miguel")).thenReturn(detail);
+
+        assertSame(detail, controller.updateExternalConfirmations(1L, request, authentication));
+        verify(sessionService).updateExternalConfirmations(1L, 7, "miguel");
     }
 
     @Test
@@ -181,6 +208,21 @@ class SessionControllerTest {
                 "Campo sem iluminação",
                 "miguel"
         );
+    }
+
+    @Test
+    void futureExclusionOperationsUseTheAuthenticatedOrganizer() {
+        when(authentication.getName()).thenReturn("organizer");
+        when(exclusionService.excludeAfterNoShow(1L, 8L, "organizer")).thenReturn(true);
+        when(exclusionService.status(1L, 8L, "organizer")).thenReturn(true);
+
+        assertTrue(controller.excludeFromFutureSessions(1L, 8L, authentication).excluded());
+        assertTrue(controller.exclusionStatus(1L, 8L, authentication).excluded());
+        assertFalse(controller.removeFutureExclusion(1L, 8L, authentication).excluded());
+
+        verify(exclusionService).excludeAfterNoShow(1L, 8L, "organizer");
+        verify(exclusionService).status(1L, 8L, "organizer");
+        verify(exclusionService).remove(1L, 8L, "organizer");
     }
 
     @Test

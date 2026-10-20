@@ -31,6 +31,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -55,13 +58,17 @@ public class CommunityManagementService {
     public CommunityResponse create(String username, CreateCommunityRequest request) {
         Profile owner = profile(username);
 
+        List<String> sports = normalizeSports(request.sports(), request.sport());
         Community community = Community.builder()
                 .name(request.name().trim())
                 .description(trimToNull(request.description()))
-                .sport(trimToNull(request.sport()))
+                .sport(sports.isEmpty() ? null : sports.get(0))
+                .sports(sports)
                 .visibility(request.visibility())
                 .owner(owner)
                 .rankingsEnabled(false)
+                .individualTournamentsEnabled(false)
+                .teamTournamentsEnabled(false)
                 .winPoints(3)
                 .drawPoints(1)
                 .lossPoints(0)
@@ -78,6 +85,21 @@ public class CommunityManagementService {
                 .build());
 
         return toResponse(saved, owner);
+    }
+
+    /**
+     * Stores the organizer's choice of modules without deleting seasons, scores or
+     * tournaments. Sessions remain available for every community.
+     */
+    public CommunityResponse updateFeatures(Long communityId, String username,
+            UpdateCommunityFeaturesRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        Community community = community(communityId);
+        community.setRankingsEnabled(request.rankingsEnabled());
+        community.setIndividualTournamentsEnabled(request.individualTournamentsEnabled());
+        community.setTeamTournamentsEnabled(request.teamTournamentsEnabled());
+        return toResponse(communityRepository.save(community), actor);
     }
 
     @Transactional(readOnly = true)
@@ -121,6 +143,20 @@ public class CommunityManagementService {
                     .build());
         }
 
+        joinRequestRepository.findByCommunityIdAndRequesterIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .ifPresent(pending -> {
+                    pending.setStatus(CommunityInviteStatus.ACCEPTED);
+                    joinRequestRepository.save(pending);
+                });
+
+        inviteRepository.findByCommunityIdAndInvitedProfileIdAndStatus(
+                        communityId, current.getId(), CommunityInviteStatus.PENDING)
+                .ifPresent(pending -> {
+                    pending.setStatus(CommunityInviteStatus.ACCEPTED);
+                    inviteRepository.save(pending);
+                });
+
         return toResponse(community, current);
     }
 
@@ -138,12 +174,16 @@ public class CommunityManagementService {
         CommunityJoinRequest request = joinRequestRepository
                 .findByCommunityIdAndRequesterIdAndStatus(
                         communityId, current.getId(), CommunityInviteStatus.PENDING)
-                .orElseGet(() -> joinRequestRepository.save(CommunityJoinRequest.builder()
-                        .community(community)
-                        .requester(current)
-                        .status(CommunityInviteStatus.PENDING)
-                        .createdAt(Instant.now())
-                        .build()));
+                .orElseGet(() -> {
+                    CommunityJoinRequest created = joinRequestRepository.save(CommunityJoinRequest.builder()
+                            .community(community)
+                            .requester(current)
+                            .status(CommunityInviteStatus.PENDING)
+                            .createdAt(Instant.now())
+                            .build());
+                    notifyJoinRequestCreated(community, current);
+                    return created;
+                });
 
         return toJoinRequestResponse(request);
     }
@@ -191,8 +231,16 @@ public class CommunityManagementService {
                     .build());
         }
 
+        inviteRepository.findByCommunityIdAndInvitedProfileIdAndStatus(
+                        communityId, requester.getId(), CommunityInviteStatus.PENDING)
+                .ifPresent(pending -> {
+                    pending.setStatus(CommunityInviteStatus.ACCEPTED);
+                    inviteRepository.save(pending);
+                });
+
         request.setStatus(CommunityInviteStatus.ACCEPTED);
         joinRequestRepository.save(request);
+        notifyJoinDecision(request, actor, true);
         return toResponse(request.getCommunity(), actor);
     }
 
@@ -207,6 +255,18 @@ public class CommunityManagementService {
 
         request.setStatus(CommunityInviteStatus.REJECTED);
         joinRequestRepository.save(request);
+        notifyJoinDecision(request, actor, false);
+    }
+
+    public CommunityResponse updateSports(Long communityId, String username,
+                                          UpdateCommunitySportsRequest request) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        List<String> sports = normalizeSports(request.sports(), null);
+        community.setSports(sports);
+        community.setSport(sports.isEmpty() ? null : sports.get(0));
+        Community saved = communityRepository.save(community);
+        return toResponse(saved, actor);
     }
 
     public CommunityResponse updateVisibility(
@@ -235,6 +295,7 @@ public class CommunityManagementService {
         }
 
         Community community = community(communityId);
+        String previousPhotoUrl = community.getPhotoUrl();
         var uri = mediaStorage.store(
                 "communities/" + community.getId() + "/" + UUID.randomUUID(),
                 photo
@@ -242,6 +303,7 @@ public class CommunityManagementService {
 
         community.setPhotoUrl(uri.toString());
         Community saved = communityRepository.save(community);
+        deleteCommunityPhoto(previousPhotoUrl, communityId);
         return toResponse(saved, actor);
     }
 
@@ -337,6 +399,13 @@ public class CommunityManagementService {
                     .build());
         }
 
+        joinRequestRepository.findByCommunityIdAndRequesterIdAndStatus(
+                        community.getId(), current.getId(), CommunityInviteStatus.PENDING)
+                .ifPresent(pending -> {
+                    pending.setStatus(CommunityInviteStatus.ACCEPTED);
+                    joinRequestRepository.save(pending);
+                });
+
         invite.setStatus(CommunityInviteStatus.ACCEPTED);
         inviteRepository.save(invite);
         return toResponse(community, current);
@@ -381,7 +450,7 @@ public class CommunityManagementService {
 
     public void removeMember(Long communityId, String actorUsername, String targetUsername) {
         Profile actor = profile(actorUsername);
-        requireAdmin(communityId, actor);
+        CommunityMember actorMembership = requireAdmin(communityId, actor);
 
         Profile target = profile(targetUsername);
         CommunityMember targetMembership = memberRepository
@@ -391,8 +460,13 @@ public class CommunityManagementService {
         if (targetMembership.getRole() == CommunityRole.OWNER) {
             throw new IllegalArgumentException("O Owner não pode ser removido");
         }
+        if (targetMembership.getRole() == CommunityRole.ADMIN
+                && actorMembership.getRole() != CommunityRole.OWNER) {
+            throw new SecurityException("Apenas o Owner pode remover administradores");
+        }
 
         memberRepository.delete(targetMembership);
+        eventPublisher.publishEvent(new CommunityMembershipEndedEvent(communityId, target.getId()));
     }
 
     public void leave(Long communityId, String username) {
@@ -406,6 +480,7 @@ public class CommunityManagementService {
         }
 
         memberRepository.delete(membership);
+        eventPublisher.publishEvent(new CommunityMembershipEndedEvent(communityId, current.getId()));
     }
 
     public CommunityResponse transferOwnership(
@@ -463,7 +538,12 @@ public class CommunityManagementService {
                 myRole,
                 members.size(),
                 community.getCreatedAt(),
-                members
+                members,
+                community.getSports() == null || community.getSports().isEmpty()
+                        ? (community.getSport() == null ? List.of() : List.of(community.getSport()))
+                        : List.copyOf(community.getSports()),
+                community.isIndividualTournamentsEnabled(),
+                community.isTeamTournamentsEnabled()
         );
     }
 
@@ -491,6 +571,57 @@ public class CommunityManagementService {
         notification.setUsername(invited.getUsername());
         notification.setRelatedUsername(actor.getUsername());
         notification.setType(NotificationType.COMMUNITY_INVITE);
+        notification.setRead(false);
+        notificationsRepository.save(notification);
+    }
+
+    private void notifyJoinRequestCreated(Community community, Profile requester) {
+        // Notify managers only once, when a new pending request is persisted.
+        memberRepository.findByCommunityIdOrderByJoinedAtAsc(community.getId()).stream()
+                .filter(member -> member.getRole() == CommunityRole.OWNER
+                        || member.getRole() == CommunityRole.ADMIN)
+                .map(CommunityMember::getProfile)
+                .filter(profile -> !profile.getId().equals(requester.getId()))
+                .forEach(manager -> saveJoinNotification(
+                        manager, requester, community, NotificationType.COMMUNITY_JOIN_REQUEST,
+                        "Novo pedido para a comunidade " + community.getName(),
+                        "@" + requester.getUsername() + " quer entrar na comunidade "
+                                + community.getName()
+                                + ". Abre a comunidade e consulta Membros para responder."
+                ));
+    }
+
+    private void notifyJoinDecision(CommunityJoinRequest request, Profile actor, boolean accepted) {
+        Community community = request.getCommunity();
+        saveJoinNotification(
+                request.getRequester(), actor, community,
+                accepted ? NotificationType.COMMUNITY_JOIN_ACCEPTED : NotificationType.COMMUNITY_JOIN_REJECTED,
+                (accepted ? "Pedido aceite na comunidade " : "Pedido recusado na comunidade ") + community.getName(),
+                accepted
+                        ? "O teu pedido para entrar na comunidade " + community.getName()
+                                + " foi aceite. Abre Comunidades para participares."
+                        : "O teu pedido para entrar na comunidade " + community.getName()
+                                + " foi recusado."
+        );
+    }
+
+    private void saveJoinNotification(Profile recipient, Profile actor, Community community,
+                                      NotificationType type, String subject, String message) {
+        Notifications notification = new Notifications();
+        notification.setSubject(subject);
+        notification.setMessage(message);
+        notification.setGreeting("");
+        notification.setSignature("");
+        notification.setCreatedAt(Instant.now().toString());
+        notification.setFriendRequest(false);
+        notification.setUpdateProfile(false);
+        notification.setSessionInvite(false);
+        notification.setNormalMessage(false);
+        notification.setToken(null);
+        notification.setUsername(recipient.getUsername());
+        notification.setRelatedUsername(actor.getUsername());
+        notification.setCommunityId(community.getId());
+        notification.setType(type);
         notification.setRead(false);
         notificationsRepository.save(notification);
     }
@@ -572,6 +703,24 @@ public class CommunityManagementService {
         if (request.getStatus() != CommunityInviteStatus.PENDING) {
             throw new IllegalArgumentException("Este pedido já não está pendente");
         }
+    }
+
+    private List<String> normalizeSports(List<String> requested, String legacySport) {
+        List<String> input = requested == null
+                ? (legacySport == null || legacySport.isBlank() ? List.of() : List.of(legacySport))
+                : requested;
+        if (input.size() > 128) {
+            throw new IllegalArgumentException("Máximo de 128 modalidades por comunidade");
+        }
+        LinkedHashMap<String, String> unique = new LinkedHashMap<>();
+        for (String value : input) {
+            if (value == null || value.isBlank() || value.trim().length() > 100) {
+                throw new IllegalArgumentException("Cada modalidade deve ter entre 1 e 100 caracteres");
+            }
+            String sport = value.trim();
+            unique.putIfAbsent(sport.toLowerCase(Locale.ROOT), sport);
+        }
+        return new ArrayList<>(unique.values());
     }
 
     private String trimToNull(String value) {

@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-13-attendance-feed-visibility
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session_participant
+            columnName: feed_hidden
+      changes:
+        - addColumn:
+            tableName: session_participant
+            columns:
+              - column:
+                  name: feed_hidden
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

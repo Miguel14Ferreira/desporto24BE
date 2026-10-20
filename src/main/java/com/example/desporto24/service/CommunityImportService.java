@@ -26,9 +26,10 @@ import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +42,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -68,6 +71,7 @@ public class CommunityImportService {
     private final CommunitySeasonRepository communitySeasonRepository;
     private final CommunityRoundRepository communityRoundRepository;
     private final CommunityRoundEntryRepository communityRoundEntryRepository;
+    private final EntityManager entityManager;
 
     public CommunityImportContextValidationResponse validateContext(
             Long communityId,
@@ -77,6 +81,7 @@ public class CommunityImportService {
                 .orElseThrow(() -> new IllegalArgumentException("Utilizador não encontrado"));
         requireAdmin(communityId, actor);
 
+        validateSourceLabels(request);
         CommunitySeason season = communitySeasonRepository.findById(request.seasonId())
                 .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
@@ -98,7 +103,7 @@ public class CommunityImportService {
         requireAdmin(communityId, actor);
         validateFile(file);
 
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             DataFormatter formatter = new DataFormatter();
             List<CommunityImportPreviewResponse.SheetPreview> sheets = new ArrayList<>();
             for (Sheet sheet : workbook) {
@@ -137,7 +142,7 @@ public class CommunityImportService {
 
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             if (sheet == null) {
                 return new CommunityImportMappingValidationResponse(
@@ -155,6 +160,7 @@ public class CommunityImportService {
             );
             Set<String> seenFields = new java.util.HashSet<>();
             Integer playerColumn = null;
+            Integer dateColumn = null;
             List<CommunityImportMappingRequest.ColumnMapping> numericMappings = new ArrayList<>();
 
             for (CommunityImportMappingRequest.ColumnMapping mapping : request.columns()) {
@@ -169,6 +175,7 @@ public class CommunityImportService {
                     errors.add("Campo repetido: " + field);
                 } else {
                     if (field.equals("PLAYER")) playerColumn = mapping.columnIndex();
+                    if (field.equals("DATE")) dateColumn = mapping.columnIndex();
                     if (Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP").contains(field)) {
                         numericMappings.add(mapping);
                     }
@@ -183,6 +190,7 @@ public class CommunityImportService {
             }
 
             int validRows = 0;
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
             if (errors.isEmpty()) {
                 for (int rowIndex = 1; rowIndex < rows.size(); rowIndex++) {
                     List<String> rowValues = values(rows.get(rowIndex), formatter);
@@ -196,9 +204,25 @@ public class CommunityImportService {
                     }
                     for (CommunityImportMappingRequest.ColumnMapping mapping : numericMappings) {
                         String value = valueAt(rowValues, mapping.columnIndex());
-                        if (!value.isBlank() && !isNumber(value)) {
+                        if (!validImportMetric(mapping.field(), value)) {
                             warnings.add("Linha " + excelRow + ": " + mapping.field()
-                                    + " não é numérico ('" + value + "')");
+                                    + " exige um número inteiro válido ('" + value + "')");
+                            rowValid = false;
+                        }
+                    }
+                    if (rowValid && !numericValuesValid(mappedValues(request, rowValues))) {
+                        warnings.add("Linha " + excelRow
+                                + ": os resultados V/E/D ou o campo RESULT são contraditórios");
+                        rowValid = false;
+                    }
+                    if (rowValid && dateColumn != null) {
+                        String date = valueAt(rowValues, dateColumn);
+                        if (!date.isBlank() && !seenPlayersByRound
+                                .computeIfAbsent(importDateKey(date, null), ignored -> new java.util.HashSet<>())
+                                .add(normalizePlayerName(player))) {
+                            warnings.add("Linha " + excelRow + ": jogador " + player
+                                    + " repetido na jornada " + date
+                                    + "; será ignorado (mantida a primeira ocorrência)");
                             rowValid = false;
                         }
                     }
@@ -231,7 +255,7 @@ public class CommunityImportService {
         }
 
         validateFile(file);
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -239,6 +263,9 @@ public class CommunityImportService {
                     new ArrayList<>();
             List<CommunityImportNormalizedPreviewResponse.SkippedRow> skippedRows =
                     new ArrayList<>();
+            boolean hasDateMapping = request.columns().stream()
+                    .anyMatch(column -> column.field().equalsIgnoreCase("DATE"));
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
 
             for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 Row row = sourceRows.get(rowIndex);
@@ -261,6 +288,15 @@ public class CommunityImportService {
                 if (!numericValuesValid(mapped)) {
                     skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
                             sourceRow, "INVALID_NUMERIC_VALUE"
+                    ));
+                    continue;
+                }
+                String sourceDate = mapped.getOrDefault("DATE", "");
+                if (hasDateMapping && !sourceDate.isBlank() && !seenPlayersByRound
+                        .computeIfAbsent(importDateKey(sourceDate, null), ignored -> new java.util.HashSet<>())
+                        .add(normalizePlayerName(mapped.get("PLAYER")))) {
+                    skippedRows.add(new CommunityImportNormalizedPreviewResponse.SkippedRow(
+                            sourceRow, "PLAYER_DUPLICATE_IN_ROUND"
                     ));
                     continue;
                 }
@@ -304,7 +340,7 @@ public class CommunityImportService {
                 normalizedPreview(communityId, username, file, request);
 
         java.util.Map<String, String> players = new java.util.LinkedHashMap<>();
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -313,13 +349,28 @@ public class CommunityImportService {
                     .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Seleciona uma coluna para identificar o jogador"));
+            Optional<Integer> dateColumn = request.columns().stream()
+                    .filter(mapping -> mapping.field().trim().equalsIgnoreCase("DATE"))
+                    .map(CommunityImportMappingRequest.ColumnMapping::columnIndex)
+                    .findFirst();
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
 
             for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 List<String> rowValues = values(sourceRows.get(rowIndex), formatter);
                 String displayName = valueAt(rowValues, playerColumn);
-                if (!displayName.isBlank()) {
-                    players.putIfAbsent(normalizePlayerName(displayName), displayName);
+                if (displayName.isBlank()) continue;
+                // Importing player identities must honor the same rejected rows as
+                // validation/normalized preview; invalid numeric rows must not create
+                // orphan historical players.
+                if (!numericValuesValid(mappedValues(request, rowValues))) continue;
+                String normalizedName = normalizePlayerName(displayName);
+                if (dateColumn.isPresent()) {
+                    String rawDate = valueAt(rowValues, dateColumn.get());
+                    if (!rawDate.isBlank() && !seenPlayersByRound
+                            .computeIfAbsent(importDateKey(rawDate, null), ignored -> new HashSet<>())
+                            .add(normalizedName)) continue;
                 }
+                players.putIfAbsent(normalizedName, displayName);
             }
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
@@ -368,7 +419,7 @@ public class CommunityImportService {
 
         java.util.Map<String, RoundImportAccumulator> rounds = new java.util.LinkedHashMap<>();
         int rowsWithoutRound = 0;
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(request.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -388,9 +439,12 @@ public class CommunityImportService {
                 }
 
                 RoundImportAccumulator round = rounds.computeIfAbsent(
-                        sourceDate, ignored -> new RoundImportAccumulator());
-                round.players.add(normalizePlayerName(player));
-                round.addResult(mapped);
+                        importDateKey(sourceDate, null), ignored -> new RoundImportAccumulator());
+                // Keep the first appearance per player and round. Every later appearance
+                // is omitted consistently from validation, preview, planning and persistence.
+                if (round.players.add(normalizePlayerName(player))) {
+                    round.addResult(normalizePlayerName(player), mapped);
+                }
             }
         } catch (IOException exception) {
             throw new IllegalArgumentException("Não foi possível ler o ficheiro Excel", exception);
@@ -439,6 +493,13 @@ public class CommunityImportService {
         validateContext(communityId, username, context);
         CommunityImportRoundsPlanResponse plan = roundsPlan(communityId, username, file, mapping);
 
+        // Never silently discard otherwise valid participants without a round date.
+        // Confirmation reuses this final plan and therefore fails before any writes.
+        if (plan.rowsWithoutRound() > 0) {
+            throw new IllegalArgumentException(
+                    "Existem " + plan.rowsWithoutRound()
+                            + " participações sem data de jornada. Corrige o ficheiro antes de importar");
+        }
         if (plan.invalidDates() > 0) {
             throw new IllegalArgumentException("Existem datas inválidas no ficheiro. Corrige-as antes de importar");
         }
@@ -446,49 +507,83 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Indica o ano das jornadas que não têm ano no ficheiro");
         }
 
-        int duplicateRounds = 0;
-        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
-        for (CommunityImportRoundsPlanResponse.RoundPlan round : plan.rounds()) {
-            String resolvedDate = round.parsedDate();
-            if (round.needsYear()) {
-                ParsedImportDate resolved = parseImportDateWithYear(round.sourceDate(), context.defaultYear());
-                if (resolved.invalid() || resolved.date() == null) {
-                    throw new IllegalArgumentException("Não foi possível resolver a data: " + round.sourceDate());
+        // Re-read the source with the selected year to group all equivalent date
+        // formats into one actual round. The first valid player row per resolved
+        // date wins, matching the preview and persistence deduplication policy.
+        java.util.Map<String, RoundImportAccumulator> combined = new java.util.LinkedHashMap<>();
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
+            Sheet sheet = workbook.getSheet(mapping.sheetName());
+            DataFormatter formatter = new DataFormatter();
+            Integer dateColumn = mappedColumn(mapping, "DATE", "Seleciona uma coluna DATE");
+            Integer playerColumn = mappedColumn(mapping, "PLAYER", "Seleciona uma coluna PLAYER");
+            List<Row> sourceRows = nonEmptyRows(sheet, formatter);
+
+            for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
+                List<String> rowValues = values(sourceRows.get(rowIndex), formatter);
+                String player = valueAt(rowValues, playerColumn);
+                if (player.isBlank()) continue;
+                java.util.Map<String, String> mapped = mappedValues(mapping, rowValues);
+                if (!numericValuesValid(mapped)) continue;
+
+                String rawDate = valueAt(rowValues, dateColumn);
+                if (rawDate.isBlank()) continue; // Already rejected above.
+                String resolvedDate = importDateKey(rawDate, context.defaultYear());
+                RoundImportAccumulator round = combined.computeIfAbsent(
+                        resolvedDate, ignored -> new RoundImportAccumulator());
+                if (round.players.add(normalizePlayerName(player))) {
+                    round.addResult(normalizePlayerName(player), mapped);
                 }
-                resolvedDate = resolved.date();
             }
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Não foi possível ler o ficheiro histórico", exception);
+        }
 
-            Instant playedAt = LocalDate.parse(resolvedDate)
-                    .atStartOfDay(java.time.ZoneOffset.UTC)
-                    .toInstant();
-            boolean duplicate = communityRoundRepository.existsByCommunityIdAndSeasonIdAndPlayedAt(
-                    communityId, context.seasonId(), playedAt);
+        if (context.sourceRound() != null && !context.sourceRound().isBlank()
+                && combined.size() > 1) {
+            throw new IllegalArgumentException(
+                    "A jornada de origem aplica-se a uma única data. Para importar várias datas, deixa esse campo vazio");
+        }
+        int duplicateRounds = 0;
+        int acceptedRows = 0;
+        List<CommunityImportRoundsPlanResponse.RoundPlan> resolvedRounds = new ArrayList<>();
+        for (java.util.Map.Entry<String, RoundImportAccumulator> entry : combined.entrySet()) {
+            String resolvedDate = entry.getKey();
+            RoundImportAccumulator round = entry.getValue();
+            acceptedRows += round.players.size();
+            // A date collision is not itself a duplicate: different imports and
+            // manually entered rounds can legitimately occur on the same day.
+            String importName = importRoundName(resolvedDate, context);
+            boolean duplicate = round.unresolvedResults == 0 && importedRoundExists(
+                    communityId, context.seasonId(), resolvedDate, importName, round.entriesByPlayer);
             if (duplicate) duplicateRounds++;
-
             resolvedRounds.add(new CommunityImportRoundsPlanResponse.RoundPlan(
-                    round.sourceDate(),
-                    resolvedDate,
-                    false,
-                    false,
-                    duplicate,
-                    round.players(),
-                    round.wins(),
-                    round.draws(),
-                    round.losses(),
-                    round.unresolvedResults()
+                    resolvedDate, resolvedDate, false, false, duplicate, round.players.size(),
+                    round.wins, round.draws, round.losses, round.unresolvedResults
             ));
         }
 
         return new CommunityImportRoundsPlanResponse(
-                plan.sheetName(),
-                plan.acceptedRows(),
-                plan.distinctRounds(),
-                plan.rowsWithoutRound(),
-                0,
-                0,
-                duplicateRounds,
-                resolvedRounds
+                plan.sheetName(), acceptedRows, resolvedRounds.size(), 0, 0, 0,
+                duplicateRounds, resolvedRounds
         );
+    }
+
+    /**
+     * Canonical round key for dates with a year. A yearless date remains raw
+     * during early preview, then resolves using the selected default year in the
+     * final plan and confirm phases. Invalid formats are checked by roundsPlan.
+     */
+    private String importDateKey(String sourceDate, Integer defaultYear) {
+        ParsedImportDate parsed = parseImportDate(sourceDate);
+        if (parsed.date() != null) return parsed.date();
+        if (parsed.needsYear() && defaultYear != null) {
+            ParsedImportDate resolved = parseImportDateWithYear(sourceDate, defaultYear);
+            if (resolved.date() == null || resolved.invalid()) {
+                throw new IllegalArgumentException("Não foi possível resolver a data: " + sourceDate);
+            }
+            return resolved.date();
+        }
+        return sourceDate.trim();
     }
 
     private ParsedImportDate parseImportDateWithYear(String value, int year) {
@@ -546,6 +641,10 @@ public class CommunityImportService {
         CommunitySeason season = communitySeasonRepository.findById(context.seasonId())
                 .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
+        // Separate import requests can both see a missing date in their initial plan.
+        // Serialize confirmations of this season without introducing a global
+        // UNIQUE(date) constraint: multiple legitimate games may share a date.
+        entityManager.lock(season, LockModeType.PESSIMISTIC_WRITE);
 
         java.util.Map<String, CommunityImportRoundsPlanResponse.RoundPlan> roundsBySource =
                 plan.rounds().stream().collect(java.util.stream.Collectors.toMap(
@@ -557,7 +656,7 @@ public class CommunityImportService {
         int createdRounds = 0;
         int skippedDuplicates = 0;
         int createdEntries = 0;
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        try (Workbook workbook = CommunityImportWorkbookReader.open(file)) {
             Sheet sheet = workbook.getSheet(mapping.sheetName());
             DataFormatter formatter = new DataFormatter();
             List<Row> sourceRows = nonEmptyRows(sheet, formatter);
@@ -565,6 +664,7 @@ public class CommunityImportService {
             Integer playerColumn = mappedColumn(mapping, "PLAYER", "Seleciona uma coluna PLAYER");
 
             java.util.Map<String, List<Row>> rowsByRound = new java.util.LinkedHashMap<>();
+            java.util.Map<String, Set<String>> seenPlayersByRound = new java.util.HashMap<>();
             for (int rowIndex = 1; rowIndex < sourceRows.size(); rowIndex++) {
                 List<String> values = values(sourceRows.get(rowIndex), formatter);
                 String player = valueAt(values, playerColumn);
@@ -572,30 +672,45 @@ public class CommunityImportService {
                 if (player.isBlank() || sourceDate.isBlank()) continue;
                 java.util.Map<String, String> mapped = mappedValues(mapping, values);
                 if (!numericValuesValid(mapped)) continue;
-                rowsByRound.computeIfAbsent(sourceDate, ignored -> new ArrayList<>())
+                String resolvedDate = importDateKey(sourceDate, context.defaultYear());
+                if (!seenPlayersByRound
+                        .computeIfAbsent(resolvedDate, ignored -> new java.util.HashSet<>())
+                        .add(normalizePlayerName(player))) continue;
+                rowsByRound.computeIfAbsent(resolvedDate, ignored -> new ArrayList<>())
                         .add(sourceRows.get(rowIndex));
             }
 
             for (java.util.Map.Entry<String, CommunityImportRoundsPlanResponse.RoundPlan> item
                     : roundsBySource.entrySet()) {
                 CommunityImportRoundsPlanResponse.RoundPlan roundPlan = item.getValue();
-                if (roundPlan.duplicate()) {
+                Instant playedAt = LocalDate.parse(roundPlan.parsedDate())
+                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+                // The preview is informational. Re-check after locking the season,
+                // comparing the actual source entries instead of just the date.
+                List<Row> importedRows = rowsByRound.getOrDefault(item.getKey(), List.of());
+                java.util.Map<String, java.util.Map<String, String>> importedEntries =
+                        new java.util.LinkedHashMap<>();
+                for (Row row : importedRows) {
+                    List<String> values = values(row, formatter);
+                    importedEntries.put(normalizePlayerName(valueAt(values, playerColumn)),
+                            mappedValues(mapping, values));
+                }
+                String importedName = importRoundName(roundPlan.parsedDate(), context);
+                if (importedRoundExists(
+                        communityId, season.getId(), roundPlan.parsedDate(), importedName, importedEntries)) {
                     skippedDuplicates++;
                     continue;
                 }
-
-                Instant playedAt = LocalDate.parse(roundPlan.parsedDate())
-                        .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
                 CommunityRound round = communityRoundRepository.save(CommunityRound.builder()
                         .community(community)
                         .season(season)
-                        .name("Import " + roundPlan.parsedDate())
+                        .name(importedName)
                         .playedAt(playedAt)
                         .createdAt(Instant.now())
                         .build());
                 createdRounds++;
 
-                for (Row row : rowsByRound.getOrDefault(item.getKey(), List.of())) {
+                for (Row row : importedRows) {
                     List<String> values = values(row, formatter);
                     String displayName = valueAt(values, playerColumn).trim();
                     String normalizedName = normalizePlayerName(displayName);
@@ -629,6 +744,75 @@ public class CommunityImportService {
 
         return new CommunityImportRoundsResultResponse(
                 createdRounds, skippedDuplicates, createdEntries);
+    }
+
+    /**
+     * Compare the imported round itself, not merely its date. Existing manual
+     * rounds and different source competitions on the same date must not suppress
+     * another import. Works with the original "Import yyyy-MM-dd" records too.
+     *
+     * Two truly identical sets of players/results on the same day remain
+     * indistinguishable without an explicit source competition or round key.
+     */
+    private String importRoundName(String date, CommunityImportContextRequest context) {
+        String competition = sourceLabel(context.sourceCompetition());
+        String sourceRound = sourceLabel(context.sourceRound());
+        String name = "Import " + date
+                + (competition.isEmpty() ? "" : " | Competição: " + competition)
+                + (sourceRound.isEmpty() ? "" : " | Jornada: " + sourceRound);
+        if (name.length() > 100) {
+            throw new IllegalArgumentException(
+                    "A competição e a jornada de origem são demasiado longas para identificar a importação");
+        }
+        return name;
+    }
+
+    private void validateSourceLabels(CommunityImportContextRequest context) {
+        if (context == null) throw new IllegalArgumentException("Indica a época de destino");
+        for (String label : List.of(
+                sourceLabel(context.sourceCompetition()), sourceLabel(context.sourceRound()))) {
+            if (label.indexOf('|') >= 0 || label.chars().anyMatch(Character::isISOControl)) {
+                throw new IllegalArgumentException(
+                        "A identificação de origem não pode conter barras verticais ou caracteres de controlo");
+            }
+        }
+        if (sourceLabel(context.sourceCompetition()).length() > 60
+                || sourceLabel(context.sourceRound()).length() > 40) {
+            throw new IllegalArgumentException("A identificação de origem é demasiado longa");
+        }
+    }
+
+    private String sourceLabel(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", " ");
+    }
+
+    private boolean importedRoundExists(Long communityId, Long seasonId, String date,
+            String importName, java.util.Map<String, java.util.Map<String, String>> sourceEntries) {
+        if (sourceEntries.isEmpty()) return false;
+        Instant playedAt = LocalDate.parse(date)
+                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant();
+        return communityRoundRepository.findByCommunityIdAndSeasonIdAndPlayedAt(
+                        communityId, seasonId, playedAt).stream()
+                .filter(round -> importName.equalsIgnoreCase(round.getName()))
+                .anyMatch(round -> sameImportedEntries(round.getId(), sourceEntries));
+    }
+
+    private boolean sameImportedEntries(Long roundId,
+            java.util.Map<String, java.util.Map<String, String>> sourceEntries) {
+        List<CommunityRoundEntry> existing = communityRoundEntryRepository
+                .findByRoundIdOrderByIdAsc(roundId);
+        if (existing.size() != sourceEntries.size()) return false;
+        for (CommunityRoundEntry entry : existing) {
+            CommunityPlayer player = entry.getCommunityPlayer();
+            if (player == null || player.getNormalizedName() == null) return false;
+            java.util.Map<String, String> source = sourceEntries.get(player.getNormalizedName());
+            if (source == null || entry.getResult() != importedResult(source)
+                    || entry.getGoals() != importedInt(source.get("GOALS"))
+                    || entry.getAssists() != importedInt(source.get("ASSISTS"))
+                    || entry.isMvp() != (importedInt(source.get("MVP")) > 0)
+                    || entry.isCleanSheet() || entry.getTeam() != null) return false;
+        }
+        return true;
     }
 
     private CommunityMatchResult importedResult(java.util.Map<String, String> mapped) {
@@ -744,12 +928,15 @@ public class CommunityImportService {
 
     private static final class RoundImportAccumulator {
         private final java.util.Set<String> players = new java.util.LinkedHashSet<>();
+        private final java.util.Map<String, java.util.Map<String, String>> entriesByPlayer =
+                new java.util.LinkedHashMap<>();
         private int wins;
         private int draws;
         private int losses;
         private int unresolvedResults;
 
-        private void addResult(java.util.Map<String, String> mapped) {
+        private void addResult(String normalizedPlayer, java.util.Map<String, String> mapped) {
+            entriesByPlayer.put(normalizedPlayer, java.util.Map.copyOf(mapped));
             if (positive(mapped.get("WIN"))) {
                 wins++;
                 return;
@@ -830,10 +1017,46 @@ public class CommunityImportService {
 
     private boolean numericValuesValid(java.util.Map<String, String> mapped) {
         for (String field : Set.of("WIN", "DRAW", "LOSS", "GOALS", "ASSISTS", "POINTS", "MVP")) {
+            if (!validImportMetric(field, mapped.get(field))) return false;
+        }
+        // Never silently turn a WIN+LOSS row into a WIN by field precedence.
+        String flaggedResult = null;
+        for (String field : List.of("WIN", "DRAW", "LOSS")) {
             String value = mapped.get(field);
-            if (value != null && !value.isBlank() && !isNumber(value)) return false;
+            if (value == null || value.isBlank()
+                    || Double.parseDouble(value.trim().replace(',', '.')) == 0) continue;
+            if (flaggedResult != null) return false;
+            flaggedResult = field;
+        }
+        String result = mapped.get("RESULT");
+        if (flaggedResult != null && result != null && !result.isBlank()) {
+            String textual = switch (result.trim().toUpperCase(Locale.ROOT)) {
+                case "W", "WIN", "V", "VITORIA", "VITÓRIA" -> "WIN";
+                case "DRAW", "E", "EMPATE" -> "DRAW";
+                case "L", "LOSS", "DERROTA" -> "LOSS";
+                default -> null;
+            };
+            if (!flaggedResult.equals(textual)) return false;
         }
         return true;
+    }
+
+    private boolean validImportMetric(String field, String raw) {
+        if (raw == null || raw.isBlank()) return true;
+        try {
+            double number = Double.parseDouble(raw.trim().replace(',', '.'));
+            if (!Double.isFinite(number) || number != Math.rint(number)
+                    || Math.abs(number) > 1_000_000) return false;
+            String normalizedField = field.trim().toUpperCase(Locale.ROOT);
+            if (Set.of("WIN", "DRAW", "LOSS", "MVP").contains(normalizedField)) {
+                return number == 0 || number == 1;
+            }
+            // A historical points deduction may be negative. Physical match
+            // statistics (goals, assists) may not.
+            return normalizedField.equals("POINTS") || number >= 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 
     private Double numberOrNull(String value) {
@@ -847,15 +1070,6 @@ public class CommunityImportService {
 
     private String valueAt(List<String> values, int index) {
         return index >= 0 && index < values.size() ? values.get(index).trim() : "";
-    }
-
-    private boolean isNumber(String value) {
-        try {
-            Double.parseDouble(value.replace(',', '.'));
-            return true;
-        } catch (NumberFormatException exception) {
-            return false;
-        }
     }
 
     private List<CommunityImportPreviewResponse.ColumnSuggestion> suggestColumns(
@@ -976,8 +1190,13 @@ public class CommunityImportService {
             throw new IllegalArgumentException("Seleciona um ficheiro Excel");
         }
         String fileName = file.getOriginalFilename();
-        if (fileName == null || !fileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
-            throw new IllegalArgumentException("O ficheiro deve estar no formato .xlsx");
+        String lowerName = fileName == null ? "" : fileName.toLowerCase(Locale.ROOT);
+        if (!lowerName.endsWith(".xlsx") && !lowerName.endsWith(".xls")
+                && !lowerName.endsWith(".csv") && !lowerName.endsWith(".tsv")) {
+            throw new IllegalArgumentException("Formatos suportados: .xlsx, .xls, .csv e .tsv");
+        }
+        if (file.getSize() > 10L * 1024 * 1024) {
+            throw new IllegalArgumentException("O ficheiro não pode ultrapassar 10 MB");
         }
     }
 

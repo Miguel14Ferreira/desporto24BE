@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-17-community-tournament-team-champion
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: champion_team_id
+                  type: BIGINT
+              - column:
+                  name: champion_team_name
+                  type: VARCHAR(100)

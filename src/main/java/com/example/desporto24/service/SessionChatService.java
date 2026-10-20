@@ -1,6 +1,8 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -53,12 +56,16 @@ public class SessionChatService {
 
     @Transactional
     public SessionMessageResponse post(Long sessionId, String body, String username) {
-        Session session = sessionRepository.findById(sessionId)
+        // Serialize with cancellation/completion so closed sessions cannot receive new messages.
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile actor = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new IllegalStateException("Session chat is closed after the game");
+        }
 
         String normalized = body == null ? "" : body.trim();
         if (normalized.isBlank()) {
@@ -99,6 +106,19 @@ public class SessionChatService {
                 .forEach(recipients::add);
 
         return recipients;
+    }
+
+    static boolean isChatOpen(Session session, Instant now) {
+        if (session.getStatus() == SessionStatus.COMPLETED
+                || session.getStatus() == SessionStatus.CANCELLED
+                || session.getProblemType() == SessionProblemType.NOT_OCCURRED
+                || Boolean.FALSE.equals(session.getEnabled())) {
+            return false;
+        }
+
+        // Preserve game-day coordination. The chat becomes read-only two hours after kick-off.
+        return session.getGameDate() == null
+                || session.getGameDate().toInstant().plus(Duration.ofHours(2)).isAfter(now);
     }
 
     private void requireChatAccess(Session session, Profile actor) {

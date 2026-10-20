@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -20,13 +19,9 @@ public class VenueSeedData implements ApplicationRunner {
     private static final String ABOBODA_SOURCE_REFERENCE = "OFFICIAL:CASCAIS:CDM-ABOBODA";
 
     private final VenueRepository venueRepository;
-    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(ApplicationArguments args) {
-        jdbcTemplate.execute("ALTER TABLE venue ALTER COLUMN created_by_profile_id DROP NOT NULL");
-        jdbcTemplate.execute("ALTER TABLE venue_photo ALTER COLUMN uploaded_by_profile_id DROP NOT NULL");
-
         seedCng();
         seedAboboda();
     }

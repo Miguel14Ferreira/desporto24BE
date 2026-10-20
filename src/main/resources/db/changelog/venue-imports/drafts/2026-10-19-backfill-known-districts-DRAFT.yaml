@@ -1,0 +1,19 @@
+databaseChangeLog:
+  # DRAFT ONLY — do not include in db.changelog-master.yaml without review.
+  - changeSet:
+      id: 2026-10-19-backfill-venue-district-from-unambiguous-city
+      author: jynlo-venues
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        tableExists:
+          schemaName: desporto24
+          tableName: venue
+      changes:
+        - sqlFile:
+            path: 2026-10-19-backfill-known-districts-DRAFT.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;

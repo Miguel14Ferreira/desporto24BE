@@ -18,6 +18,7 @@ import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.UserBlockService;
+import com.example.desporto24.service.PostGameReminderService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
@@ -48,18 +49,20 @@ public class NotificationServiceImpl implements NotificationService {
     private final FriendRepository friendRepository;
     private final ProfileRepository profileRepository;
     private final UserBlockService userBlockService;
+    private final PostGameReminderService postGameReminderService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
 
     @Override
     public List<Notifications> getNotificationsFromProfile(String username) {
+        postGameReminderService.createDueReminders(username);
         return notificationsRepository.findByUsername(username);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public long countUnreadNotifications(String username) {
+        postGameReminderService.createDueReminders(username);
         return notificationsRepository.countByUsernameAndReadFalse(username);
     }
 

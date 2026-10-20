@@ -4,13 +4,15 @@ import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.repository.venue.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.nio.charset.StandardCharsets;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.util.LinkedHashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -21,27 +23,381 @@ import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
-@Component
-@ConditionalOnProperty(prefix = "desporto.venues.bootstrap", name = "snid-enabled", havingValue = "true")
+@Service
 @RequiredArgsConstructor
-public class SnidVenueImportData implements ApplicationRunner {
+public class SnidVenueImportData {
 
     private static final String DATASET_SEARCH_URL =
             "https://dados.gov.pt/api/1/datasets/?q=Sistema%20Nacional%20de%20Informa%C3%A7%C3%A3o%20Desportiva";
+    private static final String[] DATASET_SEARCH_URLS = {
+            DATASET_SEARCH_URL,
+            "https://dados.gov.pt/api/1/datasets/?q=SNID",
+            "https://dados.gov.pt/api/1/datasets/?q=instala%C3%A7%C3%B5es%20desportivas"
+    };
     private static final String SOURCE_PREFIX = "SNID:";
     private static final int SAVE_BATCH_SIZE = 500;
+    private static final Pattern JSON_KEY = Pattern.compile("\\\"([^\\\"]{1,80})\\\"\\s*:");
 
     private final VenueRepository venueRepository;
 
     private final RestClient restClient = RestClient.builder().build();
 
-    @Override
-    public void run(ApplicationArguments args) {
+    /** Read-only check of the remote GeoJSON and approximate Portuguese coverage. */
+    /** Validate the official SNID location JSON without persisting records or loading the file into memory. */
+    public Map<String, Object> validateSource() {
+        String url = findSnidLocationJsonUrl();
+        if (url == null) throw new IllegalStateException("SNID location JSON resource not found");
+        HttpURLConnection connection = null;
         try {
+            URI uri = URI.create(url);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+                throw new IllegalArgumentException("Unexpected SNID resource host");
+            }
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            if (connection.getResponseCode() != 200) {
+                throw new IllegalStateException("SNID JSON HTTP " + connection.getResponseCode());
+            }
+            int total = 0, valid = 0, mainland = 0, madeira = 0, azores = 0;
+            int sportsText = 0, sportsArray = 0, sportsObject = 0;
+            Map<String, Integer> categoryCounts = new java.util.TreeMap<>();
+            Set<String> categorySamples = new LinkedHashSet<>();
+            Set<String> typeSamples = new LinkedHashSet<>();
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (var input = connection.getInputStream();
+                 var parser = mapper.getFactory().createParser(input)) {
+                while (parser.nextToken() != null) {
+                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                    total++;
+                    if (record != null) {
+                        String category = snidCategory(record.path("category"));
+                        categoryCounts.merge(category == null ? "(sem categoria)" : category, 1, Integer::sum);
+                        String type = clean(record.path("type").asText(null));
+                        if (category != null && categorySamples.size() < 12) categorySamples.add(limit(category.replaceAll("[\\r\\n]", " "), 80));
+                        if (type != null && typeSamples.size() < 12) typeSamples.add(limit(type.replaceAll("[\\r\\n]", " "), 80));
+                    }
+                    if (total == 1 && record != null && record.isObject()) {
+                        List<String> fieldNames = new ArrayList<>();
+                        record.fieldNames().forEachRemaining(fieldNames::add);
+                        log.info("SNID read-only record field names: {}", fieldNames);
+                        log.info("SNID read-only field shapes: category={}, type={}, address={}, municipalityInfo={}",
+                                snidNodeShape(record.path("category")),
+                                snidNodeShape(record.path("type")),
+                                snidNodeShape(record.path("address")),
+                                snidNodeShape(record.path("municipalityInfo")));
+                        log.info("SNID read-only address keys: {}", snidObjectKeys(record.path("address")));
+                        log.info("SNID read-only municipalityInfo keys: {}", snidObjectKeys(record.path("municipalityInfo")));
+                    }
+                    var sportsField = record == null ? null : record.path("sports");
+                    if (sportsField != null && sportsField.isTextual()) sportsText++;
+                    else if (sportsField != null && sportsField.isArray()) sportsArray++;
+                    else if (sportsField != null && sportsField.isObject()) sportsObject++;
+                    if (record == null || !record.path("name").isTextual()
+                            || record.path("name").asText().isBlank()) continue;
+                    com.fasterxml.jackson.databind.JsonNode location;
+                    try {
+                        location = mapper.readTree(record.path("location").asText(""));
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                        continue;
+                    }
+                    if (location == null || !"Point".equals(location.path("type").asText())) continue;
+                    var coords = location.path("coordinates");
+                    if (!coords.isArray() || coords.size() != 2
+                            || !coords.get(0).isNumber() || !coords.get(1).isNumber()) continue;
+                    double lon = coords.get(0).asDouble(), lat = coords.get(1).asDouble();
+                    if (!Double.isFinite(lon) || !Double.isFinite(lat)) continue;
+                    valid++;
+                    if (lat >= 36.9 && lat <= 42.2 && lon >= -9.6 && lon <= -6.1) mainland++;
+                    else if (lat >= 32.0 && lat <= 33.3 && lon >= -17.5 && lon <= -15.5) madeira++;
+                    else if (lat >= 36.8 && lat <= 40.2 && lon >= -31.5 && lon <= -24.5) azores++;
+                }
+            }
+            log.info("SNID read-only category counts: {}", categoryCounts);
+            log.info("SNID read-only category examples (up to 12): {}", categorySamples);
+            log.info("SNID read-only type examples (up to 12): {}", typeSamples);
+            return Map.ofEntries(
+                    Map.entry("total", total), Map.entry("valid", valid),
+                    Map.entry("mainland", mainland), Map.entry("madeira", madeira),
+                    Map.entry("azores", azores),
+                    Map.entry("otherValid", valid - mainland - madeira - azores),
+                    Map.entry("source", url), Map.entry("sportsText", sportsText),
+                    Map.entry("sportsArray", sportsArray), Map.entry("sportsObject", sportsObject),
+                    Map.entry("categoryCounts", categoryCounts));
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException("SNID JSON validation failed", ex);
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private String findSnidLocationJsonUrl() {
+        for (String searchUrl : DATASET_SEARCH_URLS) {
+            try {
+                Map<?, ?> response = restClient.get().uri(searchUrl).retrieve().body(Map.class);
+                if (response == null || !(response.get("data") instanceof List<?> datasets)) continue;
+                for (Object item : datasets) {
+                    if (!(item instanceof Map<?, ?> dataset)) continue;
+                    String title = clean(string(dataset.get("title")));
+                    if (title == null || !title.toLowerCase(Locale.ROOT)
+                            .contains("sistema nacional de informação desportiva")) continue;
+                    if (!(dataset.get("resources") instanceof List<?> resources)) continue;
+                    log.info("SNID read-only resource inventory: total={}", resources.size());
+                    int listed = 0;
+                    for (Object entry : resources) {
+                        if (!(entry instanceof Map<?, ?> metadata)) continue;
+                        if (listed++ >= 50) break;
+                        log.info("SNID read-only resource: title={}, format={}, size={}",
+                                limit(clean(string(metadata.get("title"))), 120),
+                                limit(clean(string(metadata.get("format"))), 20),
+                                metadata.get("filesize"));
+                        String partTitle = clean(string(metadata.get("title")));
+                        String partUrl = clean(string(metadata.get("url")));
+                        if (partTitle != null && partTitle.startsWith("part-") && partTitle.endsWith(".json")
+                                && partUrl != null) {
+                            try {
+                                URI partUri = URI.create(partUrl);
+                                if ("https".equalsIgnoreCase(partUri.getScheme())
+                                        && "dados.gov.pt".equalsIgnoreCase(partUri.getHost())) {
+                                    log.info("SNID read-only part resource: title={}, url={}",
+                                            limit(partTitle, 120), partUri);
+                                }
+                            } catch (IllegalArgumentException ex) {
+                                log.warn("SNID read-only part resource URL invalid: {}", limit(partTitle, 120));
+                            }
+                        }
+                    }
+                    for (Object resourceValue : resources) {
+                        if (resourceValue instanceof Map<?, ?> resource
+                                && "snid-demo.json".equals(clean(string(resource.get("title"))))) {
+                            inspectSnidDemoFields(clean(string(resource.get("url"))));
+                            break;
+                        }
+                    }
+                    for (Object resourceValue : resources) {
+                        if (!(resourceValue instanceof Map<?, ?> resource)) continue;
+                        String resourceTitle = clean(string(resource.get("title")));
+                        String format = clean(string(resource.get("format")));
+                        String url = clean(string(resource.get("url")));
+                        if (resourceTitle != null && resourceTitle.startsWith("snid-localizacao")
+                                && format != null && format.equalsIgnoreCase("json")
+                                && resource.get("filesize") instanceof Number size && size.longValue() > 0
+                                && url != null) return url;
+                    }
+                }
+            } catch (org.springframework.web.client.RestClientException ex) {
+                log.warn("SNID location dataset search unavailable for {}: {}", searchUrl,
+                        ex.getClass().getSimpleName());
+            }
+        }
+        return null;
+    }
+
+
+    /** Inspect only the first demo record; do not persist or log record values. */
+    private void inspectSnidDemoFields(String resourceUrl) {
+        if (resourceUrl == null) return;
+        URI uri;
+        try { uri = URI.create(resourceUrl); }
+        catch (IllegalArgumentException ex) { return; }
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) return;
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            if (connection.getResponseCode() != 200) {
+                log.info("SNID demo read-only HTTP status: {}", connection.getResponseCode());
+                return;
+            }
+            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (var input = connection.getInputStream(); var parser = mapper.getFactory().createParser(input)) {
+                var token = parser.nextToken();
+                if (token == com.fasterxml.jackson.core.JsonToken.START_ARRAY) token = parser.nextToken();
+                if (token == com.fasterxml.jackson.core.JsonToken.START_OBJECT) {
+                    com.fasterxml.jackson.databind.JsonNode first = mapper.readTree(parser);
+                    log.info("SNID demo read-only first object keys: {}", snidObjectKeys(first));
+                } else log.info("SNID demo read-only first token: {}", token);
+            }
+        } catch (java.io.IOException ex) {
+            log.warn("SNID demo read-only inspection unavailable: {}", ex.getClass().getSimpleName());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** Return JSON object keys only; never include their values. */
+    private List<String> snidObjectKeys(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node == null || !node.isObject()) return List.of();
+        List<String> keys = new ArrayList<>();
+        node.fieldNames().forEachRemaining(keys::add);
+        return keys;
+    }
+
+    /** Describe a JSON value without logging potentially sensitive field contents. */
+    private String snidNodeShape(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node == null || node.isMissingNode()) return "missing";
+        if (node.isNull()) return "null";
+        if (node.isTextual()) return "text";
+        if (node.isArray()) return "array";
+        if (node.isObject()) return "object";
+        return "scalar";
+    }
+
+    /** Preserve a human-readable category without serializing JSON objects into venue_type. */
+    private String snidCategory(com.fasterxml.jackson.databind.JsonNode category) {
+        if (category == null || category.isNull() || category.isMissingNode()) return null;
+        if (category.isTextual()) return clean(category.asText());
+        if (!category.isObject()) return null;
+        for (String field : new String[]{"name", "designation", "designacao", "label", "type"}) {
+            var value = category.path(field);
+            if (value.isTextual()) {
+                String name = clean(value.asText());
+                if (name != null) return name;
+            }
+        }
+        return null;
+    }
+
+    /** SNID municipalityInfo may be either a string or a structured object. */
+    private String snidMunicipality(com.fasterxml.jackson.databind.JsonNode info) {
+        if (info == null || info.isNull() || info.isMissingNode()) return null;
+        if (info.isTextual()) return clean(info.asText());
+        if (!info.isObject()) return null;
+        for (String field : new String[]{"name", "municipality", "municipio", "concelho", "designacao"}) {
+            var value = info.path(field);
+            if (value.isTextual()) {
+                String municipality = clean(value.asText());
+                if (municipality != null) return municipality;
+            }
+        }
+        return null;
+    }
+
+    /** Stream the official SNID records; persist only bounded batches. */
+    private ImportResult importOfficialJson(String resourceUrl) throws java.io.IOException {
+        URI uri = URI.create(resourceUrl);
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+            throw new IllegalArgumentException("Unexpected SNID resource host");
+        }
+        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
+        connection.setConnectTimeout(5000);
+        connection.setReadTimeout(15000);
+        connection.setInstanceFollowRedirects(false);
+        try {
+            if (connection.getResponseCode() != 200) {
+                throw new java.io.IOException("SNID JSON HTTP " + connection.getResponseCode());
+            }
+            Set<String> sourceReferences = new HashSet<>();
+            Set<String> venueKeys = new HashSet<>();
+            for (VenueRepository.VenueDeduplicationView existing : venueRepository.findAllProjectedBy()) {
+                if (existing.getSourceReference() != null) sourceReferences.add(existing.getSourceReference());
+                String key = venueKey(existing.getName(), existing.getLatitude(), existing.getLongitude());
+                if (key != null) venueKeys.add(key);
+            }
+            int total = 0, inserted = 0, skipped = 0;
+            List<Venue> batch = new ArrayList<>(SAVE_BATCH_SIZE);
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (var input = connection.getInputStream();
+                 var parser = mapper.getFactory().createParser(input)) {
+                while (parser.nextToken() != null) {
+                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                    total++;
+                    String name = clean(record.path("name").asText(null));
+                    // SNID also publishes sports institutions, which are not bookable venues.
+                    String category = snidCategory(record.path("category"));
+                    String normalizedCategory = category == null ? "" : java.text.Normalizer.normalize(
+                            category, java.text.Normalizer.Form.NFD)
+                            .replaceAll("\\p{M}+", "").toLowerCase(java.util.Locale.ROOT);
+                    if (normalizedCategory.contains("instituicao desportiva")
+                            || normalizedCategory.contains("insituicao desportiva")) {
+                        skipped++;
+                        continue;
+                    }
+                    com.fasterxml.jackson.databind.JsonNode location;
+                    try {
+                        location = mapper.readTree(record.path("location").asText(""));
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                        skipped++;
+                        continue;
+                    }
+                    var coords = location == null ? null : location.path("coordinates");
+                    if (name == null || location == null
+                            || !"Point".equals(location.path("type").asText())
+                            || coords == null || !coords.isArray() || coords.size() != 2
+                            || !coords.get(0).isNumber() || !coords.get(1).isNumber()) {
+                        skipped++;
+                        continue;
+                    }
+                    double lon = coords.get(0).asDouble(), lat = coords.get(1).asDouble();
+                    if (!Double.isFinite(lon) || !Double.isFinite(lat)
+                            || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                        skipped++;
+                        continue;
+                    }
+                    var address = record.path("address");
+                    String municipality = fallback(clean(address.path("addressLocality").asText(null)),
+                            snidMunicipality(record.path("municipalityInfo")));
+                    String district = clean(address.path("district").asText(null));
+                    String street = clean(address.path("streetAddress").asText(null));
+                    String postalCode = clean(address.path("postalCode").asText(null));
+                    String officialAddress = fallback(street, name);
+                    if (postalCode != null && street != null) officialAddress += ", " + postalCode;
+                    if (municipality != null) officialAddress += ", " + municipality;
+                    String rawId = clean(record.path("id").asText(null));
+                    String reference = SOURCE_PREFIX + stableId(rawId, name, municipality, lat, lon);
+                    String key = venueKey(name, lat, lon);
+                    if (sourceReferences.contains(reference) || (key != null && venueKeys.contains(key))) {
+                        skipped++;
+                        continue;
+                    }
+                    String city = fallback(municipality, fallback(district, "Portugal"));
+                    Venue venue = Venue.builder()
+                            .name(limit(name, 140))
+                            .city(limit(city, 120))
+                            .district(limit(district, 120))
+                            .address(limit(officialAddress, 255))
+                            .venueType(limit(snidCategory(record.path("category")), 80))
+                            .latitude(lat)
+                            .longitude(lon)
+                            .informationSource(Venue.InformationSource.OFFICIAL)
+                            .sourceReference(limit(reference, 255))
+                            .createdAt(Instant.now())
+                            .build();
+                    batch.add(venue);
+                    sourceReferences.add(reference);
+                    if (key != null) venueKeys.add(key);
+                    if (batch.size() >= SAVE_BATCH_SIZE) {
+                        venueRepository.saveAll(batch);
+                        inserted += batch.size();
+                        batch.clear();
+                    }
+                }
+            }
+            if (!batch.isEmpty()) {
+                venueRepository.saveAll(batch);
+                inserted += batch.size();
+            }
+            log.info("SNID official JSON import: total={}, inserted={}, skipped={}", total, inserted, skipped);
+            return new ImportResult(total, inserted, skipped);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    public ImportResult importVenues() {
+        try {
+            String officialJsonUrl = findSnidLocationJsonUrl();
+            if (officialJsonUrl != null) {
+                return importOfficialJson(officialJsonUrl);
+            }
             String geoJsonUrl = findSnidGeoJsonUrl();
             if (geoJsonUrl == null || geoJsonUrl.isBlank()) {
-                log.warn("SNID venue import skipped: GeoJSON resource not found");
-                return;
+                throw new IllegalStateException("SNID GeoJSON resource not found");
             }
 
             Map<?, ?> geoJson = restClient.get()
@@ -50,15 +406,14 @@ public class SnidVenueImportData implements ApplicationRunner {
                     .body(Map.class);
 
             if (geoJson == null || !(geoJson.get("features") instanceof List<?> features)) {
-                log.warn("SNID venue import skipped: invalid GeoJSON payload");
-                return;
+                throw new IllegalStateException("Invalid SNID GeoJSON payload");
             }
 
-            List<Venue> existingVenues = venueRepository.findAllByOrderByNameAsc();
+            List<VenueRepository.VenueDeduplicationView> existingVenues = venueRepository.findAllProjectedBy();
             Set<String> sourceReferences = new HashSet<>();
             Set<String> venueKeys = new HashSet<>();
 
-            for (Venue venue : existingVenues) {
+            for (VenueRepository.VenueDeduplicationView venue : existingVenues) {
                 if (venue.getSourceReference() != null) {
                     sourceReferences.add(venue.getSourceReference());
                 }
@@ -187,27 +542,50 @@ public class SnidVenueImportData implements ApplicationRunner {
                     skipped,
                     features.size(),
                     geoJsonUrl);
+            return new ImportResult(features.size(), inserted, skipped);
         } catch (Exception ex) {
-            log.warn("SNID venue import failed without blocking startup: {}", ex.getMessage(), ex);
+            log.error("SNID venue import failed: {}", ex.getMessage(), ex);
+            throw new IllegalStateException("SNID venue import failed", ex);
         }
     }
 
+    public record ImportResult(int processed, int inserted, int skipped) {}
+
     private String findSnidGeoJsonUrl() {
+        for (String searchUrl : DATASET_SEARCH_URLS) {
+            try {
+                String found = findSnidGeoJsonUrl(searchUrl);
+                if (found != null) return found;
+            } catch (org.springframework.web.client.RestClientException ex) {
+                log.warn("SNID dataset search unavailable for {}: {}", searchUrl,
+                        ex.getClass().getSimpleName());
+            }
+        }
+        return null;
+    }
+
+    private String findSnidGeoJsonUrl(String searchUrl) {
         Map<?, ?> response = restClient.get()
-                .uri(DATASET_SEARCH_URL)
+                .uri(searchUrl)
                 .retrieve()
                 .body(Map.class);
 
         if (response == null || !(response.get("data") instanceof List<?> datasets)) {
+            log.warn("SNID dataset search returned invalid response for {}", searchUrl);
             return null;
         }
 
+        log.info("SNID dataset search returned {} candidate datasets for {}", datasets.size(), searchUrl);
+
+        boolean inspected = false;
         for (Object datasetValue : datasets) {
             if (!(datasetValue instanceof Map<?, ?> dataset)) {
                 continue;
             }
 
             String title = clean(string(dataset.get("title")));
+            log.info("SNID dataset candidate: title={}, resources={}",
+                    title, dataset.get("resources") instanceof List<?> items ? items.size() : 0);
             if (title == null
                     || !title.toLowerCase(Locale.ROOT)
                     .contains("sistema nacional de informação desportiva")) {
@@ -226,9 +604,29 @@ public class SnidVenueImportData implements ApplicationRunner {
                 String format = clean(string(resource.get("format")));
                 String url = clean(string(resource.get("url")));
 
-                if (url != null
-                        && format != null
-                        && format.toLowerCase(Locale.ROOT).contains("geojson")) {
+                log.info("SNID matching dataset resource: format={}, urlPresent={}, title={}, mime={}, size={}",
+                        format, url != null, clean(string(resource.get("title"))),
+                        clean(string(resource.get("mime"))), resource.get("filesize"));
+                if (url != null && format != null && format.equalsIgnoreCase("json")
+                        && clean(string(resource.get("title"))) != null
+                        && clean(string(resource.get("title"))).startsWith("snid-localizacao")
+                        && resource.get("filesize") instanceof Number size && size.longValue() > 0) {
+                    log.info("SNID JSON resource available for read-only inspection: title={}, url={}",
+                            clean(string(resource.get("title"))), url);
+                    if (!inspected && clean(string(resource.get("title"))).startsWith("snid-localizacao")) {
+                        inspected = true;
+                        inspectJsonPrefix(url);
+                    }
+                }
+                String mime = clean(string(resource.get("mime")));
+                String resourcePath = url == null ? null : URI.create(url).getPath();
+                boolean geoJsonFormat = format != null
+                        && format.toLowerCase(Locale.ROOT).contains("geojson");
+                boolean geoJsonMime = mime != null
+                        && mime.equalsIgnoreCase("application/geo+json");
+                boolean geoJsonFile = resourcePath != null
+                        && resourcePath.toLowerCase(Locale.ROOT).endsWith(".geojson");
+                if (url != null && (geoJsonFormat || geoJsonMime || geoJsonFile)) {
                     log.info("SNID GeoJSON resource selected: {}", url);
                     return url;
                 }
@@ -236,6 +634,201 @@ public class SnidVenueImportData implements ApplicationRunner {
         }
 
         return null;
+    }
+
+    /** Inspect only the first 8 KiB; never log record values or persist data. */
+    private void inspectJsonPrefix(String resourceUrl) {
+        HttpURLConnection connection = null;
+        try {
+            URI uri = URI.create(resourceUrl);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+                throw new IllegalArgumentException("Unexpected SNID resource host");
+            }
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(10000);
+            connection.setRequestProperty("Range", "bytes=0-8191");
+            connection.setInstanceFollowRedirects(false);
+            int status = connection.getResponseCode();
+            if (status != 200 && status != 206) {
+                log.warn("SNID JSON prefix inspection returned HTTP {}", status);
+                return;
+            }
+            byte[] prefix;
+            try (var stream = connection.getInputStream()) {
+                prefix = stream.readNBytes(8192);
+            }
+            String sample = new String(prefix, StandardCharsets.UTF_8);
+            Matcher matcher = JSON_KEY.matcher(sample);
+            Set<String> keys = new LinkedHashSet<>();
+            while (matcher.find() && keys.size() < 25) keys.add(matcher.group(1));
+            log.info("SNID JSON prefix field types: location={}, coordinates={}, address={}, coordinatesTokenPresent={}, escapedCoordinatesKeyPresent={}",
+                    jsonFieldShape(sample, "location"), jsonFieldShape(sample, "coordinates"),
+                    jsonFieldShape(sample, "address"), sample.contains("coordinates"),
+                    sample.contains("\\\"coordinates\\\""));
+            log.info("SNID sample record fields: id={}, name={}, category={}, district={}, municipalityInfo={}, dataProvider={}",
+                    jsonFieldShape(sample, "id"), jsonFieldShape(sample, "name"),
+                    jsonFieldShape(sample, "category"), jsonFieldShape(sample, "district"),
+                    jsonFieldShape(sample, "municipalityInfo"), jsonFieldShape(sample, "dataProvider"));
+            inspectSnidLocationShape(sample);
+            inspectSnidRecordBoundaries(sample);
+            // Full SNID streaming validation is intentionally not run during application startup.
+            log.info("SNID JSON prefix inspection: httpStatus={}, bytesRead={}, firstChar={}, candidateKeys={}",
+                    status, prefix.length, sample.stripLeading().isEmpty() ? "empty"
+                            : String.valueOf(sample.stripLeading().charAt(0)), keys);
+        } catch (Exception ex) {
+            log.warn("SNID JSON prefix inspection unavailable: {}", ex.toString());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** Stream the official JSON records without persisting or retaining the dataset in memory. */
+    private void validateSnidStreamReadOnly(String resourceUrl) {
+        HttpURLConnection connection = null;
+        int total = 0, valid = 0, invalid = 0;
+        try {
+            URI uri = URI.create(resourceUrl);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !"dados.gov.pt".equalsIgnoreCase(uri.getHost())) {
+                throw new IllegalArgumentException("Unexpected SNID resource host");
+            }
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            if (connection.getResponseCode() != 200) {
+                log.warn("SNID stream validation HTTP {}", connection.getResponseCode());
+                return;
+            }
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            try (java.io.InputStream input = connection.getInputStream();
+                 com.fasterxml.jackson.core.JsonParser parser = mapper.getFactory().createParser(input)) {
+                while (parser.nextToken() != null) {
+                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                    total++;
+                    boolean usable = false;
+                    if (record != null && record.path("name").isTextual()
+                            && !record.path("name").asText().isBlank()) {
+                        try {
+                            com.fasterxml.jackson.databind.JsonNode location =
+                                    mapper.readTree(record.path("location").asText(""));
+                            com.fasterxml.jackson.databind.JsonNode coords =
+                                    location == null ? null : location.path("coordinates");
+                            usable = location != null && "Point".equals(location.path("type").asText())
+                                    && coords != null && coords.isArray() && coords.size() == 2
+                                    && coords.get(0).isNumber() && coords.get(1).isNumber()
+                                    && Double.isFinite(coords.get(0).asDouble())
+                                    && Double.isFinite(coords.get(1).asDouble());
+                        } catch (com.fasterxml.jackson.core.JsonProcessingException ignored) {
+                            // Invalid location JSON is counted below.
+                        }
+                    }
+                    if (usable) valid++; else invalid++;
+                }
+            }
+            log.info("SNID full stream validation (read-only): total={}, valid={}, invalid={}",
+                    total, valid, invalid);
+        } catch (Exception ex) {
+            log.warn("SNID full stream validation interrupted after {} records: {}", total,
+                    ex.getClass().getSimpleName());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    /** Count complete top-level JSON records in the bounded prefix, without logging values. */
+    private void inspectSnidRecordBoundaries(String sample) {
+        int complete = 0;
+        int valid = 0;
+        int invalid = 0;
+        boolean truncated = false;
+        try (com.fasterxml.jackson.core.JsonParser parser =
+                     new com.fasterxml.jackson.databind.ObjectMapper().getFactory().createParser(sample)) {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            while (complete < 10 && parser.nextToken() != null) {
+                com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                complete++;
+                try {
+                    com.fasterxml.jackson.databind.JsonNode location =
+                            mapper.readTree(record.path("location").asText(""));
+                    com.fasterxml.jackson.databind.JsonNode point =
+                            location == null ? null : location.path("coordinates");
+                    boolean usable = record.path("name").isTextual()
+                            && !record.path("name").asText().isBlank()
+                            && location != null && "Point".equals(location.path("type").asText())
+                            && point != null && point.isArray() && point.size() == 2
+                            && point.get(0).isNumber() && point.get(1).isNumber()
+                            && Double.isFinite(point.get(0).asDouble())
+                            && Double.isFinite(point.get(1).asDouble());
+                    if (usable) valid++; else invalid++;
+                } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                    invalid++;
+                }
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            truncated = true;
+        } catch (java.io.IOException ex) {
+            log.warn("SNID record boundary inspection unavailable: {}", ex.toString());
+            return;
+        }
+        log.info("SNID bounded record inspection: completeTopLevelValues={}, valid={}, invalid={}, truncatedAtPrefix={}",
+                complete, valid, invalid, truncated);
+    }
+
+    /** Parse only the location field from the bounded JSON prefix; no persistence. */
+    private void inspectSnidLocationShape(String sample) {
+        try (com.fasterxml.jackson.core.JsonParser parser =
+                     new com.fasterxml.jackson.databind.ObjectMapper().getFactory().createParser(sample)) {
+            if (parser.nextToken() != com.fasterxml.jackson.core.JsonToken.START_OBJECT) return;
+            while (parser.nextToken() == com.fasterxml.jackson.core.JsonToken.FIELD_NAME) {
+                String field = parser.currentName();
+                com.fasterxml.jackson.core.JsonToken token = parser.nextToken();
+                if ("location".equals(field) && token == com.fasterxml.jackson.core.JsonToken.VALUE_STRING) {
+                    com.fasterxml.jackson.databind.JsonNode geometry =
+                            new com.fasterxml.jackson.databind.ObjectMapper().readTree(parser.getText());
+                    com.fasterxml.jackson.databind.JsonNode coordinates = geometry.path("coordinates");
+                    boolean portugalPoint = coordinates.isArray() && coordinates.size() == 2
+                            && coordinates.get(0).isNumber() && coordinates.get(1).isNumber()
+                            && ((coordinates.get(1).asDouble() >= 36.9 && coordinates.get(1).asDouble() <= 42.2
+                                    && coordinates.get(0).asDouble() >= -9.6 && coordinates.get(0).asDouble() <= -6.1)
+                                || (coordinates.get(1).asDouble() >= 32.0 && coordinates.get(1).asDouble() <= 33.3
+                                    && coordinates.get(0).asDouble() >= -17.5 && coordinates.get(0).asDouble() <= -15.5)
+                                || (coordinates.get(1).asDouble() >= 36.8 && coordinates.get(1).asDouble() <= 40.2
+                                    && coordinates.get(0).asDouble() >= -31.5 && coordinates.get(0).asDouble() <= -24.5));
+                    log.info("SNID location point within Portugal bounds (GeoJSON lon/lat order): {}", portugalPoint);
+                    log.info("SNID location geometry: type={}, coordinatesArray={}, coordinateCount={}",
+                            geometry.path("type").asText("missing"), coordinates.isArray(),
+                            coordinates.isArray() ? coordinates.size() : 0);
+                    return;
+                }
+                parser.skipChildren();
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            log.info("SNID location not fully available in 8KiB prefix: {}",
+                    ex.getOriginalMessage());
+        } catch (java.io.IOException ex) {
+            log.warn("SNID location prefix inspection unavailable: {}", ex.toString());
+        }
+    }
+
+    /** Classify JSON field shape without exposing its value. */
+    private String jsonFieldShape(String sample, String key) {
+        int start = sample.indexOf("\"" + key + "\"");
+        if (start < 0) return "not-in-prefix";
+        int colon = sample.indexOf(':', start + key.length() + 2);
+        if (colon < 0) return "truncated";
+        int i = colon + 1;
+        while (i < sample.length() && Character.isWhitespace(sample.charAt(i))) i++;
+        if (i == sample.length()) return "truncated";
+        return switch (sample.charAt(i)) {
+            case '{' -> "object";
+            case '[' -> "array";
+            case '"' -> "string";
+            case 'n' -> "null";
+            default -> "scalar";
+        };
     }
 
     private String stableId(

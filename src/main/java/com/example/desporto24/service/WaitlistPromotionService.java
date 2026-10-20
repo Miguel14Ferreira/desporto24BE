@@ -2,12 +2,15 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
+import com.example.desporto24.repository.community.CommunityMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +23,10 @@ import java.util.Optional;
 public class WaitlistPromotionService {
 
     private final SessionParticipantRepository participantRepository;
+    private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionRepository sessionRepository;
+    private final CommunityMemberRepository memberRepository;
     private final SessionNotificationService sessionNotificationService;
     private final PilotEventService pilotEventService;
 
@@ -32,8 +37,30 @@ public class WaitlistPromotionService {
             return Optional.empty();
         }
 
+        // Joining is forbidden once kickoff has passed; promotion must follow the same rule.
+        if (session.getGameDate() == null
+                || !session.getGameDate().toInstant().isAfter(now)) {
+            return Optional.empty();
+        }
+
+        // A promotion cannot consume a place already reserved for an external player.
+        long active = participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE);
+        if (SessionCapacity.remainingPlaces(session, active) == 0) {
+            recomputeStatus(session, now);
+            return Optional.empty();
+        }
+
         Optional<SessionParticipant> promoted = waitlistRepository
-                .findFirstBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId())
+                .findBySessionIdOrderByPriorityTierAscCreatedAtAsc(session.getId())
+                .stream()
+                .filter(entry -> session.getAudience() != SessionAudience.COMMUNITY_ONLY
+                        || session.getCommunity() == null
+                        || memberRepository.existsByCommunityIdAndProfileId(
+                                session.getCommunity().getId(), entry.getProfile().getId()))
+                .filter(entry -> !exclusionRepository.existsByOrganizerIdAndExcludedId(
+                        session.getProfile().getId(), entry.getProfile().getId()))
+                .findFirst()
                 .map(entry -> {
                     waitlistRepository.delete(entry);
 
@@ -65,7 +92,8 @@ public class WaitlistPromotionService {
         int max = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
         long active = participantRepository.countBySessionIdAndState(
                 session.getId(), ParticipantState.ACTIVE);
-        session.setStatus(max > 0 && active >= max ? SessionStatus.FULL : SessionStatus.OPEN);
+        session.setStatus(max > 0 && SessionCapacity.remainingPlaces(session, active) == 0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
         session.setUpdatedAt(now);
         sessionRepository.save(session);
     }

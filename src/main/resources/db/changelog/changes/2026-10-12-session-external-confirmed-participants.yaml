@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-12-session-external-confirmed-participants
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: external_confirmed_participants
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: external_confirmed_participants
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql
+            sql: ALTER TABLE desporto24.session ADD CONSTRAINT ck_session_external_confirmed_nonnegative CHECK (external_confirmed_participants >= 0)

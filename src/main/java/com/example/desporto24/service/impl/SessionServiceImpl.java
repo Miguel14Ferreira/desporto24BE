@@ -20,6 +20,7 @@ import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
 import com.example.desporto24.model.dto.session.JoinSessionResponse;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.model.dto.session.SessionSearchCriteria;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
@@ -31,10 +32,12 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
 import com.example.desporto24.service.SessionViewMapper;
+import com.example.desporto24.service.SessionCapacity;
 import com.example.desporto24.service.SessionNotificationService;
 import com.example.desporto24.service.PilotEventService;
 import com.example.desporto24.service.ReliabilityService;
@@ -75,6 +78,7 @@ public class SessionServiceImpl implements SessionService {
     private final CommunityMemberRepository communityMemberRepository;
     private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
+    private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionViewMapper sessionViewMapper;
     private final SessionDistanceCalculator distanceCalculator;
@@ -122,6 +126,13 @@ public class SessionServiceImpl implements SessionService {
         if (request.venueId() != null) {
             linkedVenue = venueRepository.findById(request.venueId())
                     .orElseThrow(() -> new IllegalArgumentException("Recinto não encontrado"));
+            String venueSports = linkedVenue.getSports();
+            if (venueSports != null && !venueSports.isBlank()
+                    && java.util.Arrays.stream(venueSports.split(";"))
+                            .map(String::trim)
+                            .noneMatch(sport::equalsIgnoreCase)) {
+                throw new IllegalArgumentException("Modalidade não disponível neste recinto");
+            }
         }
 
         if (!request.gameDate().isAfter(Instant.now())) {
@@ -129,6 +140,16 @@ public class SessionServiceImpl implements SessionService {
         }
         if (request.privateGame() && (request.password() == null || request.password().isBlank())) {
             throw new IllegalArgumentException("Private sessions require a password");
+        }
+
+        // The organiser already occupies an active place and must not be counted again.
+        int externalConfirmed = request.externalConfirmedParticipants() == null
+                ? 0 : request.externalConfirmedParticipants();
+        if (externalConfirmed < 0 || externalConfirmed > 99
+                || request.maxParticipants() == null
+                || externalConfirmed >= request.maxParticipants()) {
+            throw new IllegalArgumentException(
+                    "External confirmed participants must leave a place for the organiser");
         }
 
         SessionRecurrence recurrence = request.recurrence() == null
@@ -199,6 +220,8 @@ public class SessionServiceImpl implements SessionService {
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
         session.setMaxParticipants(request.maxParticipants());
+        session.setExternalConfirmedParticipants(
+                request.externalConfirmedParticipants() == null ? 0 : request.externalConfirmedParticipants());
         session.setPriceAmount(request.priceAmount() == null ? BigDecimal.ZERO : request.priceAmount());
         session.setPrivateGame(request.privateGame());
         session.setPasswordHash(request.privateGame() ? passwordHashService.encode(request.password()) : null);
@@ -212,7 +235,8 @@ public class SessionServiceImpl implements SessionService {
                         ? linkedVenue.getLongitude()
                         : request.longitude()
         );
-        session.setStatus(SessionStatus.OPEN);
+        session.setStatus(SessionCapacity.remainingPlaces(session, 1) == 0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
         session.setEnabled(true);
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
@@ -245,6 +269,35 @@ public class SessionServiceImpl implements SessionService {
 
         pilotEventService.recordSessionCreated(creator, saved.getId());
         return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SessionPublicPreviewResponse publicPreview(Long sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+
+        // Never expose private sessions or sessions restricted to a community.
+        boolean publicAudience = session.getAudience() == SessionAudience.PUBLIC
+                || (session.getAudience() == null && session.getCommunity() == null);
+        if (!publicAudience
+                || Boolean.TRUE.equals(session.getPrivateGame())
+                || Boolean.FALSE.equals(session.getEnabled())) {
+            throw new SessionNotFound("Session not found");
+        }
+
+        return new SessionPublicPreviewResponse(
+                session.getId(),
+                session.getSport(),
+                session.getCity(),
+                session.getGameDate() == null ? null : session.getGameDate().toInstant(),
+                session.getMaxParticipants(),
+                SessionCapacity.totalConfirmed(session,
+                        participantRepository.countBySessionIdAndState(
+                                session.getId(), ParticipantState.ACTIVE)),
+                session.getPriceAmount(),
+                session.getStatus(),
+                session.getGamePhoto());
     }
 
     @Override
@@ -298,6 +351,10 @@ public class SessionServiceImpl implements SessionService {
                 .findSessionIdsByProfile(sessionIds, viewer.getId());
 
         return seriesSessions.stream()
+                .filter(item -> item.getAudience() != SessionAudience.COMMUNITY_ONLY
+                        || item.getCommunity() == null
+                        || communityMemberRepository.existsByCommunityIdAndProfileId(
+                                item.getCommunity().getId(), viewer.getId()))
                 .map(item -> sessionViewMapper.toSummary(
                         item, null, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .toList();
@@ -306,30 +363,33 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional(readOnly = true)
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria) {
-        return discoverSessions(criteria);
+        return discoverSessions(criteria, null);
     }
 
     @Override
     @Transactional
     public List<SessionSummaryResponse> discover(SessionSearchCriteria criteria, String username) {
-        List<SessionSummaryResponse> result = discoverSessions(criteria);
+        Profile viewer = username == null || username.isBlank()
+                ? null : profileRepository.findUserByUsername(username).orElse(null);
+        List<SessionSummaryResponse> result = discoverSessions(criteria, viewer);
 
-        if (username != null && !username.isBlank()) {
-            profileRepository.findUserByUsername(username)
-                    .ifPresent(pilotEventService::recordSessionSearched);
+        if (viewer != null) {
+            pilotEventService.recordSessionSearched(viewer);
         }
 
         return result;
     }
 
-    private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria) {
+    private List<SessionSummaryResponse> discoverSessions(SessionSearchCriteria criteria, Profile viewer) {
         String sport = criteria.sport() == null ? "" : criteria.sport().trim().toLowerCase(Locale.ROOT);
         String city = criteria.city() == null ? "" : criteria.city().trim().toLowerCase(Locale.ROOT);
+        String query = criteria.query() == null ? "" : criteria.query().trim().toLowerCase(Locale.ROOT);
         List<Session> filteredCandidates = sessionRepository.discoverCandidates(
                 List.of(SessionStatus.OPEN, SessionStatus.FULL),
                 new Date(),
                 sport,
                 city,
+                query,
                 criteria.from() == null ? null : Date.from(criteria.from()),
                 criteria.to() == null ? null : Date.from(criteria.to()),
                 criteria.privateGame(),
@@ -348,9 +408,17 @@ public class SessionServiceImpl implements SessionService {
                 : participantRepository.countBySessionIdsAndState(sessionIds, ParticipantState.ACTIVE)
                         .stream()
                         .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Set<Long> joinedSessionIds = viewer == null || sessionIds.isEmpty()
+                ? Set.of()
+                : participantRepository.findSessionIdsByProfileAndState(
+                        sessionIds, viewer.getId(), ParticipantState.ACTIVE);
+        Set<Long> waitlistedSessionIds = viewer == null || sessionIds.isEmpty()
+                ? Set.of()
+                : waitlistRepository.findSessionIdsByProfile(sessionIds, viewer.getId());
 
         return filteredCandidates.stream()
-                .map(s -> toDiscoveryView(s, criteria, hasCoordinates, participantCounts))
+                .map(s -> toDiscoveryView(
+                        s, criteria, hasCoordinates, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .filter(v -> !hasCoordinates
                         || (v.distanceKm() != null && v.distanceKm() <= effectiveRadius))
                 .filter(v -> !"available".equalsIgnoreCase(criteria.availability())
@@ -367,14 +435,17 @@ public class SessionServiceImpl implements SessionService {
             Session session,
             SessionSearchCriteria criteria,
             boolean hasCoordinates,
-            Map<Long, Long> participantCounts) {
+            Map<Long, Long> participantCounts,
+            Set<Long> joinedSessionIds,
+            Set<Long> waitlistedSessionIds) {
         Double distanceKm = null;
         if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
                     session.getLatitude(), session.getLongitude());
         }
-        return sessionViewMapper.toSummary(session, distanceKm, null, participantCounts);
+        return sessionViewMapper.toSummary(
+                session, distanceKm, participantCounts, joinedSessionIds, waitlistedSessionIds);
     }
 
     private Comparator<SessionSummaryResponse> discoveryComparator(String sort) {
@@ -455,6 +526,10 @@ public class SessionServiceImpl implements SessionService {
                 sessionId, profile.getId(), ParticipantState.ACTIVE)) {
             return new JoinSessionResponse(JoinState.PARTICIPANT, null);
         }
+        if (exclusionRepository.existsByOrganizerIdAndExcludedId(
+                session.getProfile().getId(), profile.getId())) {
+            throw new AccessDeniedException("O organizador não aceita novas inscrições deste jogador");
+        }
 
         var existingWaitlist = waitlistRepository.findBySessionIdAndProfileId(sessionId, profile.getId());
         if (existingWaitlist.isPresent()) {
@@ -473,11 +548,10 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
-        int maxParticipants = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
         long activeParticipants = participantRepository.countBySessionIdAndState(
                 sessionId, ParticipantState.ACTIVE);
 
-        if (activeParticipants < maxParticipants) {
+        if (SessionCapacity.remainingPlaces(session, activeParticipants) > 0) {
             SessionParticipant participant = participantRepository
                     .findBySessionIdAndProfileId(sessionId, profile.getId())
                     .orElseGet(SessionParticipant::new);
@@ -494,7 +568,8 @@ public class SessionServiceImpl implements SessionService {
             pilotEventService.recordSessionJoined(profile, sessionId);
 
             long newCount = activeParticipants + 1;
-            session.setStatus(newCount >= maxParticipants ? SessionStatus.FULL : SessionStatus.OPEN);
+            session.setStatus(SessionCapacity.remainingPlaces(session, newCount) == 0
+                    ? SessionStatus.FULL : SessionStatus.OPEN);
             session.setUpdatedAt(Instant.now());
             sessionRepository.save(session);
             return new JoinSessionResponse(JoinState.PARTICIPANT, null);
@@ -538,6 +613,55 @@ public class SessionServiceImpl implements SessionService {
         throw new IllegalStateException("Waitlist entry not found after save");
     }
 
+
+    @Override
+    @Transactional
+    public SessionDetailResponse updateExternalConfirmations(
+            Long sessionId, int externalConfirmed, String username) {
+        // The same row lock as join() serialises changes to reserved places.
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireCreator(session, actor);
+        assertJoinable(session);
+
+        int max = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
+        long active = participantRepository.countBySessionIdAndState(
+                sessionId, ParticipantState.ACTIVE);
+        if (externalConfirmed < 0 || externalConfirmed > 99 || externalConfirmed >= max
+                || active + externalConfirmed > max) {
+            throw new IllegalArgumentException(
+                    "Confirmed external players exceed available session capacity");
+        }
+
+        int previous = session.getExternalConfirmedParticipants() == null
+                ? 0 : session.getExternalConfirmedParticipants();
+        Instant now = Instant.now();
+        session.setExternalConfirmedParticipants(externalConfirmed);
+        session.setStatus(SessionCapacity.remainingPlaces(session, active) == 0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessionRepository.save(session);
+
+        // Releasing reserved places must honour the existing waitlist first.
+        if (externalConfirmed < previous) {
+            boolean promoted = false;
+            while (SessionCapacity.remainingPlaces(session,
+                    participantRepository.countBySessionIdAndState(
+                            sessionId, ParticipantState.ACTIVE)) > 0) {
+                if (waitlistPromotionService.promoteNext(session, now).isEmpty()) {
+                    break;
+                }
+                promoted = true;
+            }
+            if (promoted) {
+                invalidateConfirmedTeams(sessionId);
+            }
+        }
+
+        return sessionViewMapper.toDetail(session, actor);
+    }
 
     @Override
     @Transactional

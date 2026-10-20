@@ -1,0 +1,43 @@
+# All feature-specific PR workflows previously reran this complete Maven suite.
+# Run the expensive Maven suite only when a PR is ready for review.
+# Draft commits and workflow-only changes must not spend hosted-runner minutes.
+name: Jynlo BE PR validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
+      - '.github/workflows/pr-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: be-pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Complete Java test suite
+    # Skipped jobs do not consume a hosted runner for every draft-PR commit.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      AES_ENCRYPTION_KEY: ciKey1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run all backend tests once
+        run: bash ./mvnw -B -ntp test

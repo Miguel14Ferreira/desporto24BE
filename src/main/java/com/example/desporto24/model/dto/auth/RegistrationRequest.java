@@ -4,6 +4,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.DateTimeException;
@@ -47,8 +48,32 @@ public record RegistrationRequest(
         String email,
 
         @AssertTrue(message = "Tens de aceitar os Termos de Utilização e a Política de Privacidade")
-        boolean acceptedLegalTerms
+        boolean acceptedLegalTerms,
+
+        @Positive
+        Long returnSessionId,
+
+        @Positive
+        Long returnCommunityId
 ) {
+
+    // Keep existing registrations and integrations compatible.
+    public RegistrationRequest(
+            String username, String password, String nickname, String dateOfBirth,
+            String country, String indicativePhone, String phone, String gender,
+            String email, boolean acceptedLegalTerms) {
+        this(username, password, nickname, dateOfBirth, country, indicativePhone,
+                phone, gender, email, acceptedLegalTerms, null, null);
+    }
+
+    // Preserve the existing public constructor used by session invitation callers.
+    public RegistrationRequest(
+            String username, String password, String nickname, String dateOfBirth,
+            String country, String indicativePhone, String phone, String gender,
+            String email, boolean acceptedLegalTerms, Long returnSessionId) {
+        this(username, password, nickname, dateOfBirth, country, indicativePhone,
+                phone, gender, email, acceptedLegalTerms, returnSessionId, null);
+    }
 
     @AssertTrue(message = "Tens de ter pelo menos 18 anos e uma data de nascimento válida")
     public boolean isDateOfBirthValid() {

@@ -20,6 +20,27 @@ import java.util.List;
 @Transactional(readOnly = true)
 public interface SessionRepository extends JpaRepository<Session, Long> {
 
+    long countByStatus(SessionStatus status);
+
+    @Query("""
+            select count(s) from Session s
+            where s.gameDate >= :from and s.status in (
+                com.example.desporto24.enumeration.SessionStatus.OPEN,
+                com.example.desporto24.enumeration.SessionStatus.FULL)
+              and (s.enabled = true or s.enabled is null)
+            """)
+    long countUpcomingSessions(@Param("from") Date from);
+
+    @Query("""
+            select count(s) from Session s
+            where s.gameDate >= :from and s.gameDate < :until
+              and s.status in (
+                  com.example.desporto24.enumeration.SessionStatus.OPEN,
+                  com.example.desporto24.enumeration.SessionStatus.FULL)
+              and (s.enabled = true or s.enabled is null)
+            """)
+    long countUpcomingSessionsBetween(@Param("from") Date from, @Param("until") Date until);
+
     Session findSessionByAddress(String address);
     Session findSessionByGameDate(Date gameDate);
     Session findSessionByUsername(String username);
@@ -29,15 +50,17 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             from Session s
             where s.status in :statuses
               and s.gameDate > :now
-              and s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+              and (s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+                   or (s.audience is null and s.community is null))
               and (:sport = '' or lower(s.sport) = :sport)
               and (:city = '' or lower(s.city) like concat('%', :city, '%'))
-              and (:fromDate is null or s.gameDate >= :fromDate)
-              and (:toDate is null or s.gameDate <= :toDate)
-              and (:privateGame is null or coalesce(s.privateGame, false) = :privateGame)
+              and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
+              and (cast(:fromDate as timestamp) is null or s.gameDate >= :fromDate)
+              and (cast(:toDate as timestamp) is null or s.gameDate <= :toDate)
+              and (cast(:privateGame as boolean) is null or coalesce(s.privateGame, false) = :privateGame)
               and (:freeOnly = false or s.priceAmount is null or s.priceAmount = 0)
-              and (:minPrice is null or coalesce(s.priceAmount, 0) >= :minPrice)
-              and (:maxPrice is null or coalesce(s.priceAmount, 0) <= :maxPrice)
+              and (cast(:minPrice as BigDecimal) is null or coalesce(s.priceAmount, 0) >= :minPrice)
+              and (cast(:maxPrice as BigDecimal) is null or coalesce(s.priceAmount, 0) <= :maxPrice)
             order by s.gameDate asc
             """)
     List<Session> discoverCandidates(
@@ -45,12 +68,61 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("now") Date now,
             @Param("sport") String sport,
             @Param("city") String city,
+            @Param("query") String query,
             @Param("fromDate") Date fromDate,
             @Param("toDate") Date toDate,
             @Param("privateGame") Boolean privateGame,
             @Param("freeOnly") boolean freeOnly,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice);
+
+    @Query(value = """
+            select s
+            from Session s
+            where s.status in :statuses
+              and s.gameDate > :now
+              and (s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+                   or (s.audience is null and s.community is null))
+              and (:sport = '' or lower(s.sport) = :sport)
+              and (:city = '' or lower(s.city) like concat('%', :city, '%'))
+              and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
+              and (cast(:fromDate as timestamp) is null or s.gameDate >= :fromDate)
+              and (cast(:toDate as timestamp) is null or s.gameDate <= :toDate)
+              and (cast(:privateGame as boolean) is null or coalesce(s.privateGame, false) = :privateGame)
+              and (:freeOnly = false or s.priceAmount is null or s.priceAmount = 0)
+              and (cast(:minPrice as BigDecimal) is null or coalesce(s.priceAmount, 0) >= :minPrice)
+              and (cast(:maxPrice as BigDecimal) is null or coalesce(s.priceAmount, 0) <= :maxPrice)
+            order by s.gameDate asc, s.id asc
+            """, countQuery = """
+            select count(s)
+            from Session s
+            where s.status in :statuses
+              and s.gameDate > :now
+              and (s.audience <> com.example.desporto24.enumeration.SessionAudience.COMMUNITY_ONLY
+                   or (s.audience is null and s.community is null))
+              and (:sport = '' or lower(s.sport) = :sport)
+              and (:city = '' or lower(s.city) like concat('%', :city, '%'))
+              and (:query = '' or lower(s.city) like concat('%', :query, '%') or lower(s.sport) like concat('%', :query, '%'))
+              and (cast(:fromDate as timestamp) is null or s.gameDate >= :fromDate)
+              and (cast(:toDate as timestamp) is null or s.gameDate <= :toDate)
+              and (cast(:privateGame as boolean) is null or coalesce(s.privateGame, false) = :privateGame)
+              and (:freeOnly = false or s.priceAmount is null or s.priceAmount = 0)
+              and (cast(:minPrice as BigDecimal) is null or coalesce(s.priceAmount, 0) >= :minPrice)
+              and (cast(:maxPrice as BigDecimal) is null or coalesce(s.priceAmount, 0) <= :maxPrice)
+            """)
+    org.springframework.data.domain.Page<Session> discoverCandidatesPage(
+            @Param("statuses") Collection<SessionStatus> statuses,
+            @Param("now") Date now,
+            @Param("sport") String sport,
+            @Param("city") String city,
+            @Param("query") String query,
+            @Param("fromDate") Date fromDate,
+            @Param("toDate") Date toDate,
+            @Param("privateGame") Boolean privateGame,
+            @Param("freeOnly") boolean freeOnly,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            Pageable pageable);
 
     List<Session> findByProfileIdOrderByGameDateAsc(Long profileId);
     long countByProfileId(Long profileId);
@@ -63,19 +135,53 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             from Session s
             where s.profile.id in :profileIds
               and (s.privateGame = false or s.privateGame is null)
+              and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
+                   or (s.audience is null and s.community is null))
+              and (s.enabled = true or s.enabled is null)
+              and s.gameDate > :now
+              and (s.status is null
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.OPEN
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.FULL)
             order by s.created_at desc
             """)
     List<Session> findPublicFeedSessions(
             @Param("profileIds") Collection<Long> profileIds,
+            @Param("now") Date now,
             Pageable pageable);
 
     @Query("""
             select s
             from Session s
             where (s.privateGame = false or s.privateGame is null)
+              and (s.audience = com.example.desporto24.enumeration.SessionAudience.PUBLIC
+                   or (s.audience is null and s.community is null))
+              and (s.enabled = true or s.enabled is null)
+              and s.gameDate > :now
+              and (s.status is null
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.OPEN
+                   or s.status = com.example.desporto24.enumeration.SessionStatus.FULL)
             order by s.created_at desc
             """)
-    List<Session> findRecentPublicFeedSessions(Pageable pageable);
+    List<Session> findRecentPublicFeedSessions(@Param("now") Date now, Pageable pageable);
+
+    // Only recent, unfinished games need a post-game reminder.
+    @Query("""
+            select s.id
+            from Session s
+            where s.profile.username = :username
+              and s.gameDate <= :cutoff
+              and s.gameDate >= :since
+              and s.postGameReviewReminderSentAt is null
+              and s.status in (
+                  com.example.desporto24.enumeration.SessionStatus.OPEN,
+                  com.example.desporto24.enumeration.SessionStatus.FULL)
+            order by s.gameDate desc
+            """)
+    List<Long> findSessionsAwaitingPostGameReview(
+            @Param("username") String username,
+            @Param("cutoff") Date cutoff,
+            @Param("since") Date since,
+            Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Session s where s.id = :id")

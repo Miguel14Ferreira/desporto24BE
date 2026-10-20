@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-11-social-post-session-link
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: social_post
+            columns:
+              - column:
+                  name: session_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: social_post
+            baseColumnNames: session_id
+            referencedTableName: session
+            referencedColumnNames: id
+            constraintName: fk_social_post_session

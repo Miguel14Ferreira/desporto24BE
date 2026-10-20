@@ -62,6 +62,32 @@ class AuthenticationControllerTest {
     }
 
     @Test
+    void resendConfirmationForwardsOptionalSessionDestination() {
+        var response = controller.resendRegistrationConfirmation("miguel", 42L);
+
+        assertEquals(OK, response.getStatusCode());
+        org.mockito.Mockito.verify(authenticationService)
+                .resendRegistrationConfirmation("miguel", 42L, null);
+    }
+
+    @Test
+    void resendConfirmationForwardsCommunityDestination() {
+        var response = controller.resendRegistrationConfirmation("miguel", null, 42L);
+        assertEquals(OK, response.getStatusCode());
+        org.mockito.Mockito.verify(authenticationService)
+                .resendRegistrationConfirmation("miguel", null, 42L);
+    }
+
+    @Test
+    void resendConfirmationSupportsLegacyCallersWithoutSessionDestination() {
+        var response = controller.resendRegistrationConfirmation("miguel");
+
+        assertEquals(OK, response.getStatusCode());
+        org.mockito.Mockito.verify(authenticationService)
+                .resendRegistrationConfirmation("miguel", null, null);
+    }
+
+    @Test
     void passwordResetInitiateUsesEmailFromTypedRequest() {
         PasswordResetInitiateRequest request =
                 new PasswordResetInitiateRequest("miguel@example.com");

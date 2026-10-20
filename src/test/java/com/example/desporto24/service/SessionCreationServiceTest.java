@@ -14,6 +14,7 @@ import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.impl.SessionServiceImpl;
@@ -45,6 +46,7 @@ class SessionCreationServiceTest {
     @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private VenueRepository venueRepository;
     @Mock private SessionParticipantRepository participantRepository;
+    @Mock private SessionOrganizerExclusionRepository exclusionRepository;
     @Mock private SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
     @Mock private SessionDistanceCalculator distanceCalculator;
@@ -95,6 +97,68 @@ class SessionCreationServiceTest {
         assertSame(creator, participantCaptor.getValue().getProfile());
         assertEquals(ParticipantState.ACTIVE, participantCaptor.getValue().getState());
         assertEquals(AttendanceStatus.PENDING, participantCaptor.getValue().getAttendanceStatus());
+    }
+
+    @Test
+    void creationStoresExternalConfirmationsAndLeavesExactlyTwoPlaces() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("creator-id");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateSessionRequest request = withExternalConfirmations(7);
+        service().create(request, "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository).save(captor.capture());
+        Session saved = captor.getValue();
+
+        assertEquals(7, saved.getExternalConfirmedParticipants());
+        assertEquals(8, SessionCapacity.totalConfirmed(saved, 1));
+        assertEquals(2, SessionCapacity.remainingPlaces(saved, 1));
+        assertEquals(com.example.desporto24.enumeration.SessionStatus.OPEN, saved.getStatus());
+        verify(participantRepository).save(any());
+    }
+
+    @Test
+    void creationMarksSessionFullWhenExternalConfirmationsFillAllRemainingPlaces() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("creator-id");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(creator));
+        when(sessionRepository.save(any(Session.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service().create(withExternalConfirmations(9), "miguel");
+
+        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
+        verify(sessionRepository).save(captor.capture());
+        assertEquals(com.example.desporto24.enumeration.SessionStatus.FULL, captor.getValue().getStatus());
+    }
+
+    @Test
+    void creationRejectsExternalCountsThatAreNegativeOrConsumeOrganiserPlace() {
+        Profile creator = new Profile();
+        creator.setUsername("miguel");
+        creator.setUserId("creator-id");
+
+        when(profileRepository.findUserByUsername("miguel")).thenReturn(Optional.of(creator));
+
+        for (int external : new int[]{-1, 10, 100}) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> service().create(withExternalConfirmations(external), "miguel"));
+        }
+        verify(sessionRepository, never()).save(any(Session.class));
+        verify(participantRepository, never()).save(any());
+    }
+
+    private CreateSessionRequest withExternalConfirmations(int external) {
+        return new CreateSessionRequest(
+                "Futebol", Instant.now().plusSeconds(3600), "Queluz", "Rua de Teste 1",
+                10, BigDecimal.ZERO, false, null, 38.756, -9.254,
+                null, null, SessionRecurrence.NONE, null, external);
     }
 
     @Test
@@ -342,10 +406,13 @@ class SessionCreationServiceTest {
         verify(sessionRepository, times(3)).save(captor.capture());
         verify(participantRepository, times(3)).save(any());
 
-        assertEquals(firstGame, captor.getAllValues().get(0).getGameDate().toInstant());
-        assertEquals(firstGame.plus(7, java.time.temporal.ChronoUnit.DAYS),
+        // java.util.Date stores milliseconds, whereas Instant.now() also has nanoseconds.
+        // Keep verifying the weekly offsets at the precision persisted by Session.
+        Instant firstGameInDatePrecision = java.util.Date.from(firstGame).toInstant();
+        assertEquals(firstGameInDatePrecision, captor.getAllValues().get(0).getGameDate().toInstant());
+        assertEquals(firstGameInDatePrecision.plus(7, java.time.temporal.ChronoUnit.DAYS),
                 captor.getAllValues().get(1).getGameDate().toInstant());
-        assertEquals(firstGame.plus(14, java.time.temporal.ChronoUnit.DAYS),
+        assertEquals(firstGameInDatePrecision.plus(14, java.time.temporal.ChronoUnit.DAYS),
                 captor.getAllValues().get(2).getGameDate().toInstant());
 
         String seriesId = captor.getAllValues().get(0).getRecurrenceSeriesId();
@@ -398,6 +465,7 @@ class SessionCreationServiceTest {
                 communityMemberRepository,
                 venueRepository,
                 participantRepository,
+                exclusionRepository,
                 waitlistRepository,
                 sessionViewMapper,
                 distanceCalculator,

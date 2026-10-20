@@ -1,0 +1,79 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-13-session-experience-rating
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: session_experience_rating
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_session_experience_rating
+                    nullable: false
+              - column:
+                  name: session_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: environment_score
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: venue_score
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: game_score
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: session_experience_rating
+            baseColumnNames: session_id
+            referencedTableName: session
+            referencedColumnNames: id
+            constraintName: fk_session_experience_rating_session
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: session_experience_rating
+            baseColumnNames: profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_session_experience_rating_profile
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: session_experience_rating
+            columnNames: session_id, profile_id
+            constraintName: uk_session_experience_rating_session_profile
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.session_experience_rating
+              ADD CONSTRAINT ck_session_experience_rating_scores
+              CHECK (
+                environment_score BETWEEN 1 AND 5
+                AND venue_score BETWEEN 1 AND 5
+                AND game_score BETWEEN 1 AND 5
+              );

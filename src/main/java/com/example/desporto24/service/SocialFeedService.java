@@ -1,5 +1,7 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.AttendanceStatus;
+import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
@@ -17,6 +19,8 @@ import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.storage.MediaStorage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -58,9 +63,11 @@ public class SocialFeedService {
             String username,
             CreateSocialPostRequest request) {
         Profile author = profile(username);
+        Session linkedSession = resolvePublicSession(request.sessionId());
 
         SocialPost post = postRepository.save(SocialPost.builder()
                 .author(author)
+                .session(linkedSession)
                 .content(request.content().trim())
                 .createdAt(Instant.now())
                 .build());
@@ -72,6 +79,14 @@ public class SocialFeedService {
             String username,
             String content,
             MultipartFile image) {
+        return createPostWithImage(username, content, image, null);
+    }
+
+    public FeedItemResponse createPostWithImage(
+            String username,
+            String content,
+            MultipartFile image,
+            Long sessionId) {
         String normalizedContent = content == null ? "" : content.trim();
 
         if (normalizedContent.isBlank()) {
@@ -83,7 +98,7 @@ public class SocialFeedService {
         if (image == null || image.isEmpty()) {
             return createPost(
                     username,
-                    new CreateSocialPostRequest(normalizedContent)
+                    new CreateSocialPostRequest(normalizedContent, sessionId)
             );
         }
         if (mediaStorage == null) {
@@ -91,18 +106,51 @@ public class SocialFeedService {
         }
 
         Profile author = profile(username);
+        Session linkedSession = resolvePublicSession(sessionId);
         String baseKey = "posts/" + author.getId() + "/" + UUID.randomUUID();
         URI uri = mediaStorage.store(baseKey, image);
         String storageKey = storageKey(uri);
 
         SocialPost post = postRepository.save(SocialPost.builder()
                 .author(author)
+                .session(linkedSession)
                 .content(normalizedContent)
                 .imageUrl(uri.toString())
                 .imageStorageKey(storageKey)
                 .createdAt(Instant.now())
                 .build());
 
+        return postItem(post, author);
+    }
+
+    public FeedItemResponse createPostWithMedia(
+            String username, String content, MultipartFile image,
+            MultipartFile video, Long sessionId) {
+        if (image != null && !image.isEmpty() && video != null && !video.isEmpty()) {
+            throw new IllegalArgumentException("Only one photo or video per post");
+        }
+        if (video == null || video.isEmpty()) {
+            return createPostWithImage(username, content, image, sessionId);
+        }
+        String normalized = content == null ? "" : content.trim();
+        if (normalized.isBlank() || normalized.length() > 1000) {
+            throw new IllegalArgumentException("A publicação deve ter entre 1 e 1000 caracteres");
+        }
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+        Profile author = profile(username);
+        Session linkedSession = resolvePublicSession(sessionId);
+        String baseKey = "posts/" + author.getId() + "/" + UUID.randomUUID();
+        URI uri = mediaStorage.storeVideo(baseKey, video);
+        SocialPost post = postRepository.save(SocialPost.builder()
+                .author(author)
+                .session(linkedSession)
+                .content(normalized)
+                .videoUrl(uri.toString())
+                .videoStorageKey(storageKey(uri))
+                .createdAt(Instant.now())
+                .build());
         return postItem(post, author);
     }
 
@@ -127,6 +175,29 @@ public class SocialFeedService {
         ) {
             mediaStorage.delete(post.getImageStorageKey());
         }
+        if (mediaStorage != null && post.getVideoStorageKey() != null
+                && !post.getVideoStorageKey().isBlank()) {
+            mediaStorage.delete(post.getVideoStorageKey());
+        }
+    }
+
+    public void hideAttendanceActivity(Long sessionId, String username) {
+        Profile actor = profile(username);
+        SessionParticipant participant = participantRepository
+                .findBySessionIdAndProfileId(sessionId, actor.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Atividade não encontrada"));
+
+        if (participant.getAttendanceStatus() != AttendanceStatus.ATTENDED
+                || participant.getAttendanceRecordedAt() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Atividade não encontrada");
+        }
+
+        if (!participant.isFeedHidden()) {
+            participant.setFeedHidden(true);
+            participantRepository.save(participant);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -149,12 +220,13 @@ public class SocialFeedService {
                         authorIds,
                         PageRequest.of(0, FEED_LIMIT));
 
+        // Filter expired games in SQL before pagination, without deleting feed history.
+        Date now = Date.from(Instant.now());
         List<Session> sessions = discoveryFallback
                 ? sessionRepository.findRecentPublicFeedSessions(
-                        PageRequest.of(0, FEED_LIMIT))
+                        now, PageRequest.of(0, FEED_LIMIT))
                 : sessionRepository.findPublicFeedSessions(
-                        authorIds,
-                        PageRequest.of(0, FEED_LIMIT));
+                        authorIds, now, PageRequest.of(0, FEED_LIMIT));
 
         List<SessionParticipant> attendedSessions =
                 participantRepository.findPublicAttendanceFeed(
@@ -196,6 +268,10 @@ public class SocialFeedService {
             Map<Long, Long> commentCounts,
             Set<Long> likedPostIds) {
         Profile author = post.getAuthor();
+        Session linkedSession = post.getSession();
+        if (!isPubliclyShareableSession(linkedSession)) {
+            linkedSession = null;
+        }
 
         return new FeedItemResponse(
                 "POST",
@@ -206,13 +282,16 @@ public class SocialFeedService {
                 post.getContent(),
                 post.getImageUrl(),
                 post.getCreatedAt(),
-                null,
-                null,
-                null,
-                null,
+                linkedSession == null ? null : linkedSession.getId(),
+                linkedSession == null ? null : linkedSession.getSport(),
+                linkedSession == null ? null : linkedSession.getCity(),
+                linkedSession == null || linkedSession.getGameDate() == null
+                        ? null : linkedSession.getGameDate().toInstant(),
                 likeCounts.getOrDefault(post.getId(), 0L),
                 likedPostIds.contains(post.getId()),
-                commentCounts.getOrDefault(post.getId(), 0L)
+                commentCounts.getOrDefault(post.getId(), 0L),
+                publicSessionImage(linkedSession),
+                post.getVideoUrl()
         );
     }
 
@@ -244,7 +323,9 @@ public class SocialFeedService {
                 session.getGameDate() == null ? null : session.getGameDate().toInstant(),
                 0,
                 false,
-                0
+                0,
+                publicSessionImage(session),
+                null
         );
     }
 
@@ -270,8 +351,41 @@ public class SocialFeedService {
                         : session.getGameDate().toInstant(),
                 0,
                 false,
-                0
+                0,
+                publicSessionImage(session),
+                null
         );
+    }
+
+    private Session resolvePublicSession(Long sessionId) {
+        if (sessionId == null) {
+            return null;
+        }
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Sessão não encontrada"));
+        if (!isPubliclyShareableSession(session)) {
+            throw new AccessDeniedException("Não é possível partilhar esta sessão no feed");
+        }
+        return session;
+    }
+
+    static String publicSessionImage(Session session) {
+        if (!isPubliclyShareableSession(session)
+                || session.getGamePhoto() == null
+                || session.getGamePhoto().isBlank()) {
+            return null;
+        }
+        return session.getGamePhoto();
+    }
+
+    static boolean isPubliclyShareableSession(Session session) {
+        if (session == null
+                || Boolean.TRUE.equals(session.getPrivateGame())
+                || Boolean.FALSE.equals(session.getEnabled())) {
+            return false;
+        }
+        return session.getAudience() == SessionAudience.PUBLIC
+                || (session.getAudience() == null && session.getCommunity() == null);
     }
 
     private String storageKey(URI uri) {

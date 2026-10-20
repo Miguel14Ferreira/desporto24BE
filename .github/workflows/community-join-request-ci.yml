@@ -1,0 +1,20 @@
+name: Validate community join requests
+# Manual diagnostic job; pull requests use the consolidated pr-validation.yml.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run backend test suite
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp test

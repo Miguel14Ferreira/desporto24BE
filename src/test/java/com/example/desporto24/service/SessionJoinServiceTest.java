@@ -13,6 +13,8 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
+import com.example.desporto24.repository.session.SessionOrganizerExclusionRepository;
+import com.example.desporto24.model.session.SessionOrganizerExclusion;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.configuration.ReliabilityPolicyProperties;
@@ -57,6 +59,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Import({
         SessionServiceImpl.class,
         SessionViewMapper.class,
+        VenueService.class,
         SessionDistanceCalculator.class,
         WaitlistPromotionService.class,
         SessionNotificationService.class,
@@ -81,6 +84,7 @@ class SessionJoinServiceTest {
     @Autowired private ProfileRepository profileRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private SessionParticipantRepository participantRepository;
+    @Autowired private SessionOrganizerExclusionRepository exclusionRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private BCryptPasswordEncoder passwordEncoder;
@@ -93,6 +97,7 @@ class SessionJoinServiceTest {
         pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
+        exclusionRepository.deleteAll();
         sessionRepository.deleteAll();
         profileRepository.deleteAll();
 
@@ -116,6 +121,39 @@ class SessionJoinServiceTest {
                 joiner.getId(),
                 session.getId()));
         assertEquals(SessionStatus.FULL, sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void excludedPlayerCannotJoinOrWaitlistOnAnyFutureSessionFromSameOrganizer() {
+        Session session = createSession(false, null, 2);
+        Profile excluded = createProfile("excluded");
+        exclusionRepository.saveAndFlush(SessionOrganizerExclusion.builder()
+                .organizer(creator).excluded(excluded).createdAt(Instant.now()).build());
+
+        assertThrows(AccessDeniedException.class, () -> sessionService.join(
+                session.getId(), new JoinSessionRequest(null), excluded.getUsername()));
+        assertFalse(participantRepository.existsBySessionIdAndProfileIdAndState(
+                session.getId(), excluded.getId(), ParticipantState.ACTIVE));
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), excluded.getId()).isEmpty());
+
+        Session next = createSession(false, null, 3);
+        assertThrows(AccessDeniedException.class, () -> sessionService.join(
+                next.getId(), new JoinSessionRequest(null), excluded.getUsername()));
+    }
+
+    @Test
+    void anAlreadyEnrolledPlayerIsNotExpelledByExclusion() {
+        Session session = createSession(false, null, 3);
+        Profile player = createProfile("alreadyJoined");
+        sessionService.join(session.getId(), new JoinSessionRequest(null), player.getUsername());
+        exclusionRepository.saveAndFlush(SessionOrganizerExclusion.builder()
+                .organizer(creator).excluded(player).createdAt(Instant.now()).build());
+
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), player.getUsername()).state());
+        assertEquals(2, participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
     }
 
     @Test
@@ -169,6 +207,101 @@ class SessionJoinServiceTest {
         assertEquals(JoinState.PARTICIPANT, second.state());
         assertEquals(2L, participantRepository.countBySessionIdAndState(
                 session.getId(), ParticipantState.ACTIVE));
+    }
+
+    @Test
+    void externalConfirmationsLeaveExactlyTwoPlacesForAppRegistrations() {
+        Session session = createSession(false, null, 10);
+        // The organiser already occupies one active seat in the app.
+        session.setExternalConfirmedParticipants(7);
+        sessionRepository.saveAndFlush(session);
+
+        Profile first = createProfile("firstExternal");
+        Profile second = createProfile("secondExternal");
+        Profile third = createProfile("thirdExternal");
+
+        assertEquals(8, SessionCapacity.totalConfirmed(session, 1L));
+        assertEquals(2, SessionCapacity.remainingPlaces(session, 1L));
+
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), first.getUsername()).state());
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), second.getUsername()).state());
+        assertEquals(JoinState.WAITLISTED, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), third.getUsername()).state());
+
+        assertEquals(3L, participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
+        assertEquals(10, SessionCapacity.totalConfirmed(session, 3L));
+        assertEquals(SessionStatus.FULL,
+                sessionRepository.findById(session.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void creatorCanCorrectExternalConfirmationsWithoutAddingProfiles() {
+        Session session = createSession(false, null, 10);
+
+        var detail = sessionService.updateExternalConfirmations(
+                session.getId(), 7, creator.getUsername());
+
+        assertEquals(7, detail.externalConfirmedParticipants());
+        assertEquals(8, detail.participantCount());
+        assertEquals(SessionStatus.OPEN, detail.status());
+        assertEquals(7, sessionRepository.findById(session.getId())
+                .orElseThrow().getExternalConfirmedParticipants());
+        assertEquals(1, participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
+    }
+
+    @Test
+    void externalConfirmationsCannotDisplaceRegisteredMembers() {
+        Session session = createSession(false, null, 3);
+        Profile joiner = createProfile("playerRegistered");
+        sessionService.join(session.getId(), new JoinSessionRequest(null), joiner.getUsername());
+
+        assertThrows(IllegalArgumentException.class, () -> sessionService
+                .updateExternalConfirmations(session.getId(), 2, creator.getUsername()));
+
+        assertEquals(0, sessionRepository.findById(session.getId())
+                .orElseThrow().getExternalConfirmedParticipants());
+    }
+
+    @Test
+    void onlyCreatorCanChangeExternalConfirmationsOnUpcomingSessions() {
+        Session session = createSession(false, null, 10);
+        Profile other = createProfile("notCreator");
+        assertThrows(AccessDeniedException.class, () -> sessionService
+                .updateExternalConfirmations(session.getId(), 7, other.getUsername()));
+
+        session.setStatus(SessionStatus.CANCELLED);
+        sessionRepository.saveAndFlush(session);
+        assertThrows(IllegalStateException.class, () -> sessionService
+                .updateExternalConfirmations(session.getId(), 7, creator.getUsername()));
+    }
+
+    @Test
+    void reducingExternalCountPromotesWaitlistedPlayersIntoVacatedPlaces() {
+        Session session = createSession(false, null, 10);
+        sessionService.updateExternalConfirmations(session.getId(), 9, creator.getUsername());
+        Profile first = createProfile("queueFirst");
+        Profile second = createProfile("queueSecond");
+        assertEquals(JoinState.WAITLISTED, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), first.getUsername()).state());
+        assertEquals(JoinState.WAITLISTED, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), second.getUsername()).state());
+
+        var updated = sessionService.updateExternalConfirmations(
+                session.getId(), 7, creator.getUsername());
+
+        assertEquals(7, updated.externalConfirmedParticipants());
+        assertEquals(10, updated.participantCount());
+        assertEquals(SessionStatus.FULL, updated.status());
+        assertEquals(3L, participantRepository.countBySessionIdAndState(
+                session.getId(), ParticipantState.ACTIVE));
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), first.getId()).isEmpty());
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), second.getId()).isEmpty());
     }
 
     @Test

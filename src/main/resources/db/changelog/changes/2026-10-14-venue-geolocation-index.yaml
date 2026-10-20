@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-14-venue-geolocation-index
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          indexExists:
+            schemaName: desporto24
+            indexName: idx_venue_latitude_longitude
+      changes:
+        - createIndex:
+            schemaName: desporto24
+            tableName: venue
+            indexName: idx_venue_latitude_longitude
+            columns:
+              - column:
+                  name: latitude
+              - column:
+                  name: longitude

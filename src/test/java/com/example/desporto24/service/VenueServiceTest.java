@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -16,6 +17,9 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -23,6 +27,7 @@ class VenueServiceTest {
 
     @Mock private VenueRepository venueRepository;
     @Mock private ProfileRepository profileRepository;
+    @Spy private SessionDistanceCalculator distanceCalculator = new SessionDistanceCalculator();
 
     @InjectMocks
     private VenueService service;
@@ -132,6 +137,76 @@ class VenueServiceTest {
         assertEquals(Boolean.TRUE, response.freeParking());
         assertTrue(response.lighting());
     }
+
+    @Test
+    void findsNearbyVenuesAcrossCityBoundariesWithoutLoadingTheWholeCatalog() {
+        Venue close = Venue.builder().id(11L).name("Campo Perto").city("Oeiras")
+                .address("Rua A").sports("Futsal;Padel").latitude(38.721).longitude(-9.14).build();
+        Venue closest = Venue.builder().id(12L).name("Campo Mais Perto").city("Lisboa")
+                .address("Rua B").sports("Padel").latitude(38.7201).longitude(-9.14).build();
+        Venue wrongSport = Venue.builder().id(13L).name("Campo Sem Padel").city("Lisboa")
+                .address("Rua C").sports("Ténis").latitude(38.72).longitude(-9.14).build();
+        Venue outsideCircle = Venue.builder().id(14L).name("Campo Longe").city("Loures")
+                .address("Rua D").sports("Padel").latitude(38.80).longitude(-9.06).build();
+        Venue missingLocation = Venue.builder().id(17L).name("Campo Sem GPS")
+                .city("Lisboa").address("Rua E").sports("Padel").build();
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(List.of(close, outsideCircle, wrongSport, closest, missingLocation));
+
+        var result = service.search("Porto", "padel", 38.72, -9.14, 10.0);
+
+        assertEquals(List.of(12L, 11L), result.stream().map(r -> r.id()).toList());
+        verify(venueRepository, never()).findAllByOrderByNameAsc();
+        verify(venueRepository, never()).findByCityContainingIgnoreCaseOrderByNameAsc(any());
+    }
+
+    @Test
+    void rejectsIncompleteOrInvalidNearbySearchParameters() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.search(null, "Padel", 38.72, null, 25.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.search(null, "Padel", null, -9.14, 25.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.search(null, "Padel", null, null, 25.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.search(null, "Padel", 91.0, -9.14, 25.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.search(null, "Padel", 38.72, -9.14, -1.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.search(null, "Padel", 38.72, -9.14, Double.NaN));
+    }
+
+    @Test
+    void searchesAcrossTheDateLineWithoutMissingNearbyVenues() {
+        Venue nearby = Venue.builder().id(15L).name("Campo Internacional")
+                .city("Ilha").address("Rua A").sports("Padel")
+                .latitude(0.0).longitude(-179.9).build();
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                // The venue belongs to the second longitude range, across +180/-180.
+                .thenReturn(List.of(), List.of(nearby));
+
+        var results = service.search(null, "Padel", 0.0, 179.9, 50.0);
+
+        assertEquals(1, results.size());
+        assertEquals(15L, results.getFirst().id());
+        org.mockito.Mockito.verify(venueRepository, org.mockito.Mockito.times(2))
+                .findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                        anyDouble(), anyDouble(), anyDouble(), anyDouble());
+    }
+
+    @Test
+    void usesTheDefaultRadiusWhenOnlyCoordinatesAreSpecified() {
+        Venue nearby = Venue.builder().id(16L).name("Campo")
+                .city("Lisboa").address("Rua A").sports("Padel")
+                .latitude(38.72).longitude(-9.14).build();
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(List.of(nearby));
+
+        assertEquals(16L, service.search(null, "Padel", 38.72, -9.14, null).getFirst().id());
+    }
     @Test
     void matchesSportExactlyIgnoringCaseAndWhitespace() {
         Venue matching = Venue.builder()
@@ -189,12 +264,48 @@ class VenueServiceTest {
                 .sports(null)
                 .build();
 
-        when(venueRepository.findAllByOrderByNameAsc())
+        when(venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc("lis"))
                 .thenReturn(List.of(matching, unspecified));
 
         var results = service.search("lis", "PADEL");
 
         assertEquals(1, results.size());
         assertEquals("Campo Padel", results.getFirst().name());
+    }
+
+    @Test
+    void searchesImportedNationalVenuesByCityAndSport() {
+        Venue porto = Venue.builder()
+                .id(261L)
+                .name("Piscina Municipal da Constituição")
+                .city("Porto")
+                .address("Rua do Almirante Leote do Rêgo")
+                .sports("Natação")
+                .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .build();
+        Venue coimbra = Venue.builder()
+                .id(262L)
+                .name("Pavilhão Municipal Multidesportos Mário Mexia")
+                .city("Coimbra")
+                .address("Praça Heróis do Ultramar")
+                .sports("Andebol;Basquetebol;Voleibol;Futsal;Patinagem;Ginástica")
+                .informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .build();
+
+        when(venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc("porto"))
+                .thenReturn(List.of(porto));
+        when(venueRepository.findByCityContainingIgnoreCaseOrderByNameAsc("coimbra"))
+                .thenReturn(List.of(coimbra));
+
+        var swimming = service.search(" Porto ", "natação");
+        var basketball = service.search("Coimbra", "Basquetebol");
+        var swimmingInCoimbra = service.search("Coimbra", "Natação");
+
+        assertEquals(1, swimming.size());
+        assertEquals(261L, swimming.getFirst().id());
+        assertEquals("OPENSTREETMAP", swimming.getFirst().informationSource());
+        assertEquals(1, basketball.size());
+        assertEquals(262L, basketball.getFirst().id());
+        assertTrue(swimmingInCoimbra.isEmpty());
     }
 }

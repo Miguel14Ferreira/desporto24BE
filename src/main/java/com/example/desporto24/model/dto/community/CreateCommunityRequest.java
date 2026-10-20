@@ -5,10 +5,18 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public record CreateCommunityRequest(
         @NotBlank @Size(max = 100) String name,
         @Size(max = 2000) String description,
         @Size(max = 100) String sport,
-        @NotNull CommunityVisibility visibility
+        @NotNull CommunityVisibility visibility,
+        @Size(max = 128) List<@NotBlank @Size(max = 100) String> sports
 ) {
+    // Older clients send only the single "sport" property.
+    public CreateCommunityRequest(String name, String description, String sport,
+                                  CommunityVisibility visibility) {
+        this(name, description, sport, visibility, null);
+    }
 }

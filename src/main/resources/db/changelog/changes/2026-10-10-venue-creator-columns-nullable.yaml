@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-10-venue-creator-columns-nullable
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        and:
+          - tableExists:
+              schemaName: desporto24
+              tableName: venue
+          - tableExists:
+              schemaName: desporto24
+              tableName: venue_photo
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.venue
+              ALTER COLUMN created_by_profile_id DROP NOT NULL;
+              ALTER TABLE desporto24.venue_photo
+              ALTER COLUMN uploaded_by_profile_id DROP NOT NULL;
