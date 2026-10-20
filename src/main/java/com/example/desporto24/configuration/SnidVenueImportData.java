@@ -69,8 +69,8 @@ public class SnidVenueImportData {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             try (var input = connection.getInputStream();
                  var parser = mapper.getFactory().createParser(input)) {
-                while (parser.nextToken() != null) {
-                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                com.fasterxml.jackson.databind.JsonNode record;
+                while ((record = SnidRecordStream.nextRecord(parser, mapper)) != null) {
                     total++;
                     if (record != null) {
                         String category = snidCategory(record.path("category"));
@@ -99,7 +99,9 @@ public class SnidVenueImportData {
                             || record.path("name").asText().isBlank()) continue;
                     com.fasterxml.jackson.databind.JsonNode location;
                     try {
-                        location = mapper.readTree(record.path("location").asText(""));
+                        var sourceLocation = record.path("location");
+                        location = sourceLocation.isObject()
+                                ? sourceLocation : mapper.readTree(sourceLocation.asText(""));
                     } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
                         continue;
                     }
@@ -304,8 +306,8 @@ public class SnidVenueImportData {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             try (var input = connection.getInputStream();
                  var parser = mapper.getFactory().createParser(input)) {
-                while (parser.nextToken() != null) {
-                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                com.fasterxml.jackson.databind.JsonNode record;
+                while ((record = SnidRecordStream.nextRecord(parser, mapper)) != null) {
                     total++;
                     String name = clean(record.path("name").asText(null));
                     // SNID also publishes sports institutions, which are not bookable venues.
@@ -320,7 +322,9 @@ public class SnidVenueImportData {
                     }
                     com.fasterxml.jackson.databind.JsonNode location;
                     try {
-                        location = mapper.readTree(record.path("location").asText(""));
+                        var sourceLocation = record.path("location");
+                        location = sourceLocation.isObject()
+                                ? sourceLocation : mapper.readTree(sourceLocation.asText(""));
                     } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
                         skipped++;
                         continue;
@@ -705,8 +709,8 @@ public class SnidVenueImportData {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             try (java.io.InputStream input = connection.getInputStream();
                  com.fasterxml.jackson.core.JsonParser parser = mapper.getFactory().createParser(input)) {
-                while (parser.nextToken() != null) {
-                    com.fasterxml.jackson.databind.JsonNode record = mapper.readTree(parser);
+                com.fasterxml.jackson.databind.JsonNode record;
+                while ((record = SnidRecordStream.nextRecord(parser, mapper)) != null) {
                     total++;
                     boolean usable = false;
                     if (record != null && record.path("name").isTextual()
