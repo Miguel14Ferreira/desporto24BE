@@ -13,6 +13,7 @@ import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.security.RefreshOriginValidator;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
@@ -33,6 +34,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.context.TestPropertySource;
@@ -67,7 +71,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JWTokenProvider.class,
         JwtAuthenticationEntryPoint.class,
         JwtAccessDeniedHandler.class,
-        ExceptionHandling.class
+        ExceptionHandling.class,
+        RefreshOriginValidator.class
 })
 @TestPropertySource(properties = {
         "desporto.cors.allowed-origins=http://localhost:4200",
@@ -151,6 +156,7 @@ class JwtExpiryRefreshContractTest {
 
         // The browser's HttpOnly refresh cookie can obtain a fresh signed JWT.
         var response = mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
                         .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value(recovered))
@@ -184,7 +190,8 @@ class JwtExpiryRefreshContractTest {
 
     @Test
     void refreshWithNoCookieIsRejectedWithoutAttemptingTheRefreshService() throws Exception {
-        mvc.perform(post("/api/auth/refresh"))
+        mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200"))
                 .andExpect(status().isBadRequest());
         verify(auth, never()).refresh(anyString());
     }
@@ -194,9 +201,50 @@ class JwtExpiryRefreshContractTest {
         when(auth.refresh("invalid-cookie")).thenThrow(
                 new BadCredentialsException("Invalid test credential"));
         mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
                         .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, "invalid-cookie")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.httpStatusCode").value(400));
         verify(auth).refresh("invalid-cookie");
+    }
+
+    @Test
+    void missingOriginCannotRefreshEvenWithAValidCookie() throws Exception {
+        String refresh = jwt.generateRefreshToken(new ProfilePrincipal(profile));
+
+        mvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.httpStatusCode").value(403));
+
+        verify(auth, never()).refresh(anyString());
+    }
+
+    @Test
+    void untrustedOriginCannotRefreshEvenWithAValidCookie() throws Exception {
+        String refresh = jwt.generateRefreshToken(new ProfilePrincipal(profile));
+
+        mvc.perform(post("/api/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, "https://d24sports.com.attacker.invalid")
+                        .cookie(new Cookie(SecurityConstant.REFRESH_TOKEN_COOKIE, refresh)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.httpStatusCode").value(403));
+
+        verify(auth, never()).refresh(anyString());
+    }
+
+    @Test
+    void temporaryLoginThrottleRetains429RatherThanBecoming500() throws Exception {
+        when(auth.login(any())).thenThrow(new ResponseStatusException(
+                HttpStatus.TOO_MANY_REQUESTS, "Demasiadas tentativas de login"));
+
+        mvc.perform(post("/api/auth/login")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"fixture-user\",\"password\":\"wrong-fixture\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.httpStatusCode").value(429));
+
+        verify(auth).login(any());
     }
 }

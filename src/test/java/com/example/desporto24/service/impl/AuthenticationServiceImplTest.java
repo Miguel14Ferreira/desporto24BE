@@ -167,6 +167,32 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void unknownLoginNameUsesGenericFailureAndCountsTowardsThrottle() {
+        ProfileDTO credentials = credentials();
+        credentials.setUsername("  missing-user  ");
+        when(profileRepository.findUserByUsernameIgnoreCase("missing-user"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(BadCredentialsException.class, () -> service().login(credentials));
+        verify(loginAttemptService).requireAttemptAllowed("missing-user");
+        verify(loginAttemptService).recordMissingAccountAttempt("missing-user");
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void blockedNameIsRejectedBeforeDatabaseLookup() {
+        ProfileDTO credentials = credentials();
+        org.mockito.Mockito.doThrow(new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.TOO_MANY_REQUESTS))
+                .when(loginAttemptService).requireAttemptAllowed(TEST_USERNAME);
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service().login(credentials));
+        verify(profileRepository, never()).findUserByUsernameIgnoreCase(anyString());
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
     void loginAcceptsUsernameWithDifferentLetterCase() {
         Profile profile = activeProfile(false);
         ProfileDTO credentials = credentials();
