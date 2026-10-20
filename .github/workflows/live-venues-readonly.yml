@@ -1,0 +1,37 @@
+name: Temporary read-only Jynlo venue inventory
+on:
+  push:
+    branches: ['analysis/live-venues-readonly-20261020']
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read public venue catalogue without credentials or writes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import collections,json,urllib.request,urllib.error
+          url='https://api.d24sports.com/api/venues'
+          req=urllib.request.Request(url,headers={'User-Agent':'Jynlo-public-venue-readonly-audit/1.0','Accept':'application/json'})
+          try:
+              with urllib.request.urlopen(req,timeout=25) as response:
+                  data=response.read(4*1024*1024+1)
+                  print('HTTP',response.status,'bytes',len(data))
+              if len(data)>4*1024*1024:raise ValueError('Response too large to audit safely')
+              parsed=json.loads(data)
+              if not isinstance(parsed,list):raise ValueError('Expected public venue list')
+              counts=collections.Counter(v.get('district') or '(missing)' for v in parsed)
+              sources=collections.Counter(v.get('informationSource') or '(unknown)' for v in parsed)
+              print('PUBLIC_VENUES',len(parsed))
+              print('DISTRICT_COUNTS',json.dumps(dict(sorted(counts.items())),ensure_ascii=False))
+              print('SOURCE_COUNTS',dict(sources))
+              print('WITHOUT_COORDS',sum(v.get('latitude') is None or v.get('longitude') is None for v in parsed))
+              print('WITHOUT_SPORTS',sum(not v.get('sports') for v in parsed))
+              print('SUCCESS: public GET only; no production DB connection, API token or writes')
+          except (OSError,ValueError,json.JSONDecodeError) as ex:
+              print('AUDIT_UNAVAILABLE',type(ex).__name__,str(ex)[:160])
+              raise SystemExit(2)
+          PY
