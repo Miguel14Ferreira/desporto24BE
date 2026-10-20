@@ -115,7 +115,8 @@ jobs:
               --username=postgres --password=local_test_only \
               --default-schema-name=desporto24 \
               --liquibase-schema-name=desporto24 \
-              --changelog-file=/liquibase/changelog/ci-venue-catalogue.yaml \
+              --search-path=/liquibase/changelog \
+              --changelog-file=ci-venue-catalogue.yaml \
               update
           }
           run_liquibase
