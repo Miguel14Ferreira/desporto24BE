@@ -132,7 +132,7 @@ def iter_json_objects(path):
                     data = data[1:]
                     continue
             if array and data.startswith("]"):
-                if data[1:].strip() or stream.read(1).strip():
+                if data[1:].strip() or stream.read().strip():
                     raise ValueError("Trailing content after SNID JSON array")
                 return
             if not data:
@@ -145,7 +145,9 @@ def iter_json_objects(path):
                     expect_separator = False
                     continue
                 if not eof and len(data) < 2:
-                    data += stream.read(64 * 1024)
+                    part = stream.read(64 * 1024)
+                    eof = not part
+                    data += part
                     continue
                 raise ValueError("Missing delimiter between SNID records")
             try:
