@@ -57,7 +57,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @TestPropertySource(properties = {
         "desporto.cors.allowed-origins=http://localhost:4200",
-        "springdoc.api-docs.enabled=false"
+        "springdoc.api-docs.enabled=false",
+        "desporto.media.provider=s3"
 })
 class CommunitySecurityFilterChainTest {
 
