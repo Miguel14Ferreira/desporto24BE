@@ -9,6 +9,8 @@ import com.example.desporto24.service.VenueService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.web.server.ResponseStatusException;
@@ -55,6 +57,39 @@ public class AdminVenueImportController {
                 }).sorted(java.util.Comparator.comparing(v -> (String) v.get("district")))
                 .toList();
         return Map.of("total", venueRepository.count(), "districts", byDistrict);
+    }
+
+    /** No personal data, no full-table Venue loading, no production writes. */
+    @GetMapping("/quality")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Map<String, Object> venueQuality(@RequestParam(defaultValue = "50") int limit) {
+        if (limit < 1 || limit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Limite inválido");
+        }
+        var byCity = venueRepository.qualityByCity(PageRequest.of(0, limit)).stream()
+                .map(row -> {
+                    Map<String, Object> item = new java.util.LinkedHashMap<>();
+                    item.put("city", row[0] instanceof String city && !city.isBlank()
+                            ? city : "(sem localidade)");
+                    item.put("total", ((Number) row[1]).longValue());
+                    item.put("withoutSports", ((Number) row[2]).longValue());
+                    item.put("withoutDistrict", ((Number) row[3]).longValue());
+                    item.put("withoutCoordinates", ((Number) row[4]).longValue());
+                    return item;
+                }).toList();
+        var districts = venueRepository.coverageByDistrict();
+        long withoutSports = districts.stream().mapToLong(row -> ((Number) row[2]).longValue()).sum();
+        long withoutCoordinates = districts.stream().mapToLong(row -> ((Number) row[3]).longValue()).sum();
+        long withoutDistrict = districts.stream()
+                .filter(row -> row[0] == null
+                        || row[0] instanceof String district && district.isBlank())
+                .mapToLong(row -> ((Number) row[1]).longValue()).sum();
+        return Map.of("total", venueRepository.count(),
+                "withoutSports", withoutSports,
+                "withoutDistrict", withoutDistrict,
+                "withoutCoordinates", withoutCoordinates,
+                "cities", byCity, "limit", limit);
     }
 
     @GetMapping("/imports/snid/status")

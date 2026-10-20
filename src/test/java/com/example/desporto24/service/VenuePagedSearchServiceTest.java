@@ -53,6 +53,17 @@ class VenuePagedSearchServiceTest {
     }
 
     @Test
+    void CascaisPageUsesVerifiedParishAliasesInsteadOfChangingVenueRecords() {
+        when(repository.suggestMunicipality("", "futsal", "",
+                VenueMunicipalityAliases.cascaisParishes(), PageRequest.of(0, 40)))
+                .thenReturn(new SliceImpl<>(List.of()));
+        service.suggest("", "Cascais", "Futsal", 0);
+        verify(repository).suggestMunicipality("", "futsal", "",
+                VenueMunicipalityAliases.cascaisParishes(), PageRequest.of(0, 40));
+        verify(repository, never()).suggest(anyString(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
     void normalizesAccentedDistrictAndFiltersInTheDatabase() {
         when(repository.suggest("", "", "padel", "Évora", PageRequest.of(0, 40)))
                 .thenReturn(new SliceImpl<>(List.of()));

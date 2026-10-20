@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.Instant;
+import com.example.desporto24.service.VenueMunicipalityAliases;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -71,6 +72,28 @@ class VenuePagedSearchRepositoryTest {
         assertEquals("Lisboa", district.getContent().getFirst().getDistrict());
         var fallback = repository.suggest("campo antigo", "", "padel", "", PageRequest.of(0, 40));
         assertEquals(1, fallback.getContent().size());
+    }
+
+    @Test
+    void municipalityCascaisMatchesVerifiedHistoricParishesButNotOtherTowns() {
+        persist("Campo Centro", "Cascais", "Futsal");
+        persist("Campo Estoril", "U.F. Cascais e Estoril", "Futsal");
+        persist("Campo Rana", "São Domingos de Rana", "Futsal");
+        persist("Campo Alcabideche", "Alcabideche", "Futsal");
+        persist("Campo Parede", "U.F. Carcavelos e Parede", "Futsal");
+        persist("Campo Exterior", "Porto", "Futsal");
+        entityManager.flush();
+        entityManager.clear();
+
+        var result = repository.suggestMunicipality("", "futsal", "",
+                VenueMunicipalityAliases.cascaisParishes(), PageRequest.of(0, 40));
+        assertEquals(5, result.getContent().size());
+        assertFalse(result.hasNext());
+        assertEquals(5, repository.findByCityAliases(VenueMunicipalityAliases.cascaisParishes()).size());
+
+        var outside = repository.suggest("", "porto", "futsal", "", PageRequest.of(0, 40));
+        assertEquals(1, outside.getContent().size());
+        assertEquals("Porto", outside.getContent().getFirst().getCity());
     }
 
     private void persist(String name, String city, String sports) {

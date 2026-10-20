@@ -1,0 +1,139 @@
+{
+  "source": "Pestana XLSX football+futsal / padel inventory",
+  "evidenceChecked": "official municipal/municipal operator webpages, October 2026",
+  "status": "STAGED_NOT_APPROVED",
+  "size": 7,
+  "venues": [
+    {
+      "id": "PT-FUT-0007",
+      "name": "Campo Municipal do Viso",
+      "city": "Porto",
+      "district": "Porto",
+      "address": "Rua Direita do Viso, 4250 Porto",
+      "sports": [
+        "Futebol",
+        "Hóquei em Campo"
+      ],
+      "kind": "Campo de jogos",
+      "env": "OUTDOOR",
+      "source": "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
+      "sourceReference": "JYNLO:CATALOG:PT-FUT-0007",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    },
+    {
+      "id": "PT-FUT-0008",
+      "name": "Campo Municipal dos Choupos",
+      "city": "Porto",
+      "district": "Porto",
+      "address": "Rua dos Plátanos, 4100-414 Porto",
+      "sports": [
+        "Futebol"
+      ],
+      "kind": "Campo de jogos",
+      "env": "OUTDOOR",
+      "source": "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
+      "sourceReference": "JYNLO:CATALOG:PT-FUT-0008",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    },
+    {
+      "id": "PT-FUT-0009",
+      "name": "Campo Municipal do Parque da Cidade",
+      "city": "Porto",
+      "district": "Porto",
+      "address": "Estrada Interior da Circunvalação, 4100-083 Porto",
+      "sports": [
+        "Futebol"
+      ],
+      "kind": "Campo de jogos",
+      "env": "OUTDOOR",
+      "source": "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
+      "sourceReference": "JYNLO:CATALOG:PT-FUT-0009",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    },
+    {
+      "id": "PT-FUT-0011",
+      "name": "Campo Municipal do Outeiro",
+      "city": "Porto",
+      "district": "Porto",
+      "address": "Rua D. Afonso Henriques, Paranhos, Porto",
+      "sports": [
+        "Futebol"
+      ],
+      "kind": "Campo de jogos",
+      "env": "OUTDOOR",
+      "source": "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
+      "sourceReference": "JYNLO:CATALOG:PT-FUT-0011",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    },
+    {
+      "id": "PT-FUT-0019",
+      "name": "Polidesportivo de Arroios — Joaquim Campos",
+      "city": "Lisboa",
+      "district": "Lisboa",
+      "address": "Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa",
+      "sports": [
+        "Futsal",
+        "Andebol",
+        "Basquetebol"
+      ],
+      "kind": "Polidesportivo",
+      "env": null,
+      "source": "https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/",
+      "sourceReference": "JYNLO:CATALOG:PT-FUT-0019",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    },
+    {
+      "id": "PT-FUT-0013",
+      "name": "Polidesportivo Municipal do Paço",
+      "city": "Maia",
+      "district": "Porto",
+      "address": "Rua do Paço, Pedrouços, 4425-678 Maia",
+      "sports": [
+        "Andebol",
+        "Futsal",
+        "Basquetebol"
+      ],
+      "kind": "Polidesportivo",
+      "env": null,
+      "source": "https://www.cm-maia.pt/viver/desporto/instalacoes-desportivas-car/instalacoes-desportivas/poi-37/polidesportivo-municipal-do-paco",
+      "sourceReference": "JYNLO:CATALOG:PT-FUT-0013",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    },
+    {
+      "id": "PT-PAD-0013",
+      "name": "Campo de Padel do Fojo",
+      "city": "Mira",
+      "district": "Coimbra",
+      "address": "Fojo, Seixo de Mira, Mira",
+      "sports": [
+        "Padel"
+      ],
+      "kind": "Campo de padel",
+      "env": "OUTDOOR",
+      "source": "https://www.cm-mira.pt/node/4084",
+      "sourceReference": "JYNLO:CATALOG:PT-PAD-0013",
+      "coordinates": null,
+      "publicAccessConfirmed": false,
+      "availabilityConfirmed": false,
+      "duplicatesReviewedInProduction": false
+    }
+  ]
+}

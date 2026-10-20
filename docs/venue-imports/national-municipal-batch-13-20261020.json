@@ -1,0 +1,249 @@
+{
+  "reviewedAt": "2026-10-20",
+  "status": "DRAFT_PROPOSED_NOT_IMPORTED",
+  "count": 13,
+  "districts": [
+    "Braga",
+    "Viseu",
+    "Guarda",
+    "Aveiro"
+  ],
+  "accuracyPolicy": "Never assert availability, precise GPS, free use, or season/opening hours; all coordinates null",
+  "excludedUnderConstruction": [
+    {
+      "name": "Pavilhão Flávio Sá Leite",
+      "reason": "Municipality announced requalification works started 09 Oct 2026",
+      "sourceUrl": "https://www.cm-braga.pt/pt/0201/comunicacao/noticias/item/item-1-23372"
+    }
+  ],
+  "records": [
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6214",
+      "name": "Pista de Atletismo do Estádio 1.º de Maio",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Parque S. João da Ponte, 4711-909 Braga",
+      "sports": [
+        "Atletismo"
+      ],
+      "venueType": "Pista de atletismo",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6214",
+      "verificationNote": "Municipal equipment page details athletics track and postcode.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6223",
+      "name": "Campo de Futebol N.º1 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6223",
+      "verificationNote": "Separately numbered pitch according to municipal directory.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6224",
+      "name": "Campo de Futebol N.º3 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6224",
+      "verificationNote": "Separately numbered pitch according to municipal directory.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6225",
+      "name": "Campo de Futebol 7 N.º2 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol 7",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6225",
+      "verificationNote": "Football 7 pitch: name and numbering retained.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6226",
+      "name": "Campo de Futebol 7 N.º4 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol 7",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6226",
+      "verificationNote": "Football 7 pitch: name and numbering retained.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6229",
+      "name": "Campo de Futebol N.º 5 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6229",
+      "verificationNote": "Municipality lists this as a separate numbered pitch.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6230",
+      "name": "Campo de Futebol N.º 6 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6230",
+      "verificationNote": "Municipality lists this as a separate numbered pitch.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6231",
+      "name": "Campos de Basquetebol N.º 1 e 2 do Complexo Desportivo da Rodovia",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Complexo Desportivo da Rodovia, 4710-294 Braga",
+      "sports": [
+        "Basquetebol"
+      ],
+      "venueType": "Campo de basquetebol",
+      "environmentType": null,
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6231",
+      "verificationNote": "Official directory jointly lists two courts, represented as one venue to avoid double counting.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6262",
+      "name": "Piscina Climatizada do Complexo Desportivo de Maximinos",
+      "city": "Braga",
+      "district": "Braga",
+      "address": "Rua da Naia, 4710-057 Braga",
+      "sports": [
+        "Natação"
+      ],
+      "venueType": "Piscina",
+      "environmentType": null,
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6262",
+      "verificationNote": "Indoor/heated characteristics not asserted beyond official facility name.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:DOCUMENTED:VISEU:PISCINAS_MUNICIPAIS_FONTelo",
+      "name": "Piscinas Municipais de Viseu",
+      "city": "Viseu",
+      "district": "Viseu",
+      "address": "Avenida José Relvas, Parque do Fontelo, 3500-143 Viseu",
+      "sports": [
+        "Natação"
+      ],
+      "venueType": "Piscina",
+      "environmentType": "INDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf",
+      "verificationNote": "Official municipal card and sports dossier name location and swimming; source document older than 2026.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:DOCUMENTED:VISEU:TENIS_FONTelo",
+      "name": "Campos de Ténis do Parque do Fontelo",
+      "city": "Viseu",
+      "district": "Viseu",
+      "address": "Rua Anacleto Pinto, Parque do Fontelo, 3500-143 Viseu",
+      "sports": [
+        "Ténis"
+      ],
+      "venueType": "Campo de ténis",
+      "environmentType": null,
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf",
+      "verificationNote": "Official municipal partner directory names tennis at Parque do Fontelo; 2024 sports calendar supports tennis court #3.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:DOCUMENTED:GUARDA:PISCINAS_MUNICIPAIS",
+      "name": "Piscinas Municipais da Guarda",
+      "city": "Guarda",
+      "district": "Guarda",
+      "address": "Bairro Nossa Senhora dos Remédios, 6300-509 Guarda",
+      "sports": [
+        "Natação"
+      ],
+      "venueType": "Piscina",
+      "environmentType": null,
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://desporto.mun-guarda.pt/Documentos/f0698def2751440189338052fc6a1785",
+      "verificationNote": "Municipal 2025/26 sports document provides address; municipality 2026 official program confirms pool in use.",
+      "productionDuplicateChecked": false
+    },
+    {
+      "sourceReference": "JYNLO:DOCUMENTED:AVEIRO:PISCINAS_SAO_JACINTO",
+      "name": "Piscina Municipal de São Jacinto",
+      "city": "São Jacinto",
+      "district": "Aveiro",
+      "address": "São Jacinto, Aveiro",
+      "sports": [
+        "Natação"
+      ],
+      "venueType": "Piscina",
+      "environmentType": "OUTDOOR",
+      "latitude": null,
+      "longitude": null,
+      "sourceUrl": "https://www.cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao",
+      "verificationNote": "Official September 2026 municipal report confirms 5,200 uses in summer 2026. Municipal source names venue in singular. Exact street address remains unverified; seasonal operation, do not assert October opening.",
+      "productionDuplicateChecked": false
+    }
+  ],
+  "preflightResults": {
+    "ownerRunDate": "2026-10-20",
+    "total": 13,
+    "noMatchFound": 13,
+    "matchDetected": 0,
+    "notes": "All 13 original candidates had NO_MATCH_FOUND in user-run read-only PostgreSQL SQL. Afterward the Aveiro candidate name and address were corrected to official form; the 12 others retain their preflight, but Aveiro requires a fresh read-only duplicate check before release."
+  }
+}
