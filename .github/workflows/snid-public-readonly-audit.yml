@@ -1,0 +1,103 @@
+name: Temporary public SNID catalogue audit (read only)
+on:
+  push:
+    branches: ['analysis/snid-national-coverage-20261020']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Inspect official datasets and count public records
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import collections
+          import json
+          import unicodedata
+          import urllib.parse
+          import urllib.request
+
+          def fold(value):
+              return ''.join(x for x in unicodedata.normalize('NFD', str(value or '').lower())
+                             if unicodedata.category(x) != 'Mn')
+
+          headers = {'User-Agent': 'Jynlo-source-coverage-audit/1.0 (metadata only)'}
+          chosen = None
+          for query in ('Sistema Nacional de Informação Desportiva', 'SNID', 'instalações desportivas'):
+              url = 'https://dados.gov.pt/api/1/datasets/?' + urllib.parse.urlencode({'q':query,'page_size':100})
+              try:
+                  req = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(req,timeout=25) as r:
+                      datasets = json.load(r).get('data', [])
+                  print('SEARCH', query, 'datasets', len(datasets))
+                  for item in datasets:
+                      if 'sistema nacional de informacao desportiva' not in fold(item.get('title')):continue
+                      resources = item.get('resources', [])
+                      candidates = [x for x in resources if str(x.get('title','')).startswith('snid-localizacao')
+                                  and str(x.get('format','')).lower() == 'json'
+                                  and (x.get('filesize') or 0) > 0]
+                      print('RESOURCE OPTIONS', len(candidates))
+                      for x in candidates[:8]:
+                          print('RESOURCE', x.get('title'), 'bytes', x.get('filesize'),
+                                'updated', x.get('last_modified') or x.get('modified'))
+                      candidates.sort(key=lambda x: str(x.get('last_modified') or x.get('modified') or x.get('title')),reverse=True)
+                      if candidates: chosen = candidates[0]; break
+                  if chosen:break
+              except Exception as e:
+                  print('SEARCH_UNAVAILABLE', type(e).__name__, str(e)[:130])
+          if not chosen:
+              print('AUDIT_BLOCKED: no official SNID geolocation resource found')
+              raise SystemExit(2)
+          resource = chosen['url']
+          parsed = urllib.parse.urlparse(resource)
+          if parsed.scheme != 'https' or parsed.hostname != 'dados.gov.pt':
+              raise SystemExit('Resource host not trusted')
+          req = urllib.request.Request(resource,headers=headers)
+          with urllib.request.urlopen(req, timeout=50) as r:
+              data = r.read(65 * 1024 * 1024 + 1)
+          if len(data)>65*1024*1024:raise SystemExit('Resource exceeds 65MiB review budget')
+          print('SOURCE_BYTES', len(data))
+          parsed = json.loads(data)
+          print('ROOT', type(parsed).__name__, 'first_keys',list(parsed)[:8] if isinstance(parsed,dict) else [])
+          if isinstance(parsed, list): records=parsed
+          elif isinstance(parsed,dict):
+              records=next((parsed[k] for k in ('data','records','features') if isinstance(parsed.get(k),list)),[])
+          else:records=[]
+          print('RECORDS',len(records))
+          if records:
+              one=records[0]
+              if isinstance(one,dict):
+                  print('FIELDS', sorted(one))
+                  print('FIELD_TYPES', {k:type(v).__name__ for k,v in one.items()})
+          cats=collections.Counter()
+          districts=collections.Counter()
+          geo_ok=0
+          mainland_bbox=0
+          named=0
+          sports_fields=collections.Counter()
+          for row in records:
+              if not isinstance(row,dict):continue
+              cats[str(row.get('category') or '')[:65]]+=1
+              named+=bool(row.get('name'))
+              address=row.get('address') or {}
+              if isinstance(address,dict):districts[str(address.get('district') or '(missing)')]+=1
+              for key in ('sports','sport','modalities','activities','type'):
+                  if row.get(key):sports_fields[key]+=1
+              location=row.get('location') or {}
+              if isinstance(location,str):
+                  try:location=json.loads(location)
+                  except (ValueError,TypeError):location={}
+              if not isinstance(location,dict):continue
+              xy=location.get('coordinates')
+              if isinstance(xy,list) and len(xy)==2 and all(isinstance(x,(int,float)) for x in xy):
+                  geo_ok+=1
+                  lon,lat=xy
+                  if 36.8<=lat<=42.3 and -9.6<=lon<=-6.0:mainland_bbox+=1
+          print('NAMED',named,'GEO_VALID',geo_ok,'IN_MAINLAND_BBOX',mainland_bbox)
+          print('CATEGORY_COUNTS',dict(cats.most_common(12)))
+          print('DISTRICT_COUNTS',dict(districts.most_common(22)))
+          print('SPORT_DATA_FIELDS',dict(sports_fields))
+          print('AUDIT_COMPLETE: read-only public source, no user data, no production changes')
+          PY
