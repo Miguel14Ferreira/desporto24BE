@@ -1,0 +1,37 @@
+name: SNID mainland source audit (read-only)
+on:
+  push:
+    branches: ['feature/venues-snid-district-audit-20261021']
+    paths:
+      - 'scripts/snid_district_source_audit.py'
+      - 'scripts/test_snid_district_source_audit.py'
+      - '.github/workflows/snid-source-audit-ci.yml'
+permissions:
+  contents: read
+jobs:
+  source-quality-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test aggregate quality reports offline
+        run: python3 -m unittest discover -s scripts -p 'test_snid_district_source_audit.py' -v
+      - name: Fetch official public SNID JSON and audit 18 mainland districts
+        run: |
+          set -euo pipefail
+          python3 scripts/snid_district_source_audit.py \
+            --fetch-official --output-dir /tmp/jynlo-snid-audit
+          test "$(wc -l </tmp/jynlo-snid-audit/snid-distritos.csv)" -eq 19
+          echo 'Read-only SNID source quality report created; no API, database or Render touched.'
+      - name: Upload aggregate CSV and summary only (no raw installations)
+        uses: actions/upload-artifact@v4
+        with:
+          name: snid-mainland-source-audit
+          path: |
+            /tmp/jynlo-snid-audit/snid-distritos.csv
+            /tmp/jynlo-snid-audit/snid-resumo.json
+          retention-days: 7
+          if-no-files-found: error
