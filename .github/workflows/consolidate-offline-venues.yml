@@ -1,0 +1,42 @@
+name: Temporary consolidate safe offline venue scripts
+on:
+  push:
+    branches: ['integration/inspect-develop-20261020']
+    paths: ['.github/workflows/consolidate-offline-venues.yml']
+permissions:
+  contents: write
+jobs:
+  safe-scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Merge two safe offline-only script PR heads
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Jynlo CI integrator'
+          git config user.email 'ci@example.invalid'
+          git fetch origin develop fix/venue-coverage-status-20261019 feature/national-venue-resumable-download-20261019
+          test "$(git rev-parse origin/develop)" = "e818378ee37071ce3afe4400291a66eb857f39d9"
+          test "$(git rev-parse origin/fix/venue-coverage-status-20261019)" = "590ee08cd02a9825c842d24a5f24caae8562b9b1"
+          test "$(git rev-parse origin/feature/national-venue-resumable-download-20261019)" = "41cec6a1852f6018a7b5d3bc4cd3dd776798d6cc"
+          git checkout -B integration/validated-offline-venues-20261020 origin/develop
+          git merge --no-edit --no-ff origin/fix/venue-coverage-status-20261019
+          git merge --no-edit --no-ff origin/feature/national-venue-resumable-download-20261019
+          test -z "$(git ls-files -u)"
+      - name: Run all changed offline import script tests
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_national_venue_batch_runner.py' -v
+          python3 -m unittest discover -s scripts -p 'test_venue_coverage_report.py' -v
+          python3 -m unittest discover -s scripts -p 'test_prepare_national_venues.py' -v
+      - name: Publish only the tested merge branch, no Render deploy
+        run: |
+          set -euo pipefail
+          git push origin HEAD:refs/heads/integration/validated-offline-venues-20261020
+          echo 'PASS: no runtime Java, DB, prod Render or release branch modified.'
