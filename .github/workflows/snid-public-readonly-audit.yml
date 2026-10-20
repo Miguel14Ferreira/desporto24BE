@@ -59,7 +59,12 @@ jobs:
               data = r.read(65 * 1024 * 1024 + 1)
           if len(data)>65*1024*1024:raise SystemExit('Resource exceeds 65MiB review budget')
           print('SOURCE_BYTES', len(data))
-          parsed = json.loads(data)
+          try:
+              parsed = json.loads(data)
+              print('SOURCE_FORMAT single-document-json')
+          except json.JSONDecodeError:
+              parsed = [json.loads(line) for line in data.splitlines() if line.strip()]
+              print('SOURCE_FORMAT json-lines')
           print('ROOT', type(parsed).__name__, 'first_keys',list(parsed)[:8] if isinstance(parsed,dict) else [])
           if isinstance(parsed, list): records=parsed
           elif isinstance(parsed,dict):
