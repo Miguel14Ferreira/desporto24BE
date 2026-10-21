@@ -17,7 +17,7 @@ final class SnidLocationResourceSelector {
 
     static boolean matchesDatasetTitle(String title) {
         String normalized = normalize(title);
-        return normalized.contains("sistema nacional de informacao desportiva");
+        return normalized.contains("sistema-nacional-de-informacao-desportiva");
     }
 
     static String findLocationJsonUrl(List<?> resources) {
