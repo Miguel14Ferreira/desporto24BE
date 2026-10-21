@@ -1,0 +1,41 @@
+[
+  {
+    "sourceReference": "OSM:WAY:145943204",
+    "name": "Pavilhão Marialvas",
+    "city": "Cantanhede",
+    "district": "Coimbra",
+    "address": "Rua Luís de Camões, 19, 3060-183 Cantanhede",
+    "sports": "Futsal;Andebol;Basquetebol;Voleibol",
+    "venueType": "Pavilhão desportivo",
+    "environmentType": "INDOOR",
+    "sourceUrl": "https://cm-cantanhede.pt/mcsite/entidade/1680/pavilhao-marialvas",
+    "lastReviewed": "2026-10-21",
+    "notes": "Fonte municipal confirma identidade, morada, GPS e quatro modalidades; utilização/cedência a confirmar com entidade gestora. A Jynlo apenas divulga sessões."
+  },
+  {
+    "sourceReference": "OSM:WAY:122685516",
+    "name": "Piscinas Municipais Rui Abreu",
+    "city": "Coimbra",
+    "district": "Coimbra",
+    "address": "Rua António Sérgio, 3020-305 Coimbra",
+    "sports": "Natação",
+    "venueType": "Piscina",
+    "environmentType": "INDOOR",
+    "sourceUrl": "https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/piscina-municipal-rui-abreu",
+    "lastReviewed": "2026-10-21",
+    "notes": "Fonte municipal documenta a piscina, morada e horários de 2026; planos de água sujeitos a atividades e taxas, não equivale a acesso para sessões externas."
+  },
+  {
+    "sourceReference": "OSM:WAY:1056855283",
+    "name": "Centro Olímpico de Piscinas Municipais",
+    "city": "Coimbra",
+    "district": "Coimbra",
+    "address": "Praça Heróis do Ultramar, 3030-327 Coimbra",
+    "sports": "Natação",
+    "venueType": "Piscina",
+    "environmentType": "INDOOR",
+    "sourceUrl": "https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/c-olimpico-de-piscinas",
+    "lastReviewed": "2026-10-21",
+    "notes": "Fonte municipal documenta morada, tanques e horários de 2026; eventos e regras de utilização podem limitar o acesso, sem garantia de marcação pela Jynlo."
+  }
+]

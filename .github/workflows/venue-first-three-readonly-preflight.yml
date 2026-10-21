@@ -1,0 +1,62 @@
+name: Jynlo first 3 municipal pilot offline (no DB)
+on:
+  push:
+    branches: ['feature/jynlo-first-three-verified-seed-preflight-20261021']
+    paths:
+      - 'scripts/prepare_official_venue_pilot.py'
+      - 'scripts/test_prepare_official_venue_pilot.py'
+      - 'docs/venue-imports/first-three-official-pilot-20261021.json'
+      - '.github/workflows/venue-first-three-readonly-preflight.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readonly-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline protections and disallow unapproved inserts
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_prepare_official_venue_pilot.py' -v
+      - name: Reuse the national detail artifact; NO PBF download
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39616305935
+          github-token: ${{ github.token }}
+          name: jynlo-3514-venue-full-details-readonly
+          path: /tmp/jynlo-national-archived
+      - name: Generate the three proposals and READ ONLY SQL
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_official_venue_pilot.py \
+            --national-full-details /tmp/jynlo-national-archived/national-venue-details-3514.jsonl.gz \
+            --municipal-evidence docs/venue-imports/first-three-official-pilot-20261021.json \
+            --output-dir /tmp/jynlo-three
+          python3 - <<'PY'
+          import json
+          d=json.load(open("/tmp/jynlo-three/pilot-summary.json"))
+          assert d["proposals"] == 3 and d["approved_for_import"] == 0
+          assert d["database_writes"] is False
+          PY
+          if python3 scripts/generate_verified_venue_liquibase.py \
+            --approved-jsonl /tmp/jynlo-three/pilot-proposals-unapproved.jsonl \
+            --output-dir /tmp/jynlo-not-approved \
+            --migration-id first-three-not-approved; then
+            echo 'ERROR: draft proposals unexpectedly generated migrations'
+            exit 1
+          fi
+      - name: Preserve small proposal/SQL report only for 3 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-first-3-official-readonly-pilot
+          retention-days: 3
+          if-no-files-found: error
+          path: |
+            /tmp/jynlo-three/pilot-proposals-unapproved.jsonl
+            /tmp/jynlo-three/pilot-readonly-preflight.sql
+            /tmp/jynlo-three/pilot-summary.json
