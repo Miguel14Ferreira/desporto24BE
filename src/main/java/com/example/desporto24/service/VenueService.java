@@ -401,7 +401,8 @@ public class VenueService {
                 venue.getLongitude(),
                 informationSource(venue),
                 venue.getCreatedBy() == null ? null : venue.getCreatedBy().getUsername(),
-                venue.getCreatedAt()
+                venue.getCreatedAt(),
+                venue.getDistrict()
         );
     }
 
