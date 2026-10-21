@@ -73,6 +73,29 @@ class ExplicitApprovals(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "fingerprint"):
             review(proposals, reviews, today=TODAY)
 
+    def test_municipal_source_cannot_be_changed_without_fingerprint_mismatch(self):
+        decisions = fake_signed_reviews(self.decisions)
+        reference = sorted(PILOT_REFS)[0]
+        for field, replacement in (
+            ("evidenceUrl", "https://www.cm-coimbra.pt/areas/viver/desporto/other"),
+            ("evidenceReviewedOn", "2026-10-20"),
+        ):
+            changed = deepcopy(self.proposals)
+            changed[reference][field] = replacement
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "fingerprint"):
+                review(changed, decisions, today=TODAY)
+
+    def test_non_municipal_evidence_is_rejected_by_pilot_loader(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "changed.jsonl"
+            for source in ("https://example.org/venue", "http://www.cm-coimbra.pt/venue",
+                           "https://user:password@www.cm-coimbra.pt/venue"):
+                changed = deepcopy(list(self.proposals.values()))
+                changed[0]["evidenceUrl"] = source
+                path.write_text("".join(json.dumps(x) + "\n" for x in changed), encoding="utf-8")
+                with self.subTest(source=source), self.assertRaisesRegex(ValueError, "municipal"):
+                    load_pilot(path)
+
     def test_stale_or_future_db_preflight_is_rejected(self):
         for checked in ("2026-10-18", "2026-10-22", "garbled"):
             reviewed = fake_signed_reviews(self.decisions)
@@ -103,6 +126,9 @@ class ExplicitApprovals(unittest.TestCase):
             self.assertEqual(n, 3)
             text = sql.read_text(encoding="utf-8")
             self.assertEqual(text.count("INSERT INTO desporto24.venue"), 3)
+            self.assertEqual(text.count("source_reference, website,"), 3)
+            for proposal in self.proposals.values():
+                self.assertIn(proposal["evidenceUrl"], text)
             self.assertIn("ON CONFLICT DO NOTHING", text)
             self.assertIn("WHERE NOT EXISTS", text)
             self.assertNotIn("DELETE FROM desporto24.venue", text)
