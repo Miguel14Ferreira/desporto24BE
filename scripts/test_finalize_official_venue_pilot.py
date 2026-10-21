@@ -121,7 +121,7 @@ class ExplicitApprovals(unittest.TestCase):
                 load_pilot(altered)
         with tempfile.TemporaryDirectory() as tmp:
             changed = Path(tmp)/"bad-decisions.json"
-            entries = list(self.decisions.values())
+            entries = deepcopy(list(self.decisions.values()))
             entries[0]["sourceReference"] = "OSM:WAY:429474882"
             changed.write_text(json.dumps(entries))
             with self.assertRaisesRegex(ValueError, "Invalid"):
