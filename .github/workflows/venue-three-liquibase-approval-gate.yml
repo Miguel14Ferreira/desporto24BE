@@ -1,9 +1,12 @@
 name: Jynlo three venue Liquibase approval gate (offline)
 on:
-  push:
-    branches: ['feature/jynlo-first-3-liquibase-approval-gate-20261021']
+  pull_request:
+    branches: [develop]
     paths:
       - 'scripts/finalize_official_venue_pilot.py'
+      - 'scripts/generate_verified_venue_liquibase.py'
+      - 'scripts/test_generate_verified_venue_liquibase.py'
+      - 'scripts/test_generate_verified_venue_gps_only.py'
       - 'scripts/test_finalize_official_venue_pilot.py'
       - 'docs/venue-imports/first-three-proposals-unapproved-20261021.jsonl'
       - 'docs/venue-imports/first-three-decisions-pending-20261021.json'
@@ -34,6 +37,7 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s scripts -p 'test_finalize_official_venue_pilot.py' -v
           python3 -m unittest discover -s scripts -p 'test_generate_verified_venue_liquibase.py' -v
+          python3 -m unittest discover -s scripts -p 'test_generate_verified_venue_gps_only.py' -v
       - name: Confirm real candidate decisions are PENDING and never produce SQL
         run: |
           set -euo pipefail
@@ -91,6 +95,7 @@ jobs:
             environment_type VARCHAR(20),
             latitude DOUBLE PRECISION, longitude DOUBLE PRECISION,
             information_source VARCHAR(20), source_reference VARCHAR(255),
+            website VARCHAR(255),
             indoor BOOLEAN NOT NULL DEFAULT FALSE,
             changing_rooms BOOLEAN NOT NULL DEFAULT FALSE,
             parking BOOLEAN NOT NULL DEFAULT FALSE,
@@ -104,6 +109,8 @@ jobs:
           docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres < "$migration"
           first="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
           test "$first" = '3'
+          websites="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue WHERE website LIKE '\''https://%'\''')"
+          test "$websites" = '3'
           docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres < "$migration"
           second="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
           test "$second" = '3'
