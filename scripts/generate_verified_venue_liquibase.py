@@ -13,6 +13,7 @@ import math
 from pathlib import Path
 import re
 import unicodedata
+from urllib.parse import urlsplit
 
 DISTRICTS = {
     "Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra",
@@ -68,9 +69,31 @@ def validate(item):
     district = required_text(item, "district", 120)
     if district not in DISTRICTS:
         raise ValueError(f"Unknown mainland district: {district}")
-    address = required_text(item, "address", 255)
-    if "por confirmar" in address.casefold():
-        raise ValueError("Address still marked as unverified")
+    # GPS-only is a real, supported LIVE schema state (Oct 21 migration), not
+    # permission to smuggle OSM placeholder addresses into public data.
+    address = item.get("address")
+    if address is None:
+        if "address" not in item or item.get("postalAddressStatus") != "UNKNOWN_GPS_ONLY":
+            raise ValueError("GPS-only location requires explicit null address and UNKNOWN_GPS_ONLY status")
+        if item.get("gpsVerified") is not True:
+            raise ValueError("GPS-only location requires independent GPS verification")
+        gps_notes = required_text(item, "gpsVerificationNotes", 1000)
+        if len(gps_notes) < 40:
+            raise ValueError("GPS-only location requires substantial independent verification notes")
+        evidence = required_text(item, "gpsEvidenceUrl", 500)
+        url = urlsplit(evidence)
+        host = (url.hostname or "").lower()
+        if (url.scheme != "https" or not host or url.username or url.password
+                or host in {"openstreetmap.org", "www.openstreetmap.org", "osm.org",
+                            "www.osm.org", "localhost"}
+                or host.endswith(".openstreetmap.org")):
+            raise ValueError("GPS-only verification needs an independent HTTPS evidence URL, not OSM")
+    else:
+        address = required_text(item, "address", 255)
+        if "por confirmar" in address.casefold():
+            raise ValueError("Address still marked as unverified")
+        if item.get("postalAddressStatus") == "UNKNOWN_GPS_ONLY":
+            raise ValueError("GPS-only status conflicts with supplied postal address")
     sports = required_text(item, "sports", 255)
     venue_type = required_text(item, "venueType", 80)
     environment = item.get("environmentType")
@@ -114,6 +137,7 @@ def load_approved(path):
 
 def render_sql(rows):
     header = ("-- Generated from individually approved OSM venues. Review the SQL in a PR.\n"
+              "-- Explicit NULL postal address means independently verified GPS-only; never a fake street.\n"
               "-- Idempotent inserts: never update, replace or delete existing venue records.\n"
               "-- Does not prove an OSM facility is available for public booking.\n\n")
     statements = []

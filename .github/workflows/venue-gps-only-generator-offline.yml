@@ -1,0 +1,26 @@
+name: Verified GPS-only venue generator (offline)
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/generate_verified_venue_liquibase.py'
+      - 'scripts/test_generate_verified_venue_gps_only.py'
+      - 'scripts/test_generate_verified_venue_liquibase.py'
+      - '.github/workflows/venue-gps-only-generator-offline.yml'
+permissions:
+  contents: read
+jobs:
+  gps-only-import-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile generator and regression tests
+        run: |
+          python -m py_compile scripts/generate_verified_venue_liquibase.py
+          python -m unittest discover -s scripts -p 'test_generate_verified_venue_liquibase.py' -v
+          python -m unittest discover -s scripts -p 'test_generate_verified_venue_gps_only.py' -v
+          python -m unittest discover -s scripts -p 'test_finalize_official_venue_pilot.py' -v
