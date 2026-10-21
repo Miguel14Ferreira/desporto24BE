@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-21-venue-gps-only-address-nullable-v1
+      author: jynlo-venues
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        and:
+          - tableExists:
+              schemaName: desporto24
+              tableName: venue
+          - sqlCheck:
+              expectedResult: "0"
+              sql: |
+                SELECT COUNT(*) FROM desporto24.venue
+                WHERE (address IS NULL OR BTRIM(address) = '')
+                  AND (latitude IS NULL OR longitude IS NULL
+                       OR latitude NOT BETWEEN 36.8 AND 42.3
+                       OR longitude NOT BETWEEN -9.6 AND -6.0)
+      changes:
+        - sqlFile:
+            path: 2026-10-21-venue-gps-only-address-nullable.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
