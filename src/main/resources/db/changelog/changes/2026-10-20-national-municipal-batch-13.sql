@@ -169,6 +169,9 @@ WHERE NOT EXISTS (
 ON CONFLICT DO NOTHING;
 
 -- Viseu: Piscinas Municipais de Viseu
+-- Coordinates from the official Viseu municipal venue page, 40°39'35.46N / 7°54'11.37W.
+-- CAOP2025 check: Viseu municipality, Viseu district (source-only GitHub Action #39584936380).
+-- https://www.cm-viseu.pt/pt/areas-servicos/desporto-atividade-fisica/complexo-desportivo-do-fontelo/piscinas-municipais-de-viseu/
 -- Municipal evidence: https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf
 -- Review: Official municipal card and sports dossier name location and swimming; source document older than 2026.
 INSERT INTO desporto24.venue
@@ -176,7 +179,7 @@ INSERT INTO desporto24.venue
    latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
 SELECT 'Piscinas Municipais de Viseu', 'Viseu', 'Viseu', 'Avenida José Relvas, Parque do Fontelo, 3500-143 Viseu', 'Natação', 'Piscina', 'INDOOR',
-       NULL, NULL, 'OFFICIAL', 'JYNLO:DOCUMENTED:VISEU:PISCINAS_MUNICIPAIS_FONTelo', 'https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf',
+       40.659850000, -7.903158333333334, 'OFFICIAL', 'JYNLO:DOCUMENTED:VISEU:PISCINAS_MUNICIPAIS_FONTelo', 'https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf',
        TRUE, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue AS existing
@@ -187,6 +190,9 @@ WHERE NOT EXISTS (
 ON CONFLICT DO NOTHING;
 
 -- Viseu: Campos de Ténis do Parque do Fontelo
+-- Coordinates from the official Viseu municipal court page, 40°39'37.19N / 7°54'4.49W.
+-- CAOP2025 check: Viseu municipality, Viseu district (source-only GitHub Action #39584936380).
+-- https://www.cm-viseu.pt/pt/areas-servicos/desporto-atividade-fisica/complexo-desportivo-do-fontelo/campos-de-tenis/
 -- Municipal evidence: https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf
 -- Review: Official municipal partner directory names tennis at Parque do Fontelo; 2024 sports calendar supports tennis court #3.
 INSERT INTO desporto24.venue
@@ -194,7 +200,7 @@ INSERT INTO desporto24.venue
    latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
 SELECT 'Campos de Ténis do Parque do Fontelo', 'Viseu', 'Viseu', 'Rua Anacleto Pinto, Parque do Fontelo, 3500-143 Viseu', 'Ténis', 'Campo de ténis', NULL,
-       NULL, NULL, 'OFFICIAL', 'JYNLO:DOCUMENTED:VISEU:TENIS_FONTelo', 'https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf',
+       40.660330555555554, -7.9012472222222225, 'OFFICIAL', 'JYNLO:DOCUMENTED:VISEU:TENIS_FONTelo', 'https://www.cm-viseu.pt/fotos/documentos_ficheiros/empresas_aderentes_viseu_jovem_atual_mar2023_09_03_14680162436409b24ac9c5a.pdf',
        FALSE, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue AS existing
