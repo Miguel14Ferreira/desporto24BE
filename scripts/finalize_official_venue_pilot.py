@@ -9,6 +9,7 @@ from datetime import date
 import hashlib
 import json
 from pathlib import Path
+from urllib.parse import urlsplit
 from generate_verified_venue_liquibase import generate
 
 PILOT_REFS = frozenset({
@@ -18,10 +19,12 @@ IDENTITY_KEYS = ("sourceReference", "name", "city", "district", "address",
                  "sports", "venueType", "environmentType", "latitude", "longitude")
 ACCESS_POLICIES = {"AUTHORIZATION_REQUIRED", "CONDITIONAL_PUBLIC_PROGRAMME",
                    "PUBLIC_ACCESS_CONFIRMED", "OTHER_RESTRICTIONS"}
+EVIDENCE_KEYS = ("evidenceUrl", "evidenceReviewedOn")
+MUNICIPAL_HOSTS = {"cm-cantanhede.pt", "www.cm-cantanhede.pt", "www.cm-coimbra.pt"}
 
 
 def fingerprint(proposal):
-    fields = {key: proposal[key] for key in IDENTITY_KEYS}
+    fields = {key: proposal[key] for key in IDENTITY_KEYS + EVIDENCE_KEYS}
     return hashlib.sha256(
         json.dumps(fields, ensure_ascii=False, sort_keys=True,
                    separators=(",", ":")).encode("utf-8")
@@ -41,9 +44,21 @@ def load_pilot(source_file):
                     or row.get("independentFinalApproval") is not False
                     or row.get("publicationStatus") != "DRAFT_PREFLIGHT_REQUIRED"):
                 raise ValueError("Untrusted/missing/approved/duplicate pilot proposal: " + str(ref))
-            for key in IDENTITY_KEYS:
+            for key in IDENTITY_KEYS + EVIDENCE_KEYS:
                 if key not in row:
                     raise ValueError("Missing candidate field: " + key)
+            evidence = row["evidenceUrl"]
+            if not isinstance(evidence, str):
+                raise ValueError("Invalid municipality evidence URL")
+            try:
+                parsed = urlsplit(evidence)
+                host, port = parsed.hostname, parsed.port
+            except ValueError as error:
+                raise ValueError("Invalid municipality evidence URL") from error
+            if (parsed.scheme != "https" or host not in MUNICIPAL_HOSTS
+                    or parsed.username or parsed.password or port not in (None, 443)
+                    or not parsed.path or parsed.path == "/"):
+                raise ValueError("Pilot requires a verified municipal HTTPS venue page")
             records[ref] = row
     if set(records) != PILOT_REFS:
         raise ValueError("Pilot must contain exactly the three reference-checked proposals")
@@ -115,6 +130,7 @@ def review(proposals, decisions, *, today=None):
         parse_date(d.get("preflightCheckedOn"), "preflightCheckedOn", today)
         approved = {key: p[key] for key in IDENTITY_KEYS}
         approved.update({
+            "website": p["evidenceUrl"],
             "approved": True,
             "approvedBy": d["approvedBy"].strip(),
             "verificationNotes": d["verificationNotes"].strip(),
