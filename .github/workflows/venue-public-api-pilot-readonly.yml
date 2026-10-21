@@ -1,0 +1,27 @@
+name: Jynlo public live venue pilot check (GET only)
+on:
+  push:
+    branches:
+      - audit/venue-pilot-public-api-preflight-20261021
+    paths:
+      - scripts/live_public_venue_pilot_preflight.py
+      - scripts/test_live_public_venue_pilot_preflight.py
+      - .github/workflows/venue-public-api-pilot-readonly.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline fail-closed tests
+        run: python3 -m unittest discover -s scripts -p 'test_live_public_venue_pilot_preflight.py' -v
+      - name: Check LIVE public venue candidates (bounded unauthenticated GET only)
+        run: python3 scripts/live_public_venue_pilot_preflight.py
