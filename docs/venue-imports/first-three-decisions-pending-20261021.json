@@ -1,7 +1,7 @@
 [
   {
     "sourceReference": "OSM:WAY:1056855283",
-    "candidateFingerprint": "FINGERPRINT_TO_BE_REPLACED",
+    "candidateFingerprint": "59ebf94124427342c8c32d53b32ae87ce05f825c635662d1dcbdd59638290f4f",
     "decision": "PENDING",
     "approvedBy": "",
     "approvedOn": null,
@@ -20,7 +20,7 @@
   },
   {
     "sourceReference": "OSM:WAY:122685516",
-    "candidateFingerprint": "FINGERPRINT_TO_BE_REPLACED",
+    "candidateFingerprint": "f2f45dc485e80391a679800ed686cf10383fe04c4cf218d34703770407f33551",
     "decision": "PENDING",
     "approvedBy": "",
     "approvedOn": null,
@@ -39,7 +39,7 @@
   },
   {
     "sourceReference": "OSM:WAY:145943204",
-    "candidateFingerprint": "FINGERPRINT_TO_BE_REPLACED",
+    "candidateFingerprint": "3079db795dba53a201e88aa574ada0dc96b5559bd178fa591d93d024a7938bc6",
     "decision": "PENDING",
     "approvedBy": "",
     "approvedOn": null,
