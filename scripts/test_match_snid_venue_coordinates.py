@@ -44,6 +44,8 @@ class VenueCoordinateMatchTests(unittest.TestCase):
             snid("Piscina Municipal de São Jacinto", "Lisboa", "São Jacinto"),
             snid("Pavilhão Municipal da Escola", "Braga", "Braga"),
             snid("Pavilhão Municipal da Escola", "Braga", "Braga", 41.6, -8.5),
+            # Same physical point repeated must not increase exact count.
+            snid("Pavilhão Municipal da Escola", "Braga", "Braga", 41.6, -8.5),
             snid("Pavilhão Municipal da Escola", "Braga", "Braga", 36.0, -8.5),
         ]
         with tempfile.TemporaryDirectory() as folder:
@@ -61,6 +63,21 @@ class VenueCoordinateMatchTests(unittest.TestCase):
         self.assertEqual(1, stats["with_one_exact_name_match"])
         self.assertEqual(1, stats["with_multiple_exact_name_matches"])
         self.assertEqual(1, stats["with_similar_name_only"])
+
+    def test_same_source_site_repeated_is_one_location_to_review(self):
+        repeated = [
+            snid("Piscinas Municipais de Évora", "Évora", "Évora"),
+            snid("Piscinas Municipais de Évora", "Évora", "Évora"),
+            snid("Piscinas Municipais de Évora", "Évora", "Évora"),
+        ]
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "source.json"
+            source.write_text(json.dumps(repeated, ensure_ascii=False), encoding="utf-8")
+            results, summary = analyse(fixture_manifest(), source)
+        self.assertEqual("REVIEW_EXACT_NAME", results[0]["status"])
+        self.assertEqual(1, results[0]["exact_match_count"])
+        self.assertEqual(2, summary["duplicate_name_points_ignored"])
+        self.assertEqual(1, summary["named_distinct_points_with_district"])
 
     def test_no_guess_for_common_words_or_complex_centroid(self):
         records = [{
