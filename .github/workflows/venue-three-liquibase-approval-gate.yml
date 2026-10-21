@@ -1,0 +1,122 @@
+name: Jynlo three venue Liquibase approval gate (offline)
+on:
+  push:
+    branches: ['feature/jynlo-first-3-liquibase-approval-gate-20261021']
+    paths:
+      - 'scripts/finalize_official_venue_pilot.py'
+      - 'scripts/test_finalize_official_venue_pilot.py'
+      - 'docs/venue-imports/first-three-proposals-unapproved-20261021.jsonl'
+      - 'docs/venue-imports/first-three-decisions-pending-20261021.json'
+      - '.github/workflows/venue-three-liquibase-approval-gate.yml'
+permissions:
+  contents: read
+jobs:
+  integration-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: fixture_only
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run zero-network approval and seed generator unit checks
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_finalize_official_venue_pilot.py' -v
+          python3 -m unittest discover -s scripts -p 'test_generate_verified_venue_liquibase.py' -v
+      - name: Confirm real candidate decisions are PENDING and never produce SQL
+        run: |
+          set -euo pipefail
+          if python3 scripts/finalize_official_venue_pilot.py \
+              --pilot-proposals docs/venue-imports/first-three-proposals-unapproved-20261021.jsonl \
+              --decisions docs/venue-imports/first-three-decisions-pending-20261021.json \
+              --out-dir /tmp/real-jynlo-migration-should-not-exist; then
+            echo 'SAFETY FAILURE: unapproved real venues produced Liquibase inserts'
+            exit 1
+          fi
+          test ! -e /tmp/real-jynlo-migration-should-not-exist
+      - name: Exercise hypothetical approved data ONLY in temporary PostgreSQL 16
+        shell: bash
+        env:
+          PGCID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          # Fake approvals are in memory for this test. They are NOT uploaded
+          # nor committed and do NOT constitute human review for real venues.
+          python3 - <<'PY'
+          from datetime import date
+          import json
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts')
+          from finalize_official_venue_pilot import load_decisions, release
+          d = load_decisions('docs/venue-imports/first-three-decisions-pending-20261021.json')
+          for x in d.values():
+              x.update(decision="APPROVED",
+                       approvedBy="SYNTHETIC_TEST_FIXTURE_ONLY",
+                       approvedOn="2026-10-21",
+                       identityVerified=True, addressVerified=True,
+                       sportsVerified=True, currentlyOperatingVerified=True,
+                       accessRestrictionsReviewed=True, restrictionsDisplayReviewed=True,
+                       accessPolicy="AUTHORIZATION_REQUIRED",
+                       preflightNoDuplicates=True, preflightMatchCount=0,
+                       preflightCheckedOn="2026-10-21",
+                       verificationNotes="Synthetic simulated review for PostgreSQL 16 integration tests ONLY.")
+          path=Path('/tmp/jynlo-test-decisions.json')
+          path.write_text(json.dumps(list(d.values())), encoding='utf-8')
+          try:
+              release(Path('docs/venue-imports/first-three-proposals-unapproved-20261021.jsonl'),
+                      path, Path('/tmp/jynlo-synthetic-migration'),
+                      "jynlo-three-test-only", today=date(2026,10,21))
+          finally:
+              path.unlink(missing_ok=True)
+          PY
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGSERIAL PRIMARY KEY,
+            name VARCHAR(140) NOT NULL, city VARCHAR(120) NOT NULL,
+            district VARCHAR(120), address VARCHAR(255) NOT NULL,
+            sports VARCHAR(255), venue_type VARCHAR(80),
+            environment_type VARCHAR(20),
+            latitude DOUBLE PRECISION, longitude DOUBLE PRECISION,
+            information_source VARCHAR(20), source_reference VARCHAR(255),
+            indoor BOOLEAN NOT NULL DEFAULT FALSE,
+            changing_rooms BOOLEAN NOT NULL DEFAULT FALSE,
+            parking BOOLEAN NOT NULL DEFAULT FALSE,
+            lighting BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT uk_venue_source_reference UNIQUE(information_source, source_reference)
+          );
+          SQL
+          migration="$(find /tmp/jynlo-synthetic-migration -type f -name '*.sql' -print -quit)"
+          test -s "$migration"
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres < "$migration"
+          first="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$first" = '3'
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres < "$migration"
+          second="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$second" = '3'
+          echo 'POSTGRES16: exactly 3 first run; 0 inserted on replay'
+          # Verify a same-name non-OSM venue is preserved and not replaced.
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          TRUNCATE desporto24.venue;
+          INSERT INTO desporto24.venue(name,city,address,information_source,source_reference)
+          VALUES('Pavilhão Marialvas','Cantanhede','Rua pré-existente','COMMUNITY',NULL);
+          SQL
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres < "$migration"
+          existing="$(docker exec "$PGCID" psql -X -At -U postgres -c "SELECT COUNT(*) FROM desporto24.venue WHERE name = 'Pavilhão Marialvas'")"
+          total="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$existing" = '1'
+          test "$total" = '3'
+          echo 'POSTGRES16: retained existing community venue; added only 2 others'
