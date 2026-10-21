@@ -10,7 +10,7 @@ on:
       - 'src/main/resources/db/changelog/changes/2026-10-19-*.yaml'
       - 'src/main/resources/db/changelog/changes/2026-10-20-national-municipal-batch-13.*'
       - 'src/main/resources/db/changelog/venue-imports/preflight-sao-jacinto-READONLY.sql'
-      - '.github/workflows/venue-catalogue-postgres16-ci.yml'
+      - '.github/workflows/venue-data-isolated-pg16-ci.yml'
 
 permissions:
   contents: read
