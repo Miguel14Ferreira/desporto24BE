@@ -25,8 +25,9 @@ def row(ref, district="Lisboa"):
 
 class NextPageTest(unittest.TestCase):
     def test_sparse_districts_fill_without_duplicates(self):
-        candidates=[row(i,d) for i in range(100,130)
-                    for d in ("Porto", "Lisboa")]
+        candidates=[row(i + 1000*j, d) for j, d in enumerate(
+                    ("Porto", "Lisboa", "Braga", "Aveiro", "Coimbra"))
+                    for i in range(100,112)]
         first, _ = get_batch(candidates, page=1, limit=15, district_cap=3, expected=60)
         second, info = get_batch(candidates, page=2, limit=15, district_cap=3, expected=60)
         self.assertEqual(len(second), 15)
