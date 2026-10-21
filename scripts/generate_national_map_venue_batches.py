@@ -153,8 +153,8 @@ WHERE NOT EXISTS (
      OR (LOWER(BTRIM(v.city))=LOWER(BTRIM({city}))
          AND LOWER(BTRIM(v.name))=LOWER(BTRIM({name}))
          AND (v.latitude IS NULL OR v.longitude IS NULL
-           OR (ABS(v.latitude-{lat:.7f}) <= 0.00070
-               AND ABS(v.longitude-{lon:.7f}) <= 0.00100)))
+           OR (ABS(v.latitude - ({lat:.7f})) <= 0.00070
+               AND ABS(v.longitude - ({lon:.7f})) <= 0.00100)))
 )
 ON CONFLICT DO NOTHING;"""
 
