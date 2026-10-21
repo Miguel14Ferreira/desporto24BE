@@ -1,0 +1,19 @@
+databaseChangeLog:
+  # Publication requires duplicate preflight, backup and PostgreSQL 16 testing.
+  - changeSet:
+      id: 2026-10-19-pestana-7-source-corroborated-v1
+      author: jynlo-venues
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        tableExists:
+          schemaName: desporto24
+          tableName: venue
+      changes:
+        - sqlFile:
+            path: 2026-10-19-pestana-7-source-corroborated.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
