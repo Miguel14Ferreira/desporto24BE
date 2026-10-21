@@ -59,6 +59,8 @@ def load_official_catalogue(source):
     by_district = {name: [] for name in DISTRICTS}
     scanned = 0
     located = 0
+    repeated_points = 0
+    seen = {district: set() for district in DISTRICTS}
     for record in iter_json_objects(source):
         scanned += 1
         point = coordinates(record)
@@ -72,6 +74,13 @@ def load_official_catalogue(source):
         lat, lon = point
         if not (36.8 <= lat <= 42.3 and -9.6 <= lon <= -6.0):
             continue
+        # The SNID export may repeat the same physical point several times.
+        # Counting these as independent matches fabricates ambiguity.
+        physical_key = (name_key(name), round(lat, 6), round(lon, 6))
+        if physical_key in seen[district]:
+            repeated_points += 1
+            continue
+        seen[district].add(physical_key)
         located += 1
         by_district[district].append({
             "name": name.strip(),
@@ -83,7 +92,8 @@ def load_official_catalogue(source):
             "snid_id": str(record.get("id") or ""),
         })
     return by_district, {"snid_records_scanned": scanned,
-                         "named_located_district_records": located}
+                         "named_distinct_points_with_district": located,
+                         "duplicate_name_points_ignored": repeated_points}
 
 
 def candidate_matches(candidate, records, max_candidates=3):
@@ -169,8 +179,10 @@ def analyse(manifest, source):
     meta["source"] = "SNID (IPDJ); point coordinates from public source"
     meta["policy"] = (
         "REVIEW ONLY. Source label + source district is NOT CAOP polygon proof; "
-        "shared complex/entrance coordinates must never be copied to numbered "
-        "courts; do not generate SQL or modify database from this report."
+        "source municipalityInfo may be inconsistent and must not be treated "
+        "as independently verified; shared complex/entrance coordinates must "
+        "never be copied to numbered courts; do not generate SQL or modify "
+        "database from this report."
     )
     return results, meta
 
