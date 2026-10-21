@@ -94,6 +94,22 @@ def validate(item):
             raise ValueError("Address still marked as unverified")
         if item.get("postalAddressStatus") == "UNKNOWN_GPS_ONLY":
             raise ValueError("GPS-only status conflicts with supplied postal address")
+    website = item.get("website")
+    if website is not None:
+        website = required_text(item, "website", 255)
+        try:
+            parsed_website = urlsplit(website)
+            website_host = (parsed_website.hostname or "").lower()
+            website_port = parsed_website.port
+        except ValueError as error:
+            raise ValueError("Invalid venue website") from error
+        if (parsed_website.scheme != "https" or not website_host
+                or parsed_website.username or parsed_website.password
+                or website_port not in (None, 443)
+                or website_host in {"openstreetmap.org", "www.openstreetmap.org",
+                                    "localhost", "osm.org", "www.osm.org"}
+                or website_host.endswith(".openstreetmap.org")):
+            raise ValueError("Venue website requires an independent HTTPS operator page")
     sports = required_text(item, "sports", 255)
     venue_type = required_text(item, "venueType", 80)
     environment = item.get("environmentType")
@@ -106,7 +122,7 @@ def validate(item):
         if not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f"{key} must be in mainland Portugal")
     return dict(sourceReference=source, name=name, city=city, district=district,
-                address=address, sports=sports, venueType=venue_type,
+                address=address, website=website, sports=sports, venueType=venue_type,
                 environmentType=environment,
                 latitude=round(float(item["latitude"]), 7),
                 longitude=round(float(item["longitude"]), 7))
@@ -145,22 +161,23 @@ def render_sql(rows):
         values = [
             row["name"], row["city"], row["district"], row["address"], row["sports"],
             row["venueType"], row["environmentType"], row["latitude"], row["longitude"],
-            row["sourceReference"]
+            row["sourceReference"], row["website"]
         ]
         vals = ", ".join(literal(x) for x in values[:7])
         lat = f'{values[7]:.7f}'
         lon = f'{values[8]:.7f}'
         ref = literal(values[9])
+        website = literal(values[10])
         indoors = "TRUE" if row["environmentType"] == "INDOOR" else "FALSE"
         # Individual INSERTs mean later statements can observe previously inserted
         # rows in the same Liquibase transaction, unlike one bulk INSERT snapshot.
         statements.append(f"""-- {row['sourceReference']} / {row['district']}
 INSERT INTO desporto24.venue
   (name, city, district, address, sports, venue_type, environment_type,
-   latitude, longitude, information_source, source_reference,
+   latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
 SELECT {vals}, {lat}, {lon}, 'OPENSTREETMAP', {ref},
-       {indoors}, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
+       {website}, {indoors}, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue existing
   WHERE (existing.information_source = 'OPENSTREETMAP'
