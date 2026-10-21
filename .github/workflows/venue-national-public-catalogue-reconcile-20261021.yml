@@ -1,0 +1,149 @@
+name: National venue candidate x public LIVE catalogue review (READ ONLY)
+
+# One-shot preview while auditing, then optionally manual from the default branch.
+on:
+  push:
+    branches: ['audit/venues-national-live-public-reconcile-20261021']
+    paths:
+      - '.github/workflows/venue-national-public-catalogue-reconcile-20261021.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  reconcile-public-venues:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      OUT: /tmp/jynlo-national-public-comparison
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify the local matching code (no API or database)
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_reconcile_national_stage.py' -v
+          python3 -m unittest discover -s scripts -p 'test_audit_national_stage.py' -v
+      - name: Retrieve the completed national source-only GitHub artifact
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39597754588
+          github-token: ${{ github.token }}
+          name: jynlo-national-18-districts-readonly-report
+          path: ${{ env.OUT }}/source
+      - name: Read public LIVE venue API without credentials or personal-data exports
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          python3 - <<'PY'
+          import csv
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          out = Path(os.environ["OUT"])
+          endpoints = (
+              "https://api.d24sports.com/api/venues",
+              "https://desporto24-preview-api.onrender.com/api/venues",
+          )
+          snapshot = None
+          for url in endpoints:
+              try:
+                  request = urllib.request.Request(url, headers={
+                      "Accept": "application/json",
+                      "User-Agent": "Jynlo-National-Public-Catalogue-Audit/1.0"})
+                  with urllib.request.urlopen(request, timeout=40) as response:
+                      if response.status != 200:
+                          raise RuntimeError(f"unexpected HTTP {response.status}")
+                      raw = response.read(12_000_001)
+                  if len(raw) > 12_000_000:
+                      raise RuntimeError("oversize public venue API response")
+                  result = json.loads(raw)
+                  if not isinstance(result, list):
+                      raise RuntimeError("public API response was not a venue list")
+                  if len(result) < 265:
+                      raise RuntimeError(f"public venue list below verified 265 baseline: {len(result)}")
+                  if len(result) > 20_000:
+                      raise RuntimeError("unexpectedly large public venue response")
+                  seen = set()
+                  for item in result:
+                      if not isinstance(item, dict) or not isinstance(item.get("id"), int):
+                          raise RuntimeError("malformed public venue data")
+                      if item["id"] in seen or not isinstance(item.get("name"), str) or not item["name"].strip():
+                          raise RuntimeError("repeated ID or missing venue name")
+                      if not isinstance(item.get("city"), str):
+                          raise RuntimeError("missing venue city")
+                      seen.add(item["id"])
+                  snapshot = (url, result)
+                  break
+              except (OSError, TimeoutError, ValueError, RuntimeError) as error:
+                  print("Source not usable:", url, type(error).__name__, str(error)[:140])
+          if snapshot is None:
+              raise SystemExit("No complete accessible public LIVE venue snapshot; no reconciliation")
+          url, rows = snapshot
+          fields = ("id", "name", "city", "district", "address",
+                    "latitude", "longitude", "source_reference")
+          # IMPORTANT: project only public facility fields. Never persist createdByUsername
+          # or any other account/user metadata from the full API response.
+          with (out / "projected-live-venues-local-only.csv").open(
+                  "w", newline="", encoding="utf-8") as stream:
+              writer = csv.DictWriter(stream, fieldnames=fields)
+              writer.writeheader()
+              for item in rows:
+                  writer.writerow({
+                      "id": item["id"], "name": item["name"], "city": item["city"],
+                      "district": item.get("district") or "",
+                      "address": item.get("address") or "",
+                      "latitude": item.get("latitude"),
+                      "longitude": item.get("longitude"),
+                      # Public DTO does not expose the original OSM reference.
+                      "source_reference": "",
+                  })
+          print(f"Successfully projected {len(rows)} LIVE public venues from {url}")
+          print("No personal attributes retained; OSM-reference exact matching unavailable.")
+          PY
+      - name: Compare all 3514 candidates offline against LIVE venue names/coordinates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$OUT/source/manual-review-candidates.jsonl.gz"
+          python3 scripts/reconcile_national_stage.py \
+            --candidates "$OUT/source/manual-review-candidates.jsonl.gz" \
+            --existing-csv "$OUT/projected-live-venues-local-only.csv" \
+            --report "$OUT/national-live-reconciliation-summary.json" \
+            --review-csv "$OUT/national-live-reconciliation-review.csv"
+          python3 - "$OUT/national-live-reconciliation-summary.json" <<'PY'
+          import json, sys
+          stats = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert stats["live_rows"] >= 265, "incomplete public LIVE catalogue"
+          assert stats["source_candidates"] == 3514, "missing national preview records"
+          assert stats["approved"] == 0, "no candidates may be automatically approved"
+          assert sum(stats["counts"].values()) == 3514, "incomplete status accounting"
+          stats["public_api_source_reference_available"] = False
+          stats["live_db_reference_check_complete"] = False
+          stats["notes"] = ("Only name+municipality and <=100m location heuristic screening "
+                            "completed. Exact OSM source ref and 32 municipal-stage aliases "
+                            "still require READ-ONLY production preflight.")
+          with open(sys.argv[1], "w", encoding="utf-8") as f:
+              json.dump(stats, f, ensure_ascii=False, indent=2)
+          PY
+          # We only publish the venue review and summary; not the projected catalogue
+          # or any JSON returned directly by the public API.
+      - name: Preserve anonymized public-facility review only (1 day)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-national-public-live-reconciliation
+          path: |
+            ${{ env.OUT }}/national-live-reconciliation-summary.json
+            ${{ env.OUT }}/national-live-reconciliation-review.csv
+          retention-days: 1
+          if-no-files-found: warn
