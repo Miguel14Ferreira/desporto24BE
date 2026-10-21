@@ -1,0 +1,35 @@
+name: National GPS-only 18-district review (offline)
+on:
+  push:
+    branches: ['feature/jynlo-gps-only-national-review-18-districts-20261021']
+    paths:
+      - 'scripts/prepare_national_gps_only_review.py'
+      - 'scripts/test_prepare_national_gps_only_review.py'
+      - '.github/workflows/venue-national-gps-only-review-offline.yml'
+permissions:
+  contents: read
+jobs:
+  gps-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test 18 districts and no fake postal address
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_prepare_national_gps_only_review.py' -v
+          python3 scripts/prepare_national_gps_only_review.py \
+            --full-details docs/venue-imports/datasets/national-3514-reviewed-20261021.jsonl.gz \
+            --output-dir /tmp/jynlo-gps-review --per-district 5
+      - name: Upload review CSV and QA summary ONLY (no approvals)
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-national-gps-only-18-district-review
+          path: |
+            /tmp/jynlo-gps-review/national-gps-only-review.csv
+            /tmp/jynlo-gps-review/national-gps-only-summary.json
+          retention-days: 3
+          if-no-files-found: error
