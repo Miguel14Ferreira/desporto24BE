@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      WORK: ${{ runner.temp }}/jynlo-national-review
-      CAOP: ${{ runner.temp }}/jynlo-caop
+      WORK: /tmp/jynlo-national-review
+      CAOP: /tmp/jynlo-caop
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
