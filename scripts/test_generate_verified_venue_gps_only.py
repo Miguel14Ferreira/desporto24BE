@@ -47,7 +47,7 @@ class GpsOnlyApprovedSeedTest(unittest.TestCase):
             CREATE TABLE desporto24.venue (
                 name TEXT, city TEXT, district TEXT, address TEXT, sports TEXT,
                 venue_type TEXT, environment_type TEXT, latitude REAL, longitude REAL,
-                information_source TEXT, source_reference TEXT,
+                information_source TEXT, source_reference TEXT, website TEXT,
                 indoor BOOLEAN, changing_rooms BOOLEAN, parking BOOLEAN,
                 lighting BOOLEAN, created_at TEXT,
                 UNIQUE(information_source, source_reference),
