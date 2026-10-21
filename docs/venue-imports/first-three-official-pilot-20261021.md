@@ -5,6 +5,12 @@ Fontes verificadas a 21/10/2026:
 2. **Piscinas Municipais Rui Abreu**, Coimbra, OSM:WAY:122685516: https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/piscina-municipal-rui-abreu — Rua António Sérgio, 3020-305; natação, horários municipais de 2026 sujeitos a alterações.
 3. **Centro Olímpico de Piscinas Municipais**, Coimbra, OSM:WAY:1056855283: https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/c-olimpico-de-piscinas — Praça Heróis do Ultramar, 3030-327; natação e horário municipal de 2026.
 
+### Revisão pontual do GPS do Pavilhão Marialvas (21/10/2026)
+
+A [ficha oficial do Município de Cantanhede](https://cm-cantanhede.pt/mcsite/entidade/1680/pavilhao-marialvas) indica GPS **40.344028, -8.587633**. Esta coordenada substitui, **apenas no rascunho não aprovado**, o GPS OSM anterior (40.3440287, -8.5876799). A referência de deduplicação continua `OSM:WAY:145943204`; a coordenada foi confirmada independentemente pelo município, não é uma localização de entrada garantida.
+
+A [página municipal de contactos](https://cm-cantanhede.pt/mcsite/pagina/844/Os-nossos-Contactos) publica atendimento e horário do pavilhão. As [normas municipais 2022/2023](https://www.cm-cantanhede.pt/mcsite/Media/upload/2022/202281212942_Manualderetomapmarialvas2021revisaojul2022.pdf) referiam utilizadores inscritos/cedência de espaços; **são históricas e não garantem regras de acesso da época atual**. A aprovação depende de confirmação atual junto do responsável pela instalação. A impressão digital do candidato em `first-three-decisions-pending-20261021.json` foi recalculada; a decisão permanece `PENDING`.
+
 Os três têm fonte independente para **identidade e morada**, mas não provam utilização livre para sessões organizadas por terceiros. A Jynlo divulga sessões, não vende nem reserva instalações. Todos os registos são `approved=false`. **Não existe SQL de INSERT nesta alteração**.
 
 Não incluir já o **Casal Vistoso**: a fonte municipal lista piscina, pavilhão, rocódromo e salas dentro de um único complexo, sendo necessária reconciliação de possíveis subinstalações para evitar duplicados. Os outros 46 da fila inicial continuam sujeitos a confirmação.
