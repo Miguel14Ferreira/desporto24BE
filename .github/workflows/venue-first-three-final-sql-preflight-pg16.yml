@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/main/resources/db/changelog/venue-imports/preflight-first-three-municipal-live-READONLY.sql'
       - 'scripts/test_first_three_final_readonly_preflight.py'
+      - 'docs/venue-imports/first-three-operator-preflight-result-20261022.json'
+      - 'scripts/validate_first_three_operator_preflight.py'
+      - 'scripts/test_validate_first_three_operator_preflight.py'
       - '.github/workflows/venue-first-three-final-sql-preflight-pg16.yml'
 
 permissions:
@@ -30,7 +33,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Pin source candidates and ensure strictly READ ONLY SQL
-        run: python3 -m unittest discover -s scripts -p 'test_first_three_final_readonly_preflight.py' -v
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_first_three_final_readonly_preflight.py' -v
+          python3 -m unittest discover -s scripts -p 'test_validate_first_three_operator_preflight.py' -v
+          python3 scripts/validate_first_three_operator_preflight.py
       - name: Execute read-only preflight with neighboring and duplicate fixtures
         shell: bash
         env:
