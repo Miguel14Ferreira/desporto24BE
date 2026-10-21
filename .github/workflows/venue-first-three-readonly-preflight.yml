@@ -13,7 +13,17 @@ permissions:
 jobs:
   readonly-pilot:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_only_no_secrets
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,6 +60,33 @@ jobs:
             echo 'ERROR: draft proposals unexpectedly generated migrations'
             exit 1
           fi
+      - name: Parse and exercise READ-ONLY preflight on disposable PostgreSQL 16
+        shell: bash
+        env:
+          PGCID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          # Fixture writes happen ONLY in the GitHub Actions ephemeral DB.
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, city TEXT NOT NULL,
+            latitude DOUBLE PRECISION, longitude DOUBLE PRECISION,
+            information_source TEXT, source_reference TEXT
+          );
+          INSERT INTO desporto24.venue (name,city,latitude,longitude,information_source,source_reference)
+          VALUES
+            ('Pavilhão Marialvas','Cantanhede',40.3440287,-8.5876799,'OPENSTREETMAP','OSM:WAY:145943204'),
+            ('Piscinas Municipais Rui Abreu','Coimbra',40.2391033,-8.4384818,'COMMUNITY',NULL),
+            ('Outro recinto no mesmo complexo','Coimbra',40.2056924,-8.4068928,'COMMUNITY',NULL);
+          SQL
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres             < /tmp/jynlo-three/pilot-readonly-preflight.sql             | tee /tmp/jynlo-three/fixture-preflight-output.txt
+          grep -q 'EXACT_OSM_REFERENCE' /tmp/jynlo-three/fixture-preflight-output.txt
+          grep -q 'SAME_NAME_AND_CITY' /tmp/jynlo-three/fixture-preflight-output.txt
+          grep -q 'WITHIN_100_METRES' /tmp/jynlo-three/fixture-preflight-output.txt
+          # The read-only pilot must not modify this disposable fixture.
+          actual="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$actual" = '3'
       - name: Preserve small proposal/SQL report only for 3 days
         uses: actions/upload-artifact@v4
         with:
