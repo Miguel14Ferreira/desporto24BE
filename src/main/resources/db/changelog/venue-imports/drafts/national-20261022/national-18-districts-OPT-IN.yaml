@@ -8,7 +8,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -25,7 +25,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -42,7 +42,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -59,7 +59,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -76,7 +76,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -93,7 +93,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -110,7 +110,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -127,7 +127,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -144,7 +144,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -161,7 +161,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -178,7 +178,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -195,7 +195,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -212,7 +212,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -229,7 +229,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -246,7 +246,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -263,7 +263,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -280,7 +280,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -297,7 +297,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -314,7 +314,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -331,7 +331,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -348,7 +348,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -365,7 +365,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -382,7 +382,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -399,7 +399,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -416,7 +416,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -433,7 +433,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
@@ -450,7 +450,7 @@ databaseChangeLog:
       dbms: postgresql
       runInTransaction: true
       preConditions:
-        onFail: HALT
+        - onFail: HALT
         - tableExists:
             schemaName: desporto24
             tableName: venue
