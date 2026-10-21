@@ -211,14 +211,17 @@ WHERE NOT EXISTS (
 ON CONFLICT DO NOTHING;
 
 -- Guarda: Piscinas Municipais da Guarda
+-- Geographical GPS + postcode: https://www.visitguarda.pt/ponto_de_interesse/piscina-municipal-da-guarda/
+-- Municipal procurement confirms 6300-320 in the pool complex: https://cdn.mun-guarda.pt/WS/1628869245-84054
+-- DGT CAOP2025 validates the point inside Guarda municipality/district (CI #39584936380).
 -- Municipal evidence: https://desporto.mun-guarda.pt/Documentos/f0698def2751440189338052fc6a1785
 -- Review: Municipal 2025/26 sports document provides address; municipality 2026 official program confirms pool in use.
 INSERT INTO desporto24.venue
   (name, city, district, address, sports, venue_type, environment_type,
    latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
-SELECT 'Piscinas Municipais da Guarda', 'Guarda', 'Guarda', 'Bairro Nossa Senhora dos Remédios, 6300-509 Guarda', 'Natação', 'Piscina', NULL,
-       NULL, NULL, 'OFFICIAL', 'JYNLO:DOCUMENTED:GUARDA:PISCINAS_MUNICIPAIS', 'https://desporto.mun-guarda.pt/Documentos/f0698def2751440189338052fc6a1785',
+SELECT 'Piscinas Municipais da Guarda', 'Guarda', 'Guarda', 'Rua Nossa Senhora dos Remédios, 6300-320 Guarda', 'Natação', 'Piscina', NULL,
+       40.531141, -7.253715, 'OFFICIAL', 'JYNLO:DOCUMENTED:GUARDA:PISCINAS_MUNICIPAIS', 'https://desporto.mun-guarda.pt/Documentos/f0698def2751440189338052fc6a1785',
        FALSE, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue AS existing
