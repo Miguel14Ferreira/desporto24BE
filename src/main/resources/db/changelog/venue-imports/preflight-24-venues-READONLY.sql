@@ -18,7 +18,7 @@ WITH proposed(source_reference, information_source, name, city, district, latitu
   ('OSM:WAY:1348549266', 'OPENSTREETMAP', 'Estádio Patalino', 'Elvas', 'Portalegre', 38.8772886, -7.1577876),
   ('JYNLO:DOCUMENTED:EVORA:COMPLEXO_DESPORTIVO_DE_EVORA', 'OFFICIAL', 'Complexo Desportivo de Évora', 'Évora', 'Évora', NULL::double precision, NULL::double precision),
   ('JYNLO:DOCUMENTED:EVORA:PISCINAS_MUNICIPAIS_DE_EVORA', 'OFFICIAL', 'Piscinas Municipais de Évora', 'Évora', 'Évora', NULL::double precision, NULL::double precision),
-  ('JYNLO:DOCUMENTED:CASTELO_BRANCO:PISTA_DE_ATLETISMO_DE_CASTELO_BRANCO', 'OFFICIAL', 'Pista de Atletismo de Castelo Branco', 'Castelo Branco', 'Castelo Branco', NULL::double precision, NULL::double precision),
+  ('JYNLO:DOCUMENTED:CASTELO_BRANCO:PISTA_DE_ATLETISMO_DE_CASTELO_BRANCO', 'OFFICIAL', 'Pista de Atletismo de Castelo Branco', 'Castelo Branco', 'Castelo Branco', 39.818785611212455, -7.515117240291148),
   ('JYNLO:DOCUMENTED:SANTAREM:COMPLEXO_AQUATICO_MUNICIPAL_DE_SANTAREM', 'OFFICIAL', 'Complexo Aquático Municipal de Santarém', 'Santarém', 'Santarém', 39.264102742942576, -8.669450010048992),
   ('JYNLO:DOCUMENTED:SANTAREM:PISCINAS_MUNICIPAIS_DO_SACAPEITO', 'OFFICIAL', 'Piscinas Municipais do Sacapeito', 'Santarém', 'Santarém', NULL::double precision, NULL::double precision),
   ('JYNLO:DOCUMENTED:SANTAREM:PAVILHAO_DESPORTIVO_MUNICIPAL', 'OFFICIAL', 'Pavilhão Desportivo Municipal', 'Santarém', 'Santarém', NULL::double precision, NULL::double precision),
