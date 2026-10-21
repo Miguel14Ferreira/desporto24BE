@@ -38,6 +38,35 @@ class GpsOnlyApprovedSeedTest(unittest.TestCase):
             self.assertIn("NULL", sql_file.read_text())
             self.assertIn("runInTransaction: true", yaml_file.read_text())
 
+    def test_gps_only_sql_runs_twice_without_duplicates(self):
+        import sqlite3
+        db = sqlite3.connect(":memory:")
+        db.create_function("BTRIM", 1, lambda v: None if v is None else v.strip())
+        db.execute("ATTACH DATABASE ':memory:' AS desporto24")
+        db.executescript("""
+            CREATE TABLE desporto24.venue (
+                name TEXT, city TEXT, district TEXT, address TEXT, sports TEXT,
+                venue_type TEXT, environment_type TEXT, latitude REAL, longitude REAL,
+                information_source TEXT, source_reference TEXT,
+                indoor BOOLEAN, changing_rooms BOOLEAN, parking BOOLEAN,
+                lighting BOOLEAN, created_at TEXT,
+                UNIQUE(information_source, source_reference),
+                CHECK (NULLIF(TRIM(address), '') IS NOT NULL OR
+                       (latitude BETWEEN 36.8 AND 42.3 AND longitude BETWEEN -9.6 AND -6))
+            );
+        """)
+        postal = gen.validate(sample())
+        gps = gen.validate(gps_only(
+            sourceReference="OSM:WAY:54321", name="Recinto GPS auditado",
+            latitude=40.344028, longitude=-8.587633, city="Cantanhede",
+            district="Coimbra",
+        ))
+        sql = gen.render_sql([postal, gps])
+        db.executescript(sql)
+        db.executescript(sql)
+        self.assertEqual(2, db.execute("SELECT COUNT(*) FROM desporto24.venue").fetchone()[0])
+        self.assertEqual(1, db.execute("SELECT COUNT(*) FROM desporto24.venue WHERE address IS NULL").fetchone()[0])
+
     def test_missing_or_unverified_evidence_cannot_be_imported(self):
         cases = [
             {"address": ""},
