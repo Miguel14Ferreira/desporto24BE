@@ -1,0 +1,121 @@
+{
+  "source": "DGT CAOP2025 + Castelo Branco Municipal Guide official point; 9 other SNID suggestions unchanged",
+  "caop_source": "Direção-Geral do Território CAOP2025 official Portugal continental geopackage",
+  "approved_for_import": false,
+  "notes": "Ten points checked only for municipality/district; one official facility-specific GPS replaces previously suggested SNID location for Castelo Branco track. Never auto-update production.",
+  "points": [
+    {
+      "source_reference": "JYNLO:DOCUMENTED:EVORA:COMPLEXO_DESPORTIVO_DE_EVORA",
+      "candidate_name": "Complexo Desportivo de Évora",
+      "expected_municipality": "Évora",
+      "expected_district": "Évora",
+      "snid_name": "Complexo Desportivo de Évora",
+      "latitude": 38.561696357975556,
+      "longitude": -7.920278909074227,
+      "match_kind": "EXACT_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:EVORA:PISCINAS_MUNICIPAIS_DE_EVORA",
+      "candidate_name": "Piscinas Municipais de Évora",
+      "expected_municipality": "Évora",
+      "expected_district": "Évora",
+      "snid_name": "Piscinas Municipais de Évora",
+      "latitude": 38.5732268,
+      "longitude": -7.928877100000022,
+      "match_kind": "EXACT_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:CASTELO_BRANCO:PISTA_DE_ATLETISMO_DE_CASTELO_BRANCO",
+      "candidate_name": "Pista de Atletismo de Castelo Branco",
+      "expected_municipality": "Castelo Branco",
+      "expected_district": "Castelo Branco",
+      "snid_name": "Pista de Atletismo Municipal de Castelo Branco",
+      "latitude": 39.818785611212455,
+      "longitude": -7.515117240291148,
+      "match_kind": "MUNICIPAL_DOCUMENT_SPECIFIC_FACILITY_GPS",
+      "suggestion_index": 1,
+      "location_source_url": "https://www.cm-castelobranco.pt/media/8123/manual-de-acolhimento-ao-novo-albicastrense.pdf",
+      "facility_verified_by_official_source": true,
+      "location_source_note": "Municipal document explicitly labels these coordinates as PISTA DE ATLETISMO; CAOP admin check still required."
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:SANTAREM:PISCINAS_MUNICIPAIS_DO_SACAPEITO",
+      "candidate_name": "Piscinas Municipais do Sacapeito",
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "snid_name": "Piscinas Municipais do Sacapeito",
+      "latitude": 39.22586989999999,
+      "longitude": -8.688793400000009,
+      "match_kind": "EXACT_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:SANTAREM:PISCINAS_MUNICIPAIS_DO_SACAPEITO",
+      "candidate_name": "Piscinas Municipais do Sacapeito",
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "snid_name": "Piscinas Municipais de Sacapeito",
+      "latitude": 39.22491,
+      "longitude": -8.689196000000038,
+      "match_kind": "SIMILAR_NAME",
+      "suggestion_index": 2
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:SANTAREM:PAVILHAO_DESPORTIVO_MUNICIPAL",
+      "candidate_name": "Pavilhão Desportivo Municipal",
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "snid_name": "Pavilhão Desportivo Municipal",
+      "latitude": 39.47871,
+      "longitude": -8.466994999999997,
+      "match_kind": "EXACT_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:CATALOG:PT-FUT-0009",
+      "candidate_name": "Campo Municipal do Parque da Cidade",
+      "expected_municipality": "Porto",
+      "expected_district": "Porto",
+      "snid_name": "Campo de Futebol do Parque da Cidade",
+      "latitude": 41.17010988685002,
+      "longitude": -8.677568435668945,
+      "match_kind": "SIMILAR_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:CATALOG:PT-FUT-0011",
+      "candidate_name": "Campo Municipal do Outeiro",
+      "expected_municipality": "Porto",
+      "expected_district": "Porto",
+      "snid_name": "Campo Municipal do Outeiro",
+      "latitude": 41.17668225329805,
+      "longitude": -8.592269332028392,
+      "match_kind": "EXACT_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:CATALOG:PT-FUT-0013",
+      "candidate_name": "Polidesportivo Municipal do Paço",
+      "expected_municipality": "Maia",
+      "expected_district": "Porto",
+      "snid_name": "Polidesportivo Municipal de Pedrouços",
+      "latitude": 41.18432653254178,
+      "longitude": -8.593137860298157,
+      "match_kind": "SIMILAR_NAME",
+      "suggestion_index": 1
+    },
+    {
+      "source_reference": "JYNLO:CATALOG:PT-FUT-0013",
+      "candidate_name": "Polidesportivo Municipal do Paço",
+      "expected_municipality": "Maia",
+      "expected_district": "Porto",
+      "snid_name": "Polidesportivo Municipal do Sobreiro",
+      "latitude": 41.23588027806248,
+      "longitude": -8.620412706804927,
+      "match_kind": "SIMILAR_NAME",
+      "suggestion_index": 2
+    }
+  ]
+}
