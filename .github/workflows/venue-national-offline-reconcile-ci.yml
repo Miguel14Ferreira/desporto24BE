@@ -1,0 +1,26 @@
+name: National venue offline reconciliation tests
+on:
+  push:
+    branches: ['audit/national-18-districts-20261021']
+    paths:
+      - '.github/workflows/venue-national-offline-reconcile-ci.yml'
+      - 'scripts/reconcile_national_stage.py'
+      - 'scripts/test_reconcile_national_stage.py'
+      - 'scripts/audit_national_stage.py'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline smoke tests without dependencies or network
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/audit_national_stage.py scripts/reconcile_national_stage.py
+          python3 -m unittest discover -s scripts -p 'test_audit_national_stage.py' -v
+          python3 -m unittest discover -s scripts -p 'test_reconcile_national_stage.py' -v
