@@ -46,7 +46,12 @@ public class SnidVenueImportData {
     /** Validate the official SNID location JSON without persisting records or loading the file into memory. */
     public Map<String, Object> validateSource() {
         String url = findSnidLocationJsonUrl();
-        if (url == null) throw new IllegalStateException("SNID location JSON resource not found");
+        if (url == null) {
+            // Official data catalogues can change their resource inventory.
+            // Missing source is not the same as a database or application failure.
+            log.info("SNID source metadata currently has no compatible location JSON; read-only validation skipped");
+            return unavailableLocationJson();
+        }
         HttpURLConnection connection = null;
         try {
             URI uri = URI.create(url);
@@ -135,6 +140,16 @@ public class SnidVenueImportData {
         }
     }
 
+    /** Explicit read-only result for a public dataset whose expected resource is unavailable. */
+    static Map<String, Object> unavailableLocationJson() {
+        return Map.of(
+                "status", "SOURCE_NOT_AVAILABLE",
+                "available", false,
+                "readOnly", true,
+                "source", "dados.gov.pt",
+                "reason", "SNID_LOCATION_JSON_NOT_FOUND");
+    }
+
     private String findSnidLocationJsonUrl() {
         for (String searchUrl : DATASET_SEARCH_URLS) {
             try {
@@ -143,8 +158,7 @@ public class SnidVenueImportData {
                 for (Object item : datasets) {
                     if (!(item instanceof Map<?, ?> dataset)) continue;
                     String title = clean(string(dataset.get("title")));
-                    if (title == null || !title.toLowerCase(Locale.ROOT)
-                            .contains("sistema nacional de informação desportiva")) continue;
+                    if (!SnidLocationResourceSelector.matchesDatasetTitle(title)) continue;
                     if (!(dataset.get("resources") instanceof List<?> resources)) continue;
                     log.info("SNID read-only resource inventory: total={}", resources.size());
                     int listed = 0;
@@ -178,16 +192,8 @@ public class SnidVenueImportData {
                             break;
                         }
                     }
-                    for (Object resourceValue : resources) {
-                        if (!(resourceValue instanceof Map<?, ?> resource)) continue;
-                        String resourceTitle = clean(string(resource.get("title")));
-                        String format = clean(string(resource.get("format")));
-                        String url = clean(string(resource.get("url")));
-                        if (resourceTitle != null && resourceTitle.startsWith("snid-localizacao")
-                                && format != null && format.equalsIgnoreCase("json")
-                                && resource.get("filesize") instanceof Number size && size.longValue() > 0
-                                && url != null) return url;
-                    }
+                    String url = SnidLocationResourceSelector.findLocationJsonUrl(resources);
+                    if (url != null) return url;
                 }
             } catch (org.springframework.web.client.RestClientException ex) {
                 log.warn("SNID location dataset search unavailable for {}: {}", searchUrl,
