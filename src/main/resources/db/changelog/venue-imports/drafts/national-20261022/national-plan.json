@@ -1,0 +1,263 @@
+{
+  "sourceSha256": "e218744531f63bc94c537467d51fb77214e60132b20178877a13b52214a0701a",
+  "sourceCount": 3514,
+  "districtsInput": 18,
+  "districtsOutput": 18,
+  "releasePolicy": "OPT_IN_ONLY_NOT_INCLUDED_IN_LIQUIBASE_MASTER",
+  "allInputRecordsPreviouslyApproved": false,
+  "humanApprovalsFabricated": false,
+  "mapSourcedAccessStatus": "UNVERIFIED",
+  "source": "© OpenStreetMap contributors (ODbL); districts from DGT CAOP2025 (CC BY 4.0)",
+  "noExistingRowsUpdatedOrDeleted": true,
+  "addressPolicy": "NULL_GPS_ONLY_UNVERIFIED",
+  "reasonCounts": {
+    "existing_or_possible_live_duplicate": 140,
+    "intra_snapshot_possible_duplicate": 2,
+    "map_sourced_unverified": 3333,
+    "restricted_closed_or_school_review": 41
+  },
+  "excludedOrReviewRequired": 183,
+  "intraSnapshotPossibleDuplicateExamples": [
+    {
+      "ref": "OSM:WAY:88604367",
+      "otherRef": "OSM:WAY:1396002603",
+      "district": "Aveiro",
+      "reason": "same name/city within 75m"
+    },
+    {
+      "ref": "OSM:WAY:694611923",
+      "otherRef": "OSM:WAY:192225194",
+      "district": "Porto",
+      "reason": "same name/city within 75m"
+    }
+  ],
+  "districts": {
+    "Aveiro": {
+      "candidates": 413,
+      "sql": [
+        {
+          "file": "national-map-osm-aveiro-01.sql",
+          "rows": 200,
+          "sha256": "bb9aa9afce48f10641671a040098ee3276688f7ddb332bd99733b8c824526259"
+        },
+        {
+          "file": "national-map-osm-aveiro-02.sql",
+          "rows": 200,
+          "sha256": "7b42c8494daf62e049ed1a81d4733591d42869a3f81224c27132fae26b1639a7"
+        },
+        {
+          "file": "national-map-osm-aveiro-03.sql",
+          "rows": 13,
+          "sha256": "f3b9b7ab05b81fd2ee0550fe6e62f70982b1fc7876446223d55ecfb5bb8ed0f9"
+        }
+      ]
+    },
+    "Beja": {
+      "candidates": 105,
+      "sql": [
+        {
+          "file": "national-map-osm-beja-01.sql",
+          "rows": 105,
+          "sha256": "8ac176a2f63907a0976e95a6a489e557b786418a2b05c0f976e8b0d898094aca"
+        }
+      ]
+    },
+    "Braga": {
+      "candidates": 318,
+      "sql": [
+        {
+          "file": "national-map-osm-braga-01.sql",
+          "rows": 200,
+          "sha256": "144540e7e7697503922dde49667b89b7ab7c8545a1e1ce341b8469fa3e9adcff"
+        },
+        {
+          "file": "national-map-osm-braga-02.sql",
+          "rows": 118,
+          "sha256": "82ede639c22a2e7e88c2a82c92b758720596dc44ad5b024fb79776530cf802d7"
+        }
+      ]
+    },
+    "Bragança": {
+      "candidates": 38,
+      "sql": [
+        {
+          "file": "national-map-osm-braganca-01.sql",
+          "rows": 38,
+          "sha256": "935f9dbbc1687c3ab1c2a29cf2cfd57dd5ea16a38888d4f009283f3d297ecaf2"
+        }
+      ]
+    },
+    "Castelo Branco": {
+      "candidates": 63,
+      "sql": [
+        {
+          "file": "national-map-osm-castelo-branco-01.sql",
+          "rows": 63,
+          "sha256": "6b8cdb52d42ebc064ef907f8a6966345772f13b16f28790255ada076ea350dfd"
+        }
+      ]
+    },
+    "Coimbra": {
+      "candidates": 163,
+      "sql": [
+        {
+          "file": "national-map-osm-coimbra-01.sql",
+          "rows": 163,
+          "sha256": "5663408da2e23a8a6051d4e863b9fdbbc26e21bc0870d97a16628707c25e8e9f"
+        }
+      ]
+    },
+    "Faro": {
+      "candidates": 157,
+      "sql": [
+        {
+          "file": "national-map-osm-faro-01.sql",
+          "rows": 157,
+          "sha256": "0a30042fd964dcfd01f5e1532ce367b7a46a33f4bed2439993e3de1e7acb6b3a"
+        }
+      ]
+    },
+    "Guarda": {
+      "candidates": 49,
+      "sql": [
+        {
+          "file": "national-map-osm-guarda-01.sql",
+          "rows": 49,
+          "sha256": "1804695af57d6f64933c8a8bdc70d51cca7ffa267ea56d99c22549724c1edd7a"
+        }
+      ]
+    },
+    "Leiria": {
+      "candidates": 158,
+      "sql": [
+        {
+          "file": "national-map-osm-leiria-01.sql",
+          "rows": 158,
+          "sha256": "029f6a82dce077480e8679e803bc2a55a17baffb8f3e4113db1e7767a3ffc310"
+        }
+      ]
+    },
+    "Lisboa": {
+      "candidates": 436,
+      "sql": [
+        {
+          "file": "national-map-osm-lisboa-01.sql",
+          "rows": 200,
+          "sha256": "552fd3a2f6303ba21fe2e95f30b6eb2abc99e1cff0e37c6f79153007c70aa418"
+        },
+        {
+          "file": "national-map-osm-lisboa-02.sql",
+          "rows": 200,
+          "sha256": "698b2bb64c60209efafaa2f441ff66ff4d04cf6d6f59dcf2fd41e93d5cf8072d"
+        },
+        {
+          "file": "national-map-osm-lisboa-03.sql",
+          "rows": 36,
+          "sha256": "a41db92d16171771340b6b8743681530ec040dd3abeebac40379af83e463d769"
+        }
+      ]
+    },
+    "Portalegre": {
+      "candidates": 87,
+      "sql": [
+        {
+          "file": "national-map-osm-portalegre-01.sql",
+          "rows": 87,
+          "sha256": "e3ce2276eccdb061e276ace5f49185e3da1fc3cc7db3f663fd76445fca824da7"
+        }
+      ]
+    },
+    "Porto": {
+      "candidates": 498,
+      "sql": [
+        {
+          "file": "national-map-osm-porto-01.sql",
+          "rows": 200,
+          "sha256": "c992b0bff7a34afffe11fda1b38d8964d2793d2fb7821ada54dd78934c043a29"
+        },
+        {
+          "file": "national-map-osm-porto-02.sql",
+          "rows": 200,
+          "sha256": "76b4f9ff7d32c5e1e699ac44406e0378b3eb5b4acac53a2df1bbbdf4b33ce0af"
+        },
+        {
+          "file": "national-map-osm-porto-03.sql",
+          "rows": 98,
+          "sha256": "56e9fe12f57809be566003884ae16c88f491c3be7a160f8cb6dd3e1095dcf5c2"
+        }
+      ]
+    },
+    "Santarém": {
+      "candidates": 131,
+      "sql": [
+        {
+          "file": "national-map-osm-santarem-01.sql",
+          "rows": 131,
+          "sha256": "32b52132f2fcb0740aa12084e14b43db81e2bce6cc19291eb138a34d433f0ac5"
+        }
+      ]
+    },
+    "Setúbal": {
+      "candidates": 242,
+      "sql": [
+        {
+          "file": "national-map-osm-setubal-01.sql",
+          "rows": 200,
+          "sha256": "71f7501a402b2a1fbb0925188ace388bd7bb15fc569f23e25da41dcc26c466f5"
+        },
+        {
+          "file": "national-map-osm-setubal-02.sql",
+          "rows": 42,
+          "sha256": "2ee98e206121de2605582be8d059ffcd3c22887655e39bb6e8b2b195b087370a"
+        }
+      ]
+    },
+    "Viana do Castelo": {
+      "candidates": 65,
+      "sql": [
+        {
+          "file": "national-map-osm-viana-do-castelo-01.sql",
+          "rows": 65,
+          "sha256": "809b3867b806abf0cecb089bae4d35d57d3a5be38de9118807465ff625d02abc"
+        }
+      ]
+    },
+    "Vila Real": {
+      "candidates": 230,
+      "sql": [
+        {
+          "file": "national-map-osm-vila-real-01.sql",
+          "rows": 200,
+          "sha256": "5afe459aea615683e33cf62d4798dd059ce5196fbc8ac0a332666a7ea93c7435"
+        },
+        {
+          "file": "national-map-osm-vila-real-02.sql",
+          "rows": 30,
+          "sha256": "1c49e47d8ff56833ed51e7990be667f67de49a4a541cdcc4b65f9c90750ad892"
+        }
+      ]
+    },
+    "Viseu": {
+      "candidates": 104,
+      "sql": [
+        {
+          "file": "national-map-osm-viseu-01.sql",
+          "rows": 104,
+          "sha256": "09f5db1f9c257bb452819b5b0adca9117eb989ed64aaf7e58828065b4217df22"
+        }
+      ]
+    },
+    "Évora": {
+      "candidates": 74,
+      "sql": [
+        {
+          "file": "national-map-osm-evora-01.sql",
+          "rows": 74,
+          "sha256": "2ad3889f7e6d3f52ca92ea893596ca7dbfec09dc5caa897b4c12aafc81be0f61"
+        }
+      ]
+    }
+  },
+  "totalMapSourcedCandidates": 3331,
+  "totalReviewOrExcluded": 183
+}
