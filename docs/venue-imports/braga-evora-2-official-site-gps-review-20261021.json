@@ -1,0 +1,40 @@
+{
+  "source": "Municipality of Evora athletics race regulation 2022 + Portuguese government cultural heritage inventory for Braga, crosschecked with Braga municipality facility register (21 October 2026)",
+  "approved_for_import": false,
+  "notes": "CAOP verifies municipality only. Evora GPS is a 2022 municipal race/track waypoint, not a confirmed entrance. Braga GPS is the listed stadium site, not a dedicated athletics-track point. Neither is an approved production venue GPS.",
+  "points": [
+    {
+      "source_reference": "JYNLO:DOCUMENTED:EVORA:COMPLEXO_DESPORTIVO_DE_EVORA",
+      "candidate_name": "Complexo Desportivo de Évora",
+      "expected_municipality": "Évora",
+      "expected_district": "Évora",
+      "snid_name": "N/A - municipal race-track waypoint",
+      "latitude": 38.56136111111111,
+      "longitude": -7.920722222222222,
+      "match_kind": "MUNICIPAL_2022_ATHLETICS_TRACK_WAYPOINT",
+      "location_source_url": "https://www.cm-evora.pt/wp-content/uploads/2022/04/Regulamento_XL-GPSJ-Atletismo.pdf",
+      "location_source_text": "38°33'40.9\"N 7°55'14.6\"W; 2022 municipal athletics race start/finish and track",
+      "confirmation_source_url": "https://www.cm-evora.pt/visitante/lazer-visitar/complexo-desportivo-de-evora/",
+      "point_precision": "EVENT_TRACK_WAYPOINT_NOT_ENTRANCE",
+      "facility_verified_by_official_source": true,
+      "public_access_warning": "Track and large field reserved for clubs/associations; general public access only for fitness circuit under official restrictions.",
+      "source_date": "2022-04"
+    },
+    {
+      "source_reference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6214",
+      "candidate_name": "Pista de Atletismo do Estádio 1.º de Maio",
+      "expected_municipality": "Braga",
+      "expected_district": "Braga",
+      "snid_name": "N/A - official stadium heritage site point",
+      "latitude": 41.538819,
+      "longitude": -8.420613,
+      "match_kind": "OFFICIAL_HERITAGE_STADIUM_SITE_NOT_TRACK_POINT",
+      "location_source_url": "https://imovel.patrimoniocultural.gov.pt/detalhes.php?code=72715",
+      "location_source_text": "Estádio 1.º de Maio; Parque da Ponte, Braga; 41.538819 -8.420613",
+      "confirmation_source_url": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6214",
+      "point_precision": "STADIUM_SITE_NOT_TRACK_OR_ENTRANCE",
+      "facility_verified_by_official_source": false,
+      "public_access_warning": "Site point does not establish specific athletics track position, opening or public permissions."
+    }
+  ]
+}
