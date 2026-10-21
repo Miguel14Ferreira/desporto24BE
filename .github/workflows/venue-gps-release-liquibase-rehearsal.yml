@@ -1,0 +1,110 @@
+name: Venue GPS-only real Liquibase PG16 rehearsal
+on:
+  push:
+    branches: ['qa/jynlo-gps-liquibase-pg16-20261021']
+    paths: ['.github/workflows/venue-gps-release-liquibase-rehearsal.yml']
+permissions:
+  contents: read
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: jynlo_gps_rehearsal
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: disposable_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jynlo_gps_rehearsal"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: jynlo_gps_rehearsal
+      PGUSER: postgres
+      PGPASSWORD: disposable_only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify schema-only migration and prepare representative legacy records
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=src/main/resources/db/changelog/changes/2026-10-21-venue-gps-only-address-nullable.sql
+          test "$(grep -Ec '^ALTER TABLE desporto24.venue' "$file")" -eq 2
+          ! grep -Eiq '^[[:space:]]*(INSERT|UPDATE|DELETE|TRUNCATE|DROP[[:space:]]+TABLE)' "$file"
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGSERIAL PRIMARY KEY,
+            name VARCHAR(140) NOT NULL,
+            city VARCHAR(120) NOT NULL,
+            district VARCHAR(120),
+            address VARCHAR(255) NOT NULL,
+            latitude DOUBLE PRECISION,
+            longitude DOUBLE PRECISION,
+            source_reference VARCHAR(255),
+            information_source VARCHAR(20)
+          );
+          INSERT INTO desporto24.venue (name,city,address,latitude,longitude,information_source)
+            VALUES ('Pavilhão Existente','Coimbra','Rua do Bairro, 12',NULL,NULL,'COMMUNITY'),
+                   ('Campo Existente','Aveiro','Travessa do Desporto, 4',40.64,-8.65,'COMMUNITY');
+          SQL
+      - name: Run actual Liquibase YAML twice on disposable PostgreSQL16
+        shell: bash
+        run: |
+          set -euo pipefail
+          changelog='changes/2026-10-21-venue-gps-only-address-nullable.yaml'
+          apply() {
+            docker run --rm --network host               -v "$PWD/src/main/resources/db/changelog:/liquibase/changelog:ro"               liquibase:4.33.0               --url=jdbc:postgresql://127.0.0.1:5432/jynlo_gps_rehearsal?currentSchema=desporto24               --username=postgres --password=disposable_only               --default-schema-name=desporto24               --liquibase-schema-name=desporto24               --search-path=/liquibase/changelog               --changelog-file="$changelog" update
+          }
+          apply
+          apply
+      - name: Assert real migration effects and reject invalid future GPS-only rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.databasechangelog) <> 1 THEN
+              RAISE EXCEPTION 'Expected exactly one idempotent Liquibase changeSet';
+            END IF;
+            IF (SELECT COUNT(*) FROM desporto24.venue) <> 2 THEN
+              RAISE EXCEPTION 'Migration changed legacy venue count';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM desporto24.venue WHERE name='Pavilhão Existente'
+              AND address='Rua do Bairro, 12' AND latitude IS NULL) THEN
+              RAISE EXCEPTION 'Original address or coordinates changed';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM desporto24.venue WHERE name='Campo Existente'
+              AND address='Travessa do Desporto, 4') THEN
+              RAISE EXCEPTION 'Another original address changed';
+            END IF;
+            IF (SELECT is_nullable FROM information_schema.columns
+                WHERE table_schema='desporto24' AND table_name='venue' AND column_name='address') <> 'YES' THEN
+              RAISE EXCEPTION 'address is still NOT NULL';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint
+              WHERE conrelid='desporto24.venue'::regclass AND conname='ck_venue_address_or_mainland_gps'
+                AND contype='c' AND convalidated) THEN
+              RAISE EXCEPTION 'GPS check constraint is absent/unvalidated';
+            END IF;
+          END $$;
+          INSERT INTO desporto24.venue (name,city,address,latitude,longitude,information_source)
+            VALUES ('Campo GPS','Coimbra',NULL,40.21,-8.40,'COMMUNITY');
+          SQL
+          for values in "'Sem localização','Coimbra',NULL,NULL,NULL,'COMMUNITY'"                         "'GPS incompleto','Coimbra',NULL,40.2,NULL,'COMMUNITY'"                         "'Fora do continente','Coimbra',NULL,46.2,-8.4,'COMMUNITY'"; do
+            if psql -v ON_ERROR_STOP=1 -c "INSERT INTO desporto24.venue(name,city,address,latitude,longitude,information_source) VALUES ($values)"; then
+              echo "FAIL: invalid GPS-only row was accepted: $values"
+              exit 1
+            fi
+          done
+          test "$(psql -At -c 'SELECT COUNT(*) FROM desporto24.venue')" = 3
+          test "$(psql -At -c 'SELECT COUNT(*) FROM desporto24.databasechangelog')" = 1
+          echo 'PASS: actual Liquibase YAML applied exactly once to disposable PostgreSQL16; original records safe; valid GPS-only accepted; invalid rows rejected.'
