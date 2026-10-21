@@ -28,12 +28,12 @@ class FirstThreeReadOnlyGateTests(unittest.TestCase):
         self.assertEqual({d["sourceReference"] for d in decisions},
                          {p["sourceReference"] for p in rows})
         self.assertTrue(all(d["decision"] == "PENDING" for d in decisions))
-        executable = re.sub(r"(?m)^--[^\\n]*", "", sql)
+        executable = re.sub(r"(?m)^--[^\n]*", "", sql)
         self.assertIn("BEGIN TRANSACTION READ ONLY;", executable)
         self.assertIn("SET LOCAL statement_timeout", executable)
         self.assertIn("ROLLBACK;", executable)
-        self.assertNotRegex(executable, r"(?i)\\b(?:INSERT|UPDATE|DELETE|MERGE|"
-                            r"ALTER|TRUNCATE|DROP|GRANT|REVOKE|CREATE|COPY|DO)\\b")
+        self.assertNotRegex(executable, r"(?i)\b(?:INSERT|UPDATE|DELETE|MERGE|"
+                            r"ALTER|TRUNCATE|DROP|GRANT|REVOKE|CREATE|COPY|DO)\b")
         self.assertIn("distance_metres<=100", executable)
         self.assertIn("distance_metres>100 AND distance_metres<=150", executable)
         self.assertIn("name_or_alias_city", executable)
