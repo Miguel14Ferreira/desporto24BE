@@ -70,16 +70,21 @@ echo 'Starting isolated PostgreSQL 16 container (network disabled; no published 
   --volume "$backup:/readonly-backup.dump:ro" \
   postgres:16 >/dev/null
 
+# pg_isready only detects that a server accepts connections. During first
+# postgres:16 startup, the temporary init server may accept connections BEFORE
+# POSTGRES_DB has been created. Only a real SELECT against the target database
+# proves that the disposable restore destination exists and is usable.
 ready=false
-for _ in $(seq 1 60); do
-  if "$engine" exec "$name" pg_isready -U postgres -d jynlo_restore_check >/dev/null 2>&1; then
+for _ in $(seq 1 90); do
+  if "$engine" exec "$name" psql -X -A -t -q -v ON_ERROR_STOP=1 \
+      -U postgres -d jynlo_restore_check -c 'SELECT 1;' >/dev/null 2>&1; then
     ready=true
     break
   fi
   sleep 1
 done
 if [[ "$ready" != true ]]; then
-  echo 'ERROR: disposable PostgreSQL 16 failed to start' >&2
+  echo 'ERROR: disposable PostgreSQL 16 target database was not ready within 90 seconds' >&2
   exit 1
 fi
 

@@ -8,6 +8,8 @@
 - Castelo Branco facility GPS and Viseu/Guarda GPS were municipality-checked through PRs #139 and #140. Audit #141 adds Braga stadium-point and Évora event-waypoint evidence, **not** automatically approved GPS for those facilities.
 
 ## Real backup (owner already created in WSL)
+**WSL restore failure diagnosed 21/10/2026:** the initial script used `pg_isready` and could advance during PostgreSQL's temporary initialization phase, *before* `POSTGRES_DB=jynlo_restore_check` existed. `pg_restore` then returned `FATAL: database "jynlo_restore_check" does not exist`. This is an initialization race, **not evidence of a corrupt archive**. The script now waits until `psql` can execute `SELECT 1` **inside the actual target database** (up to 90 seconds), then restores the archive. The old failed attempt did not connect to Render. The real backup must still pass this updated script; the CI rehearsal uses only synthetic data.
+
 The local archive was reportedly produced with `pg_dump -W -Fc --no-owner --no-acl --schema=desporto24 --file="$BACKUP"` and passed `pg_restore --list`. That is **not** a restore test. Never upload this archive or credentials to GitHub.
 
 Run in WSL **from the local backend checkout** (Docker Desktop/Podman must be accessible from WSL):
