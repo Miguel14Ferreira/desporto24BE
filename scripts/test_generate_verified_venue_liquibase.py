@@ -60,6 +60,20 @@ class VenueSeedGeneratorTest(unittest.TestCase):
         self.assertNotIn("UPDATE ", sql)
         self.assertNotIn("DELETE FROM", sql)
 
+    def test_optional_website_is_escaped_and_requires_safe_https(self):
+        url = "https://cm-cantanhede.pt/mcsite/entidade/1680/pavilhao-marialvas"
+        validated = gen.validate(sample(website=url))
+        self.assertEqual(url, validated["website"])
+        sql = gen.render_sql([validated])
+        self.assertIn("source_reference, website,", sql)
+        self.assertIn("'" + url + "'", sql)
+        self.assertIsNone(gen.validate(sample())["website"])
+        for invalid in ("http://cm-cantanhede.pt/", "https://openstreetmap.org/way/1",
+                        "javascript:alert(1)", "https://username:password@example.com",
+                        "https://example.org:8443/path", "//example.org/path", "https://[bad"):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                gen.validate(sample(website=invalid))
+
     def test_generated_seed_blocks_same_city_duplicate_without_gps(self):
         import sqlite3
         db = sqlite3.connect(':memory:')
@@ -69,7 +83,7 @@ class VenueSeedGeneratorTest(unittest.TestCase):
             CREATE TABLE desporto24.venue (
                 name TEXT, city TEXT, district TEXT, address TEXT, sports TEXT,
                 venue_type TEXT, environment_type TEXT, latitude REAL, longitude REAL,
-                information_source TEXT, source_reference TEXT,
+                information_source TEXT, source_reference TEXT, website TEXT,
                 indoor BOOLEAN, changing_rooms BOOLEAN, parking BOOLEAN,
                 lighting BOOLEAN, created_at TEXT,
                 UNIQUE(information_source, source_reference)
