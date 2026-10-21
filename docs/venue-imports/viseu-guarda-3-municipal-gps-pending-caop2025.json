@@ -1,0 +1,47 @@
+{
+  "source": "Viseu municipal sports pages and Guarda official tourism page (21 Oct 2026)",
+  "approved_for_import": false,
+  "notes": "Three site-specific official GPS points, but no coordinates approved for production until CAOP municipality checks and address/access verification. Guarda draft ZIP conflict 6300-509 vs VisitGuarda 6300-320.",
+  "points": [
+    {
+      "source_reference": "JYNLO:DOCUMENTED:VISEU:PISCINAS_MUNICIPAIS_FONTelo",
+      "candidate_name": "Piscinas Municipais de Viseu",
+      "expected_municipality": "Viseu",
+      "expected_district": "Viseu",
+      "snid_name": "N/A - municipal GPS",
+      "latitude": 40.65985,
+      "longitude": -7.903158333333334,
+      "match_kind": "OFFICIAL_MUNICIPAL_DMS_FACILITY",
+      "location_source_url": "https://www.cm-viseu.pt/pt/areas-servicos/desporto-atividade-fisica/complexo-desportivo-do-fontelo/piscinas-municipais-de-viseu/",
+      "location_source_text": "40°39'35.46 N | 7°54'11.37 W",
+      "facility_verified_by_official_source": true
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:VISEU:TENIS_FONTelo",
+      "candidate_name": "Campos de Ténis do Parque do Fontelo",
+      "expected_municipality": "Viseu",
+      "expected_district": "Viseu",
+      "snid_name": "N/A - municipal GPS",
+      "latitude": 40.660330555555554,
+      "longitude": -7.9012472222222225,
+      "match_kind": "OFFICIAL_MUNICIPAL_DMS_FACILITY",
+      "location_source_url": "https://www.cm-viseu.pt/pt/areas-servicos/desporto-atividade-fisica/complexo-desportivo-do-fontelo/campos-de-tenis/",
+      "location_source_text": "40°39'37.19 N | 7°54'4.49 W",
+      "facility_verified_by_official_source": true
+    },
+    {
+      "source_reference": "JYNLO:DOCUMENTED:GUARDA:PISCINAS_MUNICIPAIS",
+      "candidate_name": "Piscinas Municipais da Guarda",
+      "expected_municipality": "Guarda",
+      "expected_district": "Guarda",
+      "snid_name": "N/A - official municipal tourism GPS",
+      "latitude": 40.531141,
+      "longitude": -7.253715,
+      "match_kind": "OFFICIAL_MUNICIPAL_TOURISM_FACILITY",
+      "location_source_url": "https://www.visitguarda.pt/en/ponto_de_interesse/piscina-municipal-da-guarda/",
+      "location_source_text": "40.531141,-7.253715",
+      "source_address_conflict": "VisitGuarda 6300-320 vs draft migration 6300-509; validate before SQL update",
+      "facility_verified_by_official_source": true
+    }
+  ]
+}

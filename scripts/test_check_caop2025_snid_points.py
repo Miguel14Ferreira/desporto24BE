@@ -55,6 +55,17 @@ class CaopPointReviewTests(unittest.TestCase):
         self.assertEqual("OUTSIDE_OR_ADMIN_BOUNDARY_AMBIGUOUS", results[1]["status"])
         self.assertEqual(8, stats["caop_municipality_match"])
 
+    def test_three_official_site_points_and_bounded_batch(self):
+        points, municipalities, districts = self.fixture()
+        records, summary = analyse(points[:3], municipalities, districts, expected_count=3)
+        self.assertEqual(3, summary["checked_points"])
+        self.assertEqual(0, summary["points_approved_for_import"])
+        self.assertTrue(all(record["facility_gps_approved"] is False for record in records))
+        with self.assertRaisesRegex(ValueError, "Expected exactly 3"):
+            analyse(points[:2], municipalities, districts, expected_count=3)
+        with self.assertRaisesRegex(ValueError, "between 1 and 100"):
+            analyse(points, municipalities, districts, expected_count=0)
+
     def test_malformed_layers_fail_closed(self):
         points, ms, ds = self.fixture()
         with self.assertRaisesRegex(ValueError, "278 municipalities"):

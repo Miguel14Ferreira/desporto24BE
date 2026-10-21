@@ -51,10 +51,12 @@ def validate_layers(municipalities, districts):
         raise ValueError("Incomplete official CAOP geometries")
 
 
-def analyse(points, municipalities, districts):
+def analyse(points, municipalities, districts, expected_count=10):
     validate_layers(municipalities, districts)
-    if not isinstance(points, list) or len(points) != 10:
-        raise ValueError("Expected exactly 10 source suggestions")
+    if not 1 <= expected_count <= 100:
+        raise ValueError("Expected count must be between 1 and 100")
+    if not isinstance(points, list) or len(points) != expected_count:
+        raise ValueError(f"Expected exactly {expected_count} source suggestions")
     muni_col = label(municipalities, ("municipio", "MUNICIPIO"))
     dist_col = label(districts, ("distrito_ilha", "distrito", "DISTRITO", "nome"))
     seen_municipalities = set()
@@ -93,7 +95,7 @@ def analyse(points, municipalities, districts):
         })
         output.append(out)
         seen_municipalities.add(official_muni)
-    assert len(output) == 10
+    assert len(output) == expected_count
     summary = {
         "checked_points": len(output),
         "caop_municipality_match": sum(
@@ -122,6 +124,7 @@ def main():
     parser.add_argument("--gpkg", type=Path, required=True)
     parser.add_argument("--candidates", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--expected-count", type=int, default=10)
     args = parser.parse_args()
 
     import pyogrio
@@ -134,14 +137,14 @@ def main():
     input_data = json.loads(args.candidates.read_text(encoding="utf-8"))
     if input_data.get("approved_for_import") is not False:
         raise ValueError("Source candidates must explicitly remain unapproved")
-    records, summary = analyse(input_data["points"], municipalities, districts)
+    records, summary = analyse(input_data["points"], municipalities, districts, expected_count=args.expected_count)
 
     args.output.mkdir(parents=True, exist_ok=True)
-    (args.output / "caop2025-snid-10-points.json").write_text(
+    (args.output / f"caop2025-snid-{args.expected_count}-points.json").write_text(
         json.dumps({"summary": summary, "points": records},
                    indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
-    with (args.output / "caop2025-snid-10-points.csv").open(
+    with (args.output / f"caop2025-snid-{args.expected_count}-points.csv").open(
         "w", newline="", encoding="utf-8-sig"
     ) as output:
         writer = csv.DictWriter(output, fieldnames=FIELDS, delimiter=";", extrasaction="ignore")
