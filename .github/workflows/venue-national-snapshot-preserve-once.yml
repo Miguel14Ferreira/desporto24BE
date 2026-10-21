@@ -1,0 +1,68 @@
+name: Archive 3514 national Jynlo venue candidates (once)
+on:
+  push:
+    branches: ['feature/jynlo-preserve-national-3514-snapshot-20261021']
+    paths: ['.github/workflows/venue-national-snapshot-preserve-once.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read previous OSM detail recovery artifact (no PBF download)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39616305935
+          github-token: ${{ github.token }}
+          name: jynlo-3514-venue-full-details-readonly
+          path: /tmp/jynlo-source
+      - name: Verify SHA-256, unique OSM references and zero approvals
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import gzip,hashlib,json,re
+          from pathlib import Path
+          src=Path('/tmp/jynlo-source/national-venue-details-3514.jsonl.gz')
+          wanted='e218744531f63bc94c537467d51fb77214e60132b20178877a13b52214a0701a'
+          assert hashlib.sha256(src.read_bytes()).hexdigest()==wanted, 'Unexpected source archive'
+          with gzip.open(src, 'rt', encoding='utf-8') as f:
+              rows=[json.loads(line) for line in f if line.strip()]
+          assert len(rows)==3514, 'Missing candidate records'
+          refs=set()
+          for row in rows:
+              ref=row['sourceReference']
+              assert re.fullmatch(r'OSM:(NODE|WAY|RELATION):[1-9][0-9]*',ref)
+              assert ref not in refs, 'Repeated OSM reference'
+              refs.add(ref)
+              assert row.get('approvedForImport') is False, 'Approved row in review archive'
+              assert row.get('independentIdentityVerified') is False
+              assert row.get('accessAndCurrentOperationVerified') is False
+          qa=json.loads(Path('/tmp/jynlo-source/quality-summary.json').read_text())
+          assert qa['original_candidates']==3514 and qa['approvedForImport']==0
+          assert qa['missing_from_new_snapshot']==0 and qa['source_field_changes']==0
+          target=Path('docs/venue-imports/datasets/national-3514-reviewed-20261021.jsonl.gz')
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_bytes(src.read_bytes())
+          print('Validated 3514 unapproved OSM candidate references',wanted)
+          PY
+      - name: Commit only verified compressed review data to audit branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=docs/venue-imports/datasets/national-3514-reviewed-20261021.jsonl.gz
+          test -s "$target"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$target"
+          git commit -m 'data(venues): preserve verified 3514-candidate snapshot [skip ci]'
+          git push origin HEAD:refs/heads/feature/jynlo-preserve-national-3514-snapshot-20261021
+          echo 'No database writes or Render deploys'
