@@ -324,4 +324,110 @@ class VenueServiceTest {
         assertEquals(262L, basketball.getFirst().id());
         assertTrue(swimmingInCoimbra.isEmpty());
     }
+
+    @Test
+    void gpsOnlyVenueRequiresValidCoordinatesAndNoSyntheticPostalAddress() {
+        assertFalse(gpsRequest(null, null, null).isValidVenueLocation());
+        assertFalse(gpsRequest(" ", 40.344, null).isValidVenueLocation());
+        assertFalse(gpsRequest(null, Double.NaN, -8.588).isValidVenueLocation());
+        assertFalse(gpsRequest(null, 45.0, -8.588).isValidVenueLocation());
+        assertTrue(gpsRequest(null, 40.344, -8.588).isValidVenueLocation());
+
+        Profile profile = new Profile();
+        profile.setUsername("TMF14");
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(profile));
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(List.of());
+        when(venueRepository.save(any(Venue.class))).thenAnswer(invocation -> {
+            Venue venue = invocation.getArgument(0);
+            venue.setId(902L);
+            return venue;
+        });
+
+        var result = service.create(gpsRequest(null, 40.344, -8.588), "TMF14");
+        assertNull(result.address());
+        assertEquals("GPS_ONLY_ADDRESS_UNKNOWN", result.locationStatus());
+        verify(venueRepository, never()).existsByNameIgnoreCaseAndCityIgnoreCaseAndAddressIgnoreCase(
+                any(), any(), any());
+    }
+
+    @Test
+    void gpsOnlyVenueBlocksDuplicateNameAtSameLocation() {
+        Profile profile = new Profile();
+        profile.setUsername("TMF14");
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(profile));
+        Venue existing = Venue.builder().name("Pavilhão Central").city("Lisboa")
+                .address("Rua Antiga").latitude(40.344).longitude(-8.588).build();
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(List.of(existing));
+        var error = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.create(gpsRequest(null, 40.344, -8.588), "TMF14"));
+        assertEquals(409, error.getStatusCode().value());
+        verify(venueRepository, never()).save(any(Venue.class));
+    }
+
+    @Test
+    void rejectedGpsOnlyRequestNeverPersistsAnIncompleteLocation() {
+        Profile profile = new Profile();
+        profile.setUsername("TMF14");
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(profile));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.create(gpsRequest(null, 40.344, null), "TMF14"));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.create(gpsRequest(null, 46.0, -8.588), "TMF14"));
+        verify(venueRepository, never()).save(any(Venue.class));
+    }
+
+    private static CreateVenueRequest gpsRequest(String address, Double latitude, Double longitude) {
+        return new CreateVenueRequest(
+                        "Pavilhão Central",
+                        "Lisboa",
+                        address,
+                        "Futsal",
+                        "Pavilhão",
+                        Venue.OwnershipType.PUBLIC,
+                        "Madeira",
+                        Venue.EnvironmentType.BOTH,
+                        true,
+                        true,
+                        "MALE;FEMALE;ADAPTED",
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        500,
+                        true,
+                        true,
+                        "Bar, aluguer de material",
+                        "Metro e autocarros próximos",
+                        "Seg-Sex 08:00-22:00; Sáb-Dom 09:00-20:00",
+                        "25€/hora",
+                        "https://pavilhao.example",
+                        "+351 210 000 000",
+                        true,
+                        true,
+                        true,
+                        latitude,
+                        longitude
+                );
+    }
 }
