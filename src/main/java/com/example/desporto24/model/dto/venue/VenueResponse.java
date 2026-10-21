@@ -1,6 +1,7 @@
 package com.example.desporto24.model.dto.venue;
 
 import java.time.Instant;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record VenueResponse(
         Long id,
@@ -52,6 +53,12 @@ public record VenueResponse(
         Instant createdAt,
         String district
 ) {
+    /** Additional read-only location information, never proof of public access. */
+    @JsonProperty("locationStatus")
+    public String locationStatus() {
+        return VenueLocationStatus.from(address, latitude, longitude);
+    }
+
     // Backwards-compatible constructor for existing Java tests/callers that
     // do not yet supply district; public API now exposes the real DB value.
     public VenueResponse(
