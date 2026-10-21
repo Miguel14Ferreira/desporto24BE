@@ -1,0 +1,99 @@
+name: Jynlo first 3 municipal pilot offline (no DB)
+on:
+  push:
+    branches: ['feature/jynlo-first-three-verified-seed-preflight-20261021']
+    paths:
+      - 'scripts/prepare_official_venue_pilot.py'
+      - 'scripts/test_prepare_official_venue_pilot.py'
+      - 'docs/venue-imports/first-three-official-pilot-20261021.json'
+      - '.github/workflows/venue-first-three-readonly-preflight.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readonly-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_only_no_secrets
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline protections and disallow unapproved inserts
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_prepare_official_venue_pilot.py' -v
+      - name: Reuse the national detail artifact; NO PBF download
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39616305935
+          github-token: ${{ github.token }}
+          name: jynlo-3514-venue-full-details-readonly
+          path: /tmp/jynlo-national-archived
+      - name: Generate the three proposals and READ ONLY SQL
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_official_venue_pilot.py \
+            --national-full-details /tmp/jynlo-national-archived/national-venue-details-3514.jsonl.gz \
+            --municipal-evidence docs/venue-imports/first-three-official-pilot-20261021.json \
+            --output-dir /tmp/jynlo-three
+          python3 - <<'PY'
+          import json
+          d=json.load(open("/tmp/jynlo-three/pilot-summary.json"))
+          assert d["proposals"] == 3 and d["approved_for_import"] == 0
+          assert d["database_writes"] is False
+          PY
+          if python3 scripts/generate_verified_venue_liquibase.py \
+            --approved-jsonl /tmp/jynlo-three/pilot-proposals-unapproved.jsonl \
+            --output-dir /tmp/jynlo-not-approved \
+            --migration-id first-three-not-approved; then
+            echo 'ERROR: draft proposals unexpectedly generated migrations'
+            exit 1
+          fi
+      - name: Parse and exercise READ-ONLY preflight on disposable PostgreSQL 16
+        shell: bash
+        env:
+          PGCID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          # Fixture writes happen ONLY in the GitHub Actions ephemeral DB.
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, city TEXT NOT NULL,
+            latitude DOUBLE PRECISION, longitude DOUBLE PRECISION,
+            information_source TEXT, source_reference TEXT
+          );
+          INSERT INTO desporto24.venue (name,city,latitude,longitude,information_source,source_reference)
+          VALUES
+            ('Pavilhão Marialvas','Cantanhede',40.3440287,-8.5876799,'OPENSTREETMAP','OSM:WAY:145943204'),
+            ('Piscinas Municipais Rui Abreu','Coimbra',40.2391033,-8.4384818,'COMMUNITY',NULL),
+            ('Outro recinto no mesmo complexo','Coimbra',40.2056924,-8.4068928,'COMMUNITY',NULL);
+          SQL
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres             < /tmp/jynlo-three/pilot-readonly-preflight.sql             | tee /tmp/jynlo-three/fixture-preflight-output.txt
+          grep -q 'EXACT_OSM_REFERENCE' /tmp/jynlo-three/fixture-preflight-output.txt
+          grep -q 'SAME_NAME_AND_CITY' /tmp/jynlo-three/fixture-preflight-output.txt
+          grep -q 'WITHIN_100_METRES' /tmp/jynlo-three/fixture-preflight-output.txt
+          # The read-only pilot must not modify this disposable fixture.
+          actual="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$actual" = '3'
+      - name: Preserve small proposal/SQL report only for 3 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-first-3-official-readonly-pilot
+          retention-days: 3
+          if-no-files-found: error
+          path: |
+            /tmp/jynlo-three/pilot-proposals-unapproved.jsonl
+            /tmp/jynlo-three/pilot-readonly-preflight.sql
+            /tmp/jynlo-three/pilot-summary.json
