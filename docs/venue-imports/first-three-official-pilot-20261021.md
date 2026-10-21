@@ -15,6 +15,15 @@ Os três têm fonte independente para **identidade e morada**, mas não provam u
 
 Não incluir já o **Casal Vistoso**: a fonte municipal lista piscina, pavilhão, rocódromo e salas dentro de um único complexo, sendo necessária reconciliação de possíveis subinstalações para evitar duplicados. Os outros 46 da fila inicial continuam sujeitos a confirmação.
 
+### Complemento de evidência operacional (21/10/2026; sem aprovação)
+
+- **Pavilhão Marialvas, Cantanhede:** a [ata municipal de março de 2026](https://www.cm-cantanhede.pt/mcsite/media/upload/2026/2026318143051_Ata52026.pdf) documenta pedido de utilização para treinos de basquetebol e decisão de isenção de taxas. Isto corrobora atividade em 2026 e demonstra que a utilização organizada pode estar sujeita a solicitação/autorização e taxas; **não implica aluguer gratuito nem autorização genérica** para sessões anunciadas por terceiros.
+- **Piscinas Municipais Rui Abreu:** a [página municipal](https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/piscina-municipal-rui-abreu) informa horário de funcionamento, mapa de eventos de 2026 e encerramento anual de 5 a 22 de agosto de 2026. Atividades, disponibilidade de pistas e utilização por terceiros permanecem condicionadas.
+- **Centro Olímpico de Piscinas Municipais:** a [página municipal](https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/c-olimpico-de-piscinas) documenta horários e encerramento de 22 de agosto a 12 de setembro de 2026. O horário da instalação **não é reserva de plano de água**.
+- **Localização Marialvas:** a [ficha do equipamento](https://www.cm-cantanhede.pt/mcsite/Entidade/1680/pavilhao-marialvas) indica GPS 40.344028,-8.587633; a [página de contactos](https://www.cm-cantanhede.pt/mcsite/pagina/844/Os-nossos-Contactos) indica 40.344047,-8.5879722, possivelmente outro ponto do mesmo complexo. Manter o ponto da ficha no candidato; **nenhum dos dois está confirmado como entrada**.
+
+As três decisões individuais continuam `PENDING`. Esta pesquisa não atesta abertura no dia da sessão, disponibilidade para utilização de terceiros, nem substitui preflight atual à BD LIVE ou aprovação independente. Não inserir já.
+
 ## Execução offline, sem recolha nacional nova
 
 Descarregar o artifact existente de [#39616305935](https://github.com/Miguel14Ferreira/desporto24BE/actions/runs/39616305935): `national-venue-details-3514.jsonl.gz`. O SHA256 comprimido exigido pelo script é `e218744531f63bc94c537467d51fb77214e60132b20178877a13b52214a0701a`, que impede reconstruções acidentais a partir de outro snapshot.
