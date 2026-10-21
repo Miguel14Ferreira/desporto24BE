@@ -1,0 +1,55 @@
+name: First-50 venue evidence offline checks
+on:
+  push:
+    branches: ['feature/jynlo-first-50-municipal-evidence-20261021']
+    paths:
+      - 'scripts/check_national_review_evidence.py'
+      - 'scripts/test_check_national_review_evidence.py'
+      - 'docs/venue-imports/first-50-municipal-evidence-20261021.json'
+      - '.github/workflows/venue-first-50-evidence-offline.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evidence-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate schema and review gates without external network
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/check_national_review_evidence.py
+          python3 -m unittest discover -s scripts -p 'test_check_national_review_evidence.py' -v
+      - name: Reuse full national OSM fields from completed, immutable audit artifact
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39616305935
+          github-token: ${{ github.token }}
+          name: jynlo-3514-venue-full-details-readonly
+          path: /tmp/jynlo-source
+      - name: Recreate exactly 50 unapproved candidates and verify 11 official records
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_first_national_review_batch.py \
+            --full-details /tmp/jynlo-source/national-venue-details-3514.jsonl.gz \
+            --out-dir /tmp/jynlo-first-50 \
+            --limit 50 --district-cap 7
+          python3 scripts/check_national_review_evidence.py \
+            --first-50-csv /tmp/jynlo-first-50/review-queue.csv \
+            --evidence-json docs/venue-imports/first-50-municipal-evidence-20261021.json \
+            --output-dir /tmp/jynlo-evidence
+          python3 - <<'PY'
+          import json
+          report=json.load(open('/tmp/jynlo-evidence/official-review-summary.json'))
+          assert report["batch_size"] == 50, report
+          assert report["official_evidence_records"] == 11, report
+          assert report["no_official_evidence"] == 39, report
+          assert report["approved_for_import"] == 0, report
+          assert report["database_changes"] is False, report
+          PY
