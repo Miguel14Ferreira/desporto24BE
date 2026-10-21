@@ -41,12 +41,16 @@ ON CONFLICT DO NOTHING;
 
 -- Pista de Atletismo de Castelo Branco / Castelo Branco
 -- Evidence: https://www.cm-castelobranco.pt/municipe/areas-de-acao/desporto-lazer/pista-de-atletismo/
+-- GPS específico da pista publicado pela Câmara Municipal de Castelo Branco:
+-- https://www.cm-castelobranco.pt/media/8123/manual-de-acolhimento-ao-novo-albicastrense.pdf
+-- Validação CAOP2025 em 21/10/2026: município e distrito Castelo Branco (CI 39582351980).
+-- Acesso: inscrição junto do funcionário da Associação de Atletismo, segundo página municipal.
 -- JYNLO:DOCUMENTED is an internal deterministic evidence key, NOT an external authority ID.
 INSERT INTO desporto24.venue
   (name, city, district, address, sports, venue_type, environment_type,
    latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
-SELECT 'Pista de Atletismo de Castelo Branco', 'Castelo Branco', 'Castelo Branco', 'Parque Urbano, Castelo Branco', 'Atletismo', 'Pista desportiva', 'OUTDOOR', NULL, NULL, 'OFFICIAL', 'JYNLO:DOCUMENTED:CASTELO_BRANCO:PISTA_DE_ATLETISMO_DE_CASTELO_BRANCO', 'https://www.cm-castelobranco.pt/municipe/areas-de-acao/desporto-lazer/pista-de-atletismo/',
+SELECT 'Pista de Atletismo de Castelo Branco', 'Castelo Branco', 'Castelo Branco', 'Parque Urbano, Castelo Branco', 'Atletismo', 'Pista desportiva', 'OUTDOOR', 39.818785611212455, -7.515117240291148, 'OFFICIAL', 'JYNLO:DOCUMENTED:CASTELO_BRANCO:PISTA_DE_ATLETISMO_DE_CASTELO_BRANCO', 'https://www.cm-castelobranco.pt/municipe/areas-de-acao/desporto-lazer/pista-de-atletismo/',
        FALSE, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue existing
