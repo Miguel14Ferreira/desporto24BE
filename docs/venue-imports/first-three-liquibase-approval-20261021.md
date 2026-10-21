@@ -10,6 +10,14 @@ Este PR disponibiliza um **gerador do changeset opt-in**, mas **NÃO** inclui um
 
 As três fontes municipais sustentam a identificação e a morada; os horários/programas e a autorização de uso por organizadores de sessões continuam sujeitos à entidade gestora. A consulta **LIVE PostgreSQL read-only** executada pelo proprietário em **21/10/2026** confirmou 265 registos atuais e **zero correspondências** pelos critérios referência exata, nome/concelho, ou distância até 100 metros. O SQL terminou com `ROLLBACK`. Esse resultado **não é autorização permanente**: repetir um preflight imediatamente antes de qualquer importação futura.
 
+## Website municipal no futuro detalhe da Jynlo
+
+Os dados de fonte oficial registados no catálogo só são úteis aos jogadores se o detalhe do recinto permitir consultar a entidade gestora. O frontend já publica um botão para `venue.website`, mas o gerador opt-in original não incluía o campo. O gerador guarda agora um `website` **apenas quando um URL HTTPS válido foi fornecido e aprovado**. Para o piloto de três, a URL gravada é exatamente `evidenceUrl`, proveniente dos municípios de Cantanhede ou Coimbra e validada contra os domínios permitidos.
+
+A impressão digital do candidato passa a proteger também `evidenceUrl` e `evidenceReviewedOn`. Todos os três hashes `PENDING` foram atualizados, **sem mudar nenhuma decisão para APPROVED**. Qualquer alteração ao URL municipal ou à data de revisão invalida a assinatura antiga.
+
+O botão informativo não concede nem sugere acesso gratuito a uma instalação. O utilizador terá de confirmar horários, taxas, procedimentos e autorizações junto da entidade responsável. A ligação ao website é um campo opcional para outras importações; referências OSM genéricas e URLs HTTP não são aceites como prova HTTPS para este campo.
+
 ## Fluxo de aprovação
 
 `docs/venue-imports/first-three-proposals-unapproved-20261021.jsonl` fixa a proposta de 3 recintos. `docs/venue-imports/first-three-decisions-pending-20261021.json` contém decisões `PENDING` e `approvedBy` vazio para todos.
