@@ -1,0 +1,55 @@
+name: CAOP2025 SNID GPS - read-only audit
+on:
+  push:
+    branches: ['audit/venues-caop2025-point-check-20261021']
+    paths:
+      - 'scripts/check_caop2025_snid_points.py'
+      - 'scripts/test_check_caop2025_snid_points.py'
+      - 'docs/venue-imports/snid-10-points-for-caop2025.json'
+      - '.github/workflows/caop2025-snid-10-point-audit.yml'
+permissions:
+  contents: read
+jobs:
+  caop-point-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install geospatial tools for disposable environment only
+        run: |
+          python3 -m pip install --disable-pip-version-check \
+            geopandas==1.1.2 pyogrio==0.12.1 shapely==2.1.2 pyproj==3.7.2
+      - name: Test fail-closed coordinate/municipality logic
+        run: python3 -m unittest discover -s scripts -p 'test_check_caop2025_snid_points.py' -v
+      - name: Download official CAOP2025 mainland GPKG (no DB)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/jynlo-caop2025
+          curl -fLsS --retry 2 --connect-timeout 20 --max-time 240 \
+            'https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip' \
+            -o /tmp/jynlo-caop2025/caop.zip
+          test "$(stat -c '%s' /tmp/jynlo-caop2025/caop.zip)" -gt 1000000
+          unzip -q /tmp/jynlo-caop2025/caop.zip -d /tmp/jynlo-caop2025
+          find /tmp/jynlo-caop2025 -type f -iname '*.gpkg'
+      - name: Compare ten SNID candidate points to 278 official municipality polygons
+        shell: bash
+        run: |
+          set -euo pipefail
+          GPKG="$(find /tmp/jynlo-caop2025 -type f -iname '*.gpkg' -print -quit)"
+          test -n "$GPKG"
+          python3 scripts/check_caop2025_snid_points.py \
+            --gpkg "$GPKG" \
+            --candidates docs/venue-imports/snid-10-points-for-caop2025.json \
+            --output /tmp/jynlo-caop2025/report
+          test "$(wc -l </tmp/jynlo-caop2025/report/caop2025-snid-10-points.csv)" -eq 11
+      - name: Upload only tiny reports, not the national GPKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: caop2025-snid-10-point-audit
+          path: /tmp/jynlo-caop2025/report/
+          retention-days: 7
+          if-no-files-found: error
