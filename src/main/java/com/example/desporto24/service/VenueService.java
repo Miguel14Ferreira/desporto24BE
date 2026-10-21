@@ -207,7 +207,7 @@ public class VenueService {
         String normalizedSourceReference = requireText(sourceReference, "Referência externa obrigatória");
         String normalizedName = requireText(name, "Nome do recinto obrigatório");
         String normalizedCity = requireText(city, "Cidade do recinto obrigatória");
-        String normalizedAddress = requireText(address, "Morada do recinto obrigatória");
+        String normalizedAddress = trimToNull(address);
 
         String normalizedSports = trimToNull(sports);
         if (normalizedSports != null && java.util.Arrays.stream(normalizedSports.split(";", -1))
@@ -229,6 +229,10 @@ public class VenueService {
                 || !Double.isFinite(latitude) || !Double.isFinite(longitude)
                 || latitude < 36.8 || latitude > 42.3 || longitude < -9.6 || longitude > -6.0) {
             throw new IllegalArgumentException("Coordinates must be in mainland Portugal");
+        }
+        // GPS-only imports preserve a genuinely missing postal address as NULL.
+        if (normalizedAddress == null && (latitude == null || longitude == null)) {
+            throw new IllegalArgumentException("Morada ou coordenadas GPS obrigatórias");
         }
         String normalizedDistrict = trimToNull(district);
         if (normalizedDistrict != null && !java.util.Set.of(
@@ -287,18 +291,54 @@ public class VenueService {
         Profile creator = profileRepository.findUserByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        if (venueRepository.existsByNameIgnoreCaseAndCityIgnoreCaseAndAddressIgnoreCase(
-                request.name().trim(), request.city().trim(), request.address().trim())) {
+        String normalizedAddress = trimToNull(request.address());
+        Double latitude = request.latitude();
+        Double longitude = request.longitude();
+        boolean hasLatitude = latitude != null;
+        boolean hasLongitude = longitude != null;
+        if (hasLatitude != hasLongitude) {
+            throw new IllegalArgumentException("A localização GPS exige latitude e longitude");
+        }
+        if (hasLatitude && (!Double.isFinite(latitude) || !Double.isFinite(longitude)
+                || latitude < 36.8 || latitude > 42.3
+                || longitude < -9.6 || longitude > -6.0)) {
+            throw new IllegalArgumentException("Coordenadas inválidas fora de Portugal continental");
+        }
+        if (normalizedAddress == null && !hasLatitude) {
+            throw new IllegalArgumentException("Indica a morada ou uma localização GPS válida");
+        }
+        if (normalizedAddress != null
+                && venueRepository.existsByNameIgnoreCaseAndCityIgnoreCaseAndAddressIgnoreCase(
+                        request.name().trim(), request.city().trim(), normalizedAddress)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.CONFLICT,
                     "Já existe um recinto com este nome, cidade e morada");
+        }
+        if (normalizedAddress == null) {
+            // GPS-only dedup: same normalized name at a nearby point (<30m).
+            String comparable = request.name().trim().toLowerCase(Locale.ROOT)
+                    .replaceAll("[^\\p{L}\\p{N}]+", "");
+            for (Venue nearby : venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                    latitude - 0.0003, latitude + 0.0003,
+                    longitude - 0.0004, longitude + 0.0004)) {
+                if (nearby.getName() == null || nearby.getLatitude() == null
+                        || nearby.getLongitude() == null) continue;
+                String other = nearby.getName().toLowerCase(Locale.ROOT)
+                        .replaceAll("[^\\p{L}\\p{N}]+", "");
+                if (comparable.equals(other) && distanceCalculator.kilometres(
+                        latitude, longitude, nearby.getLatitude(), nearby.getLongitude()) <= 0.03) {
+                    throw new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.CONFLICT,
+                            "Já existe um recinto com este nome nesta localização");
+                }
+            }
         }
 
         Venue venue = venueRepository.save(Venue.builder()
                 .name(request.name().trim())
                 .city(request.city().trim())
                 .district(ContinentalDistricts.normalizeOptional(request.district()))
-                .address(request.address().trim())
+                .address(normalizedAddress)
                 .sports(trimToNull(request.sports()))
                 .venueType(trimToNull(request.venueType()))
                 .ownershipType(request.ownershipType())

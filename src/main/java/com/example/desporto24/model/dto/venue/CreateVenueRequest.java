@@ -4,12 +4,13 @@ import com.example.desporto24.model.venue.Venue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
 
 public record CreateVenueRequest(
         @NotBlank @Size(max = 140) String name,
         @NotBlank @Size(max = 120) String city,
-        @NotBlank @Size(max = 255) String address,
+        @Size(max = 255) String address,
         @Size(max = 255) String sports,
         @Size(max = 80) String venueType,
         Venue.OwnershipType ownershipType,
@@ -98,5 +99,17 @@ public record CreateVenueRequest(
             Double latitude,
             Double longitude) {
         this(name, city, address, sports, venueType, ownershipType, surfaceType, environmentType, indoor, changingRooms, changingRoomTypes, toilets, lockers, showers, stands, drinkingFountain, accessible, firstAid, aed, medicalStation, lifeguard, staffOnSite, securitySurveillance, cafe, restaurant, vendingMachines, sportsShop, wifi, phoneCharging, nearbyRadiusMeters, nearbyPharmacy, nearbyAtm, services, transport, openingHours, priceInfo, website, contact, parking, freeParking, lighting, latitude, longitude, null);
+    }
+    /** Blank postal address is valid only alongside a complete mainland GPS pair. */
+    @AssertTrue(message = "Indica uma morada ou uma localização GPS válida")
+    public boolean isValidVenueLocation() {
+        boolean anyGps = latitude != null || longitude != null;
+        if (anyGps && (latitude == null || longitude == null
+                || !Double.isFinite(latitude) || !Double.isFinite(longitude)
+                || latitude < 36.8 || latitude > 42.3
+                || longitude < -9.6 || longitude > -6.0)) {
+            return false;
+        }
+        return (address != null && !address.isBlank()) || anyGps;
     }
 }
