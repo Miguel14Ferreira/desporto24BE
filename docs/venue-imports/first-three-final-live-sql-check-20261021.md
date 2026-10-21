@@ -33,6 +33,25 @@ Cada referência OSM produz exatamente uma linha, incluindo `catalogue_rows` (co
 
 Esta consulta testa referência exata, nome normalizado (acentos e pontuação), aliases específicos `centroolimpico`, `ruiabreu`, `marialvas` com correspondência de município, raio até 100m e anel de 100–150m. Não executa fuzzy matching geral, pelo que **não substitui** verificação humana de nomes alternativos mais invulgares.
 
+## Resultado recebido do operador (registado em outubro de 2026)
+
+O operador executou a consulta na sessão `psql` já autorizada e partilhou **as três linhas de output**, reproduzidas em `first-three-operator-preflight-result-20261022.json`. O artefacto declara explicitamente `evidenceType=operator_supplied_readonly_psql_output`, pois o GitHub **não** executou SQL contra a BD LIVE. A consulta não inclui carimbo temporal verificável: `executedAt=null` e `executionDateVerified=false` permanecem como campos desconhecidos até confirmação nominal para publicação.
+
+| Referência | Resultado LIVE informado |
+| --- | --- |
+| `OSM:WAY:1056855283` | 0 colisões; 1 vizinho no anel 100–150 m: id **262**, `OSM:WAY:58257179`, Pavilhão Municipal Multidesportos Mário Mexia, **107,7 m** |
+| `OSM:WAY:122685516` | 0 colisões; 0 vizinhos detetados |
+| `OSM:WAY:145943204` | 0 colisões; 0 vizinhos detetados |
+
+**Catálogo observado:** 265 recintos. O vizinho 262 é um pavilhão e o Centro Olímpico uma piscina, documentados separadamente pelo Município de Coimbra. A contagem zero vale para os critérios da query, não para todos os aliases possíveis; nenhuma proposta fica automaticamente aprovada.
+
+**Condições a explicitar na revisão humana:**
+- [Centro Olímpico](https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/c-olimpico-de-piscinas): horários municipais de 2026 e eventos; confirmar uso do plano de água por terceiros, taxas e restrições de horários.
+- [Piscinas Rui Abreu](https://www.cm-coimbra.pt/areas/viver/desporto/equipamentos-desportivos/piscinas-municipais/piscina-municipal-rui-abreu): horários municipais de 2026, interrupções/eventos e eventuais normas de utilização; **utilização livre individual não autoriza automaticamente organizar sessões de grupo**.
+- [Pavilhão Marialvas](https://cm-cantanhede.pt/mcsite/entidade/1680/pavilhao-marialvas): quatro modalidades e localização confirmadas; a [página de contactos](https://cm-cantanhede.pt/mcsite/pagina/844/Os-nossos-Contactos) dá horário e telefone. A [documentação de utilização/cedência](https://www.cm-cantanhede.pt/mcsite/documentos/1234/0/pavilhao-marialvas) inclui regulamentos e taxas históricos, não prova de cedência atual livre.
+
+**Próxima decisão que requer ação humana:** confirmar política de utilização, visibilidade das restrições e identificação nominal do aprovador para cada candidato. A ferramenta de aprovação continua a rejeitar os ficheiros PENDING. O relatório de preflight não substitui `preflightCheckedOn` atualizado aquando de um deploy futuro; não utilizar esta evidência fora da sua janela de validade.
+
 ## Pós-consulta / regras de publicação
 
 Conservar saída da consulta e data num relatório de revisão, sem dados pessoais/segredos. Rever os três candidatos individualmente: identidade, modalidades, situação atual de funcionamento, horário, cedência/autorizações, taxas e se as restrições são comunicadas na experiência Jynlo. A aprovação do código da query não aprova equipamentos.
