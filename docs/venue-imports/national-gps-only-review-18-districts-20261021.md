@@ -9,7 +9,7 @@ This offline script does **NOT reverse-geocode** or insert pseudo street names. 
 ## Guardrails
 
 - Read-only input: `docs/venue-imports/datasets/national-3514-reviewed-20261021.jsonl.gz`, pinned SHA256 `e218744531f63bc94c537467d51fb77214e60132b20178877a13b52214a0701a`.
-- Select only `importGate=ADDRESS_REVIEW` entries with an actual usable sport facility type/sport, non-generic name, plausible Portuguese GPS coordinates; exclude known LIVE references and possible duplicates in other gates.
+- Select only `importGate=ADDRESS_REVIEW` entries with an actual usable sport facility type/sport, non-generic name (excluding ambiguous labels such as Pavilhão 1 and school/private-club indications), plausible Portuguese GPS coordinates; exclude known LIVE references and possible duplicates in other gates.
 - Prefer fields and multi-use sporting facilities over gyms, golf courses and closed/private-labelled locations. The score is **only for prioritizing review**, not independent confirmation or access authorization.
 - First queue: **5 sports venue candidates from each of Portugal mainland's 18 districts**, diversifying municipalities and avoiding stacking locations in one complex (120 m).
 - The 32 municipally sourced staged installations in Bragança, Leiria, Setúbal still require separate cross-source alias reconciliation (the CSV flags those districts).

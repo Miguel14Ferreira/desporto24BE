@@ -56,6 +56,10 @@ class GpsOnlyReviewTest(unittest.TestCase):
         for row in (
             candidate(name="Antigo Campo Desportivo"),
             candidate(name="Campo de Futebol"),
+            candidate(name="Pavilhão 1"),
+            candidate(name="Campo Polidesportivo"),
+            candidate(name="Country Club Covilhã"),
+            candidate(name="Pavilhão Escolar"),
             candidate(venueType="Ginásio"),
             candidate(sports="Golfe"),
         ):

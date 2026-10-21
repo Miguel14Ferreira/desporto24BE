@@ -38,7 +38,7 @@ BLOCKED_WORDS = (
     "encerrad", "abandonad", "privado", "privada", "proibido",
     "ruína", "ruina", "hotel ", "resort", "acampamento",
     "militar", "clínica", "escola básica", "escola secundária",
-    "quartel", "temporariamente",
+    "quartel", "temporariamente", "country club", "pavilhão escolar", "pavilhao escolar",
 )
 GENERIC_NAMES = {
     "campo de futebol", "campo de ténis", "campo de futsal",
@@ -48,6 +48,8 @@ GENERIC_NAMES = {
     "piscina municipal", "piscinas municipais", "piscina",
     "skatepark", "skate park", "ringue", "campo",
     "sintetico", "campo municipal", "campo de jogos",
+    "campo polidesportivo", "campo de futebol em terra", "pavilhão 1",
+    "pavilhão 2", "pavilhão gimnodesportivo",
 }
 NEEDS_MUNICIPAL_ALIAS_REVIEW = {"Bragança", "Leiria", "Setúbal"}
 CSV_FIELDS = (
