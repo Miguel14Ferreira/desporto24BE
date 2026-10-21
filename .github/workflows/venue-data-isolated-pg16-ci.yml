@@ -186,3 +186,16 @@ jobs:
           test "$(psql -At -c 'SELECT COUNT(*) FROM desporto24.databasechangelog')" = 5
           echo "PASS: 5 Liquibase changesets; 36 new venues; original data preserved; second update idempotent."
           echo "Production DB was not accessed."
+
+      - name: Rehearse isolated backup restore with a throwaway PG16 fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/verify_venue_backup_restore.sh
+          docker run --rm --network host \
+            -v "$RUNNER_TEMP:/output" \
+            -e PGPASSWORD=local_test_only \
+            postgres:16 pg_dump \
+              -h 127.0.0.1 -U postgres -d venues_test \
+              --schema desporto24 --format custom --file /output/venue-fixture.dump
+          JYNLO_RESTORE_EXPECTED_VENUES=41 bash scripts/verify_venue_backup_restore.sh "$RUNNER_TEMP/venue-fixture.dump"
