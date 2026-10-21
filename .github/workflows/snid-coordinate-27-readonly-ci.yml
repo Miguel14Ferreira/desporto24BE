@@ -1,0 +1,38 @@
+name: SNID 27 venue coordinates - read-only review
+on:
+  push:
+    branches: ['audit/venues-snid-coordinate-match-27-20261021']
+    paths:
+      - 'scripts/match_snid_venue_coordinates.py'
+      - 'scripts/test_match_snid_venue_coordinates.py'
+      - 'docs/venue-imports/snid-coordinate-candidates-27.json'
+      - '.github/workflows/snid-coordinate-27-readonly-ci.yml'
+permissions:
+  contents: read
+jobs:
+  coordinate-candidate-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline unit tests of coordinate matching safeguards
+        run: python3 -m unittest discover -s scripts -p 'test_match_snid_venue_coordinates.py' -v
+      - name: Match public SNID source to 27 candidate venues without database access
+        run: |
+          set -euo pipefail
+          python3 scripts/match_snid_venue_coordinates.py \
+            --manifest docs/venue-imports/snid-coordinate-candidates-27.json \
+            --fetch-official --output-dir /tmp/jynlo-snid-27
+          test "$(wc -l </tmp/jynlo-snid-27/snid-coordinate-review-27.csv)" -eq 28
+      - name: Store candidate review only, omit full source download
+        uses: actions/upload-artifact@v4
+        with:
+          name: snid-coordinate-review-27
+          path: |
+            /tmp/jynlo-snid-27/snid-coordinate-review-27.csv
+            /tmp/jynlo-snid-27/snid-coordinate-review-27.json
+          retention-days: 7
+          if-no-files-found: error
