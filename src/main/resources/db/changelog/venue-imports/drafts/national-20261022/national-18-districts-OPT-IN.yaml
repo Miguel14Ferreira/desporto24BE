@@ -1,0 +1,463 @@
+databaseChangeLog:
+  # IMPORTANT: OPT-IN ONLY. This file is NOT included by db.changelog-master.yaml.
+  # OPENSTREETMAP candidates are unverified map references, not municipal approvals.
+  # Require real backup/restore, current LIVE dedup review and an explicit release before include.
+  - changeSet:
+      id: national-map-osm-aveiro-01-bb9aa9afce48
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-aveiro-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-aveiro-02-7b42c8494daf
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-aveiro-02.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-aveiro-03-f3b9b7ab05b8
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-aveiro-03.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-beja-01-8ac176a2f639
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-beja-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-braga-01-144540e7e769
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-braga-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-braga-02-82ede639c22a
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-braga-02.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-braganca-01-935f9dbbc168
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-braganca-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-castelo-branco-01-6b8cdb52d42e
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-castelo-branco-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-coimbra-01-5663408da2e2
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-coimbra-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-faro-01-0a30042fd964
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-faro-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-guarda-01-1804695af57d
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-guarda-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-leiria-01-029f6a82dce0
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-leiria-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-lisboa-01-552fd3a2f630
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-lisboa-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-lisboa-02-698b2bb64c60
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-lisboa-02.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-lisboa-03-a41db92d1617
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-lisboa-03.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-portalegre-01-e3ce2276eccd
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-portalegre-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-porto-01-c992b0bff7a3
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-porto-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-porto-02-76b4f9ff7d32
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-porto-02.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-porto-03-56e9fe12f578
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-porto-03.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-santarem-01-32b52132f2fc
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-santarem-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-setubal-01-71f7501a402b
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-setubal-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-setubal-02-2ee98e206121
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-setubal-02.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-viana-do-castelo-01-809b3867b806
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-viana-do-castelo-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-vila-real-01-5afe459aea61
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-vila-real-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-vila-real-02-1c49e47d8ff5
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-vila-real-02.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-viseu-01-09f5db1f9c25
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-viseu-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
+  - changeSet:
+      id: national-map-osm-evora-01-2ad3889f7e6d
+      author: jynlo-national-map-unverified
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        - tableExists:
+            schemaName: desporto24
+            tableName: venue
+      changes:
+        - sqlFile:
+            path: sql/national-map-osm-evora-01.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;
