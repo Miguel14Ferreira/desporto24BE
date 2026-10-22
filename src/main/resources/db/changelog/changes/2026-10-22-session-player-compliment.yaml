@@ -1,0 +1,85 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-22-session-player-compliment
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: session_player_compliment
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_session_player_compliment
+                    nullable: false
+              - column:
+                  name: session_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recipient_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: compliment_type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: session_player_compliment
+            baseColumnNames: session_id
+            referencedTableName: session
+            referencedColumnNames: id
+            constraintName: fk_player_compliment_session
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: session_player_compliment
+            baseColumnNames: sender_profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_player_compliment_sender
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: session_player_compliment
+            baseColumnNames: recipient_profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_player_compliment_recipient
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: session_player_compliment
+            columnNames: session_id, sender_profile_id, recipient_profile_id
+            constraintName: uk_player_compliment_triplet
+        - createIndex:
+            tableName: session_player_compliment
+            indexName: idx_player_compliment_received
+            columns:
+              - column:
+                  name: session_id
+              - column:
+                  name: recipient_profile_id
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.session_player_compliment
+              ADD CONSTRAINT ck_player_compliment_positive_type
+              CHECK (compliment_type IN ('FAIR_PLAY', 'GREAT_TEAMMATE', 'POSITIVE_ENERGY'))
