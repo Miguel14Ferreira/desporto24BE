@@ -239,7 +239,7 @@ class CommunityCompetitionServiceTest {
     @Test
     void acceptedAliasCombinesHistoricalGamesWithRealProfileWithoutChangingOriginalPlayer() {
         Profile target = profile(1L, "TMF14", "Miguel Ferreira");
-        target.setNickname("Ferreirinha"); // Historic nickname must not replace the verified full name.
+        target.setNickname("Migas"); // The Excel name wins over nickname and full name.
         Community community = Community.builder().id(7L).owner(target)
                 .visibility(CommunityVisibility.PRIVATE)
                 .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0).build();
@@ -276,22 +276,52 @@ class CommunityCompetitionServiceTest {
         var overview = service.overview(7L, "TMF14");
         assertEquals(1, overview.standings().size());
         assertEquals("TMF14", overview.standings().getFirst().username());
-        assertEquals("Miguel Ferreira", overview.standings().getFirst().fullName());
+        assertEquals("Ferreirinha", overview.standings().getFirst().fullName());
         assertEquals(2, overview.standings().getFirst().games());
         assertEquals(3, overview.standings().getFirst().points());
-        // Both the standings and the session history must show the verified
-        // Jynlo identity, even though the imported source used "Ferreirinha".
+        // The Excel nickname is the canonical community-facing name in all
+        // screens, while @TMF14 remains the associated Jynlo identity.
         var linkedEntry = overview.rounds().get(1).entries().getFirst();
         assertEquals(overview.standings().getFirst().fullName(), linkedEntry.fullName());
-        assertEquals("Miguel Ferreira", linkedEntry.fullName());
+        assertEquals("Ferreirinha", linkedEntry.fullName());
         assertEquals("TMF14", linkedEntry.username());
         assertEquals(1L, linkedEntry.profileId());
         var registeredEntry = overview.rounds().get(0).entries().getFirst();
-        assertEquals("Miguel Ferreira", registeredEntry.fullName());
+        assertEquals("Ferreirinha", registeredEntry.fullName());
         assertEquals("TMF14", registeredEntry.username());
-        // Immutable Excel source identity remains available for provenance.
         assertEquals("Ferreirinha", historical.getDisplayName());
         assertNull(historical.getProfile());
+    }
+
+    @Test
+    void directLinkedImportedNameWinsOverCurrentAccountName() {
+        Profile target = profile(1L, "TMF14", "Miguel Ferreira");
+        target.setNickname("Migas");
+        Community community = Community.builder().id(7L).owner(target)
+                .visibility(CommunityVisibility.PRIVATE).rankingsEnabled(true).build();
+        CommunityPlayer fromExcel = CommunityPlayer.builder().id(11L).community(community)
+                .displayName("Ferreirinha").normalizedName("ferreirinha").profile(target).build();
+        CommunityRound round = CommunityRound.builder().id(21L).community(community).build();
+        CommunityRoundEntry historical = CommunityRoundEntry.builder().round(round)
+                .communityPlayer(fromExcel).profile(target).result(CommunityMatchResult.WIN).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, target, CommunityRole.OWNER)));
+        when(playerRepository.findByCommunityIdAndProfileId(7L, 1L)).thenReturn(Optional.of(fromExcel));
+        when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L)).thenReturn(List.of(round));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+        when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
+                .thenReturn(List.of(historical));
+        when(entryRepository.findByRoundIdOrderByIdAsc(21L)).thenReturn(List.of(historical));
+
+        var overview = service.overview(7L, "TMF14");
+        assertEquals("Ferreirinha", overview.standings().getFirst().fullName());
+        assertEquals("Ferreirinha", overview.rounds().getFirst().entries().getFirst().fullName());
+        assertEquals("TMF14", overview.standings().getFirst().username());
+        assertEquals("TMF14", overview.rounds().getFirst().entries().getFirst().username());
     }
 
     @Test
