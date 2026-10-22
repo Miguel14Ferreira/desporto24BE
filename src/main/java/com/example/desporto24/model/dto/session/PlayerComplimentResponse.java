@@ -4,9 +4,9 @@ import com.example.desporto24.enumeration.PlayerComplimentType;
 
 import java.time.Instant;
 
-/** Returned only to the authenticated giver or receiver, never publicly. */
+/** Shown only to the authenticated giver or receiver; no public player rankings. */
 public record PlayerComplimentResponse(
-        Long senderProfileId,
-        Long recipientProfileId,
+        String senderUsername,
+        String recipientUsername,
         PlayerComplimentType type,
         Instant updatedAt) {}
