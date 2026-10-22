@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-22-team-group-stage
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament_team_match
+            columns:
+              - column:
+                  name: group_number
+                  type: INT
+                  constraints:
+                    nullable: true
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament_team_match
+            indexName: idx_team_match_tournament_group
+            columns:
+              - column:
+                  name: tournament_id
+              - column:
+                  name: group_number
+              - column:
+                  name: round_number
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              DROP CONSTRAINT ck_tournament_format;
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament
+              ADD CONSTRAINT ck_tournament_format
+              CHECK (format IN ('LEAGUE', 'KNOCKOUT', 'GROUP_KNOCKOUT'));
+        - sql:
+            dbms: postgresql
+            sql: >-
+              ALTER TABLE desporto24.community_tournament_team_match
+              ADD CONSTRAINT ck_team_match_group_number
+              CHECK (group_number IS NULL OR group_number BETWEEN 1 AND 8);
