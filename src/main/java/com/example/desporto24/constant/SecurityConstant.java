@@ -25,7 +25,8 @@ public final class SecurityConstant {
             "/api/sessions",
             "/api/sessions/*/public-preview",
             "/api/venues",
-            "/api/venues/*"
+            "/api/venues/*",
+            "/api/venues/*/ratings/summary"
     };
 
     public static final String[] PUBLIC_URLS = {
