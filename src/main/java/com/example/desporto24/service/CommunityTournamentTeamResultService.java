@@ -87,8 +87,10 @@ public class CommunityTournamentTeamResultService {
             }
             // Once the draw progresses, earlier winners cannot be changed.
             var fixtures = matches.findByTournamentId(tournamentId,
-                    PageRequest.of(0, 33, Sort.by("roundNumber").descending()));
+                    PageRequest.of(0, tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                            ? 128 : 33, Sort.by("roundNumber").descending()));
             if (fixtures.hasNext() || fixtures.getContent().stream()
+                    .filter(game -> game.getGroupNumber() == null)
                     .anyMatch(game -> game.getRoundNumber() > match.getRoundNumber())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "A ronda seguinte já foi publicada. Não é possível alterar este resultado");
