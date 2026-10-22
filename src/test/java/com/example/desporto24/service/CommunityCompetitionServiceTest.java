@@ -239,6 +239,7 @@ class CommunityCompetitionServiceTest {
     @Test
     void acceptedAliasCombinesHistoricalGamesWithRealProfileWithoutChangingOriginalPlayer() {
         Profile target = profile(1L, "TMF14", "Miguel Ferreira");
+        target.setNickname("Ferreirinha"); // Historic nickname must not replace the verified full name.
         Community community = Community.builder().id(7L).owner(target)
                 .visibility(CommunityVisibility.PRIVATE)
                 .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0).build();
@@ -278,12 +279,18 @@ class CommunityCompetitionServiceTest {
         assertEquals("Miguel Ferreira", overview.standings().getFirst().fullName());
         assertEquals(2, overview.standings().getFirst().games());
         assertEquals(3, overview.standings().getFirst().points());
-        // Display name stays as in the imported source, but accepted alias provides
-        // the verified profile handle in historical round details.
+        // Both the standings and the session history must show the verified
+        // Jynlo identity, even though the imported source used "Ferreirinha".
         var linkedEntry = overview.rounds().get(1).entries().getFirst();
-        assertEquals("Ferreirinha", linkedEntry.fullName());
+        assertEquals(overview.standings().getFirst().fullName(), linkedEntry.fullName());
+        assertEquals("Miguel Ferreira", linkedEntry.fullName());
         assertEquals("TMF14", linkedEntry.username());
         assertEquals(1L, linkedEntry.profileId());
+        var registeredEntry = overview.rounds().get(0).entries().getFirst();
+        assertEquals("Miguel Ferreira", registeredEntry.fullName());
+        assertEquals("TMF14", registeredEntry.username());
+        // Immutable Excel source identity remains available for provenance.
+        assertEquals("Ferreirinha", historical.getDisplayName());
         assertNull(historical.getProfile());
     }
 

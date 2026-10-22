@@ -370,7 +370,7 @@ public class CommunityCompetitionService {
                     return new CommunityRoundEntryResponse(
                         profile == null ? null : profile.getId(),
                         profile == null ? null : profile.getUsername(),
-                        entry.getCommunityPlayer().getDisplayName(),
+                        profile != null ? publicPlayerName(profile) : historicalPlayer.getDisplayName(),
                         profile == null ? null : profile.getProfilePicUrl(),
                         entry.getTeam(),
                         entry.getResult(),
@@ -493,6 +493,20 @@ public class CommunityCompetitionService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    /**
+     * Present verified Jynlo identities consistently in rounds and standings.
+     * Original imported names and round records are not rewritten.
+     */
+    private static String publicPlayerName(Profile profile) {
+        if (profile.getFullName() != null && !profile.getFullName().isBlank()) {
+            return profile.getFullName().trim();
+        }
+        if (profile.getNickname() != null && !profile.getNickname().isBlank()) {
+            return profile.getNickname().trim();
+        }
+        return profile.getUsername();
+    }
+
     private static final class StandingAccumulator {
         private final CommunityPlayer communityPlayer;
         private final Profile profile;
@@ -564,10 +578,8 @@ public class CommunityCompetitionService {
         private Long profileId() { return profile == null ? null : profile.getId(); }
         private String username() { return profile == null ? null : profile.getUsername(); }
         private String displayName() {
-            if (communityPlayer != null) return communityPlayer.getDisplayName();
-            if (profile == null) return "Jogador";
-            String fullName = profile.getFullName();
-            return fullName == null || fullName.isBlank() ? profile.getUsername() : fullName;
+            if (profile != null) return publicPlayerName(profile);
+            return communityPlayer != null ? communityPlayer.getDisplayName() : "Jogador";
         }
         private String profilePicUrl() { return profile == null ? null : profile.getProfilePicUrl(); }
         private int games() { return games; }
