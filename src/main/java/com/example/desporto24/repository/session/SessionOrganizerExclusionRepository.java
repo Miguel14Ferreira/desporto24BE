@@ -2,9 +2,12 @@ package com.example.desporto24.repository.session;
 
 import com.example.desporto24.model.session.SessionOrganizerExclusion;
 import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
 
 public interface SessionOrganizerExclusionRepository
         extends JpaRepository<SessionOrganizerExclusion, Long> {
+
+    Optional<SessionOrganizerExclusion> findByOrganizerIdAndExcludedId(Long organizerId, Long excludedId);
 
     boolean existsByOrganizerIdAndExcludedId(Long organizerId, Long excludedId);
 
