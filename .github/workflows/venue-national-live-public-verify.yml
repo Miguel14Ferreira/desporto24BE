@@ -1,0 +1,23 @@
+name: Audit published national venue catalogue (GET only)
+on:
+  push:
+    branches:
+      - audit/national-18-live-public-count-20261022
+    paths:
+      - .github/workflows/venue-national-live-public-verify.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-api-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify 18 district listings on actual LIVE public API
+        run: python3 scripts/verify_live_national_public_venues.py
