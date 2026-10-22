@@ -26,7 +26,7 @@ class SessionPlayerComplimentControllerTest {
     @Test
     void usesTheAuthenticatedSenderForPositiveFeedback() {
         var req = new PlayerComplimentRequest(PlayerComplimentType.FAIR_PLAY);
-        var reply = new PlayerComplimentResponse(12L, 13L, PlayerComplimentType.FAIR_PLAY, Instant.now());
+        var reply = new PlayerComplimentResponse("player", "receiver", PlayerComplimentType.FAIR_PLAY, Instant.now());
         when(authentication.getName()).thenReturn("player");
         when(service.give(7L, "receiver", "player", req)).thenReturn(reply);
         assertSame(reply, controller.compliment(7L, "receiver", req, authentication));
