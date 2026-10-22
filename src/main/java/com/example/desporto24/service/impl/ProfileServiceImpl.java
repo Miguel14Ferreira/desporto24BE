@@ -454,6 +454,18 @@ public class ProfileServiceImpl implements ProfileService {
                 .toList();
     }
 
+    // These two accounts are retained for end-to-end QA; they must not
+    // appear in automated public player discovery. Explicit profile links
+    // and login remain available so test workflows are not disrupted.
+    private static final Set<String> NON_DISCOVERABLE_QA_USERNAMES =
+            Set.of("jynloteste01", "jynloteste02");
+
+    private boolean isQaDiscoveryAccount(Profile candidate) {
+        return candidate.getUsername() != null
+                && NON_DISCOVERABLE_QA_USERNAMES.contains(
+                        candidate.getUsername().trim().toLowerCase(Locale.ROOT));
+    }
+
     @Override
     public List<PublicProfileResponse> discoverPublicProfiles(String username) {
         Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
@@ -464,6 +476,7 @@ public class ProfileServiceImpl implements ProfileService {
         return profileRepository.discoverProfiles(username, PageRequest.of(0, 100))
                 .stream()
                 .filter(profile -> !blockedProfileIds.contains(profile.getId()))
+                .filter(profile -> !isQaDiscoveryAccount(profile))
                 .sorted((left, right) -> {
                     int scoreCompare = Integer.compare(
                             compatibilityScore(actor, right),
