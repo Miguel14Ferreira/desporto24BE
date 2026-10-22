@@ -116,6 +116,72 @@ class CommunityTournamentTeamServiceTest {
         assertEquals(2L, captor.getValue().getProfile().getId());
     }
 
+    private void invitee() {
+        when(profileRepository.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(player));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+    }
+
+    @Test
+    void inviteeAcceptsOwnPlaceButCannotAssignAnyoneElse() {
+        invitee();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        var response = service.joinInvitedTeam(7L, 19L, 10L, "ana");
+        assertEquals("Azul", response.name());
+        var captor = org.mockito.ArgumentCaptor.forClass(CommunityTournamentTeamPlayer.class);
+        verify(playerRepository).save(captor.capture());
+        assertSame(player, captor.getValue().getProfile());
+        assertEquals(19L, captor.getValue().getTournament().getId());
+        assertEquals(10L, captor.getValue().getTeam().getId());
+        verify(memberRepository, never()).findByCommunityIdAndProfileId(7L, 2L);
+    }
+
+    @Test
+    void acceptingSameInviteTwiceIsIdempotent() {
+        invitee();
+        draft();
+        var azul = team(10L, "Azul");
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(azul));
+        when(playerRepository.findByTournamentIdAndProfileId(19L, 2L))
+                .thenReturn(Optional.of(CommunityTournamentTeamPlayer.builder()
+                        .team(azul).tournament(teamTournament).profile(player).build()));
+        var response = service.joinInvitedTeam(7L, 19L, 10L, "ana");
+        assertEquals(10L, response.id());
+        verify(playerRepository, never()).save(any());
+    }
+
+    @Test
+    void invitationCannotMoveSomeoneAlreadyInDifferentTeam() {
+        invitee();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        when(playerRepository.findByTournamentIdAndProfileId(19L, 2L))
+                .thenReturn(Optional.of(CommunityTournamentTeamPlayer.builder()
+                        .team(team(11L, "Verde")).tournament(teamTournament).profile(player).build()));
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana")).getStatusCode());
+        verify(playerRepository, never()).save(any());
+    }
+
+    @Test
+    void invitationCannotOverfillTeamOrOverrideTournamentState() {
+        invitee();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        when(playerRepository.countByTeamId(10L)).thenReturn(2L);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana")).getStatusCode());
+        verify(playerRepository, never()).save(any());
+    }
+
+    @Test
+    void invitationRequiresExistingCommunityMembership() {
+        when(profileRepository.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(player));
+        assertThrows(AccessDeniedException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana"));
+        verifyNoInteractions(tournamentRepository, teamRepository, playerRepository);
+    }
+
     @Test
     void rejectsMemberOfAnotherCommunity() {
         manager();
