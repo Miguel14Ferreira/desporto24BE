@@ -143,8 +143,17 @@ public class CommunityTournamentTeamGroupsService {
         return calculate(tournament, fixtures.stream().filter(m -> m.getGroupNumber() != null)
                 .toList(), false).stream().map(group -> {
             var ranking = new ArrayList<GroupStanding>();
+            // Once tie-breaking was decided by a draw, the persisted bracket
+            // identifies the qualified teams. Keep their displayed positions
+            // consistent with that decision rather than reverting to team ID.
+            var displayed = new ArrayList<>(group.rows());
+            if (bracketCreated) {
+                displayed.sort(sportingComparator()
+                        .thenComparingInt(row -> qualifiers.contains(row.team.getId()) ? 0 : 1)
+                        .thenComparing(row -> row.team.getId()));
+            }
             int place = 1;
-            for (var row : group.rows()) {
+            for (var row : displayed) {
                 ranking.add(new GroupStanding(place++, row.team.getId(), row.team.getName(),
                         row.played, row.won, row.drawn, row.lost, row.goalsFor, row.goalsAgainst,
                         row.goalsFor - row.goalsAgainst, row.points,
@@ -206,10 +215,7 @@ public class CommunityTournamentTeamGroupsService {
                 away.points += tournament.getDrawPoints();
             }
         }
-        Comparator<Row> sporting = Comparator.comparingLong((Row r) -> r.points).reversed()
-                .thenComparing(Comparator.comparingInt((Row r) -> r.goalsFor - r.goalsAgainst).reversed())
-                .thenComparing(Comparator.comparingInt((Row r) -> r.goalsFor).reversed())
-                .thenComparing(Comparator.comparingInt((Row r) -> r.won).reversed());
+        Comparator<Row> sporting = sportingComparator();
         List<CalculatedGroup> result = new ArrayList<>();
         for (var entry : standings.entrySet()) {
             List<Row> rows = new ArrayList<>(entry.getValue().values());
@@ -224,6 +230,13 @@ public class CommunityTournamentTeamGroupsService {
         }
         result.sort(Comparator.comparingInt(CalculatedGroup::groupNumber));
         return result;
+    }
+
+    private Comparator<Row> sportingComparator() {
+        return Comparator.comparingLong((Row r) -> r.points).reversed()
+                .thenComparing(Comparator.comparingInt((Row r) -> r.goalsFor - r.goalsAgainst).reversed())
+                .thenComparing(Comparator.comparingInt((Row r) -> r.goalsFor).reversed())
+                .thenComparing(Comparator.comparingInt((Row r) -> r.won).reversed());
     }
 
     private ResponseStatusException invalid() {
