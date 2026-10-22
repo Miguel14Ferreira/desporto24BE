@@ -216,7 +216,7 @@ class SessionControllerTest {
         when(exclusionService.excludeAfterNoShow(1L, 8L, "organizer")).thenReturn(true);
         when(exclusionService.status(1L, 8L, "organizer")).thenReturn(true);
 
-        assertTrue(controller.excludeFromFutureSessions(1L, 8L, authentication).excluded());
+        assertTrue(controller.excludeFromFutureSessions(1L, 8L, null, authentication).excluded());
         assertTrue(controller.exclusionStatus(1L, 8L, authentication).excluded());
         assertFalse(controller.removeFutureExclusion(1L, 8L, authentication).excluded());
 
