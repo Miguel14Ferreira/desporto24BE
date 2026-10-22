@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.enumeration.SessionStatus;
@@ -10,6 +11,7 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.SessionExperienceRatingRequest;
 import com.example.desporto24.model.dto.session.SessionExperienceRatingResponse;
 import com.example.desporto24.model.session.SessionExperienceRating;
+import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionExperienceRatingRepository;
@@ -50,9 +52,17 @@ public class SessionExperienceRatingService {
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile profile = profile(username);
         requireEligibleSession(session, Instant.now());
-        if (!participantRepository.existsBySessionIdAndProfileIdAndState(
-                sessionId, profile.getId(), ParticipantState.ACTIVE)) {
-            throw new AccessDeniedException("Only registered participants can rate this session");
+        // Only a participant whose presence was explicitly recorded can rate.
+        // ACTIVE by itself means they registered, not that they actually played.
+        SessionParticipant participant = participantRepository
+                .findBySessionIdAndProfileIdAndState(
+                        sessionId, profile.getId(), ParticipantState.ACTIVE)
+                .orElseThrow(() -> new AccessDeniedException(
+                        "Only registered participants can rate this session"));
+        if (participant.getAttendanceStatus() != AttendanceStatus.ATTENDED
+                || participant.getAttendanceRecordedAt() == null) {
+            throw new AccessDeniedException(
+                    "Only participants with confirmed attendance can rate this session");
         }
 
         Instant now = Instant.now();
