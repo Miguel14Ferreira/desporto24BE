@@ -107,3 +107,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-22-session-player-compliment.yaml
   - include:
       file: db/changelog/changes/2026-10-22-organizer-exclusion-reason.yaml
+  - include:
+      file: db/changelog/changes/2026-10-22-community-team-group-knockout.yaml

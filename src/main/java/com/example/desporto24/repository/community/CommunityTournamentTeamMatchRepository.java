@@ -18,4 +18,14 @@ public interface CommunityTournamentTeamMatchRepository extends JpaRepository<Co
 
     @EntityGraph(attributePaths = {"homeTeam", "awayTeam"})
     Slice<CommunityTournamentTeamMatch> findByTournamentId(Long tournamentId, Pageable pageable);
+
+    boolean existsByTournamentIdAndGroupNumberIsNull(Long tournamentId);
+
+    @EntityGraph(attributePaths = {"homeTeam", "awayTeam"})
+    Slice<CommunityTournamentTeamMatch> findByTournamentIdAndGroupNumberIsNull(
+            Long tournamentId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"homeTeam", "awayTeam"})
+    Slice<CommunityTournamentTeamMatch> findByTournamentIdAndGroupNumberIsNotNull(
+            Long tournamentId, Pageable pageable);
 }

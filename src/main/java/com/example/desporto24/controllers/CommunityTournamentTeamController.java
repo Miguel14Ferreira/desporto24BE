@@ -12,6 +12,8 @@ import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatch
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamMatchResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamStandingsResponse;
 import com.example.desporto24.service.CommunityTournamentTeamService;
+import com.example.desporto24.service.CommunityTournamentTeamGroupsService;
+import com.example.desporto24.model.dto.community.CommunityTournamentTeamGroupsResponse;
 import com.example.desporto24.service.CommunityTournamentTeamFinalizationService;
 import com.example.desporto24.model.dto.community.CommunityTournamentResponse;
 import jakarta.validation.Valid;
@@ -33,6 +35,7 @@ public class CommunityTournamentTeamController {
     private final CommunityTournamentTeamFinalizationService finalizationService;
     private final CommunityTournamentTeamResultService resultService;
     private final CommunityTournamentTeamStandingsService standingsService;
+    private final CommunityTournamentTeamGroupsService groupsService;
 
     @GetMapping
     public List<CommunityTournamentTeamResponse> list(
@@ -88,6 +91,13 @@ public class CommunityTournamentTeamController {
             @PathVariable Long communityId, @PathVariable Long tournamentId,
             Authentication authentication) {
         return standingsService.standings(communityId, tournamentId, authentication.getName());
+    }
+
+    @GetMapping("/groups")
+    public CommunityTournamentTeamGroupsResponse groups(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return groupsService.standings(communityId, tournamentId, authentication.getName());
     }
 
     @PostMapping("/{teamId}/players")
