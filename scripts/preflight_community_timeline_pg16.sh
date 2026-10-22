@@ -17,6 +17,9 @@ else echo 'Docker or Podman is required' >&2; exit 69; fi
 "$engine" info >/dev/null
 
 tmp="$(mktemp -d)"
+# mktemp creates a 0700 directory: the Liquibase 4.30 image runs as
+# a non-root user, so Docker cannot read a bind mount rooted here otherwise.
+chmod 755 "$tmp"
 net="jynlo-community-check-$(id -u)-$$"
 db="jynlo-community-pg-$(id -u)-$$"
 cleanup() {
@@ -32,10 +35,17 @@ gh api 'repos/Miguel14Ferreira/desporto24BE/contents/src/main/resources/db/chang
 if ! grep -q 'id: 2026-10-22-community-timeline' "$tmp/2026-10-22-community-timeline.yaml"; then
   echo 'Migration YAML is missing or incorrect; stopping.' >&2; exit 1
 fi
+chmod 644 "$tmp/2026-10-22-community-timeline.yaml"
 
 echo 'Preparing isolated PostgreSQL 16 and Liquibase 4.30.0 images.'
 "$engine" image inspect postgres:16 >/dev/null 2>&1 || "$engine" pull postgres:16 >/dev/null
 "$engine" image inspect liquibase/liquibase:4.30.0 >/dev/null 2>&1 || "$engine" pull liquibase/liquibase:4.30.0 >/dev/null
+echo 'Checking the EXACT changelog is readable inside the Liquibase container.'
+"$engine" run --rm --entrypoint /bin/sh \
+  -v "$tmp:/liquibase/changelog:ro" liquibase/liquibase:4.30.0 \
+  -c 'test -r /liquibase/changelog/2026-10-22-community-timeline.yaml && test -s /liquibase/changelog/2026-10-22-community-timeline.yaml' \
+  || { echo 'ERROR: Liquibase container cannot read mounted changelog YAML' >&2; exit 1; }
+echo 'PASS: Liquibase changelog is mounted and readable.'
 "$engine" network create --internal "$net" >/dev/null
 "$engine" run -d --rm --name "$db" --network "$net" --network-alias db \
   -e POSTGRES_PASSWORD=temporary_restore_only -e POSTGRES_DB=jynlo_restore_check \
@@ -83,6 +93,7 @@ run_liquibase() {
     --url='jdbc:postgresql://db:5432/jynlo_restore_check?currentSchema=desporto24' \
     --username=postgres --password=temporary_restore_only \
     --default-schema-name=desporto24 --liquibase-schema-name=desporto24 \
+    --search-path=/liquibase/changelog \
     --changelog-file=2026-10-22-community-timeline.yaml update
 }
 
