@@ -16,6 +16,7 @@ import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
 import com.example.desporto24.service.SessionOrganizerExclusionService;
 import com.example.desporto24.model.dto.session.SessionOrganizerExclusionResponse;
+import com.example.desporto24.model.dto.session.OrganizerExclusionRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -137,9 +138,12 @@ public class SessionController {
     @PutMapping("/{id}/participants/{participantId}/future-exclusion")
     public SessionOrganizerExclusionResponse excludeFromFutureSessions(
             @PathVariable Long id, @PathVariable Long participantId,
+            @RequestBody(required = false) @Valid OrganizerExclusionRequest request,
             Authentication authentication) {
         return new SessionOrganizerExclusionResponse(
-                exclusionService.excludeAfterNoShow(id, participantId, authentication.getName()));
+                request == null
+                    ? exclusionService.excludeAfterNoShow(id, participantId, authentication.getName())
+                    : exclusionService.excludeForReason(id, participantId, authentication.getName(), request.reason()));
     }
 
     @GetMapping("/{id}/participants/{participantId}/future-exclusion")
