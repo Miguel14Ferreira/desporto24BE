@@ -133,7 +133,7 @@ class SessionPlayerComplimentServiceTest {
     @Test
     void senderAttendanceMustHaveRecordedTimestamp() {
         Session s = game(Instant.now().minusSeconds(3 * 3600));
-        Profile sender = player(12L);
+        Profile sender = player(12L), receiver = player(13L);
         allowSessionAndSender(s, sender);
         when(profileRepository.findUserByUsernameIgnoreCase("receiver")).thenReturn(Optional.of(receiver));
         when(participantRepository.findBySessionIdAndProfileIdAndState(7L, 12L, ParticipantState.ACTIVE))
