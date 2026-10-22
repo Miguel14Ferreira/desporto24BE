@@ -50,6 +50,10 @@ public class CommunityTournament {
     private TournamentTeamTieBreakPriority teamTieBreakPriority =
             TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST;
 
+    // Only configured for the GROUP_KNOCKOUT team format.
+    @Column(name = "group_count")
+    private Integer groupCount;
+
     @Column(name = "players_per_team")
     private Integer playersPerTeam;
 

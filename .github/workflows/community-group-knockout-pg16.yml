@@ -1,0 +1,133 @@
+name: Group knockout migration - isolated PostgreSQL 16
+# Creates an ephemeral test database: never accesses the Render service.
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'src/main/resources/db/changelog/changes/2026-10-22-community-team-group-knockout.yaml'
+      - '.github/workflows/community-group-knockout-pg16.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: group_knockout_test
+          POSTGRES_USER: postgres
+          # In this throwaway runner only; never use this auth mode outside CI.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d group_knockout_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: group_knockout_test
+      PGUSER: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare pre-migration schema and legacy tournaments (test data only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -qq -y postgresql-client
+          fi
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.community_tournament (
+            id BIGINT PRIMARY KEY,
+            format VARCHAR(16) NOT NULL,
+            name VARCHAR(120) NOT NULL
+          );
+          ALTER TABLE desporto24.community_tournament
+            ADD CONSTRAINT ck_tournament_format CHECK (format IN ('LEAGUE', 'KNOCKOUT'));
+          CREATE TABLE desporto24.community_tournament_team (
+            id BIGINT PRIMARY KEY,
+            tournament_id BIGINT NOT NULL REFERENCES desporto24.community_tournament(id),
+            name VARCHAR(100) NOT NULL
+          );
+          CREATE TABLE desporto24.community_tournament_team_match (
+            id BIGINT PRIMARY KEY,
+            tournament_id BIGINT NOT NULL REFERENCES desporto24.community_tournament(id),
+            round_number INTEGER NOT NULL
+          );
+          INSERT INTO desporto24.community_tournament (id,format,name)
+            VALUES (1,'LEAGUE','Liga antiga'),(2,'KNOCKOUT','Taça antiga');
+          INSERT INTO desporto24.community_tournament_team (id,tournament_id,name)
+            VALUES (11,1,'Equipa histórica');
+          INSERT INTO desporto24.community_tournament_team_match (id,tournament_id,round_number)
+            VALUES (21,1,1),(22,2,1);
+          SQL
+      - name: Build a test-only master with the exact production changeSet
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > src/main/resources/db/changelog/ci-group-knockout.yaml <<'YAML'
+          databaseChangeLog:
+            - include:
+                file: changes/2026-10-22-community-team-group-knockout.yaml
+                relativeToChangelogFile: true
+          YAML
+      - name: Execute the actual Liquibase YAML twice, assert compatibility and idempotence
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_liquibase() {
+            docker run --rm --network host \
+              -v "$PWD/src/main/resources/db/changelog:/liquibase/changelog:ro" \
+              liquibase:4.33.0 \
+              --url=jdbc:postgresql://127.0.0.1:5432/group_knockout_test?currentSchema=desporto24 \
+              --username=postgres \
+              --default-schema-name=desporto24 \
+              --liquibase-schema-name=desporto24 \
+              --search-path=/liquibase/changelog \
+              --changelog-file=ci-group-knockout.yaml update
+          }
+          run_liquibase
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.databasechangelog) <> 1 THEN
+              RAISE EXCEPTION 'Exactly one group format migration must be recorded';
+            END IF;
+            IF (SELECT COUNT(*) FROM desporto24.community_tournament WHERE id IN (1,2)) <> 2 THEN
+              RAISE EXCEPTION 'Existing league and knockout competitions must survive';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM desporto24.community_tournament_team
+                           WHERE id=11 AND group_number IS NULL AND group_draw_order IS NULL) THEN
+              RAISE EXCEPTION 'Legacy teams must have null group metadata';
+            END IF;
+            IF (SELECT COUNT(*) FROM desporto24.community_tournament_team_match
+                 WHERE group_number IS NULL) <> 2 THEN
+              RAISE EXCEPTION 'Legacy fixtures must remain unchanged';
+            END IF;
+          END $$;
+          INSERT INTO desporto24.community_tournament (id,format,name,group_count)
+            VALUES (3,'GROUP_KNOCKOUT','Grupos de teste',4);
+          INSERT INTO desporto24.community_tournament_team
+            (id,tournament_id,name,group_number,group_draw_order)
+            VALUES (13,3,'Equipa Grupo A',1,0);
+          INSERT INTO desporto24.community_tournament_team_match
+            (id,tournament_id,round_number,group_number)
+            VALUES (23,3,1,1),(24,3,1,NULL);
+          SQL
+          run_liquibase
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT COUNT(*) FROM desporto24.databasechangelog')" = 1
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c 'SELECT COUNT(*) FROM desporto24.community_tournament_team_match')" = 4
+          test "$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) FROM desporto24.community_tournament WHERE format='GROUP_KNOCKOUT'")" = 1
+          echo 'PASS: real Liquibase changeSet applied twice, legacy league/cup persisted, new groups supported.'
+          echo 'Only disposable PostgreSQL 16 fixtures were used; a restored LIVE backup still requires separate verification.'

@@ -33,6 +33,7 @@ public class CommunityTournamentTeamResultService {
     private final CommunityTournamentRepository tournaments;
     private final CommunityTournamentTeamMatchRepository matches;
     private final CommunityTournamentTeamKnockoutService knockout;
+    private final CommunityTournamentTeamGroupsService groups;
 
     public CommunityTournamentTeamMatchResponse record(
             Long communityId, Long tournamentId, Long matchId,
@@ -66,14 +67,25 @@ public class CommunityTournamentTeamResultService {
         CommunityTournamentTeamMatch match = matches.findById(matchId)
                 .orElseThrow(this::notFound);
         if (!match.getTournament().getId().equals(tournamentId)) throw notFound();
-        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+        boolean elimination = tournament.getFormat() == TournamentFormat.KNOCKOUT
+                || (tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                        && match.getGroupNumber() == null);
+        if (tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                && match.getGroupNumber() != null
+                && matches.existsByTournamentIdAndGroupNumberIsNull(tournamentId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Os grupos estão fechados; as eliminatórias já foram sorteadas");
+        }
+        if (elimination) {
             if (request.homeScore().equals(request.awayScore())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Uma eliminatória exige um vencedor. Regista o resultado após desempate");
             }
             // Once the draw progresses, earlier winners cannot be changed.
-            var fixtures = matches.findByTournamentId(tournamentId,
-                    PageRequest.of(0, 33, Sort.by("roundNumber").descending()));
+            var page = PageRequest.of(0, 33, Sort.by("roundNumber").descending());
+            var fixtures = tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                    ? matches.findByTournamentIdAndGroupNumberIsNull(tournamentId, page)
+                    : matches.findByTournamentId(tournamentId, page);
             if (fixtures.hasNext() || fixtures.getContent().stream()
                     .anyMatch(game -> game.getRoundNumber() > match.getRoundNumber())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -94,9 +106,14 @@ public class CommunityTournamentTeamResultService {
         match.setAwayScore(request.awayScore());
         match.setStatus(TournamentMatchStatus.COMPLETED);
         if (firstCompletion) match.setCompletedAt(Instant.now());
-        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+        if (elimination) {
             matches.saveAndFlush(match);
             knockout.advanceAfterResult(tournament);
+            return response(match);
+        }
+        if (tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT) {
+            matches.saveAndFlush(match);
+            groups.advanceAfterGroupResult(tournament);
             return response(match);
         }
         return response(matches.save(match));
@@ -111,7 +128,8 @@ public class CommunityTournamentTeamResultService {
                 match.getId(), match.getRoundNumber(),
                 match.getHomeTeam().getId(), match.getHomeTeam().getName(),
                 match.getAwayTeam().getId(), match.getAwayTeam().getName(),
-                match.getStatus(), match.getHomeScore(), match.getAwayScore());
+                match.getStatus(), match.getHomeScore(), match.getAwayScore(),
+                match.getGroupNumber());
     }
 
     private ResponseStatusException notFound() {

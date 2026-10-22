@@ -50,6 +50,7 @@ public class CommunityTournamentTeamScheduleService {
     private final CommunityTournamentTeamPlayerRepository players;
     private final CommunityTournamentTeamMatchRepository matches;
     private final CommunityTournamentTeamKnockoutService knockout;
+    private final CommunityTournamentTeamGroupsService groups;
 
     public CommunityTournamentTeamScheduleSummaryResponse generate(
             Long communityId, Long tournamentId, String username) {
@@ -89,6 +90,19 @@ public class CommunityTournamentTeamScheduleService {
             }
         }
 
+        if (tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT) {
+            var groupFixtures = groups.draw(tournament, rosterTeams);
+            matches.saveAll(groupFixtures);
+            tournament.setStatus(TournamentStatus.IN_PROGRESS);
+            tournament.setStartedAt(Instant.now());
+            tournaments.save(tournament);
+            int maxGroupSize = (rosterTeams.size() + tournament.getGroupCount() - 1)
+                    / tournament.getGroupCount();
+            int rounds = maxGroupSize % 2 == 0 ? maxGroupSize - 1 : maxGroupSize;
+            return new CommunityTournamentTeamScheduleSummaryResponse(
+                    tournamentId, TournamentStatus.IN_PROGRESS, rosterTeams.size(),
+                    rounds, groupFixtures.size());
+        }
         if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
             var opening = knockout.firstRound(tournament, rosterTeams);
             matches.saveAll(opening);
@@ -161,14 +175,19 @@ public class CommunityTournamentTeamScheduleService {
         CommunityTournament tournament = tournaments.findById(tournamentId)
                 .orElseThrow(() -> notFound());
         checkScope(communityId, tournament);
-        var sort = Sort.by(Sort.Direction.ASC, "roundNumber").and(Sort.by("id"));
-        var slice = matches.findByTournamentId(tournamentId, PageRequest.of(page, PAGE_SIZE, sort));
+        // Groups are published first; knockout fixtures are appended as results arrive.
+        // For legacy formats preserve sorting by sporting round.
+        var sort = tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                ? Sort.by(Sort.Direction.ASC, "id")
+                : Sort.by(Sort.Direction.ASC, "roundNumber").and(Sort.by("id"));
+        int pageSize = tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT ? 250 : PAGE_SIZE;
+        var slice = matches.findByTournamentId(tournamentId, PageRequest.of(page, pageSize, sort));
         return new CommunityTournamentTeamMatchesPageResponse(
                 slice.getContent().stream().map(game -> new CommunityTournamentTeamMatchResponse(
                         game.getId(), game.getRoundNumber(), game.getHomeTeam().getId(),
                         game.getHomeTeam().getName(), game.getAwayTeam().getId(),
                         game.getAwayTeam().getName(), game.getStatus(),
-                        game.getHomeScore(), game.getAwayScore())).toList(),
+                        game.getHomeScore(), game.getAwayScore(), game.getGroupNumber())).toList(),
                 page, slice.hasNext());
     }
 
