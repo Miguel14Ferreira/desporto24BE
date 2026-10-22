@@ -192,6 +192,13 @@ public class CommunityTournamentService {
     }
 
     @Transactional(readOnly = true)
+    public CommunityTournamentResponse details(Long communityId, Long tournamentId, String username) {
+        Profile actor = profile(username);
+        requireMember(communityId, actor);
+        return response(tournamentReadOnly(communityId, tournamentId));
+    }
+
+    @Transactional(readOnly = true)
     public CommunityTournamentPageResponse list(Long communityId, String username, int page) {
         if (page < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Página inválida");
