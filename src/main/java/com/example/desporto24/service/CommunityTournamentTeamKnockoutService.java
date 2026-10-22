@@ -58,13 +58,16 @@ public class CommunityTournamentTeamKnockoutService {
      * most once. A final result atomically snapshots the winner and closes the cup.
      */
     public void advanceAfterResult(CommunityTournament tournament) {
-        if (tournament.getFormat() != TournamentFormat.KNOCKOUT
+        if ((tournament.getFormat() != TournamentFormat.KNOCKOUT
+                && tournament.getFormat() != TournamentFormat.GROUP_KNOCKOUT)
                 || tournament.getStatus() != TournamentStatus.IN_PROGRESS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Eliminatória fora de curso");
         }
         var slice = matches.findByTournamentId(tournament.getId(),
-                PageRequest.of(0, MAX_TEAMS, Sort.by("roundNumber").ascending().and(Sort.by("id"))));
-        List<CommunityTournamentTeamMatch> played = slice.getContent();
+                PageRequest.of(0, tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT ? 128 : MAX_TEAMS,
+                        Sort.by("roundNumber").ascending().and(Sort.by("id"))));
+        List<CommunityTournamentTeamMatch> played = slice.getContent().stream()
+                .filter(game -> game.getGroupNumber() == null).toList();
         if (slice.hasNext() || played.isEmpty() || played.size() >= MAX_TEAMS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Quadro eliminatório inconsistente");
         }
@@ -89,7 +92,7 @@ public class CommunityTournamentTeamKnockoutService {
             }
             winners.add(home > away ? fixture.getHomeTeam() : fixture.getAwayTeam());
         }
-        if (currentRound == 1) {
+        if (currentRound == 1 && tournament.getFormat() == TournamentFormat.KNOCKOUT) {
             List<CommunityTournamentTeam> roster = teams.findByTournamentIdOrderByIdAsc(tournament.getId());
             for (var team : roster) {
                 if (!participants.contains(team.getId())) winners.add(team); // First-round bye.
