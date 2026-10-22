@@ -38,7 +38,10 @@ public class CommunityInviteEmailListener {
     }
 
     private String buildEmail(CommunityInviteCreatedEvent event) {
-        String link = uiAppUrl.replaceAll("/+$", "") + "/menu/communities";
+        // The recipient's invite inbox, not the generic communities discovery landing.
+        // AuthenticationGuard preserves this target across login/registration.
+        String link = uiAppUrl.replaceAll("/+$", "")
+                + "/menu/communities?view=mine&invite=" + event.inviteId();
         return TransactionalEmailTemplate.render(
                 "Convite para uma comunidade",
                 "@" + event.inviterUsername() + " convidou-te para a comunidade " + event.communityName()
