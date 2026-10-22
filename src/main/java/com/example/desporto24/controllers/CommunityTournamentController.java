@@ -146,6 +146,13 @@ public class CommunityTournamentController {
         return ResponseEntity.ok(scheduleService.matches(communityId, tournamentId, authentication.getName(), page));
     }
 
+    @GetMapping("/{tournamentId}")
+    public CommunityTournamentResponse details(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return tournamentService.details(communityId, tournamentId, authentication.getName());
+    }
+
     @GetMapping
     public ResponseEntity<CommunityTournamentPageResponse> list(
             @PathVariable Long communityId,
