@@ -6,6 +6,7 @@ import com.example.desporto24.model.dto.community.CreateCommunityTournamentTeamR
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamScheduleSummaryResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentTeamMatchesPageResponse;
 import com.example.desporto24.service.CommunityTournamentTeamScheduleService;
+import com.example.desporto24.service.CommunityTournamentTeamGroupsService;
 import com.example.desporto24.service.CommunityTournamentTeamResultService;
 import com.example.desporto24.service.CommunityTournamentTeamStandingsService;
 import com.example.desporto24.model.dto.community.RecordCommunityTournamentMatchResultRequest;
@@ -30,6 +31,7 @@ import java.util.List;
 public class CommunityTournamentTeamController {
     private final CommunityTournamentTeamService service;
     private final CommunityTournamentTeamScheduleService scheduleService;
+    private final CommunityTournamentTeamGroupsService groupStage;
     private final CommunityTournamentTeamFinalizationService finalizationService;
     private final CommunityTournamentTeamResultService resultService;
     private final CommunityTournamentTeamStandingsService standingsService;
@@ -64,6 +66,13 @@ public class CommunityTournamentTeamController {
             @RequestParam(defaultValue = "0") int page,
             Authentication authentication) {
         return scheduleService.matches(communityId, tournamentId, authentication.getName(), page);
+    }
+
+    @GetMapping("/groups")
+    public List<CommunityTournamentTeamGroupsService.GroupOverview> groupStandings(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return groupStage.groups(communityId, tournamentId, authentication.getName());
     }
 
     @PostMapping("/matches/{matchId}/result")
