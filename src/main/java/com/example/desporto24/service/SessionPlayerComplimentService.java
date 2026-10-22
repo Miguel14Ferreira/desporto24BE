@@ -125,7 +125,7 @@ public class SessionPlayerComplimentService {
     }
 
     private PlayerComplimentResponse response(SessionPlayerCompliment entity) {
-        return new PlayerComplimentResponse(entity.getSender().getId(), entity.getRecipient().getId(),
+        return new PlayerComplimentResponse(entity.getSender().getUsername(), entity.getRecipient().getUsername(),
                 entity.getType(), entity.getUpdatedAt());
     }
 }
