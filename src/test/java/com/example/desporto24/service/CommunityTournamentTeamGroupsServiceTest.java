@@ -53,7 +53,7 @@ class CommunityTournamentTeamGroupsServiceTest {
                         .boxed().collect(java.util.stream.Collectors.toSet()));
         for (int count : List.of(4, 6, 8, 12, 16, 24, 32)) {
             var draw = groups.draw(tournament(), teams(count));
-            int groupSize = count % 4 == 0 ? 4 : 3;
+            int groupSize = Set.of(4, 8, 16, 32).contains(count) ? 4 : 3;
             assertEquals(count * (groupSize - 1) / 2, draw.size());
             Map<Integer, Set<String>> playedPairs = new HashMap<>();
             Map<String, Set<Long>> playedInRound = new HashMap<>();
