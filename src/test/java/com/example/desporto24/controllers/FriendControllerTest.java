@@ -2,6 +2,7 @@ package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.SendFriendRequest;
 import com.example.desporto24.model.dto.friend.FriendSummaryResponse;
+import com.example.desporto24.model.dto.friend.FriendshipStatusResponse;
 
 import java.util.List;
 import com.example.desporto24.service.interfaces.FriendService;
@@ -28,6 +29,17 @@ class FriendControllerTest {
 
     @InjectMocks
     private FriendController controller;
+
+    @Test
+    void statusChecksOnlyTheAuthenticatedUsersRelationship() {
+        when(authentication.getName()).thenReturn("miguel");
+        var status = new FriendshipStatusResponse(true, false);
+        when(friendService.getFriendshipStatus("miguel", "Diogo")).thenReturn(status);
+        var response = controller.getFriendshipStatus("Diogo", authentication);
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(status, response.getBody());
+        verify(friendService).getFriendshipStatus("miguel", "Diogo");
+    }
 
     @Test
     void myFriendListUsesAuthenticatedIdentity() {

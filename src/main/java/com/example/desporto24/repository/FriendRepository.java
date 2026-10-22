@@ -16,6 +16,13 @@ public interface FriendRepository extends JpaRepository<Friend, Integer> {
     List<Profile> findByProfile1(Profile profile);
     List<Friend> findByProfile1OrProfile2(Profile profile1, Profile profile2);
 
+    // Match the ID-based friendship check used by the request endpoint.
+    @Query("""
+            select friend from Friend friend
+            where friend.profile1.id = :profileId or friend.profile2.id = :profileId
+            """)
+    List<Friend> findConnectionsForProfile(@Param("profileId") Long profileId);
+
     @Query("""
             select friend
             from Friend friend
