@@ -55,8 +55,8 @@ class SessionPlayerComplimentServiceTest {
 
         var result = service.give(7L, "receiver", "player", new PlayerComplimentRequest(PlayerComplimentType.FAIR_PLAY));
 
-        assertEquals(12L, result.senderProfileId());
-        assertEquals(13L, result.recipientProfileId());
+        assertEquals("player", result.senderUsername());
+        assertEquals("receiver", result.recipientUsername());
         assertEquals(PlayerComplimentType.FAIR_PLAY, result.type());
         verify(complimentRepository).save(argThat(c ->
                 c.getSession() == s && c.getSender() == sender && c.getRecipient() == receiver
@@ -192,6 +192,7 @@ class SessionPlayerComplimentServiceTest {
     private static Profile player(long id) {
         var p = new Profile();
         p.setId(id);
+        p.setUsername(id == 12L ? "player" : "receiver");
         return p;
     }
 
