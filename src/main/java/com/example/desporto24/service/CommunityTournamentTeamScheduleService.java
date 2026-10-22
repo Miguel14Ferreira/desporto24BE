@@ -50,6 +50,7 @@ public class CommunityTournamentTeamScheduleService {
     private final CommunityTournamentTeamPlayerRepository players;
     private final CommunityTournamentTeamMatchRepository matches;
     private final CommunityTournamentTeamKnockoutService knockout;
+    private final CommunityTournamentTeamGroupsService groupStage;
 
     public CommunityTournamentTeamScheduleSummaryResponse generate(
             Long communityId, Long tournamentId, String username) {
@@ -89,6 +90,18 @@ public class CommunityTournamentTeamScheduleService {
             }
         }
 
+        if (tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT) {
+            var fixtures = groupStage.draw(tournament, rosterTeams);
+            matches.saveAll(fixtures);
+            tournament.setStatus(TournamentStatus.IN_PROGRESS);
+            tournament.setStartedAt(Instant.now());
+            tournaments.save(tournament);
+            return new CommunityTournamentTeamScheduleSummaryResponse(
+                    tournamentId, TournamentStatus.IN_PROGRESS, rosterTeams.size(),
+                    3 + Integer.numberOfTrailingZeros(
+                            rosterTeams.size() / (rosterTeams.size() % 4 == 0 ? 4 : 3) * 2),
+                    fixtures.size());
+        }
         if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
             var opening = knockout.firstRound(tournament, rosterTeams);
             matches.saveAll(opening);
@@ -168,7 +181,7 @@ public class CommunityTournamentTeamScheduleService {
                         game.getId(), game.getRoundNumber(), game.getHomeTeam().getId(),
                         game.getHomeTeam().getName(), game.getAwayTeam().getId(),
                         game.getAwayTeam().getName(), game.getStatus(),
-                        game.getHomeScore(), game.getAwayScore())).toList(),
+                        game.getHomeScore(), game.getAwayScore(), game.getGroupNumber())).toList(),
                 page, slice.hasNext());
     }
 
