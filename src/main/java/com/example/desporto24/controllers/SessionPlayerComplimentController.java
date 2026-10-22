@@ -17,13 +17,13 @@ import java.util.List;
 public class SessionPlayerComplimentController {
     private final SessionPlayerComplimentService service;
 
-    @PutMapping("/players/{recipientId}/me")
+    @PutMapping("/players/{recipientUsername}/me")
     public PlayerComplimentResponse compliment(
             @PathVariable Long sessionId,
-            @PathVariable Long recipientId,
+            @PathVariable String recipientUsername,
             @RequestBody @Valid PlayerComplimentRequest request,
             Authentication authentication) {
-        return service.give(sessionId, recipientId, authentication.getName(), request);
+        return service.give(sessionId, recipientUsername, authentication.getName(), request);
     }
 
     @GetMapping("/me")
