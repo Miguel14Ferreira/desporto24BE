@@ -1,6 +1,7 @@
 package com.example.desporto24.model.session;
 
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.enumeration.OrganizerExclusionReason;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,6 +31,10 @@ public class SessionOrganizerExclusion {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "excluded_profile_id", nullable = false)
     private Profile excluded;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason", length = 40)
+    private OrganizerExclusionReason reason;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
