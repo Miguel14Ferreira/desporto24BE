@@ -73,7 +73,7 @@ public class CommunityCompetitionService {
                 : roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
                         communityId, seasonId);
 
-        Map<Long, Profile> confirmedAliases = acceptedAliasProfiles(communityId);
+        AcceptedAliases confirmedAliases = acceptedAliasProfiles(communityId);
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
                 seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
@@ -235,7 +235,7 @@ public class CommunityCompetitionService {
         }
 
         entryRepository.saveAll(entries);
-        return roundResponse(round, Map.of());
+        return roundResponse(round, acceptedAliasProfiles(communityId));
     }
 
     public void deleteRound(Long communityId, Long roundId, String username) {
@@ -256,13 +256,27 @@ public class CommunityCompetitionService {
         roundRepository.delete(round);
     }
 
-    private Map<Long, Profile> acceptedAliasProfiles(Long communityId) {
-        Map<Long, Profile> aliases = new HashMap<>();
-        for (CommunityHistoricalPlayerLink link : historicalPlayerLinkRepository
-                .findByCommunityIdAndStatus(communityId, "ACCEPTED")) {
-            aliases.put(link.getPlayer().getId(), link.getProfile());
+    /**
+     * Every accepted Excel identity stays associated with its Jynlo account, but
+     * its imported name is the preferred display name within this community.
+     * Select deterministically by historical player ID if an account has more
+     * than one accepted historical identity.
+     */
+    private AcceptedAliases acceptedAliasProfiles(Long communityId) {
+        Map<Long, Profile> profilesByHistoricalId = new HashMap<>();
+        Map<Long, String> namesByProfileId = new HashMap<>();
+        List<CommunityHistoricalPlayerLink> links = new ArrayList<>(
+                historicalPlayerLinkRepository.findByCommunityIdAndStatus(communityId, "ACCEPTED"));
+        links.sort(Comparator.comparing(link -> link.getPlayer().getId()));
+        for (CommunityHistoricalPlayerLink link : links) {
+            profilesByHistoricalId.put(link.getPlayer().getId(), link.getProfile());
+            namesByProfileId.putIfAbsent(link.getProfile().getId(), link.getPlayer().getDisplayName());
         }
-        return aliases;
+        return new AcceptedAliases(profilesByHistoricalId, namesByProfileId);
+    }
+
+    private record AcceptedAliases(Map<Long, Profile> profilesByHistoricalId,
+                                   Map<Long, String> namesByProfileId) {
     }
 
     private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
@@ -270,7 +284,8 @@ public class CommunityCompetitionService {
     }
 
     private List<CommunityStandingResponse> standings(Community community, Long seasonId,
-                                                       Map<Long, Profile> linkedProfiles) {
+                                                       AcceptedAliases aliases) {
+        Map<Long, Profile> linkedProfiles = aliases.profilesByHistoricalId();
         Map<String, StandingAccumulator> table = new LinkedHashMap<>();
         Set<Long> linkedProfileIds = new HashSet<>();
         for (Profile linked : linkedProfiles.values()) linkedProfileIds.add(linked.getId());
@@ -282,7 +297,8 @@ public class CommunityCompetitionService {
                     .orElse(null);
             // Confirmed historical aliases are consolidated under the actual profile.
             if (linkedProfileIds.contains(profile.getId())) communityPlayer = null;
-            table.putIfAbsent(standingKey(communityPlayer, profile), new StandingAccumulator(communityPlayer, profile));
+            table.putIfAbsent(standingKey(communityPlayer, profile),
+                    new StandingAccumulator(communityPlayer, profile, aliases.namesByProfileId().get(profile.getId())));
         }
 
         List<CommunityRoundEntry> sourceEntries = seasonId == null
@@ -303,7 +319,9 @@ public class CommunityCompetitionService {
                     ? null : originalPlayer;
             StandingAccumulator row = table.computeIfAbsent(
                     standingKey(displayPlayer, resolvedProfile),
-                    ignored -> new StandingAccumulator(displayPlayer, resolvedProfile)
+                    ignored -> new StandingAccumulator(displayPlayer, resolvedProfile,
+                            resolvedProfile == null ? null
+                                    : aliases.namesByProfileId().get(resolvedProfile.getId()))
             );
             row.add(entry);
         }
@@ -356,7 +374,7 @@ public class CommunityCompetitionService {
     }
 
     private CommunityRoundResponse roundResponse(CommunityRound round,
-                                                 Map<Long, Profile> confirmedAliases) {
+                                                 AcceptedAliases aliases) {
         List<CommunityRoundEntryResponse> entries = entryRepository
                 .findByRoundIdOrderByIdAsc(round.getId())
                 .stream()
@@ -366,11 +384,13 @@ public class CommunityCompetitionService {
                             ? entry.getProfile()
                             : historicalPlayer.getProfile() != null
                             ? historicalPlayer.getProfile()
-                            : confirmedAliases.get(historicalPlayer.getId());
+                            : aliases.profilesByHistoricalId().get(historicalPlayer.getId());
                     return new CommunityRoundEntryResponse(
                         profile == null ? null : profile.getId(),
                         profile == null ? null : profile.getUsername(),
-                        profile != null ? publicPlayerName(profile) : historicalPlayer.getDisplayName(),
+                        profile != null && aliases.namesByProfileId().containsKey(profile.getId())
+                                ? aliases.namesByProfileId().get(profile.getId())
+                                : historicalPlayer.getDisplayName(),
                         profile == null ? null : profile.getProfilePicUrl(),
                         entry.getTeam(),
                         entry.getResult(),
@@ -494,8 +514,8 @@ public class CommunityCompetitionService {
     }
 
     /**
-     * Present verified Jynlo identities consistently in rounds and standings.
-     * Original imported names and round records are not rewritten.
+     * Fallback for members with no imported name; Excel/community names take
+     * precedence wherever the participant has one.
      */
     private static String publicPlayerName(Profile profile) {
         if (profile.getFullName() != null && !profile.getFullName().isBlank()) {
@@ -510,6 +530,7 @@ public class CommunityCompetitionService {
     private static final class StandingAccumulator {
         private final CommunityPlayer communityPlayer;
         private final Profile profile;
+        private final String preferredHistoricalName;
         private int games;
         private int wins;
         private int draws;
@@ -523,9 +544,11 @@ public class CommunityCompetitionService {
         private int currentWinStreak;
         private int bestWinStreak;
 
-        private StandingAccumulator(CommunityPlayer communityPlayer, Profile profile) {
+        private StandingAccumulator(CommunityPlayer communityPlayer, Profile profile,
+                                    String preferredHistoricalName) {
             this.communityPlayer = communityPlayer;
             this.profile = profile;
+            this.preferredHistoricalName = preferredHistoricalName;
         }
 
         private void add(CommunityRoundEntry entry) {
@@ -578,8 +601,11 @@ public class CommunityCompetitionService {
         private Long profileId() { return profile == null ? null : profile.getId(); }
         private String username() { return profile == null ? null : profile.getUsername(); }
         private String displayName() {
-            if (profile != null) return publicPlayerName(profile);
-            return communityPlayer != null ? communityPlayer.getDisplayName() : "Jogador";
+            if (preferredHistoricalName != null && !preferredHistoricalName.isBlank()) {
+                return preferredHistoricalName;
+            }
+            if (communityPlayer != null) return communityPlayer.getDisplayName();
+            return profile != null ? publicPlayerName(profile) : "Jogador";
         }
         private String profilePicUrl() { return profile == null ? null : profile.getProfilePicUrl(); }
         private int games() { return games; }
