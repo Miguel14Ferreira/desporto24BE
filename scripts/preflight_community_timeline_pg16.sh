@@ -56,7 +56,7 @@ echo 'Restoring recent LIVE backup in disposable database.'
   -U postgres -d jynlo_restore_check /readonly-backup.dump >/dev/null
 
 echo 'Checking 3595 venues, previously deployed migrations and nonexistence of new table.'
-"$engine" exec "$db" psql -X -v ON_ERROR_STOP=1 -U postgres -d jynlo_restore_check <<'SQL'
+"$engine" exec -i "$db" psql -X -v ON_ERROR_STOP=1 -U postgres -d jynlo_restore_check <<'SQL'
 DO $$
 BEGIN
   IF (SELECT count(*) FROM desporto24.venue) < 3595 THEN
@@ -91,7 +91,7 @@ run_liquibase | tee "$tmp/first.log"
 grep -Eq 'Run: +1' "$tmp/first.log" || { echo 'Expected exactly one changeset.' >&2; exit 1; }
 
 echo 'Checking schema/constraints/indexes/history without modifying existing data.'
-"$engine" exec "$db" psql -X -v ON_ERROR_STOP=1 -U postgres -d jynlo_restore_check <<'SQL'
+"$engine" exec -i "$db" psql -X -v ON_ERROR_STOP=1 -U postgres -d jynlo_restore_check <<'SQL'
 DO $$
 DECLARE
   fk_count integer;
