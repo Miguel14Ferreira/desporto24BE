@@ -91,6 +91,13 @@ public class CommunityTournamentService {
         }
 
         TournamentFormat format = request.format() == null ? TournamentFormat.LEAGUE : request.format();
+        if (format == TournamentFormat.GROUP_KNOCKOUT) {
+            if (type != TournamentEntryType.TEAM || request.roundRobinLegs() != null
+                    || request.teamTieBreakPriority() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Fase de grupos só está disponível para equipas; uma volta por grupo");
+            }
+        }
         if (format == TournamentFormat.KNOCKOUT) {
             if (type != TournamentEntryType.TEAM || request.roundRobinLegs() != null
                     || request.teamTieBreakPriority() != null) {
