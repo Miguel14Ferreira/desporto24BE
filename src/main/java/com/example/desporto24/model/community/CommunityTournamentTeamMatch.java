@@ -27,6 +27,10 @@ public class CommunityTournamentTeamMatch {
     @JoinColumn(name = "away_team_id", nullable = false)
     private CommunityTournamentTeam awayTeam;
 
+    // Null for leagues/knockouts; 1–8 for group-stage games.
+    @Column(name = "group_number")
+    private Integer groupNumber;
+
     @Column(name = "round_number", nullable = false)
     private int roundNumber;
 
