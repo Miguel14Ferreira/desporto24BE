@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-22-organizer-exclusion-reason
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: session_organizer_exclusion
+            columns:
+              - column:
+                  name: reason
+                  type: VARCHAR(40)
+                  constraints:
+                    nullable: true
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.session_organizer_exclusion
+              ADD CONSTRAINT ck_session_organizer_exclusion_reason
+              CHECK (reason IS NULL OR reason IN
+                ('NO_SHOW', 'UNSPORTING_CONDUCT', 'DISRESPECTFUL_BEHAVIOUR', 'ABUSIVE_BEHAVIOUR', 'OTHER'))
