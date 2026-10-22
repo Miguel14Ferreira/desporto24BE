@@ -33,6 +33,7 @@ public class CommunityTournamentTeamResultService {
     private final CommunityTournamentRepository tournaments;
     private final CommunityTournamentTeamMatchRepository matches;
     private final CommunityTournamentTeamKnockoutService knockout;
+    private final CommunityTournamentTeamGroupsService groupStage;
 
     public CommunityTournamentTeamMatchResponse record(
             Long communityId, Long tournamentId, Long matchId,
@@ -66,7 +67,20 @@ public class CommunityTournamentTeamResultService {
         CommunityTournamentTeamMatch match = matches.findById(matchId)
                 .orElseThrow(this::notFound);
         if (!match.getTournament().getId().equals(tournamentId)) throw notFound();
-        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+        boolean groupFixture = tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                && match.getGroupNumber() != null;
+        boolean knockoutFixture = tournament.getFormat() == TournamentFormat.KNOCKOUT
+                || (tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT && !groupFixture);
+        if (groupFixture) {
+            var all = matches.findByTournamentId(tournamentId,
+                    PageRequest.of(0, 128, Sort.by("roundNumber").descending()));
+            if (all.hasNext() || all.getContent().stream()
+                    .anyMatch(game -> game.getGroupNumber() == null)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "A fase eliminatória começou. Não é possível alterar os grupos");
+            }
+        }
+        if (knockoutFixture) {
             if (request.homeScore().equals(request.awayScore())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Uma eliminatória exige um vencedor. Regista o resultado após desempate");
@@ -94,9 +108,14 @@ public class CommunityTournamentTeamResultService {
         match.setAwayScore(request.awayScore());
         match.setStatus(TournamentMatchStatus.COMPLETED);
         if (firstCompletion) match.setCompletedAt(Instant.now());
-        if (tournament.getFormat() == TournamentFormat.KNOCKOUT) {
+        if (knockoutFixture) {
             matches.saveAndFlush(match);
             knockout.advanceAfterResult(tournament);
+            return response(match);
+        }
+        if (groupFixture) {
+            matches.saveAndFlush(match);
+            groupStage.advanceWhenGroupsComplete(tournament);
             return response(match);
         }
         return response(matches.save(match));
@@ -111,7 +130,8 @@ public class CommunityTournamentTeamResultService {
                 match.getId(), match.getRoundNumber(),
                 match.getHomeTeam().getId(), match.getHomeTeam().getName(),
                 match.getAwayTeam().getId(), match.getAwayTeam().getName(),
-                match.getStatus(), match.getHomeScore(), match.getAwayScore());
+                match.getStatus(), match.getHomeScore(), match.getAwayScore(),
+                match.getGroupNumber());
     }
 
     private ResponseStatusException notFound() {
