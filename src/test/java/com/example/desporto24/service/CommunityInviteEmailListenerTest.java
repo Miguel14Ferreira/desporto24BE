@@ -23,7 +23,8 @@ class CommunityInviteEmailListenerTest {
         assertTrue(body.contains("owner&lt;script&gt;"));
         assertTrue(body.contains("CNG &amp; Friends"));
         assertFalse(body.contains("<script>"));
-        assertTrue(body.contains("href=\"https://d24sports.com/menu/communities\""));
+        assertTrue(body.contains("href=\"https://d24sports.com/menu/communities?view=mine&amp;invite=7\""));
+        assertTrue(body.contains("view=mine&amp;invite=7"));
         assertTrue(body.contains("Ver convite / View invitation"));
         assertTrue(body.contains("lang=\"en\""));
         assertTrue(body.contains("<table role=\"presentation\""));
