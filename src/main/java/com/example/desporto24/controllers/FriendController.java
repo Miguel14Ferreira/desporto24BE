@@ -3,6 +3,7 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.domain.HttpResponse;
 import com.example.desporto24.model.SendFriendRequest;
 import com.example.desporto24.model.dto.friend.FriendSummaryResponse;
+import com.example.desporto24.model.dto.friend.FriendshipStatusResponse;
 import com.example.desporto24.service.interfaces.FriendService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -131,6 +132,13 @@ public class FriendController {
             Authentication authentication) {
         friendService.removeFriend(authentication.getName(), sendFriendRequest.getUsername2());
         return buildResponse(sendFriendRequest.getUsername2() + REMOVED_FRIEND);
+    }
+
+    @GetMapping("/status/{username}")
+    public ResponseEntity<FriendshipStatusResponse> getFriendshipStatus(
+            @PathVariable String username,
+            Authentication authentication) {
+        return ResponseEntity.ok(friendService.getFriendshipStatus(authentication.getName(), username));
     }
 
     @GetMapping("/me")

@@ -9,6 +9,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.SendFriendRequest;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.friend.FriendSummaryResponse;
+import com.example.desporto24.model.dto.friend.FriendshipStatusResponse;
 import com.example.desporto24.register.FriendRequest.FriendRequest;
 import com.example.desporto24.register.FriendRequest.FriendRequestService;
 import com.example.desporto24.register.Notifications.Notifications;
@@ -198,7 +199,7 @@ public class FriendServiceImpl implements FriendService {
     public List<Profile> getFriends(String username) {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException("Profile not found"));
-        return friendRepository.findByProfile1OrProfile2(profile, profile).stream()
+        return friendRepository.findConnectionsForProfile(profile.getId()).stream()
                 .map(friend -> otherProfile(friend, profile))
                 .toList();
     }
@@ -208,7 +209,7 @@ public class FriendServiceImpl implements FriendService {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException("Profile not found"));
 
-        return friendRepository.findByProfile1OrProfile2(profile, profile).stream()
+        return friendRepository.findConnectionsForProfile(profile.getId()).stream()
                 .map(friend -> {
                     Profile other = otherProfile(friend, profile);
                     return new FriendSummaryResponse(
@@ -221,6 +222,21 @@ public class FriendServiceImpl implements FriendService {
                     );
                 })
                 .toList();
+    }
+
+    @Override
+    public FriendshipStatusResponse getFriendshipStatus(String requester, String recipient) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(requester)
+                .orElseThrow(() -> new UserNotFoundException("Profile not found"));
+        Profile target = profileRepository.findUserByUsernameIgnoreCase(recipient)
+                .orElseThrow(() -> new UserNotFoundException("Profile not found"));
+        if (actor.getId().equals(target.getId())) {
+            return new FriendshipStatusResponse(false, false);
+        }
+        boolean friends = findFriendConnection(actor, target) != null;
+        boolean pending = !friends && friendRequestService.hasPendingRequestBetween(
+                actor.getUsername(), target.getUsername());
+        return new FriendshipStatusResponse(friends, pending);
     }
 
     private Profile otherProfile(Friend friend, Profile profile) {
