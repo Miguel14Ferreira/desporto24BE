@@ -106,9 +106,7 @@ public class CommunityTournamentTeamService {
         requireDraft(tournament);
         CommunityTournamentTeam target = team(tournamentId, teamId);
 
-        var existing = playerRepository.findByTournamentIdOrderByTeamIdAscIdAsc(tournamentId)
-                .stream().filter(entry -> entry.getProfile().getId().equals(player.getId()))
-                .findFirst();
+        var existing = playerRepository.findByTournamentIdAndProfileId(tournamentId, player.getId());
         if (existing.isPresent()) {
             if (!existing.get().getTeam().getId().equals(teamId)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
