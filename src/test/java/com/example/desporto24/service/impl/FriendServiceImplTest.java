@@ -89,6 +89,48 @@ class FriendServiceImplTest {
     }
 
     @Test
+    void relationshipStatusMatchesFriendListForEitherConnectionDirection() {
+        Profile miguel = profile(1L, "miguel");
+        Profile diogo = profile(2L, "Diogo");
+        Friend relationship = friendship(diogo, miguel, false, null);
+
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(miguel));
+        when(profileRepository.findUserByUsernameIgnoreCase("diogo"))
+                .thenReturn(Optional.of(diogo));
+        when(profileRepository.findUserByUsername("miguel"))
+                .thenReturn(Optional.of(miguel));
+        when(friendRepository.findConnection(1L, 2L))
+                .thenReturn(Optional.of(relationship));
+        when(friendRepository.findConnectionsForProfile(1L))
+                .thenReturn(List.of(relationship));
+
+        var status = service.getFriendshipStatus("miguel", "diogo");
+        assertEquals(true, status.friends());
+        assertEquals(false, status.pendingRequest());
+        assertEquals(List.of("Diogo"), service.getFriendSummaries("miguel").stream()
+                .map(item -> item.username()).toList());
+        assertEquals(List.of(diogo), service.getFriends("miguel"));
+        verify(friendRequestService, never()).hasPendingRequestBetween(any(), any());
+    }
+
+    @Test
+    void relationshipStatusExposesPendingRequestWithoutClaimingFriendship() {
+        Profile miguel = profile(1L, "miguel");
+        Profile diogo = profile(2L, "Diogo");
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(miguel));
+        when(profileRepository.findUserByUsernameIgnoreCase("Diogo"))
+                .thenReturn(Optional.of(diogo));
+        when(friendRequestService.hasPendingRequestBetween("miguel", "Diogo"))
+                .thenReturn(true);
+
+        var status = service.getFriendshipStatus("miguel", "Diogo");
+        assertEquals(false, status.friends());
+        assertEquals(true, status.pendingRequest());
+    }
+
+    @Test
     void cannotSendFriendRequestToSelf() {
         SendFriendRequest request = request("miguel", "miguel");
 
