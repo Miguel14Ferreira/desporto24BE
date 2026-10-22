@@ -15,5 +15,8 @@ public interface CommunityTournamentTeamPlayerRepository
 
     boolean existsByTournamentIdAndProfileId(Long tournamentId, Long profileId);
 
+    @EntityGraph(attributePaths = {"team", "profile"})
+    Optional<CommunityTournamentTeamPlayer> findByTournamentIdAndProfileId(Long tournamentId, Long profileId);
+
     Optional<CommunityTournamentTeamPlayer> findByTeamIdAndProfileId(Long teamId, Long profileId);
 }

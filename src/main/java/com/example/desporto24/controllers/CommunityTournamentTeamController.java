@@ -110,6 +110,14 @@ public class CommunityTournamentTeamController {
                 communityId, tournamentId, teamId, authentication.getName(), request.profileId()));
     }
 
+    @PutMapping("/{teamId}/players/me")
+    public CommunityTournamentTeamResponse acceptTeamInvite(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @PathVariable Long teamId, Authentication authentication) {
+        return service.joinInvitedTeam(
+                communityId, tournamentId, teamId, authentication.getName());
+    }
+
     @DeleteMapping("/{teamId}/players/{profileId}")
     public ResponseEntity<Void> removePlayer(
             @PathVariable Long communityId, @PathVariable Long tournamentId,
