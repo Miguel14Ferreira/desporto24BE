@@ -125,7 +125,7 @@ class SessionPlayerComplimentServiceTest {
                 AttendanceStatus.PENDING, AttendanceStatus.NO_SHOW, AttendanceStatus.LATE_CANCELLED}) {
             recipient.setAttendanceStatus(status);
             assertThrows(AccessDeniedException.class, () -> service.give(
-                    7L, 13L, "player", new PlayerComplimentRequest(PlayerComplimentType.FAIR_PLAY)));
+                    7L, "receiver", "player", new PlayerComplimentRequest(PlayerComplimentType.FAIR_PLAY)));
         }
         verifyNoInteractions(complimentRepository);
     }
