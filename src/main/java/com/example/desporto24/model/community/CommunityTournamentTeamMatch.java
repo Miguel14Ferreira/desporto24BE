@@ -27,6 +27,10 @@ public class CommunityTournamentTeamMatch {
     @JoinColumn(name = "away_team_id", nullable = false)
     private CommunityTournamentTeam awayTeam;
 
+    // Null for traditional league/cup fixtures and knockout rounds of a group cup.
+    @Column(name = "group_number")
+    private Integer groupNumber;
+
     @Column(name = "round_number", nullable = false)
     private int roundNumber;
 
