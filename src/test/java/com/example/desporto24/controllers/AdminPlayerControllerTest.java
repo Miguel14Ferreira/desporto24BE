@@ -72,6 +72,14 @@ class AdminPlayerControllerTest {
     }
 
     @Test
+    void invalidProfileIdDoesNotQueryPlayerRecords() {
+        var exception = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.statistics(-1L));
+        assertEquals(404, exception.getStatusCode().value());
+        verifyNoInteractions(repository, entries);
+    }
+
+    @Test
     void existingPlayerWithoutRoundsHasZeroStatistics() {
         when(repository.existsById(7L)).thenReturn(true);
         when(entries.findEntriesForProfile(7L)).thenReturn(List.of());
