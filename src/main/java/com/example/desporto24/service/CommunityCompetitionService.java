@@ -235,7 +235,7 @@ public class CommunityCompetitionService {
         }
 
         entryRepository.saveAll(entries);
-        return roundResponse(round, Map.of());
+        return roundResponse(round, acceptedAliasProfiles(communityId));
     }
 
     public void deleteRound(Long communityId, Long roundId, String username) {
