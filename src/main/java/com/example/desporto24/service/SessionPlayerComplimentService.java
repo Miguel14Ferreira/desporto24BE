@@ -40,12 +40,12 @@ public class SessionPlayerComplimentService {
     private final SessionPlayerComplimentRepository complimentRepository;
 
     @Transactional
-    public PlayerComplimentResponse give(Long sessionId, Long recipientId, String username,
+    public PlayerComplimentResponse give(Long sessionId, String recipientUsername, String username,
                                          PlayerComplimentRequest request) {
         if (request == null || request.type() == null) {
             throw new IllegalArgumentException("Choose a positive compliment");
         }
-        if (recipientId == null || recipientId < 1) {
+        if (recipientUsername == null || recipientUsername.isBlank()) {
             throw new IllegalArgumentException("Invalid recipient");
         }
 
@@ -61,18 +61,19 @@ public class SessionPlayerComplimentService {
         }
 
         Profile sender = profile(username);
-        if (sender.getId().equals(recipientId)) {
+        Profile recipient = profile(recipientUsername);
+        if (sender.getId().equals(recipient.getId())) {
             throw new IllegalArgumentException("Cannot compliment yourself");
         }
         SessionParticipant giver = attended(sessionId, sender.getId());
-        SessionParticipant receiver = attended(sessionId, recipientId);
+        SessionParticipant receiver = attended(sessionId, recipient.getId());
         if (giver.getProfile() == null || receiver.getProfile() == null) {
             throw new IllegalStateException("Participants must have a registered profile");
         }
 
         Instant now = Instant.now();
         SessionPlayerCompliment compliment = complimentRepository
-                .findBySessionIdAndSenderIdAndRecipientId(sessionId, sender.getId(), recipientId)
+                .findBySessionIdAndSenderIdAndRecipientId(sessionId, sender.getId(), recipient.getId())
                 .orElseGet(() -> SessionPlayerCompliment.builder()
                         .session(session)
                         .sender(sender)
