@@ -101,3 +101,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-20-national-municipal-batch-13.yaml
   - include:
       file: db/changelog/changes/2026-10-21-venue-gps-only-address-nullable.yaml
+  - include:
+      file: db/changelog/changes/2026-10-22-venue-experience-rating.yaml
