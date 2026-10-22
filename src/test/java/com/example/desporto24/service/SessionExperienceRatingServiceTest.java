@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionProblemType;
 import com.example.desporto24.enumeration.SessionStatus;
@@ -7,6 +8,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.SessionExperienceRatingRequest;
 import com.example.desporto24.model.session.SessionExperienceRating;
+import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.session.SessionExperienceRatingRepository;
@@ -90,6 +92,74 @@ class SessionExperienceRatingServiceTest {
     }
 
     @Test
+    void aRegisteredPlayerWithPendingOrMissedAttendanceCannotRate() {
+        Profile player = player();
+        Session session = session(Instant.now().minusSeconds(3 * 3600), SessionStatus.COMPLETED);
+        when(sessionRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(session));
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(player));
+
+        SessionParticipant participant = SessionParticipant.builder()
+                .session(session).profile(player)
+                .state(ParticipantState.ACTIVE)
+                .attendanceStatus(AttendanceStatus.PENDING)
+                .build();
+        when(participantRepository.findBySessionIdAndProfileIdAndState(
+                7L, 12L, ParticipantState.ACTIVE))
+                .thenReturn(Optional.of(participant));
+
+        for (AttendanceStatus status : new AttendanceStatus[] {
+                AttendanceStatus.PENDING,
+                AttendanceStatus.NO_SHOW,
+                AttendanceStatus.LATE_CANCELLED
+        }) {
+            participant.setAttendanceStatus(status);
+            // Even a previously recorded NO_SHOW or late cancellation is not attendance.
+            participant.setAttendanceRecordedAt(Instant.now());
+            var error = assertThrows(AccessDeniedException.class,
+                    () -> service.rate(7L, "miguel", new SessionExperienceRatingRequest(4)));
+            assertTrue(error.getMessage().contains("confirmed attendance"));
+        }
+        verifyNoInteractions(ratingRepository);
+    }
+
+    @Test
+    void attendedFlagWithoutRecordTimestampIsNotProofOfPresence() {
+        Profile player = player();
+        Session session = session(Instant.now().minusSeconds(3 * 3600), SessionStatus.COMPLETED);
+        when(sessionRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(session));
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(player));
+        when(participantRepository.findBySessionIdAndProfileIdAndState(
+                7L, 12L, ParticipantState.ACTIVE))
+                .thenReturn(Optional.of(SessionParticipant.builder()
+                        .session(session).profile(player)
+                        .state(ParticipantState.ACTIVE)
+                        .attendanceStatus(AttendanceStatus.ATTENDED)
+                        .build()));
+
+        assertThrows(AccessDeniedException.class, () ->
+                service.rate(7L, "miguel", new SessionExperienceRatingRequest(5)));
+        verifyNoInteractions(ratingRepository);
+    }
+
+    @Test
+    void aPlayerWhoLeftCannotRateEvenIfPreviouslyAttended() {
+        Profile player = player();
+        Session session = session(Instant.now().minusSeconds(3 * 3600), SessionStatus.COMPLETED);
+        when(sessionRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(session));
+        when(profileRepository.findUserByUsernameIgnoreCase("miguel"))
+                .thenReturn(Optional.of(player));
+
+        // The rating query only accepts state ACTIVE, not LEFT or REMOVED.
+        assertThrows(AccessDeniedException.class, () ->
+                service.rate(7L, "miguel", new SessionExperienceRatingRequest(5)));
+        verify(participantRepository).findBySessionIdAndProfileIdAndState(
+                7L, 12L, ParticipantState.ACTIVE);
+        verifyNoInteractions(ratingRepository);
+    }
+
+    @Test
     void cannotRateBeforeGameHasEnded() {
         Profile player = player();
         Session session = session(Instant.now().minusSeconds(30 * 60), SessionStatus.OPEN);
@@ -150,8 +220,14 @@ class SessionExperienceRatingServiceTest {
     private void allowRating(Session session, Profile player) {
         when(sessionRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(session));
         when(profileRepository.findUserByUsernameIgnoreCase("miguel")).thenReturn(Optional.of(player));
-        when(participantRepository.existsBySessionIdAndProfileIdAndState(
-                7L, 12L, ParticipantState.ACTIVE)).thenReturn(true);
+        when(participantRepository.findBySessionIdAndProfileIdAndState(
+                7L, 12L, ParticipantState.ACTIVE))
+                .thenReturn(Optional.of(SessionParticipant.builder()
+                        .session(session).profile(player)
+                        .state(ParticipantState.ACTIVE)
+                        .attendanceStatus(AttendanceStatus.ATTENDED)
+                        .attendanceRecordedAt(Instant.now())
+                        .build()));
     }
 
     private Profile player() {
