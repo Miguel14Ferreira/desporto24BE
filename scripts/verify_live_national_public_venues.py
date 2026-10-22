@@ -68,8 +68,11 @@ def report(fetch=read_public_page, pause=0.08):
                 count+=1
                 if row.get("informationSource")=="OPENSTREETMAP":
                     osm+=1
-                    if not str(row.get("sourceReference") or "").startswith("OSM:"):
-                        raise RuntimeError("Missing OSM provenance for a map-sourced venue")
+                    # VenueResponse exposes the provenance class, not the internal OSM ref.
+                    # Do not invent a sourceReference in this public audit.
+                    lat,lon=row.get("latitude"),row.get("longitude")
+                    if not isinstance(lat,(int,float)) or not isinstance(lon,(int,float)):
+                        raise RuntimeError("Map-sourced venue missing public GPS")
             if not data["hasMore"]:
                 break
             if page==MAX_PAGES_PER_DISTRICT-1:
