@@ -91,6 +91,17 @@ public class CommunityTournamentService {
         }
 
         TournamentFormat format = request.format() == null ? TournamentFormat.LEAGUE : request.format();
+        if (format == TournamentFormat.GROUP_KNOCKOUT) {
+            if (type != TournamentEntryType.TEAM || request.groupCount() == null
+                    || (request.groupCount() != 2 && request.groupCount() != 4)
+                    || request.roundRobinLegs() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "A fase de grupos exige equipas, 2 ou 4 grupos e apenas uma volta");
+            }
+        } else if (request.groupCount() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "O número de grupos só pode ser definido em torneios com fase de grupos");
+        }
         if (format == TournamentFormat.KNOCKOUT) {
             if (type != TournamentEntryType.TEAM || request.roundRobinLegs() != null
                     || request.teamTieBreakPriority() != null) {
@@ -126,6 +137,7 @@ public class CommunityTournamentService {
                 .roundRobinLegs(roundRobinLegs)
                 .teamTieBreakPriority(tieBreakPriority)
                 .format(format)
+                .groupCount(request.groupCount())
                 .winPoints(request.winPoints() == null ? 3 : request.winPoints())
                 .drawPoints(request.drawPoints() == null ? 1 : request.drawPoints())
                 .lossPoints(request.lossPoints() == null ? 0 : request.lossPoints())

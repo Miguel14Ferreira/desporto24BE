@@ -26,6 +26,13 @@ public class CommunityTournamentTeam {
     @Column(name = "normalized_name", nullable = false, length = 100)
     private String normalizedName;
 
+    // Assigned only when the organizer publishes the group-stage draw.
+    @Column(name = "group_number")
+    private Integer groupNumber;
+
+    @Column(name = "group_draw_order")
+    private Integer groupDrawOrder;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }
