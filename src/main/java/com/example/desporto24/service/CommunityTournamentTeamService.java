@@ -93,6 +93,43 @@ public class CommunityTournamentTeamService {
                         .filter(p -> p.getTeam().getId().equals(teamId)).toList());
     }
 
+    /**
+     * An invite link offers a place to the authenticated community member who opens it.
+     * No roster assignment is performed merely by opening the link.
+     * All capacity/uniqueness checks run under the tournament row lock.
+     */
+    public CommunityTournamentTeamResponse joinInvitedTeam(
+            Long communityId, Long tournamentId, Long teamId, String username) {
+        Profile player = actor(username);
+        requireMember(communityId, player);
+        CommunityTournament tournament = lockedTeamTournament(communityId, tournamentId);
+        requireDraft(tournament);
+        CommunityTournamentTeam target = team(tournamentId, teamId);
+
+        var existing = playerRepository.findByTournamentIdOrderByTeamIdAscIdAsc(tournamentId)
+                .stream().filter(entry -> entry.getProfile().getId().equals(player.getId()))
+                .findFirst();
+        if (existing.isPresent()) {
+            if (!existing.get().getTeam().getId().equals(teamId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Já pertences a outra equipa nesta competição");
+            }
+            return toResponse(target, tournament.getPlayersPerTeam(),
+                    playerRepository.findByTournamentIdOrderByTeamIdAscIdAsc(tournamentId)
+                        .stream().filter(entry -> entry.getTeam().getId().equals(teamId)).toList());
+        }
+
+        if (playerRepository.countByTeamId(teamId) >= tournament.getPlayersPerTeam()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A equipa já está completa");
+        }
+        playerRepository.save(CommunityTournamentTeamPlayer.builder()
+                .tournament(tournament).team(target).profile(player)
+                .assignedAt(Instant.now()).build());
+        return toResponse(target, tournament.getPlayersPerTeam(),
+                playerRepository.findByTournamentIdOrderByTeamIdAscIdAsc(tournamentId)
+                        .stream().filter(entry -> entry.getTeam().getId().equals(teamId)).toList());
+    }
+
     public void removePlayer(Long communityId, Long tournamentId, Long teamId,
             String username, Long profileId) {
         Profile actor = actor(username);
