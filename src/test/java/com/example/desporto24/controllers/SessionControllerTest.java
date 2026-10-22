@@ -12,6 +12,8 @@ import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.dto.session.ReportSessionProblemRequest;
 import com.example.desporto24.model.dto.session.UpdateSessionExternalConfirmationsRequest;
 import com.example.desporto24.enumeration.AttendanceStatus;
+import com.example.desporto24.enumeration.OrganizerExclusionReason;
+import com.example.desporto24.model.dto.session.OrganizerExclusionRequest;
 import com.example.desporto24.service.interfaces.SessionService;
 import com.example.desporto24.service.SessionTeamSuggestionService;
 import com.example.desporto24.service.SessionOrganizerExclusionService;
@@ -216,13 +218,28 @@ class SessionControllerTest {
         when(exclusionService.excludeAfterNoShow(1L, 8L, "organizer")).thenReturn(true);
         when(exclusionService.status(1L, 8L, "organizer")).thenReturn(true);
 
-        assertTrue(controller.excludeFromFutureSessions(1L, 8L, authentication).excluded());
+        assertTrue(controller.excludeFromFutureSessions(1L, 8L, null, authentication).excluded());
         assertTrue(controller.exclusionStatus(1L, 8L, authentication).excluded());
         assertFalse(controller.removeFutureExclusion(1L, 8L, authentication).excluded());
 
         verify(exclusionService).excludeAfterNoShow(1L, 8L, "organizer");
         verify(exclusionService).status(1L, 8L, "organizer");
         verify(exclusionService).remove(1L, 8L, "organizer");
+    }
+
+    @Test
+    void organizerMayChoosePrivateConductRestrictionWithoutNoShow() {
+        when(authentication.getName()).thenReturn("organizer");
+        when(exclusionService.excludeForReason(
+                1L, 8L, "organizer", OrganizerExclusionReason.UNSPORTING_CONDUCT)).thenReturn(true);
+
+        assertTrue(controller.excludeFromFutureSessions(
+                1L, 8L,
+                new OrganizerExclusionRequest(OrganizerExclusionReason.UNSPORTING_CONDUCT),
+                authentication).excluded());
+        verify(exclusionService).excludeForReason(1L, 8L, "organizer",
+                OrganizerExclusionReason.UNSPORTING_CONDUCT);
+        verify(exclusionService, never()).excludeAfterNoShow(anyLong(), anyLong(), anyString());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.AttendanceStatus;
+import com.example.desporto24.enumeration.OrganizerExclusionReason;
 import com.example.desporto24.exception.SessionNotFound;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
@@ -19,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 /**
- * Private choice by an organizer following a recorded no-show.
+ * Private organizer-owned future enrollment choice, including recorded no-shows and conduct.
  * Does not alter current memberships, friendships or global reliability.
  */
 @Service
@@ -54,9 +55,48 @@ public class SessionOrganizerExclusionService {
             exclusionRepository.save(SessionOrganizerExclusion.builder()
                     .organizer(organizer)
                     .excluded(participant.getProfile())
+                    .reason(OrganizerExclusionReason.NO_SHOW)
                     .createdAt(Instant.now())
                     .build());
         }
+        return true;
+    }
+
+    /**
+     * A recorded absence is still required for NO_SHOW. Other reasons reflect a
+     * private organizer decision about their own future sessions only.
+     */
+    @Transactional
+    public boolean excludeForReason(Long sessionId, Long participantId, String username,
+                                    OrganizerExclusionReason reason) {
+        if (reason == null) {
+            throw new IllegalArgumentException("Select a reason for future exclusion");
+        }
+        if (reason == OrganizerExclusionReason.NO_SHOW) {
+            return excludeAfterNoShow(sessionId, participantId, username);
+        }
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile organizer = organizer(session, username);
+        SessionParticipant participant = participantRepository.findById(participantId)
+                .orElseThrow(() -> new IllegalArgumentException("Participant not found"));
+        if (participant.getSession() == null
+                || !sessionId.equals(participant.getSession().getId())
+                || participant.getProfile() == null) {
+            throw new IllegalArgumentException("Participant is not in this session");
+        }
+        if (organizer.getId().equals(participant.getProfile().getId())) {
+            throw new IllegalArgumentException("Organizer cannot exclude themselves");
+        }
+        SessionOrganizerExclusion entry = exclusionRepository
+                .findByOrganizerIdAndExcludedId(organizer.getId(), participant.getProfile().getId())
+                .orElseGet(() -> SessionOrganizerExclusion.builder()
+                        .organizer(organizer)
+                        .excluded(participant.getProfile())
+                        .createdAt(Instant.now())
+                        .build());
+        entry.setReason(reason);
+        exclusionRepository.save(entry);
         return true;
     }
 
