@@ -81,6 +81,8 @@ public class CommunityCompetitionService {
                         communityId, seasonId);
 
         AcceptedAliases confirmedAliases = acceptedAliasProfiles(communityId);
+        List<CommunityRoundResponse> roundResponses = rounds.stream()
+                .map(round -> roundResponse(round, confirmedAliases)).toList();
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
                 seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
@@ -89,8 +91,9 @@ public class CommunityCompetitionService {
                         .toList(),
                 seasonId,
                 activeSeasonId,
-                rounds.stream().map(round -> roundResponse(round, confirmedAliases)).toList(),
-                standings(community, seasonId, confirmedAliases)
+                roundResponses,
+                standings(community, seasonId, confirmedAliases),
+                CommunityRacketStandings.calculate(roundResponses)
         );
     }
 
