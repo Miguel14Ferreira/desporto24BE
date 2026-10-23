@@ -21,7 +21,7 @@ public record CommunityRoundEntryRequest(
         @DecimalMin("0.001") @Digits(integer = 8, fraction = 3) BigDecimal elapsedSeconds,
         @DecimalMin("0.001") @Digits(integer = 8, fraction = 3) BigDecimal bestLapSeconds,
         @Min(0) Integer lapsCompleted,
-        @Digits(integer = 6, fraction = 3) BigDecimal performanceValue,
+        @Digits(integer = 6, fraction = 4) BigDecimal performanceValue,
         @Digits(integer = 2, fraction = 3) BigDecimal waveScore1,
         @Digits(integer = 2, fraction = 3) BigDecimal waveScore2
 ) {

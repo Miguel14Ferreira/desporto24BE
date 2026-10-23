@@ -13,17 +13,19 @@ import com.example.desporto24.model.dto.community.CommunityRoundEntryRequest;
 final class CommunityRoundEventType {
     private CommunityRoundEventType() {}
 
-    private static final Map<String, List<String>> TYPES = Map.of(
-            "BMX", List.of("RACE", "FREESTYLE"),
-            "Atletismo", List.of("TRACK", "JUMP", "THROW"),
-            "Snowboard", List.of("RACE", "FREESTYLE"),
-            "Surf", List.of("HEAT"),
-            "Bodyboard", List.of("BODYBOARD_HEAT"),
-            "Ginástica Artística", List.of("APPARATUS"),
-            "Skate", List.of("SKATE_PARK", "SKATE_STREET"),
-            "Parkour", List.of("PARKOUR_SPEED", "PARKOUR_FREESTYLE"),
-            "Breaking", List.of("BREAKING_BATTLE"),
-            "Trampolim", List.of("TRAMPOLINE_INDIVIDUAL")
+    private static final Map<String, List<String>> TYPES = Map.ofEntries(
+            Map.entry("BMX", List.of("RACE", "FREESTYLE")),
+            Map.entry("Atletismo", List.of("TRACK", "JUMP", "THROW")),
+            Map.entry("Snowboard", List.of("RACE", "FREESTYLE")),
+            Map.entry("Surf", List.of("HEAT")),
+            Map.entry("Bodyboard", List.of("BODYBOARD_HEAT")),
+            Map.entry("Ginástica Artística", List.of("APPARATUS")),
+            Map.entry("Skate", List.of("SKATE_PARK", "SKATE_STREET")),
+            Map.entry("Parkour", List.of("PARKOUR_SPEED", "PARKOUR_FREESTYLE")),
+            Map.entry("Breaking", List.of("BREAKING_BATTLE")),
+            Map.entry("Trampolim", List.of("TRAMPOLINE_INDIVIDUAL")),
+            Map.entry("Ginástica Rítmica", List.of("RHYTHMIC_APPARATUS")),
+            Map.entry("Natação Artística", List.of("ARTISTIC_SOLO_TECHNICAL", "ARTISTIC_SOLO_FREE"))
     );
 
     static String validate(String sport, String requested) {
@@ -96,8 +98,10 @@ final class CommunityRoundEventType {
                 if (e.waveScore1() != null || e.waveScore2() != null)
                     throw new IllegalArgumentException("Notas por onda só são permitidas nas baterias suportadas");
                 if (value != null) {
-                    if (value.scale() > 3 || value.precision() - value.scale() > 6
-                            || value.signum() < 0)
+                    int allowedDecimals = "ARTISTIC_SOLO_TECHNICAL".equals(type)
+                            || "ARTISTIC_SOLO_FREE".equals(type) ? 4 : 3;
+                    if (value.scale() > allowedDecimals
+                            || value.precision() - value.scale() > 6 || value.signum() < 0)
                         throw new IllegalArgumentException(
                                 "A marca ou nota deve ser positiva, até 3 casas decimais");
                     if ("FREESTYLE".equals(type) || "APPARATUS".equals(type)
@@ -105,6 +109,11 @@ final class CommunityRoundEventType {
                         if (value.compareTo(new java.math.BigDecimal("100")) > 0)
                             throw new IllegalArgumentException(
                                     "A nota final registada deve estar entre 0 e 100");
+                    } else if ("RHYTHMIC_APPARATUS".equals(type)
+                            || "ARTISTIC_SOLO_TECHNICAL".equals(type)
+                            || "ARTISTIC_SOLO_FREE".equals(type)) {
+                        // Organizer-supplied final score. No invented federation cap or jury formula.
+                        // The database only imposes a six-integer-digit technical limit.
                     } else if ("TRAMPOLINE_INDIVIDUAL".equals(type)) {
                         // Technical storage guard, NOT an invented federation maximum.
                         if (value.compareTo(new java.math.BigDecimal("9999.99")) > 0
