@@ -36,7 +36,12 @@ final class CommunityRaceMetrics {
     }
 
     static void validate(String sport, List<CommunityRoundEntryRequest> entries) {
-        boolean race = isRaceSport(sport);
+        validate(sport, null, entries);
+    }
+
+    static void validate(String sport, String eventType,
+            List<CommunityRoundEntryRequest> entries) {
+        boolean race = CommunityRoundEventType.isRaceEvent(sport, eventType);
         Set<Integer> positions = new HashSet<>();
         for (CommunityRoundEntryRequest entry : entries) {
             boolean supplied = entry.finishPosition() != null
