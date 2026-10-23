@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 
 public interface CommunityRoundRepository extends JpaRepository<CommunityRound, Long> {
+    boolean existsByCommunityIdAndSeasonId(Long communityId, Long seasonId);
     boolean existsByCommunityIdAndSeasonIdAndPlayedAt(Long communityId, Long seasonId, Instant playedAt);
     List<CommunityRound> findByCommunityIdAndSeasonIdAndPlayedAt(Long communityId, Long seasonId, Instant playedAt);
     List<CommunityRound> findByCommunityIdOrderByPlayedAtDescIdDesc(Long communityId);
