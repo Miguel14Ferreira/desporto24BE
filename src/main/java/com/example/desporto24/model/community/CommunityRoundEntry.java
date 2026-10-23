@@ -71,7 +71,7 @@ public class CommunityRoundEntry {
 
     // One aggregate mark (metres for field events, 0..100 points for freestyle).
     // Never interpreted as a football score or compared across event disciplines.
-    @Column(name = "performance_value", precision = 9, scale = 3)
+    @Column(name = "performance_value", precision = 10, scale = 4)
     private BigDecimal performanceValue;
 
     // Two already-judged surfing wave marks (0..10 each), absent on legacy rounds.
