@@ -53,6 +53,11 @@ final class CommunityRaceMetrics {
                         "As métricas de corrida só podem ser usadas numa jornada de prova");
             }
             if (!race) continue;
+            if ("Parkour".equals(sport) && "PARKOUR_SPEED".equals(eventType)
+                    && (entry.lapsCompleted() != null || entry.bestLapSeconds() != null)) {
+                throw new IllegalArgumentException(
+                        "Parkour Speed não permite voltas ou melhor volta");
+            }
             if (entry.goals() != null && entry.goals() != 0 ||
                     entry.assists() != null && entry.assists() != 0 ||
                     entry.mvp() || entry.cleanSheet()) {
