@@ -17,6 +17,8 @@ final class CommunityRoundEventType {
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
             Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
+            Map.entry("Basebol", List.of("BASEBALL_RUNS")),
+            Map.entry("Softbol", List.of("SOFTBALL_RUNS")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(

@@ -6,7 +6,8 @@ import com.example.desporto24.model.dto.community.CommunityTeamFinalScore;
 import java.util.List;
 
 /**
- * Organizer-confirmed team totals (goals or rugby points), without inventing
+ * Organizer-confirmed team totals (goals, rugby points, or baseball/softball
+ * runs), without inventing
  * scorers, conversions, official rosters or league standings. Ice hockey
  * distinguishes regulation time, overtime, and shootout in the event type;
  * its official final score includes only the decisive shootout goal.
@@ -23,7 +24,9 @@ final class CommunityTeamFinalResults {
                 || "WATER_POLO_FINAL".equals(type)
                 || "ICE_HOCKEY_REG".equals(type)
                 || "ICE_HOCKEY_OT".equals(type)
-                || "ICE_HOCKEY_SO".equals(type);
+                || "ICE_HOCKEY_SO".equals(type)
+                || "BASEBALL_RUNS".equals(type)
+                || "SOFTBALL_RUNS".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -40,11 +43,15 @@ final class CommunityTeamFinalResults {
                 || "Hóquei em Campo".equals(sport) && "FIELD_HOCKEY_FINAL".equals(eventType)
                 || "Hóquei em Patins".equals(sport) && "ROLLER_HOCKEY_FINAL".equals(eventType)
                 || "Polo Aquático".equals(sport) && "WATER_POLO_FINAL".equals(eventType)
+                || "Basebol".equals(sport) && "BASEBALL_RUNS".equals(eventType)
+                || "Softbol".equals(sport) && "SOFTBALL_RUNS".equals(eventType)
                 || "Hóquei no Gelo".equals(sport) && (
                         "ICE_HOCKEY_REG".equals(eventType)
                         || "ICE_HOCKEY_OT".equals(eventType)
                         || "ICE_HOCKEY_SO".equals(eventType));
         if (!allowed) throw new IllegalArgumentException("A prova não corresponde à modalidade");
+        // These are confirmed runs totals, not runs per inning. A tied total is
+        // recorded without claiming that an official winner has been decided.
         // Storage/API guard, not an official sporting score ceiling.
         if (score == null || score.sideA() == null || score.sideB() == null
                 || score.sideA() < 0 || score.sideB() < 0

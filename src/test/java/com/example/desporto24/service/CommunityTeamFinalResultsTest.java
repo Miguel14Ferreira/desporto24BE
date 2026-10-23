@@ -93,6 +93,44 @@ class CommunityTeamFinalResultsTest {
         assertThrows(IllegalArgumentException.class, () ->
                 CommunityRoundEventType.validate("Hóquei no Gelo", "FIELD_HOCKEY_FINAL"));
     }
+    @Test void baseballAndSoftballUseRunsNotFootballGoalsOrSeasonPoints() {
+        for (String[] pair : List.of(
+                new String[]{"Basebol", "BASEBALL_RUNS"},
+                new String[]{"Softbol", "SOFTBALL_RUNS"})) {
+            String sport = pair[0], type = pair[1];
+            assertTrue(type.length() <= 20, "Existing event_type VARCHAR(20)");
+            assertEquals(type, CommunityRoundEventType.validate(sport, type));
+            assertTrue(CommunityRoundEventType.isNeutralEvent(sport, type));
+            assertTrue(CommunityTeamFinalResults.isTeamFinalEvent(type));
+            for (CommunityTeamFinalScore runs : List.of(score(0, 0),
+                    score(7, 4), score(2, 11), score(5, 5))) {
+                assertEquals(runs, CommunityTeamFinalResults.validate(
+                        sport, type, players, runs));
+            }
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityTeamFinalResults.validate(sport, type, players, score(-1, 0)));
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityTeamFinalResults.validate(sport, type, players, score(1000, 0)));
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityTeamFinalResults.validate(sport, type, List.of(athlete("a","A")), score(3, 2)));
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityTeamFinalResults.validate(sport, type,
+                            List.of(new CommunityRoundEntryRequest("a","A",CommunityMatchResult.WIN,
+                                    0,0,false,false),athlete("b","B")), score(3,2)));
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityRoundEventType.validate(sport, "FUTSAL_FINAL"));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityRoundEventType.validate("Basebol", "SOFTBALL_RUNS"));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityRoundEventType.validate("Softbol", "BASEBALL_RUNS"));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityTeamFinalResults.validate("Basebol", "SOFTBALL_RUNS",players,score(4,3)));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityTeamFinalResults.validate("Softbol", "BASEBALL_RUNS",players,score(4,3)));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityTeamFinalResults.validate("Futebol", "BASEBALL_RUNS",players,score(1,0)));
+    }
     @Test void doesNotAcceptCrossSportOrFootballMetricOrUnrelatedScores() {
         assertThrows(IllegalArgumentException.class, () -> CommunityTeamFinalResults.validate(
                 "Rugby", "HANDBALL_FINAL", players, score(20, 19)));
