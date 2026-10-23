@@ -2,6 +2,7 @@ package com.example.desporto24.exception;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,11 @@ class ResponseStatusExceptionHandlingTest {
                     HttpStatus.FORBIDDEN, "Origem não autorizada para renovar a sessão");
         }
 
+        @GetMapping("/test/status/community-chat-denied")
+        void communityChatDenied() {
+            throw new AccessDeniedException("Only community members can access this content");
+        }
+
         @GetMapping("/test/status/throttled")
         void throttled() {
             throw new ResponseStatusException(
@@ -45,6 +51,14 @@ class ResponseStatusExceptionHandlingTest {
                 .andExpect(jsonPath("$.httpStatusCode").value(403))
                 .andExpect(jsonPath("$.message")
                         .value("Origem não autorizada para renovar a sessão"));
+    }
+
+    @Test
+    void nonMemberChatReadReturns403WithoutExposingInternalMembershipReason() throws Exception {
+        mvc().perform(get("/test/status/community-chat-denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.httpStatusCode").value(403))
+                .andExpect(jsonPath("$.message").value("Não tens permissões suficientes."));
     }
 
     @Test
