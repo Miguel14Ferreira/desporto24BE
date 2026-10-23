@@ -23,6 +23,8 @@ import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -417,8 +419,9 @@ class CommunityCompetitionServiceTest {
                 .thenReturn(Optional.of(season));
         when(roundRepository.existsByCommunityIdAndSeasonId(7L, 44L)).thenReturn(true);
 
-        assertThrows(IllegalStateException.class,
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
                 () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+        assertEquals(HttpStatus.CONFLICT, blocked.getStatusCode());
         verify(seasonRepository, never()).delete(any());
     }
 
@@ -435,8 +438,9 @@ class CommunityCompetitionServiceTest {
         when(standingsArchiveRepository.existsByCommunityIdAndSeasonId(7L, 44L))
                 .thenReturn(true);
 
-        assertThrows(IllegalStateException.class,
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
                 () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+        assertEquals(HttpStatus.CONFLICT, blocked.getStatusCode());
         verify(seasonRepository, never()).delete(any());
     }
 
@@ -471,8 +475,9 @@ class CommunityCompetitionServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.renameSeason(7L, 44L, "TMF14",
                         new UpdateCommunitySeasonRequest("Não permitido")));
-        assertThrows(IllegalArgumentException.class,
+        ResponseStatusException wrongCommunity = assertThrows(ResponseStatusException.class,
                 () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+        assertEquals(HttpStatus.NOT_FOUND, wrongCommunity.getStatusCode());
         verify(seasonRepository, never()).delete(any());
     }
 
