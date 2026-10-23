@@ -3,6 +3,7 @@ package com.example.desporto24.websocket;
 import com.example.desporto24.model.Chat;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.session.SessionMessageResponse;
+import com.example.desporto24.model.dto.community.CommunityTimelineEntryResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -145,6 +146,35 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             }
         } catch (RuntimeException ignored) {
             // Realtime delivery must never roll back a persisted message.
+        }
+    }
+
+    /**
+     * Send to individual authenticated member sockets, never to a public
+     * community topic. Newly removed members are not included in recipients.
+     */
+    public void publishCommunityChatMessage(
+            Set<String> usernames, CommunityTimelineEntryResponse message) {
+        if (usernames == null || usernames.isEmpty() || message == null) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "COMMUNITY_CHAT_MESSAGE")
+                    .set("message", objectMapper.valueToTree(message))
+                    .toString();
+            for (String username : usernames) {
+                Set<WebSocketSession> sessions = sessionsByUsername.get(username);
+                if (sessions == null) continue;
+                for (WebSocketSession session : sessions) {
+                    if (!session.isOpen()) continue;
+                    try {
+                        send(session, payload);
+                    } catch (IOException ignored) {
+                        // History remains authoritative when a socket fails.
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Never roll back a committed message because of realtime failure.
         }
     }
 
