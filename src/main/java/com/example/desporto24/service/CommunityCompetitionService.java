@@ -486,6 +486,7 @@ public class CommunityCompetitionService {
                     .elapsedSeconds(requestEntry.elapsedSeconds())
                     .bestLapSeconds(requestEntry.bestLapSeconds())
                     .lapsCompleted(requestEntry.lapsCompleted())
+                    .performanceValue(requestEntry.performanceValue())
                     .build());
         }
 
@@ -674,7 +675,8 @@ public class CommunityCompetitionService {
                         CommunityRaceDecisions.adjustedTime(
                                 entry.getElapsedSeconds(), entry.getRaceTimePenaltySeconds()),
                         entry.isRaceDisqualified(),
-                        entry.getRaceStewardReason()
+                        entry.getRaceStewardReason(),
+                        entry.getPerformanceValue()
                     );
                 })
                 .toList();

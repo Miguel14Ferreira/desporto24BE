@@ -69,6 +69,11 @@ public class CommunityRoundEntry {
     @Column(name = "laps_completed")
     private Integer lapsCompleted;
 
+    // One aggregate mark (metres for field events, 0..100 points for freestyle).
+    // Never interpreted as a football score or compared across event disciplines.
+    @Column(name = "performance_value", precision = 9, scale = 3)
+    private BigDecimal performanceValue;
+
     // Sports-specific penalty, kept separate from the measured finishing position.
     @Builder.Default
     @Column(name = "race_penalty_points", nullable = false)

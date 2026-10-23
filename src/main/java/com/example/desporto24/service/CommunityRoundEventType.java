@@ -43,8 +43,30 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
-        if (!isNeutralEvent(sport, type)) return;
+        boolean neutral = isNeutralEvent(sport, type);
         for (CommunityRoundEntryRequest e : entries) {
+            java.math.BigDecimal value = e.performanceValue();
+            if (!neutral) {
+                if (value != null)
+                    throw new IllegalArgumentException(
+                            "Esta modalidade não suporta marcas ou notas de avaliação");
+                continue;
+            }
+            if (value != null) {
+                if (value.scale() > 3 || value.precision() - value.scale() > 6
+                        || value.signum() < 0) {
+                    throw new IllegalArgumentException(
+                            "A marca ou nota deve ser positiva, até 3 casas decimais");
+                }
+                if ("FREESTYLE".equals(type)) {
+                    if (value.compareTo(new java.math.BigDecimal("100")) > 0)
+                        throw new IllegalArgumentException(
+                                "A nota agregada da prova deve estar entre 0 e 100");
+                } else if (value.signum() <= 0) {
+                    throw new IllegalArgumentException(
+                            "A marca em metros deve ser superior a zero");
+                }
+            }
             if (e.result() != CommunityMatchResult.DRAW
                     || (e.team() != null && !e.team().isBlank())
                     || e.goals() != null && e.goals() != 0
