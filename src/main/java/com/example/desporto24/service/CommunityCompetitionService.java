@@ -423,6 +423,8 @@ public class CommunityCompetitionService {
 
         String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
         String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
+        String resolvedDiscipline = CommunityFieldDisciplines.validate(
+                resolvedSport, resolvedEventType, request.eventDiscipline());
         CommunityRaceMetrics.validate(resolvedSport, resolvedEventType, request.entries());
         CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
         String racketScores = CommunityRacketResults.validateAndEncode(
@@ -446,6 +448,7 @@ public class CommunityCompetitionService {
                 .name(request.name().trim())
                 .sport(resolvedSport)
                 .eventType(resolvedEventType)
+                .eventDiscipline(resolvedDiscipline)
                 .matchFormat(racketScores == null ? null : request.matchFormat())
                 .setScores(racketScores)
                 .playedAt(request.playedAt())
@@ -689,7 +692,8 @@ public class CommunityCompetitionService {
                 round.getSport(),
                 round.getMatchFormat(),
                 CommunityRacketResults.decode(round.getSetScores()),
-                round.getEventType()
+                round.getEventType(),
+                round.getEventDiscipline()
         );
     }
 
