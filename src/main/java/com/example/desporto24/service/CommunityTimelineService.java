@@ -67,17 +67,40 @@ public class CommunityTimelineService {
     @Transactional
     public CommunityTimelineEntryResponse post(Long communityId, CommunityTimelineEntry.Kind kind,
                                                 String body, String username) {
+        return post(communityId, kind, body, username, null);
+    }
+
+    @Transactional
+    public CommunityTimelineEntryResponse post(Long communityId, CommunityTimelineEntry.Kind kind,
+                                                String body, String username, Long replyToMessageId) {
         Access access = requireMember(communityId, username);
         String normalized = body == null ? "" : body.trim();
         int max = kind == CommunityTimelineEntry.Kind.POST ? 1000 : 2000;
         if (normalized.isBlank() || normalized.length() > max) {
             throw new IllegalArgumentException("Text must contain between 1 and " + max + " characters");
         }
+        CommunityTimelineEntry quoted = null;
+        if (replyToMessageId != null) {
+            // Community feed POST entries cannot masquerade as a chat reply.
+            if (kind != CommunityTimelineEntry.Kind.CHAT || replyToMessageId <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+            quoted = timelineRepository.findById(replyToMessageId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "Invalid reply message"));
+            if (!communityId.equals(quoted.getCommunity().getId())
+                    || quoted.getKind() != CommunityTimelineEntry.Kind.CHAT) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+        }
         CommunityTimelineEntry saved = timelineRepository.save(CommunityTimelineEntry.builder()
                 .community(access.community())
                 .author(access.actor())
                 .kind(kind)
                 .body(normalized)
+                .replyToMessageId(quoted == null ? null : quoted.getId())
+                .replyToSender(quoted == null ? null : quoted.getAuthor().getUsername())
+                .replyToText(quoted == null ? null : quoted.getBody())
                 .createdAt(Instant.now())
                 .build());
         CommunityTimelineEntryResponse response = toResponse(saved);
@@ -126,7 +149,8 @@ public class CommunityTimelineService {
     private CommunityTimelineEntryResponse toResponse(CommunityTimelineEntry entry) {
         return new CommunityTimelineEntryResponse(
                 entry.getId(), entry.getCommunity().getId(), entry.getKind().name(),
-                entry.getAuthor().getUsername(), entry.getBody(), entry.getCreatedAt());
+                entry.getAuthor().getUsername(), entry.getBody(), entry.getCreatedAt(),
+                entry.getReplyToMessageId(), entry.getReplyToSender(), entry.getReplyToText());
     }
 
     private record Access(Community community, Profile actor) {}
