@@ -209,6 +209,45 @@ class CommunityTimelineServiceTest {
         verify(timelines, never()).delete(any());
     }
 
+    @Test
+    void communityReplyPersistsVerifiedChatSnapshotAndCannotQuoteOtherCommunitiesOrPosts() {
+        setup(member, true);
+        var original = entry(19L, Kind.CHAT, owner);
+        original.setBody("Há treino?");
+        when(timelines.findById(19L)).thenReturn(Optional.of(original));
+        when(timelines.save(any())).thenAnswer(inv -> {
+            CommunityTimelineEntry saved = inv.getArgument(0);
+            saved.setId(20L);
+            return saved;
+        });
+        var sent = service.post(7L, Kind.CHAT, "Sim!", "member", 19L);
+        assertEquals(19L, sent.replyToMessageId());
+        assertEquals("owner", sent.replyToSender());
+        assertEquals("Há treino?", sent.replyToText());
+        verify(timelines, times(1)).save(any());
+
+        original.setCommunity(Community.builder().id(9L).owner(owner).build());
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.post(7L, Kind.CHAT, "Não pode", "member", 19L)).getStatusCode().value());
+        original.setCommunity(group);
+        original.setKind(Kind.POST);
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.post(7L, Kind.CHAT, "Não é chat", "member", 19L)).getStatusCode().value());
+        verify(timelines, times(1)).save(any());
+    }
+
+    @Test
+    void communityFeedCannotQuoteChatAndMissingParentNeverPersists() {
+        setup(owner, true);
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.post(7L, Kind.POST, "Post", "owner", 18L)).getStatusCode().value());
+        when(timelines.findById(77L)).thenReturn(Optional.empty());
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.post(7L, Kind.CHAT, "Olá", "owner", 77L)).getStatusCode().value());
+        verify(timelines, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
     private CommunityTimelineEntry entry(Long id, Kind kind, Profile actor) {
         return CommunityTimelineEntry.builder()
                 .id(id).community(group).kind(kind).author(actor)
