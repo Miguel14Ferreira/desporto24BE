@@ -19,6 +19,24 @@ class CommunityRoundEventTypeTest {
         assertNull(CommunityRoundEventType.validate("Futebol", null));
     }
 
+    @Test void neutralEventsRejectFootballPointsButAllowParticipation() {
+        var participant = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "jogador", null,
+                com.example.desporto24.enumeration.CommunityMatchResult.DRAW,
+                0, 0, false, false);
+        assertDoesNotThrow(() -> CommunityRoundEventType.validateEntries(
+                "BMX", "FREESTYLE", java.util.List.of(participant)));
+        var scored = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "jogador", null,
+                com.example.desporto24.enumeration.CommunityMatchResult.WIN,
+                2, 0, false, false);
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validateEntries(
+                        "Atletismo", "JUMP", java.util.List.of(scored)));
+        assertDoesNotThrow(() -> CommunityRoundEventType.validateEntries(
+                "Futebol", null, java.util.List.of(scored)));
+    }
+
     @Test void neverConfusesFreestyleOrFieldEventsWithRaceScoring() {
         assertTrue(CommunityRoundEventType.isRaceEvent("BMX", "RACE"));
         assertTrue(CommunityRoundEventType.isRaceEvent("BMX", null)); // historic
