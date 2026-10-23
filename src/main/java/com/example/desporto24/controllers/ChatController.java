@@ -62,6 +62,7 @@ public class ChatController {
         chat.setUsername1(authentication.getName());
         chat.setUsername2(username);
         chat.setText(request.text().trim());
+        chat.setReplyToMessageId(request.replyToMessageId());
         return new ResponseEntity<>(chatService.sendMessage(chat), OK);
     }
 
@@ -116,6 +117,7 @@ public class ChatController {
         authenticatedMessage.setUsername1(authentication.getName());
         authenticatedMessage.setUsername2(other);
         authenticatedMessage.setText(request.text().trim());
+        authenticatedMessage.setReplyToMessageId(request.replyToMessageId());
         return new ResponseEntity<>(
                 chatService.sendMessage(authenticatedMessage),
                 OK

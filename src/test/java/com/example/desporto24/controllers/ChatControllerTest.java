@@ -98,6 +98,26 @@ class ChatControllerTest {
     }
 
     @Test
+    void replyRequestUsesAuthenticatedConversationAndOnlyCopiesParentId() {
+        when(authentication.getName()).thenReturn("miguel");
+        Chat saved = new Chat();
+        when(chatService.sendMessage(org.mockito.ArgumentMatchers.any(Chat.class)))
+                .thenReturn(saved);
+
+        controller.sendMyChatMessage("ana",
+                new ChatMessageRequest("  Combinado  ", 17L), authentication);
+
+        ArgumentCaptor<Chat> captor = ArgumentCaptor.forClass(Chat.class);
+        verify(chatService).sendMessage(captor.capture());
+        assertEquals("miguel", captor.getValue().getUsername1());
+        assertEquals("ana", captor.getValue().getUsername2());
+        assertEquals("Combinado", captor.getValue().getText());
+        assertEquals(17L, captor.getValue().getReplyToMessageId());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().getReplyToSender());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().getReplyToText());
+    }
+
+    @Test
     void authenticatedChatInfoDoesNotExposeProfiles() {
         when(authentication.getName()).thenReturn("miguel");
         Friend friend = new Friend();

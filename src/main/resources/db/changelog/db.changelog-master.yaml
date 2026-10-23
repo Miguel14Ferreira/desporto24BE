@@ -117,6 +117,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-23-chat-read-cursor.yaml
   - include:
+      file: db/changelog/changes/2026-10-23-direct-chat-reply-snapshot.yaml
+  - include:
       file: db/changelog/changes/2026-10-23-community-round-sport.yaml
   - include:
       file: db/changelog/changes/2026-10-23-community-round-race-metrics.yaml
