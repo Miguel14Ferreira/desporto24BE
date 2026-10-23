@@ -19,6 +19,8 @@ import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
+import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
+import com.example.desporto24.model.community.CommunityRacketRule;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRowRepository;
@@ -43,6 +45,7 @@ public class CommunityCompetitionService {
     private final CommunityPlayerRepository playerRepository;
     private final CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     private final CommunityRoundRepository roundRepository;
+    private final CommunityRacketRuleRepository racketRuleRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
     private final CommunityStandingsArchiveRepository standingsArchiveRepository;
@@ -81,6 +84,10 @@ public class CommunityCompetitionService {
                         communityId, seasonId);
 
         AcceptedAliases confirmedAliases = acceptedAliasProfiles(communityId);
+        List<CommunityRacketRuleResponse> racketRules = seasonId == null
+                ? List.of()
+                : racketRuleRepository.findBySeasonId(seasonId).stream()
+                        .map(this::racketRuleResponse).toList();
         List<CommunityRoundResponse> roundResponses = rounds.stream()
                 .map(round -> roundResponse(round, confirmedAliases)).toList();
         return new CommunityCompetitionOverviewResponse(
@@ -93,8 +100,57 @@ public class CommunityCompetitionService {
                 activeSeasonId,
                 roundResponses,
                 standings(community, seasonId, confirmedAliases),
-                CommunityRacketStandings.calculate(roundResponses)
+                CommunityRacketStandings.calculate(roundResponses, racketRules)
         );
+    }
+
+    /**
+     * Set one sport+format scoring policy for one ACTIVE season. Changes to a
+     * closed season are rejected to preserve published historical standings.
+     * Existing W/D/L, round results and other sport formats are unchanged.
+     */
+    public CommunityRacketRuleResponse updateRacketRule(
+            Long communityId, Long seasonId, String username,
+            UpdateCommunityRacketRuleRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
+        if (!season.isActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "As regras de uma época encerrada não podem ser modificadas");
+        }
+        Community community = season.getCommunity();
+        if (!community.isRankingsEnabled() ||
+                !CommunityRacketResults.isSupported(request.sport())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta comunidade ou modalidade não suporta classificações de raquete");
+        }
+        String sport;
+        try {
+            sport = CommunityRoundSport.resolve(community, request.sport());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+        if (request.winPoints() <= request.lossPoints()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Os pontos por vitória devem ser superiores aos pontos por derrota");
+        }
+        CommunityRacketRule rule = racketRuleRepository
+                .findBySeasonIdAndSportIgnoreCaseAndMatchFormat(
+                        seasonId, sport, request.matchFormat())
+                .orElseGet(() -> CommunityRacketRule.builder()
+                        .season(season).sport(sport).matchFormat(request.matchFormat()).build());
+        rule.setWinPoints(request.winPoints());
+        rule.setLossPoints(request.lossPoints());
+        rule.setTieBreak(request.tieBreak());
+        return racketRuleResponse(racketRuleRepository.save(rule));
+    }
+
+    private CommunityRacketRuleResponse racketRuleResponse(CommunityRacketRule rule) {
+        return new CommunityRacketRuleResponse(rule.getSport(), rule.getMatchFormat(),
+                rule.getWinPoints(), rule.getLossPoints(), rule.getTieBreak());
     }
 
     public CommunitySeasonResponse createSeason(

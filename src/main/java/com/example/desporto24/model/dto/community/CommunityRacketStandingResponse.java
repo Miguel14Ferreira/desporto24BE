@@ -15,5 +15,16 @@ public record CommunityRacketStandingResponse(
         int setDifference,
         int gamesOrPointsWon,
         int gamesOrPointsLost,
-        int gamesOrPointsDifference
-) {}
+        int gamesOrPointsDifference,
+        Integer championshipPoints
+) {
+    public CommunityRacketStandingResponse(int position, Long profileId,
+            String username, String fullName, String profilePicUrl,
+            int matches, int wins, int losses, int setsWon, int setsLost,
+            int setDifference, int gamesOrPointsWon, int gamesOrPointsLost,
+            int gamesOrPointsDifference) {
+        this(position, profileId, username, fullName, profilePicUrl,
+                matches, wins, losses, setsWon, setsLost, setDifference,
+                gamesOrPointsWon, gamesOrPointsLost, gamesOrPointsDifference, null);
+    }
+}

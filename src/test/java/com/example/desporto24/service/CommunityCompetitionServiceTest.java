@@ -11,6 +11,9 @@ import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunityHistoricalPlayerLink;
 import com.example.desporto24.model.community.CommunitySeason;
+import com.example.desporto24.model.community.CommunityRacketRule;
+import com.example.desporto24.model.dto.community.UpdateCommunityRacketRuleRequest;
+import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.model.community.CommunityStandingsArchive;
 import com.example.desporto24.model.dto.community.CreateCommunitySeasonRequest;
 import com.example.desporto24.model.dto.community.UpdateCommunitySeasonRequest;
@@ -53,6 +56,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityPlayerRepository playerRepository;
     @Mock private CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     @Mock private CommunityRoundRepository roundRepository;
+    @Mock private CommunityRacketRuleRepository racketRuleRepository;
     @Mock private CommunityRoundEntryRepository entryRepository;
     @Mock private CommunitySeasonRepository seasonRepository;
     @Mock private CommunityStandingsArchiveRepository standingsArchiveRepository;
@@ -532,6 +536,68 @@ class CommunityCompetitionServiceTest {
                 () -> service.deleteSeason(7L, 44L, "TMF14"));
         assertEquals(HttpStatus.NOT_FOUND, wrongCommunity.getStatusCode());
         verify(seasonRepository, never()).delete(any());
+    }
+
+    @Test
+    void ownerCanConfigureSportAndFormatForOneActiveSeason() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner)
+                .rankingsEnabled(true).sport("Ténis").sports(List.of("Ténis", "Padel")).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L)
+                .community(community).active(true).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L)).thenReturn(Optional.of(season));
+        when(racketRuleRepository.save(any(CommunityRacketRule.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var saved = service.updateRacketRule(7L, 44L, "TMF14",
+                new UpdateCommunityRacketRuleRequest("ténis", "SINGLES",
+                        3, 1, "SCORE_FIRST"));
+        assertEquals("Ténis", saved.sport());
+        assertEquals("SINGLES", saved.matchFormat());
+        assertEquals(3, saved.winPoints());
+        assertEquals(1, saved.lossPoints());
+        assertEquals("SCORE_FIRST", saved.tieBreak());
+        org.mockito.ArgumentCaptor<CommunityRacketRule> captor =
+                org.mockito.ArgumentCaptor.forClass(CommunityRacketRule.class);
+        verify(racketRuleRepository).save(captor.capture());
+        assertEquals(44L, captor.getValue().getSeason().getId());
+        assertEquals("Ténis", captor.getValue().getSport());
+    }
+
+    @Test
+    void cannotChangeRacketRulesInClosedSeason() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner)
+                .rankingsEnabled(true).sport("Ténis").build();
+        CommunitySeason season = CommunitySeason.builder().id(44L)
+                .community(community).active(false).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L)).thenReturn(Optional.of(season));
+        var ex = assertThrows(ResponseStatusException.class,
+                () -> service.updateRacketRule(7L, 44L, "TMF14",
+                        new UpdateCommunityRacketRuleRequest("Ténis", "SINGLES", 2, 0, "SETS_FIRST")));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(racketRuleRepository, never()).save(any());
+    }
+
+    @Test
+    void ordinaryMembersCannotSetRacketRulesAndOtherSportsAreRejected() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Profile member = profile(2L, "member", "Membro");
+        Community community = Community.builder().id(7L).owner(owner)
+                .rankingsEnabled(true).sport("Ténis").build();
+        when(profileRepository.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 2L))
+                .thenReturn(Optional.of(membership(community, member, CommunityRole.MEMBER)));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.updateRacketRule(7L, 44L, "member",
+                        new UpdateCommunityRacketRuleRequest("Ténis", "SINGLES", 2, 0, "SETS_FIRST")));
+        verify(racketRuleRepository, never()).save(any());
     }
 
     private Profile profile(Long id, String username, String fullName) {

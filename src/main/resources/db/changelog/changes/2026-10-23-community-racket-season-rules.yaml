@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-23-community-racket-season-rules
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_racket_rule
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_community_racket_rule
+                    nullable: false
+              - column:
+                  name: season_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sport
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: match_format
+                  type: VARCHAR(12)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: win_points
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: loss_points
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tie_break
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_racket_rule
+            columnNames: season_id, sport, match_format
+            constraintName: uq_community_racket_rule_season_sport_format
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_racket_rule
+            baseColumnNames: season_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_season
+            referencedColumnNames: id
+            constraintName: fk_community_racket_rule_season
+            onDelete: CASCADE
