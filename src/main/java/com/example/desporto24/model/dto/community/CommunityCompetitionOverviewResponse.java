@@ -8,6 +8,17 @@ public record CommunityCompetitionOverviewResponse(
         Long selectedSeasonId,
         Long activeSeasonId,
         List<CommunityRoundResponse> rounds,
-        List<CommunityStandingResponse> standings
+        List<CommunityStandingResponse> standings,
+        List<CommunityRacketStandingGroupResponse> racketStandings
 ) {
+    public CommunityCompetitionOverviewResponse(
+            CommunityCompetitionSettingsResponse settings,
+            List<CommunitySeasonResponse> seasons,
+            Long selectedSeasonId,
+            Long activeSeasonId,
+            List<CommunityRoundResponse> rounds,
+            List<CommunityStandingResponse> standings) {
+        this(settings, seasons, selectedSeasonId, activeSeasonId,
+                rounds, standings, List.of());
+    }
 }
