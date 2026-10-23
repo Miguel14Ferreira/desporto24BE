@@ -18,6 +18,7 @@ final class CommunityRoundEventType {
             "Atletismo", List.of("TRACK", "JUMP", "THROW"),
             "Snowboard", List.of("RACE", "FREESTYLE"),
             "Surf", List.of("HEAT"),
+            "Bodyboard", List.of("BODYBOARD_HEAT"),
             "Ginástica Artística", List.of("APPARATUS")
     );
 
@@ -54,14 +55,14 @@ final class CommunityRoundEventType {
                             "Esta modalidade não suporta estas marcas ou notas");
                 continue;
             }
-            if ("HEAT".equals(type)) {
+            if ("HEAT".equals(type) || "BODYBOARD_HEAT".equals(type)) {
                 if (value != null)
-                    throw new IllegalArgumentException("Baterias de surf usam notas por onda");
+                    throw new IllegalArgumentException("Baterias de ondas usam notas por onda");
                 validateWave(e.waveScore1());
                 validateWave(e.waveScore2());
             } else {
                 if (e.waveScore1() != null || e.waveScore2() != null)
-                    throw new IllegalArgumentException("Notas por onda só são permitidas no surf");
+                    throw new IllegalArgumentException("Notas por onda só são permitidas nas baterias suportadas");
                 if (value != null) {
                     if (value.scale() > 3 || value.precision() - value.scale() > 6
                             || value.signum() < 0)
