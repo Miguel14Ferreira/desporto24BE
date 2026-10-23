@@ -19,7 +19,9 @@ final class CommunityRoundEventType {
             "Snowboard", List.of("RACE", "FREESTYLE"),
             "Surf", List.of("HEAT"),
             "Bodyboard", List.of("BODYBOARD_HEAT"),
-            "Ginástica Artística", List.of("APPARATUS")
+            "Ginástica Artística", List.of("APPARATUS"),
+            "Skate", List.of("SKATE_PARK", "SKATE_STREET"),
+            "Parkour", List.of("PARKOUR_SPEED", "PARKOUR_FREESTYLE")
     );
 
     static String validate(String sport, String requested) {
@@ -53,6 +55,12 @@ final class CommunityRoundEventType {
                 if (value != null || e.waveScore1() != null || e.waveScore2() != null)
                     throw new IllegalArgumentException(
                             "Esta modalidade não suporta estas marcas ou notas");
+                if ("Parkour".equals(sport) && "PARKOUR_SPEED".equals(type)
+                        && (e.result() != CommunityMatchResult.DRAW
+                        || e.team() != null && !e.team().isBlank())) {
+                    throw new IllegalArgumentException(
+                            "Parkour Speed usa tempos e posições, não equipas nem vitórias de jogos");
+                }
                 continue;
             }
             if ("HEAT".equals(type) || "BODYBOARD_HEAT".equals(type)) {
@@ -68,10 +76,16 @@ final class CommunityRoundEventType {
                             || value.signum() < 0)
                         throw new IllegalArgumentException(
                                 "A marca ou nota deve ser positiva, até 3 casas decimais");
-                    if ("FREESTYLE".equals(type) || "APPARATUS".equals(type)) {
+                    if ("FREESTYLE".equals(type) || "APPARATUS".equals(type)
+                            || "SKATE_PARK".equals(type) || "PARKOUR_FREESTYLE".equals(type)) {
                         if (value.compareTo(new java.math.BigDecimal("100")) > 0)
                             throw new IllegalArgumentException(
                                     "A nota final registada deve estar entre 0 e 100");
+                    } else if ("SKATE_STREET".equals(type)) {
+                        // Community-entered final score, not an automatic run/trick calculation.
+                        if (value.compareTo(new java.math.BigDecimal("300")) > 0)
+                            throw new IllegalArgumentException(
+                                    "A nota final de Skate Street deve estar entre 0 e 300");
                     } else if (value.signum() <= 0) {
                         throw new IllegalArgumentException(
                                 "A marca em metros deve ser superior a zero");
@@ -100,6 +114,7 @@ final class CommunityRoundEventType {
         if (sport == null) return false;
         if ("Atletismo".equals(sport)) return "TRACK".equals(eventType);
         if ("Snowboard".equals(sport)) return "RACE".equals(eventType);
+        if ("Parkour".equals(sport)) return "PARKOUR_SPEED".equals(eventType);
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
         return CommunityRaceMetrics.isRaceSport(sport) && eventType == null;
     }
