@@ -12,6 +12,7 @@ import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunityHistoricalPlayerLink;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.CreateCommunitySeasonRequest;
+import com.example.desporto24.model.dto.community.UpdateCommunitySeasonRequest;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityHistoricalPlayerLinkRepository;
@@ -20,6 +21,7 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
+import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,10 +33,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class CommunityCompetitionServiceTest {
@@ -46,6 +51,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityRoundRepository roundRepository;
     @Mock private CommunityRoundEntryRepository entryRepository;
     @Mock private CommunitySeasonRepository seasonRepository;
+    @Mock private CommunityStandingsArchiveRepository standingsArchiveRepository;
     @Mock private ProfileRepository profileRepository;
 
     @InjectMocks
@@ -352,6 +358,122 @@ class CommunityCompetitionServiceTest {
         assertNull(entry.username());
         assertNull(entry.profileId());
         assertNull(imported.getProfile());
+    }
+
+
+    @Test
+    void renamesClosedSeasonWithoutChangingResultsOrChampion() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner)
+                .visibility(CommunityVisibility.PRIVATE).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community)
+                .name("2026/27").active(false).championUsername("TMF14")
+                .championPoints(8).championFinalized(true)
+                .startsAt(Instant.now()).createdAt(Instant.now()).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.save(season)).thenReturn(season);
+
+        var renamed = service.renameSeason(7L, 44L, "TMF14",
+                new UpdateCommunitySeasonRequest("  Liga 2026/27  "));
+
+        assertEquals("Liga 2026/27", renamed.name());
+        assertEquals("TMF14", renamed.championUsername());
+        assertEquals(8, renamed.championPoints());
+        assertEquals(false, renamed.active());
+        verify(roundRepository, never()).delete(any());
+    }
+
+    @Test
+    void deletesEmptySeasonIncludingAnEmptyClosedOne() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community)
+                .name("Teste").active(false).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
+                .thenReturn(Optional.of(season));
+
+        service.deleteEmptySeason(7L, 44L, "TMF14");
+
+        verify(seasonRepository).delete(season);
+        verify(seasonRepository).flush();
+    }
+
+    @Test
+    void neverDeletesSeasonWithAnyRound() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
+                .thenReturn(Optional.of(season));
+        when(roundRepository.existsByCommunityIdAndSeasonId(7L, 44L)).thenReturn(true);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+        verify(seasonRepository, never()).delete(any());
+    }
+
+    @Test
+    void neverDeletesSeasonWithImportedStandingsArchive() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
+                .thenReturn(Optional.of(season));
+        when(standingsArchiveRepository.existsByCommunityIdAndSeasonId(7L, 44L))
+                .thenReturn(true);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+        verify(seasonRepository, never()).delete(any());
+    }
+
+    @Test
+    void memberCannotRenameOrDeleteSeason() {
+        Profile member = profile(2L, "member", "Membro");
+        Community community = Community.builder().id(7L).owner(profile(1L, "TMF14", "Miguel")).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 2L))
+                .thenReturn(Optional.of(membership(community, member, CommunityRole.MEMBER)));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.renameSeason(7L, 44L, "member",
+                        new UpdateCommunitySeasonRequest("Novo nome")));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.deleteEmptySeason(7L, 44L, "member"));
+        verify(seasonRepository, never()).delete(any());
+    }
+
+    @Test
+    void cannotRenameOrDeleteSeasonFromAnotherCommunity() {
+        Profile owner = profile(1L, "TMF14", "Miguel");
+        Community community = Community.builder().id(7L).owner(owner).build();
+        Community other = Community.builder().id(8L).owner(owner).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(other).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.renameSeason(7L, 44L, "TMF14",
+                        new UpdateCommunitySeasonRequest("Não permitido")));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+        verify(seasonRepository, never()).delete(any());
     }
 
     private Profile profile(Long id, String username, String fullName) {
