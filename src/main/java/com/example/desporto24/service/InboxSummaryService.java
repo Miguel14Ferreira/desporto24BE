@@ -22,6 +22,7 @@ import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.websocket.DirectChatReadConfirmedEvent;
+import com.example.desporto24.websocket.InboxOwnReadUpdatedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -119,15 +120,17 @@ public class InboxSummaryService {
         InboxSummaryResponse snapshot = summary(actor, kind, key);
         if (snapshot.latestMessageId() == null) return snapshot;
         long watermark = Math.min(request.lastSeenMessageId(), snapshot.latestMessageId());
-        long previous = "direct".equals(kind)
-                ? cursors.findByProfileIdAndConversationKindAndConversationKey(
-                        actor.getId(), kind, key)
-                    .map(c -> c.getLastReadMessageId()).orElse(0L)
-                : 0L;
-        if (watermark > 0 && (!"direct".equals(kind) || watermark > previous)) {
+        long previous = cursors.findByProfileIdAndConversationKindAndConversationKey(
+                actor.getId(), kind, key)
+                .map(c -> c.getLastReadMessageId()).orElse(0L);
+        if (watermark > previous) {
             // Atomic monotonic upsert: concurrent tabs/devices must never move
             // the read cursor backwards, nor create duplicate rows.
             cursors.advance(actor.getId(), kind, key, watermark);
+            // A second tab/device can now refresh only this conversation's
+            // server-authoritative unread count without waiting for polling.
+            events.publishEvent(new InboxOwnReadUpdatedEvent(
+                    actor.getUsername(), kind, key, watermark));
             if ("direct".equals(kind)) {
                 // This durable cursor (never an inferred device receipt) is
                 // announced only AFTER_COMMIT. The listener rechecks access.
