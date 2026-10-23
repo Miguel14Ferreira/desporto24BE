@@ -8,6 +8,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityTimelineEntry;
+import com.example.desporto24.model.dto.chat.DirectReadReceiptResponse;
 import com.example.desporto24.model.dto.chat.InboxReadRequest;
 import com.example.desporto24.model.dto.chat.InboxRequest;
 import com.example.desporto24.model.dto.chat.InboxSummaryResponse;
@@ -144,6 +145,56 @@ class InboxSummaryServiceTest {
         var result = service.markRead("ana", new InboxReadRequest("community", "7", Long.MAX_VALUE));
         verify(cursors).advance(1L, "community", "7", 12L);
         assertEquals(12L, result.latestMessageId());
+    }
+
+    @Test
+    void authorizedDirectReceiptReadsOnlyThePeerCursorForThisConversation() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "Bea")));
+        ChatReadCursor cursor = new ChatReadCursor();
+        cursor.setLastReadMessageId(55L);
+        when(cursors.findByProfileIdAndConversationKindAndConversationKey(
+                2L, "direct", "ana")).thenReturn(Optional.of(cursor));
+
+        DirectReadReceiptResponse receipt = service.peerDirectReadReceipt("ana", "BEA");
+        assertEquals("bea", receipt.peerUsername());
+        assertEquals(55L, receipt.lastReadMessageId());
+        verify(chatService).getChatInfo("ana", "Bea");
+        verify(cursors).findByProfileIdAndConversationKindAndConversationKey(2L, "direct", "ana");
+        verifyNoInteractions(chats);
+    }
+
+    @Test
+    void absentReceiptDoesNotPretendMessageWasRead() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "bea")));
+        assertEquals(0L, service.peerDirectReadReceipt("ana", "bea").lastReadMessageId());
+    }
+
+    @Test
+    void deniedOrBlockedDirectChatNeverLeaksPeerCursor() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "bea")));
+        doThrow(new AccessDeniedException("Chat blocked"))
+                .when(chatService).getChatInfo("ana", "bea");
+        assertThrows(AccessDeniedException.class,
+                () -> service.peerDirectReadReceipt("ana", "bea"));
+        verifyNoInteractions(cursors);
+    }
+
+    @Test
+    void malformedPeerAndSelfReceiptAreDeniedBeforeLookingUpCursor() {
+        actor();
+        assertThrows(ResponseStatusException.class,
+                () -> service.peerDirectReadReceipt("ana", "../../admin"));
+        when(profiles.findUserByUsernameIgnoreCase("ana"))
+                .thenReturn(Optional.of(profile(1L, "ana")));
+        assertThrows(AccessDeniedException.class,
+                () -> service.peerDirectReadReceipt("ana", "ana"));
+        verifyNoInteractions(cursors);
     }
 
     @Test

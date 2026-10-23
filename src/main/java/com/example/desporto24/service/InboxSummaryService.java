@@ -7,6 +7,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityTimelineEntry;
+import com.example.desporto24.model.dto.chat.DirectReadReceiptResponse;
 import com.example.desporto24.model.dto.chat.InboxReadRequest;
 import com.example.desporto24.model.dto.chat.InboxRequest;
 import com.example.desporto24.model.dto.chat.InboxSummaryResponse;
@@ -76,6 +77,29 @@ public class InboxSummaryService {
             }
         }
         return result;
+    }
+
+    /**
+     * Recipient-authenticated read receipt for a direct chat, never an inferred
+     * delivery acknowledgement. Only authorized friends can see this watermark.
+     */
+    @Transactional(readOnly = true)
+    public DirectReadReceiptResponse peerDirectReadReceipt(String actorUsername, String peerUsername) {
+        Profile actor = requireActor(actorUsername);
+        String peerKey = canonicalKey("direct", peerUsername);
+        Profile peer = profiles.findUserByUsernameIgnoreCase(peerKey)
+                .orElseThrow(() -> new AccessDeniedException("No accessible chat"));
+        if (Objects.equals(actor.getId(), peer.getId())) {
+            throw new AccessDeniedException("No accessible chat");
+        }
+        // Existing friendship and block checks must pass before the read cursor
+        // can be queried or disclosed. Never leak cursors from other chats.
+        chatService.getChatInfo(actor.getUsername(), peer.getUsername());
+        String readerConversationKey = canonicalKey("direct", actor.getUsername());
+        long watermark = cursors.findByProfileIdAndConversationKindAndConversationKey(
+                peer.getId(), "direct", readerConversationKey)
+                .map(c -> c.getLastReadMessageId()).orElse(0L);
+        return new DirectReadReceiptResponse(peerKey, Math.max(0L, watermark));
     }
 
     @Transactional(readOnly = true)
