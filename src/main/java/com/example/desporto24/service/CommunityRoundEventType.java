@@ -23,6 +23,8 @@ final class CommunityRoundEventType {
             Map.entry("Lacrosse", List.of("LACROSSE_M_REG", "LACROSSE_M_OT")),
             Map.entry("Futebol Americano", List.of("AMFOOTBALL_SCORE")),
             Map.entry("Flag Football", List.of("FLAGFOOTBALL_SCORE")),
+            Map.entry("Curling", List.of("CURLING_REG", "CURLING_EXTRA")),
+            Map.entry("Petanca", List.of("PETANQUE_13", "PETANQUE_11")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(
