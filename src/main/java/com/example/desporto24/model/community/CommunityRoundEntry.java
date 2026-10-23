@@ -74,6 +74,13 @@ public class CommunityRoundEntry {
     @Column(name = "performance_value", precision = 9, scale = 3)
     private BigDecimal performanceValue;
 
+    // Two already-judged surfing wave marks (0..10 each), absent on legacy rounds.
+    @Column(name = "wave_score_1", precision = 5, scale = 3)
+    private BigDecimal waveScore1;
+
+    @Column(name = "wave_score_2", precision = 5, scale = 3)
+    private BigDecimal waveScore2;
+
     // Sports-specific penalty, kept separate from the measured finishing position.
     @Builder.Default
     @Column(name = "race_penalty_points", nullable = false)
