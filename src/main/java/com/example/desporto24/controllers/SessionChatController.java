@@ -29,6 +29,6 @@ public class SessionChatController {
             @PathVariable Long sessionId,
             @RequestBody @Valid SessionMessageRequest request,
             Authentication authentication) {
-        return sessionChatService.post(sessionId, request.body(), authentication.getName());
+        return sessionChatService.post(sessionId, request.body(), authentication.getName(), request.replyToMessageId());
     }
 }

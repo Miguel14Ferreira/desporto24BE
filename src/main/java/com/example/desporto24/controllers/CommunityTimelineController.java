@@ -29,7 +29,7 @@ public class CommunityTimelineController {
     public CommunityTimelineEntryResponse publish(
             @PathVariable Long communityId, @RequestBody @Valid CommunityTimelineEntryRequest request,
             Authentication authentication) {
-        return service.post(communityId, Kind.POST, request.body(), authentication.getName());
+        return service.post(communityId, Kind.POST, request.body(), authentication.getName(), request.replyToMessageId());
     }
 
     @DeleteMapping("/posts/{entryId}")
@@ -56,7 +56,7 @@ public class CommunityTimelineController {
     public CommunityTimelineEntryResponse message(
             @PathVariable Long communityId, @RequestBody @Valid CommunityTimelineEntryRequest request,
             Authentication authentication) {
-        return service.post(communityId, Kind.CHAT, request.body(), authentication.getName());
+        return service.post(communityId, Kind.CHAT, request.body(), authentication.getName(), request.replyToMessageId());
     }
 
     @DeleteMapping("/messages/{entryId}")

@@ -233,6 +233,47 @@ class SessionChatServiceTest {
         verify(messageRepository, never()).save(any());
     }
 
+    @Test
+    void sessionReplyKeepsVerifiedQuoteAndRejectsAnotherSession() {
+        Profile creator = profile(1L, "creator");
+        Profile teammate = profile(2L, "teammate");
+        Session session = session(10L, creator);
+        stubActor(session, creator);
+        SessionMessage parent = SessionMessage.builder().id(12L).session(session)
+                .senderProfile(teammate).body("Traz uma bola?").createdAt(Instant.now()).build();
+        when(messageRepository.findById(12L)).thenReturn(Optional.of(parent));
+        when(messageRepository.save(any(SessionMessage.class))).thenAnswer(inv -> {
+            SessionMessage saved = inv.getArgument(0);
+            saved.setId(13L);
+            return saved;
+        });
+        var response = service.post(10L, "Claro", "creator", 12L);
+        assertEquals(12L, response.replyToMessageId());
+        assertEquals("teammate", response.replyToSender());
+        assertEquals("Traz uma bola?", response.replyToText());
+        verify(messageRepository).save(argThat(saved -> "Claro".equals(saved.getBody())
+                && saved.getReplyToMessageId().equals(12L)));
+
+        parent.setSession(session(99L, creator));
+        assertEquals(400, assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.post(10L, "Citação estranha", "creator", 12L)).getStatusCode().value());
+        verify(messageRepository, times(1)).save(any());
+    }
+
+    @Test
+    void invalidOrMissingSessionReplyCannotPersistOrBroadcast() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator);
+        stubActor(session, creator);
+        when(messageRepository.findById(66L)).thenReturn(Optional.empty());
+        assertEquals(400, assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.post(10L, "Olá", "creator", 66L)).getStatusCode().value());
+        assertEquals(400, assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.post(10L, "Olá", "creator", -3L)).getStatusCode().value());
+        verify(messageRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
     private void stubActor(Session session, Profile actor) {
         when(sessionRepository.findById(session.getId())).thenReturn(Optional.of(session));
         when(sessionRepository.findByIdForUpdate(session.getId())).thenReturn(Optional.of(session));

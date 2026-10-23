@@ -33,4 +33,12 @@ public class SessionMessage {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    // Immutable server-owned quote; parent must belong to this session.
+    @Column(name = "reply_to_message_id")
+    private Long replyToMessageId;
+    @Column(name = "reply_to_sender", length = 128)
+    private String replyToSender;
+    @Column(name = "reply_to_text", length = 2000)
+    private String replyToText;
 }

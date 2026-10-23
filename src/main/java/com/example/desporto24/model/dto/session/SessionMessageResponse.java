@@ -7,6 +7,13 @@ public record SessionMessageResponse(
         Long sessionId,
         String senderUsername,
         String body,
-        Instant createdAt
+        Instant createdAt,
+        Long replyToMessageId,
+        String replyToSender,
+        String replyToText
 ) {
+    public SessionMessageResponse(Long id, Long sessionId, String senderUsername,
+                                  String body, Instant createdAt) {
+        this(id, sessionId, senderUsername, body, createdAt, null, null, null);
+    }
 }
