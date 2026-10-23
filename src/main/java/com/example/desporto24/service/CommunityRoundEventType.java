@@ -21,6 +21,8 @@ final class CommunityRoundEventType {
             Map.entry("Softbol", List.of("SOFTBALL_RUNS")),
             Map.entry("Corfebol", List.of("KORFBALL_REG", "KORFBALL_GOLDEN")),
             Map.entry("Lacrosse", List.of("LACROSSE_M_REG", "LACROSSE_M_OT")),
+            Map.entry("Futebol Americano", List.of("AMFOOTBALL_SCORE")),
+            Map.entry("Flag Football", List.of("FLAGFOOTBALL_SCORE")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(

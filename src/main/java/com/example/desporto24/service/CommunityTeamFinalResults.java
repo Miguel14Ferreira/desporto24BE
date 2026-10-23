@@ -6,9 +6,9 @@ import com.example.desporto24.model.dto.community.CommunityTeamFinalScore;
 import java.util.List;
 
 /**
- * Organizer-confirmed team totals (goals, rugby points, or baseball/softball
- * runs), without inventing
- * scorers, conversions, official rosters or league standings. Ice hockey
+ * Organizer-confirmed team totals (goals, rugby/football points, or baseball/
+ * softball runs), without inferring touchdowns, conversions, individual
+ * scorers, official rosters or league standings. Ice hockey
  * distinguishes regulation time, overtime, and shootout in the event type;
  * its official final score includes only the decisive shootout goal.
  */
@@ -30,7 +30,9 @@ final class CommunityTeamFinalResults {
                 || "KORFBALL_REG".equals(type)
                 || "KORFBALL_GOLDEN".equals(type)
                 || "LACROSSE_M_REG".equals(type)
-                || "LACROSSE_M_OT".equals(type);
+                || "LACROSSE_M_OT".equals(type)
+                || "AMFOOTBALL_SCORE".equals(type)
+                || "FLAGFOOTBALL_SCORE".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -53,6 +55,8 @@ final class CommunityTeamFinalResults {
                         "KORFBALL_REG".equals(eventType) || "KORFBALL_GOLDEN".equals(eventType))
                 || "Lacrosse".equals(sport) && (
                         "LACROSSE_M_REG".equals(eventType) || "LACROSSE_M_OT".equals(eventType))
+                || "Futebol Americano".equals(sport) && "AMFOOTBALL_SCORE".equals(eventType)
+                || "Flag Football".equals(sport) && "FLAGFOOTBALL_SCORE".equals(eventType)
                 || "Hóquei no Gelo".equals(sport) && (
                         "ICE_HOCKEY_REG".equals(eventType)
                         || "ICE_HOCKEY_OT".equals(eventType)
