@@ -27,6 +27,23 @@ public interface CommunityTimelineEntryRepository extends JpaRepository<Communit
                      @Param("readerId") Long readerId,
                      @Param("lastReadId") long lastReadId);
 
+    @Query(value = """
+            select e from CommunityTimelineEntry e
+            join fetch e.author
+            where e.community.id = :communityId and e.kind = :kind
+              and lower(e.body) like concat('%', :term, '%') escape '!'
+            order by e.id desc
+            """,
+            countQuery = """
+            select count(e) from CommunityTimelineEntry e
+            where e.community.id = :communityId and e.kind = :kind
+              and lower(e.body) like concat('%', :term, '%') escape '!'
+            """)
+    org.springframework.data.domain.Page<CommunityTimelineEntry> searchConversation(
+            @Param("communityId") Long communityId,
+            @Param("kind") CommunityTimelineEntry.Kind kind,
+            @Param("term") String escapedTerm, Pageable pageable);
+
     @EntityGraph(attributePaths = "author")
     List<CommunityTimelineEntry> findTop60ByCommunityIdAndKindOrderByCreatedAtDescIdDesc(
             Long communityId, CommunityTimelineEntry.Kind kind);

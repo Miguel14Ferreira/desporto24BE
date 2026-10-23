@@ -45,5 +45,23 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                      @Param("recipient") String recipient,
                      @Param("lastReadId") long lastReadId);
 
+    @Query(value = """
+            select c from Chat c
+            where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+                or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+              and lower(c.text) like concat('%', :term, '%') escape '!'
+            order by c.id desc
+            """,
+            countQuery = """
+            select count(c) from Chat c
+            where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+                or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+              and lower(c.text) like concat('%', :term, '%') escape '!'
+            """)
+    Page<Chat> searchConversation(@Param("actor") String actor,
+                                  @Param("other") String other,
+                                  @Param("term") String escapedTerm,
+                                  Pageable pageable);
+
     long deleteByUsername1OrUsername2(String username1, String username2);
 }
