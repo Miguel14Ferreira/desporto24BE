@@ -116,6 +116,7 @@ class InboxSummaryServiceTest {
         actor();
         Session session = new Session();
         session.setId(8L);
+        session.setGameDate(java.util.Date.from(Instant.now().plusSeconds(3600)));
         session.setProfile(profile(90, "organizer"));
         when(sessions.findById(8L)).thenReturn(Optional.of(session));
         assertTrue(service.summaries("ana", request(reference("session", "8"))).isEmpty());

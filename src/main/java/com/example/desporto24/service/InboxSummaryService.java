@@ -151,6 +151,9 @@ public class InboxSummaryService {
     private InboxSummaryResponse sessionSummary(Profile actor, Long id, String key, long readId) {
         Session session = sessions.findById(id)
                 .orElseThrow(() -> new AccessDeniedException("No accessible session"));
+        if (!SessionChatService.isChatOpen(session, java.time.Instant.now())) {
+            throw new AccessDeniedException("Session chat is no longer available");
+        }
         boolean owner = session.getProfile() != null
                 && Objects.equals(session.getProfile().getId(), actor.getId());
         if (!owner && !participants.existsBySessionIdAndProfileIdAndState(
