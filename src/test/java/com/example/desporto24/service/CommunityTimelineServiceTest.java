@@ -1,6 +1,9 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.websocket.CommunityChatMessageCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.mockito.ArgumentCaptor;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
@@ -33,6 +36,7 @@ class CommunityTimelineServiceTest {
     @Mock CommunityMemberRepository members;
     @Mock CommunityTimelineEntryRepository timelines;
     @Mock ProfileRepository profiles;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks CommunityTimelineService service;
 
     private final Profile owner = profile(1L, "owner");
@@ -82,6 +86,40 @@ class CommunityTimelineServiceTest {
         assertEquals(7L, response.communityId());
         verify(timelines).save(argThat(p -> p.getCreatedAt() != null
                 && p.getCommunity() == group && p.getAuthor() == member));
+    }
+
+    @Test
+    void chatMessagesAreBroadcastOnlyToCommunityMembersAfterPersistence() {
+        setup(member, true);
+        when(timelines.save(any())).thenAnswer(inv -> {
+            CommunityTimelineEntry entry = inv.getArgument(0);
+            entry.setId(44L);
+            return entry;
+        });
+        when(members.findByCommunityIdOrderByJoinedAtAsc(7L)).thenReturn(List.of(
+                CommunityMember.builder().profile(member).build()));
+        var result = service.post(7L, Kind.CHAT, "  Bora ao jogo  ", "member");
+        assertEquals("Bora ao jogo", result.body());
+        var captor = ArgumentCaptor.forClass(CommunityChatMessageCreatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(44L, captor.getValue().message().id());
+        assertEquals(7L, captor.getValue().message().communityId());
+        assertEquals("CHAT", captor.getValue().message().kind());
+        assertEquals(java.util.Set.of("owner", "member"), captor.getValue().recipients());
+        verify(timelines).save(any());
+    }
+
+    @Test
+    void feedPostsNeverBroadcastAsChatMessages() {
+        setup(owner, true);
+        when(timelines.save(any())).thenAnswer(inv -> {
+            CommunityTimelineEntry entry = inv.getArgument(0);
+            entry.setId(11L);
+            return entry;
+        });
+        service.post(7L, Kind.POST, "Notícias", "owner");
+        verifyNoInteractions(eventPublisher);
+        verify(members, never()).findByCommunityIdOrderByJoinedAtAsc(anyLong());
     }
 
     @Test
