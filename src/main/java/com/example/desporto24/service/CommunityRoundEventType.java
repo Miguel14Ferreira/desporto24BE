@@ -19,6 +19,8 @@ final class CommunityRoundEventType {
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
+            Map.entry("Futevólei", List.of(
+                    "FOOTVOLLEY_SINGLE_18", "FOOTVOLLEY_BEST_OF_3", "FOOTVOLLEY_SINGLE_15")),
             Map.entry("Andebol", List.of("HANDBALL_FINAL")),
             Map.entry("Rugby", List.of("RUGBY_FINAL")),
             Map.entry("Rugby Sevens", List.of("RUGBY_SEVENS_FINAL")),

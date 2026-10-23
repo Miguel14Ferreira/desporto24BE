@@ -433,8 +433,8 @@ public class CommunityCompetitionService {
         String groupScoresJson = CommunityGroupRoutineResults.validateAndEncode(
                 resolvedSport, resolvedEventType, request.entries(), request.groupScores());
         CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
-        // Volleyball shares the compact per-set storage format with racket sports, but
-        // not their rules, roster validation, or single/doubles match format.
+        // Volleyball, beach volleyball and footvolley reuse compact per-set storage,
+        // but each has its own scoring format; never use racket singles/doubles rules.
         boolean volleyballEvent = CommunityVolleyballResults.isVolleyballEvent(resolvedEventType);
         String encodedSetScores = volleyballEvent
                 ? CommunityVolleyballResults.validateAndEncode(
