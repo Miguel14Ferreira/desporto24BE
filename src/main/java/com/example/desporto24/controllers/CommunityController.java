@@ -194,6 +194,15 @@ public class CommunityController {
         );
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/racket-rules")
+    public ResponseEntity<CommunityRacketRuleResponse> updateRacketRule(
+            @PathVariable Long id, @PathVariable Long seasonId,
+            @RequestBody @Valid UpdateCommunityRacketRuleRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(competitionService.updateRacketRule(
+                id, seasonId, authentication.getName(), request));
+    }
+
     @PostMapping("/{id}/seasons")
     public ResponseEntity<CommunitySeasonResponse> createSeason(
             @PathVariable Long id,
