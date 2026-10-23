@@ -19,6 +19,9 @@ final class CommunityRoundEventType {
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
+            Map.entry("Andebol", List.of("HANDBALL_FINAL")),
+            Map.entry("Rugby", List.of("RUGBY_FINAL")),
+            Map.entry("Rugby Sevens", List.of("RUGBY_SEVENS_FINAL")),
             Map.entry("Atletismo", List.of("TRACK", "JUMP", "THROW")),
             Map.entry("Snowboard", List.of("RACE", "FREESTYLE")),
             Map.entry("Surf", List.of("HEAT")),
@@ -62,7 +65,8 @@ final class CommunityRoundEventType {
             List<CommunityRoundEntryRequest> entries) {
         if (CommunityGroupRoutineResults.isGroupEvent(type)
                 || CommunityBasketballResults.isBasketballEvent(type)
-                || CommunityVolleyballResults.isVolleyballEvent(type)) return;
+                || CommunityVolleyballResults.isVolleyballEvent(type)
+                || CommunityTeamFinalResults.isTeamFinalEvent(type)) return;
         boolean neutral = isNeutralEvent(sport, type);
         // Judging returns a winner for one Breaking battle, NOT a scalar score.
         // Generic season W/D/L already excludes neutral events (including this one).

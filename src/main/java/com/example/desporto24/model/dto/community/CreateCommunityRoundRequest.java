@@ -19,8 +19,20 @@ public record CreateCommunityRoundRequest(
         @Size(max = 20) String eventType,
         @Size(max = 32) String eventDiscipline,
         List<@Valid CommunityGroupRoutineScore> groupScores,
-        @Valid CommunityBasketballScore basketballScore
+        @Valid CommunityBasketballScore basketballScore,
+        @Valid CommunityTeamFinalScore teamScore
 ) {
+    // Keep the old 10-argument canonical signature source compatible.
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline,
+            List<CommunityGroupRoutineScore> groupScores,
+            CommunityBasketballScore basketballScore) {
+        this(name, playedAt, entries, sport, matchFormat, setScores,
+                eventType, eventDiscipline, groupScores, basketballScore, null);
+    }
+
     // Keep the previous group-results canonical constructor source compatible.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries, String sport,

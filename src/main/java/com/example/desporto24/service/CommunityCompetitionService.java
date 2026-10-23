@@ -428,6 +428,8 @@ public class CommunityCompetitionService {
         CommunityRaceMetrics.validate(resolvedSport, resolvedEventType, request.entries());
         CommunityBasketballScore basketballScore = CommunityBasketballResults.validate(
                 resolvedSport, resolvedEventType, request.entries(), request.basketballScore());
+        CommunityTeamFinalScore teamScore = CommunityTeamFinalResults.validate(
+                resolvedSport, resolvedEventType, request.entries(), request.teamScore());
         String groupScoresJson = CommunityGroupRoutineResults.validateAndEncode(
                 resolvedSport, resolvedEventType, request.entries(), request.groupScores());
         CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
@@ -463,6 +465,8 @@ public class CommunityCompetitionService {
                 .groupScoresJson(groupScoresJson)
                 .basketballPointsA(basketballScore == null ? null : basketballScore.sideA())
                 .basketballPointsB(basketballScore == null ? null : basketballScore.sideB())
+                .teamScoreA(teamScore == null ? null : teamScore.sideA())
+                .teamScoreB(teamScore == null ? null : teamScore.sideB())
                 .matchFormat(volleyballEvent || encodedSetScores == null ? null : request.matchFormat())
                 .setScores(encodedSetScores)
                 .playedAt(request.playedAt())
@@ -714,7 +718,9 @@ public class CommunityCompetitionService {
                 round.getEventDiscipline(),
                 CommunityGroupRoutineResults.decode(round.getGroupScoresJson()),
                 CommunityBasketballResults.decode(
-                        round.getBasketballPointsA(), round.getBasketballPointsB())
+                        round.getBasketballPointsA(), round.getBasketballPointsB()),
+                CommunityTeamFinalResults.decode(
+                        round.getTeamScoreA(), round.getTeamScoreB())
         );
     }
 
