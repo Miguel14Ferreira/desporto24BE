@@ -35,4 +35,12 @@ public class CommunityTimelineEntry {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    // Nullable snapshots survive original message deletion and pagination.
+    @Column(name = "reply_to_message_id")
+    private Long replyToMessageId;
+    @Column(name = "reply_to_sender", length = 128)
+    private String replyToSender;
+    @Column(name = "reply_to_text", length = 2000)
+    private String replyToText;
 }
