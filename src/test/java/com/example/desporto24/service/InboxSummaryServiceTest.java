@@ -21,6 +21,8 @@ import com.example.desporto24.repository.community.CommunityTimelineEntryReposit
 import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.service.interfaces.ChatService;
+import com.example.desporto24.websocket.DirectChatReadConfirmedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,6 +54,7 @@ class InboxSummaryServiceTest {
     @Mock SessionParticipantRepository participants;
     @Mock SessionMessageRepository sessionMessages;
     @Mock ChatReadCursorRepository cursors;
+    @Mock ApplicationEventPublisher events;
     @InjectMocks InboxSummaryService service;
 
     private Profile profile(long id, String username) {
