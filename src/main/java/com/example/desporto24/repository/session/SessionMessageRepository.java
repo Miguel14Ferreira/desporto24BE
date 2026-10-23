@@ -23,5 +23,21 @@ public interface SessionMessageRepository extends JpaRepository<SessionMessage, 
     long countUnread(@Param("sessionId") Long sessionId, @Param("readerId") Long readerId,
                      @Param("lastReadId") long lastReadId);
 
+    @Query(value = """
+            select m from SessionMessage m
+            join fetch m.senderProfile
+            where m.session.id = :sessionId
+              and lower(m.body) like concat('%', :term, '%') escape '!'
+            order by m.id desc
+            """,
+            countQuery = """
+            select count(m) from SessionMessage m
+            where m.session.id = :sessionId
+              and lower(m.body) like concat('%', :term, '%') escape '!'
+            """)
+    org.springframework.data.domain.Page<SessionMessage> searchConversation(
+            @Param("sessionId") Long sessionId, @Param("term") String escapedTerm,
+            Pageable pageable);
+
     long deleteBySenderProfileId(Long senderProfileId);
 }
