@@ -15,6 +15,8 @@ final class CommunityRoundEventType {
 
     private static final Map<String, List<String>> TYPES = Map.ofEntries(
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
+            Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
+            Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Atletismo", List.of("TRACK", "JUMP", "THROW")),
             Map.entry("Snowboard", List.of("RACE", "FREESTYLE")),
             Map.entry("Surf", List.of("HEAT")),
@@ -56,7 +58,8 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
-        if (CommunityGroupRoutineResults.isGroupEvent(type)) return;
+        if (CommunityGroupRoutineResults.isGroupEvent(type)
+                || CommunityBasketballResults.isBasketballEvent(type)) return;
         boolean neutral = isNeutralEvent(sport, type);
         // Judging returns a winner for one Breaking battle, NOT a scalar score.
         // Generic season W/D/L already excludes neutral events (including this one).

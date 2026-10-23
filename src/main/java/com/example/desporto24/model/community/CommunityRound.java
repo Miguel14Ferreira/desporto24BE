@@ -46,6 +46,14 @@ public class CommunityRound {
     @Column(name = "group_scores_json", columnDefinition = "text")
     private String groupScoresJson;
 
+    // One final basketball score per side; never repeated as player goals.
+    // Nullable: old community rounds are preserved without reinterpretation.
+    @Column(name = "basketball_points_a")
+    private Integer basketballPointsA;
+
+    @Column(name = "basketball_points_b")
+    private Integer basketballPointsB;
+
     // NULL for legacy rounds and for disciplines without structured set scoring.
     @Column(name = "match_format", length = 12)
     private String matchFormat;

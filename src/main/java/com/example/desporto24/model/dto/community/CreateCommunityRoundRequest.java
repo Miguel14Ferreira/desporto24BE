@@ -18,8 +18,19 @@ public record CreateCommunityRoundRequest(
         List<@Valid CommunitySetScore> setScores,
         @Size(max = 20) String eventType,
         @Size(max = 32) String eventDiscipline,
-        List<@Valid CommunityGroupRoutineScore> groupScores
+        List<@Valid CommunityGroupRoutineScore> groupScores,
+        @Valid CommunityBasketballScore basketballScore
 ) {
+    // Keep the previous group-results canonical constructor source compatible.
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline,
+            List<CommunityGroupRoutineScore> groupScores) {
+        this(name, playedAt, entries, sport, matchFormat, setScores,
+                eventType, eventDiscipline, groupScores, null);
+    }
+
     // Previous canonical constructor must remain source compatible.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries, String sport,
