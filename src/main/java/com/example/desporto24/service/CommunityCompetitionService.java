@@ -240,6 +240,8 @@ public class CommunityCompetitionService {
 
         String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
         CommunityRaceMetrics.validate(resolvedSport, request.entries());
+        String racketScores = CommunityRacketResults.validateAndEncode(
+                resolvedSport, request.matchFormat(), request.setScores(), request.entries());
 
         Set<String> usernames = new HashSet<>();
         for (CommunityRoundEntryRequest entry : request.entries()) {
@@ -258,6 +260,8 @@ public class CommunityCompetitionService {
                 .season(activeSeason)
                 .name(request.name().trim())
                 .sport(resolvedSport)
+                .matchFormat(racketScores == null ? null : request.matchFormat())
+                .setScores(racketScores)
                 .playedAt(request.playedAt())
                 .createdAt(Instant.now())
                 .build());
@@ -375,7 +379,8 @@ public class CommunityCompetitionService {
             // Preserve historical rows but never award W/D/L leaderboard points
             // from race events. A separate race championship is a later feature.
             if (entry.getRound() != null &&
-                    CommunityRaceMetrics.isRaceSport(entry.getRound().getSport())) continue;
+                    (CommunityRaceMetrics.isRaceSport(entry.getRound().getSport())
+                    || entry.getRound().getMatchFormat() != null)) continue;
             CommunityPlayer communityPlayer = entry.getCommunityPlayer();
             Profile profile = entry.getProfile() != null
                     ? entry.getProfile()
@@ -481,7 +486,9 @@ public class CommunityCompetitionService {
                 round.getName(),
                 round.getPlayedAt(),
                 entries,
-                round.getSport()
+                round.getSport(),
+                round.getMatchFormat(),
+                CommunityRacketResults.decode(round.getSetScores())
         );
     }
 
