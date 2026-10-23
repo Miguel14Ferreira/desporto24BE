@@ -33,6 +33,10 @@ public class CommunityRound {
     @Column(name = "sport", length = 100)
     private String sport;
 
+    // NULL for historical rounds; differentiates race and freestyle/field events.
+    @Column(name = "event_type", length = 20)
+    private String eventType;
+
     // NULL for legacy rounds and for disciplines without structured set scoring.
     @Column(name = "match_format", length = 12)
     private String matchFormat;
