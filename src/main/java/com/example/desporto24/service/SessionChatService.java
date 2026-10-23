@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -72,7 +74,7 @@ public class SessionChatService {
 
         requireChatAccess(session, actor);
         if (!isChatOpen(session, Instant.now())) {
-            throw new IllegalStateException("Session chat is available only before the game");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session chat is available only before the game");
         }
 
         String normalized = body == null ? "" : body.trim();
