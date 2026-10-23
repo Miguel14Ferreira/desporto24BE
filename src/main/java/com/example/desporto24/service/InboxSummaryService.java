@@ -78,6 +78,12 @@ public class InboxSummaryService {
         return result;
     }
 
+    @Transactional(readOnly = true)
+    public void requireConversationAccess(String username, String kind, String conversationId) {
+        String normalized = normalizeKind(kind);
+        summary(requireActor(username), normalized, canonicalKey(normalized, conversationId));
+    }
+
     @Transactional
     public InboxSummaryResponse markRead(String username, InboxReadRequest request) {
         Profile actor = requireActor(username);
