@@ -85,7 +85,7 @@ class ChatMessageSearchServiceTest {
 
     @Test
     void escapesSqlWildcardsAndPaginatesWithoutExposingOtherMessages() {
-        when(direct.searchConversation(eq("ana"), eq("bea"), eq("100!%_!_!!"),
+        when(direct.searchConversation(eq("ana"), eq("bea"), eq("100!%!_!_!!"),
                 eq(PageRequest.of(1, 20))))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 20), 47));
         var response = service.search("ana", "direct", "bea", "100%__!", 1);
