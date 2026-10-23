@@ -33,6 +33,13 @@ public class CommunityRound {
     @Column(name = "sport", length = 100)
     private String sport;
 
+    // NULL for legacy rounds and for disciplines without structured set scoring.
+    @Column(name = "match_format", length = 12)
+    private String matchFormat;
+
+    @Column(name = "set_scores", length = 255)
+    private String setScores;
+
     @Column(name = "played_at", nullable = false)
     private Instant playedAt;
 

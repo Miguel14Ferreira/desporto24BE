@@ -13,11 +13,17 @@ public record CreateCommunityRoundRequest(
         @NotBlank @Size(max = 100) String name,
         @NotNull Instant playedAt,
         @NotEmpty List<@Valid CommunityRoundEntryRequest> entries,
-        @Size(max = 100) String sport
+        @Size(max = 100) String sport,
+        String matchFormat,
+        List<@Valid CommunitySetScore> setScores
 ) {
-    // Existing Java callers remain source compatible.
+    // Older callers/clients do not require structured racket scores.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries) {
-        this(name, playedAt, entries, null);
+        this(name, playedAt, entries, null, null, null);
+    }
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport) {
+        this(name, playedAt, entries, sport, null, null);
     }
 }
