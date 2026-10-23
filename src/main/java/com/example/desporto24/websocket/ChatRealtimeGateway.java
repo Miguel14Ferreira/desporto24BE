@@ -162,6 +162,37 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * Own read events are private: the original reader already passed the
+     * authenticated HTTP access check. Send only to their authenticated
+     * WebSocket sessions (not to community topics or message recipients).
+     */
+    public void publishOwnInboxRead(
+            String username, String kind, String conversationId, long lastReadMessageId) {
+        if (username == null || username.isBlank()
+                || !("direct".equals(kind) || "community".equals(kind)
+                    || "session".equals(kind))
+                || conversationId == null || conversationId.isBlank()
+                || lastReadMessageId <= 0) return;
+        Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+        if (sockets == null || sockets.isEmpty()) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "INBOX_OWN_READ_UPDATED")
+                    .set("read", objectMapper.createObjectNode()
+                            .put("kind", kind)
+                            .put("conversationId", conversationId)
+                            .put("lastReadMessageId", lastReadMessageId))
+                    .toString();
+            for (WebSocketSession socket : sockets) {
+                if (!socket.isOpen()) continue;
+                try { send(socket, payload); } catch (IOException ignored) { }
+            }
+        } catch (RuntimeException ignored) {
+            // WebSocket failures never roll back the committed cursor.
+        }
+    }
+
     public void publishChatMessage(String username, Chat chat) {
         Set<WebSocketSession> sessions = sessionsByUsername.get(username);
         if (sessions == null || sessions.isEmpty()) {
