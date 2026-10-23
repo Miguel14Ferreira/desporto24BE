@@ -21,6 +21,8 @@ import com.example.desporto24.repository.community.CommunityRoundEntryRepository
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
+import com.example.desporto24.repository.community.CommunityStandingsArchiveRowRepository;
+import com.example.desporto24.model.community.CommunityStandingsArchive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class CommunityCompetitionService {
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
     private final CommunityStandingsArchiveRepository standingsArchiveRepository;
+    private final CommunityStandingsArchiveRowRepository standingsArchiveRowRepository;
     private final ProfileRepository profileRepository;
 
     @Transactional(readOnly = true)
@@ -131,19 +134,38 @@ public class CommunityCompetitionService {
         return seasonResponse(community, seasonRepository.save(season));
     }
 
-    public void deleteEmptySeason(Long communityId, Long seasonId, String username) {
+    /**
+     * Permanently removes one season and ONLY its own dependent competition data.
+     * Keeps all other seasons, unassigned rounds, community members, shared player
+     * identities and match archives with no season association untouched.
+     * Entire operation is atomic via the service's @Transactional boundary.
+     */
+    public void deleteSeason(Long communityId, Long seasonId, String username) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
-        // Lock this row until deletion so a concurrent import cannot attach history
-        // between the empty checks and the actual delete.
+        // Season imports use the same row lock: do not race an import/season deletion.
         CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
-        if (roundRepository.existsByCommunityIdAndSeasonId(communityId, seasonId)
-                || standingsArchiveRepository.existsByCommunityIdAndSeasonId(communityId, seasonId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Esta época tem jornadas ou histórico associado e não pode ser eliminada");
+
+        List<CommunityRound> rounds =
+                roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId);
+        for (CommunityRound round : rounds) {
+            entryRepository.deleteByRoundId(round.getId());
         }
+        entryRepository.flush(); // Delete children before their rounds (FK).
+        roundRepository.deleteAll(rounds);
+        roundRepository.flush();
+
+        List<CommunityStandingsArchive> archives =
+                standingsArchiveRepository.findByCommunityIdAndSeasonId(communityId, seasonId);
+        for (CommunityStandingsArchive archive : archives) {
+            standingsArchiveRowRepository.deleteByArchiveId(archive.getId());
+        }
+        standingsArchiveRowRepository.flush();
+        standingsArchiveRepository.deleteAll(archives);
+        standingsArchiveRepository.flush();
+
         seasonRepository.delete(season);
         seasonRepository.flush();
     }
