@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.Profile;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(
@@ -54,4 +55,17 @@ public class CommunityRoundEntry {
 
     @Column(name = "clean_sheet", nullable = false)
     private boolean cleanSheet;
+
+    // Optional sport-specific race metrics; absent on existing historical records.
+    @Column(name = "finish_position")
+    private Integer finishPosition;
+
+    @Column(name = "elapsed_seconds", precision = 11, scale = 3)
+    private BigDecimal elapsedSeconds;
+
+    @Column(name = "best_lap_seconds", precision = 11, scale = 3)
+    private BigDecimal bestLapSeconds;
+
+    @Column(name = "laps_completed")
+    private Integer lapsCompleted;
 }
