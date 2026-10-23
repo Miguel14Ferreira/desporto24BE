@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import org.springframework.data.domain.PageRequest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,25 @@ public class CommunityTimelineService {
                 timelineRepository.findTop60ByCommunityIdAndKindOrderByCreatedAtDescIdDesc(communityId, kind));
         if (kind == CommunityTimelineEntry.Kind.CHAT) Collections.reverse(items);
         return items.stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityTimelineEntryResponse> olderMessages(Long communityId, Long beforeId, String username) {
+        requireMember(communityId, username);
+        if (beforeId == null || beforeId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid message cursor");
+        }
+        CommunityTimelineEntry cursor = timelineRepository.findById(beforeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+        if (!communityId.equals(cursor.getCommunity().getId())
+                || cursor.getKind() != CommunityTimelineEntry.Kind.CHAT) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        List<CommunityTimelineEntry> older = new ArrayList<>(
+                timelineRepository.findByCommunityIdAndKindAndIdLessThanOrderByIdDesc(
+                        communityId, CommunityTimelineEntry.Kind.CHAT, beforeId, PageRequest.of(0, 60)));
+        Collections.reverse(older);
+        return older.stream().map(this::toResponse).toList();
     }
 
     @Transactional
