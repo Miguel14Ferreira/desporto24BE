@@ -54,6 +54,13 @@ public class CommunityRound {
     @Column(name = "basketball_points_b")
     private Integer basketballPointsB;
 
+    // Organizer-confirmed team total. Separate from basketball and individual football metrics.
+    @Column(name = "team_score_a")
+    private Integer teamScoreA;
+
+    @Column(name = "team_score_b")
+    private Integer teamScoreB;
+
     // NULL for legacy rounds and for disciplines without structured set scoring.
     @Column(name = "match_format", length = 12)
     private String matchFormat;
