@@ -6,9 +6,10 @@ import com.example.desporto24.model.dto.community.CommunityTeamFinalScore;
 import java.util.List;
 
 /**
- * Organizer-confirmed team totals (goals or rugby points), without inferring
- * scorers, tries/conversions, extra time, official rosters or league standings.
- * Draws are allowed: knockout tie-break details are not recorded here.
+ * Organizer-confirmed team totals (goals or rugby points), without inventing
+ * scorers, conversions, official rosters or league standings. Ice hockey
+ * distinguishes regulation time, overtime, and shootout in the event type;
+ * its official final score includes only the decisive shootout goal.
  */
 final class CommunityTeamFinalResults {
     private CommunityTeamFinalResults() {}
@@ -19,7 +20,10 @@ final class CommunityTeamFinalResults {
                 || "FUTSAL_FINAL".equals(type)
                 || "FIELD_HOCKEY_FINAL".equals(type)
                 || "ROLLER_HOCKEY_FINAL".equals(type)
-                || "WATER_POLO_FINAL".equals(type);
+                || "WATER_POLO_FINAL".equals(type)
+                || "ICE_HOCKEY_REG".equals(type)
+                || "ICE_HOCKEY_OT".equals(type)
+                || "ICE_HOCKEY_SO".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -35,13 +39,23 @@ final class CommunityTeamFinalResults {
                 || "Futsal".equals(sport) && "FUTSAL_FINAL".equals(eventType)
                 || "Hóquei em Campo".equals(sport) && "FIELD_HOCKEY_FINAL".equals(eventType)
                 || "Hóquei em Patins".equals(sport) && "ROLLER_HOCKEY_FINAL".equals(eventType)
-                || "Polo Aquático".equals(sport) && "WATER_POLO_FINAL".equals(eventType);
+                || "Polo Aquático".equals(sport) && "WATER_POLO_FINAL".equals(eventType)
+                || "Hóquei no Gelo".equals(sport) && (
+                        "ICE_HOCKEY_REG".equals(eventType)
+                        || "ICE_HOCKEY_OT".equals(eventType)
+                        || "ICE_HOCKEY_SO".equals(eventType));
         if (!allowed) throw new IllegalArgumentException("A prova não corresponde à modalidade");
         // Storage/API guard, not an official sporting score ceiling.
         if (score == null || score.sideA() == null || score.sideB() == null
                 || score.sideA() < 0 || score.sideB() < 0
                 || score.sideA() > 999 || score.sideB() > 999)
             throw new IllegalArgumentException("Regista dois resultados finais inteiros de 0 a 999");
+        // The extra goal in a decided OT/SO game must leave an official one-goal margin.
+        // Regulation scores may be level: that is NOT a completed IIHF winner.
+        if (("ICE_HOCKEY_OT".equals(eventType) || "ICE_HOCKEY_SO".equals(eventType))
+                && Math.abs(score.sideA() - score.sideB()) != 1)
+            throw new IllegalArgumentException(
+                    "O resultado oficial após prolongamento ou shootout exige um vencedor por um golo");
         int a = 0, b = 0;
         for (CommunityRoundEntryRequest e : entries) {
             if ("A".equals(e.team())) a++;

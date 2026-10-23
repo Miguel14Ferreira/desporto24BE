@@ -27,6 +27,8 @@ final class CommunityRoundEventType {
             Map.entry("Futsal", List.of("FUTSAL_FINAL")),
             Map.entry("Hóquei em Campo", List.of("FIELD_HOCKEY_FINAL")),
             Map.entry("Hóquei em Patins", List.of("ROLLER_HOCKEY_FINAL")),
+            Map.entry("Hóquei no Gelo", List.of(
+                    "ICE_HOCKEY_REG", "ICE_HOCKEY_OT", "ICE_HOCKEY_SO")),
             Map.entry("Polo Aquático", List.of("WATER_POLO_FINAL")),
             Map.entry("Atletismo", List.of("TRACK", "JUMP", "THROW")),
             Map.entry("Snowboard", List.of("RACE", "FREESTYLE")),
