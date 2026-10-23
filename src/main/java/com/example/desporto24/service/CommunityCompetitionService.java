@@ -20,6 +20,8 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
+import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
+import com.example.desporto24.model.community.CommunityRaceRule;
 import com.example.desporto24.model.community.CommunityRacketRule;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
@@ -46,6 +48,7 @@ public class CommunityCompetitionService {
     private final CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     private final CommunityRoundRepository roundRepository;
     private final CommunityRacketRuleRepository racketRuleRepository;
+    private final CommunityRaceRuleRepository raceRuleRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
     private final CommunityStandingsArchiveRepository standingsArchiveRepository;
@@ -88,6 +91,11 @@ public class CommunityCompetitionService {
                 ? List.of()
                 : racketRuleRepository.findBySeasonId(seasonId).stream()
                         .map(this::racketRuleResponse).toList();
+        List<CommunityRaceRuleResponse> raceRules = seasonId == null
+                ? List.of() : raceRuleRepository.findBySeasonId(seasonId).stream()
+                .map(rule -> new CommunityRaceRuleResponse(
+                        rule.getSport(), CommunityRaceStandings.parsePoints(rule.getPointsByPlace())))
+                .toList();
         List<CommunityRoundResponse> roundResponses = rounds.stream()
                 .map(round -> roundResponse(round, confirmedAliases)).toList();
         return new CommunityCompetitionOverviewResponse(
@@ -100,7 +108,8 @@ public class CommunityCompetitionService {
                 activeSeasonId,
                 roundResponses,
                 standings(community, seasonId, confirmedAliases),
-                CommunityRacketStandings.calculate(roundResponses, racketRules)
+                CommunityRacketStandings.calculate(roundResponses, racketRules),
+                CommunityRaceStandings.calculate(roundResponses, raceRules)
         );
     }
 
@@ -109,6 +118,78 @@ public class CommunityCompetitionService {
      * closed season are rejected to preserve published historical standings.
      * Existing W/D/L, round results and other sport formats are unchanged.
      */
+    /**
+     * Points are explicitly defined per active season and race discipline.
+     * No configuration => no championship points. Read-only old seasons.
+     */
+    public CommunityRaceRuleResponse updateRaceRule(Long communityId, Long seasonId,
+            String username, UpdateCommunityRaceRuleRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Época não encontrada nesta comunidade"));
+        if (!season.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Não podes alterar regras de uma época encerrada");
+        Community community = season.getCommunity();
+        if (!community.isRankingsEnabled() || !CommunityRaceMetrics.isRaceSport(request.sport()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A modalidade não suporta classificação de corrida");
+        String sport;
+        try {
+            sport = CommunityRoundSport.resolve(community, request.sport());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+        List<Integer> points;
+        try {
+            points = CommunityRaceStandings.parsePoints(request.pointsByPlace());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+        CommunityRaceRule rule = raceRuleRepository.findBySeasonIdAndSportIgnoreCase(seasonId, sport)
+                .orElseGet(() -> CommunityRaceRule.builder().season(season).sport(sport).build());
+        rule.setPointsByPlace(points.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        raceRuleRepository.save(rule);
+        return new CommunityRaceRuleResponse(sport, points);
+    }
+
+    /**
+     * Only race results in this community and its active season can be penalized.
+     * Recorded finishing position/timing is never overwritten. Reason required
+     * for positive deductions. Penalties apply per race, never to football WDL.
+     */
+    public CommunityRoundEntryResponse updateRacePenalty(Long communityId, Long roundId,
+            Long entryId, String username, UpdateCommunityRacePenaltyRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        CommunityRound round = roundRepository.findById(roundId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Prova não encontrada"));
+        if (!round.getCommunity().getId().equals(communityId) ||
+                !CommunityRaceMetrics.isRaceSport(round.getSport()))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Prova não encontrada");
+        if (round.getSeason() == null || !round.getSeason().isActive())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Só podes aplicar penalizações a provas de épocas ativas");
+        if (request.penaltyPoints() > 0 && (request.reason() == null || request.reason().isBlank()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Indica o motivo da penalização");
+        CommunityRoundEntry entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Participante não encontrado"));
+        if (!entry.getRound().getId().equals(roundId) || entry.getFinishPosition() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Só participantes classificados nesta prova podem ser penalizados");
+        entry.setRacePenaltyPoints(request.penaltyPoints());
+        entry.setRacePenaltyReason(request.penaltyPoints() == 0
+                ? null : request.reason().trim());
+        entryRepository.save(entry);
+        return roundResponse(round, acceptedAliasProfiles(communityId)).entries().stream()
+                .filter(row -> entryId.equals(row.entryId()))
+                .findFirst().orElseThrow();
+    }
+
     public CommunityRacketRuleResponse updateRacketRule(
             Long communityId, Long seasonId, String username,
             UpdateCommunityRacketRuleRequest request) {
@@ -535,7 +616,11 @@ public class CommunityCompetitionService {
                         entry.getFinishPosition(),
                         entry.getElapsedSeconds(),
                         entry.getBestLapSeconds(),
-                        entry.getLapsCompleted()
+                        entry.getLapsCompleted(),
+                        entry.getId(),
+                        historicalPlayer.getId(),
+                        entry.getRacePenaltyPoints(),
+                        entry.getRacePenaltyReason()
                     );
                 })
                 .toList();
