@@ -220,7 +220,7 @@ public class CommunityController {
             @PathVariable Long id,
             @PathVariable Long seasonId,
             Authentication authentication) {
-        competitionService.deleteEmptySeason(id, seasonId, authentication.getName());
+        competitionService.deleteSeason(id, seasonId, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 
