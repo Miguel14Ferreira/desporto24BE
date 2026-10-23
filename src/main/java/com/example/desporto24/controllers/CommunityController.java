@@ -204,6 +204,26 @@ public class CommunityController {
         );
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}")
+    public ResponseEntity<CommunitySeasonResponse> renameSeason(
+            @PathVariable Long id,
+            @PathVariable Long seasonId,
+            @RequestBody @Valid UpdateCommunitySeasonRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                competitionService.renameSeason(id, seasonId, authentication.getName(), request)
+        );
+    }
+
+    @DeleteMapping("/{id}/seasons/{seasonId}")
+    public ResponseEntity<Void> deleteSeason(
+            @PathVariable Long id,
+            @PathVariable Long seasonId,
+            Authentication authentication) {
+        competitionService.deleteEmptySeason(id, seasonId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/seasons/{seasonId}/close")
     public ResponseEntity<CommunitySeasonResponse> closeSeason(
             @PathVariable Long id,
