@@ -190,6 +190,49 @@ public class CommunityCompetitionService {
                 .findFirst().orElseThrow();
     }
 
+    /**
+     * Steward decisions never mutate the original finish place or measured time.
+     * Existing point penalties are independent; DSQ suppresses sporting points
+     * and podiums in the derived championship table.
+     */
+    public CommunityRoundEntryResponse updateRaceDecision(Long communityId, Long roundId,
+            Long entryId, String username, UpdateCommunityRaceDecisionRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        CommunityRound round = roundRepository.findById(roundId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Prova não encontrada"));
+        if (!round.getCommunity().getId().equals(communityId)
+                || !CommunityRaceMetrics.isRaceSport(round.getSport())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Prova não encontrada");
+        }
+        if (round.getSeason() == null || !round.getSeason().isActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não podes alterar decisões de épocas encerradas");
+        }
+        CommunityRoundEntry entry = entryRepository.findById(entryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Participante não encontrado"));
+        if (!entry.getRound().getId().equals(roundId) || entry.getFinishPosition() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A decisão exige um participante classificado nesta prova");
+        }
+        java.math.BigDecimal timePenalty;
+        try {
+            timePenalty = CommunityRaceDecisions.validate(request, entry.getElapsedSeconds());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+        entry.setRaceTimePenaltySeconds(timePenalty);
+        entry.setRaceDisqualified(request.disqualified());
+        entry.setRaceStewardReason(request.disqualified() || timePenalty.signum() > 0
+                ? request.reason().trim() : null);
+        entryRepository.saveAndFlush(entry);
+        return roundResponse(round, acceptedAliasProfiles(communityId)).entries().stream()
+                .filter(row -> entryId.equals(row.entryId()))
+                .findFirst().orElseThrow();
+    }
+
     public CommunityRacketRuleResponse updateRacketRule(
             Long communityId, Long seasonId, String username,
             UpdateCommunityRacketRuleRequest request) {
@@ -620,7 +663,12 @@ public class CommunityCompetitionService {
                         entry.getId(),
                         historicalPlayer.getId(),
                         entry.getRacePenaltyPoints(),
-                        entry.getRacePenaltyReason()
+                        entry.getRacePenaltyReason(),
+                        entry.getRaceTimePenaltySeconds(),
+                        CommunityRaceDecisions.adjustedTime(
+                                entry.getElapsedSeconds(), entry.getRaceTimePenaltySeconds()),
+                        entry.isRaceDisqualified(),
+                        entry.getRaceStewardReason()
                     );
                 })
                 .toList();

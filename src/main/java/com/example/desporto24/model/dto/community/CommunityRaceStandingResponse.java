@@ -10,7 +10,7 @@ public record CommunityRaceStandingResponse(
         int races,
         int wins,
         int podiums,
-        int bestFinish,
+        Integer bestFinish,
         Integer championshipPoints,
         int penaltyPoints
 ) {}

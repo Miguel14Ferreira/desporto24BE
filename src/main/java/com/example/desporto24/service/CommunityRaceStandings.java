@@ -80,6 +80,9 @@ final class CommunityRaceStandings {
                 if (place == null || entry.communityPlayerId() == null) continue;
                 Tally person = players.computeIfAbsent(entry.communityPlayerId(), ignored -> new Tally(entry));
                 person.races++;
+                // DSQ remains in participation history but earns no podium or
+                // championship points. Original finishing position stays intact.
+                if (entry.raceDisqualified()) continue;
                 if (place == 1) person.wins++;
                 if (place <= 3) person.podiums++;
                 person.bestFinish = Math.min(person.bestFinish, place);
@@ -109,7 +112,8 @@ final class CommunityRaceStandings {
                 if (i == 0 || sportCompare(ranked.get(i - 1), t, rule) != 0) position = i + 1;
                 rows.add(new CommunityRaceStandingResponse(position, t.id, t.profileId,
                         t.username, t.name, t.photo, t.races, t.wins, t.podiums,
-                        t.bestFinish, rule == null ? null : t.points,
+                        t.bestFinish == Integer.MAX_VALUE ? null : t.bestFinish,
+                        rule == null ? null : t.points,
                         t.penalties));
             }
             result.add(new CommunityRaceStandingGroupResponse(

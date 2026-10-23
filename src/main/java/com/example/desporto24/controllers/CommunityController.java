@@ -212,6 +212,15 @@ public class CommunityController {
                 id, roundId, entryId, authentication.getName(), request));
     }
 
+    @PutMapping("/{id}/rounds/{roundId}/entries/{entryId}/race-decision")
+    public ResponseEntity<CommunityRoundEntryResponse> updateRaceDecision(
+            @PathVariable Long id, @PathVariable Long roundId, @PathVariable Long entryId,
+            @RequestBody @Valid UpdateCommunityRaceDecisionRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(competitionService.updateRaceDecision(
+                id, roundId, entryId, authentication.getName(), request));
+    }
+
     @PutMapping("/{id}/seasons/{seasonId}/racket-rules")
     public ResponseEntity<CommunityRacketRuleResponse> updateRacketRule(
             @PathVariable Long id, @PathVariable Long seasonId,

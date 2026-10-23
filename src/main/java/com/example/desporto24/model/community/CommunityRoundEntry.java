@@ -76,4 +76,15 @@ public class CommunityRoundEntry {
 
     @Column(name = "race_penalty_reason", length = 255)
     private String racePenaltyReason;
+
+    @Builder.Default
+    @Column(name = "race_time_penalty_seconds", nullable = false, precision = 7, scale = 3)
+    private BigDecimal raceTimePenaltySeconds = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "race_disqualified", nullable = false)
+    private boolean raceDisqualified = false;
+
+    @Column(name = "race_steward_reason", length = 255)
+    private String raceStewardReason;
 }
