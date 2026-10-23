@@ -132,7 +132,7 @@ public class CommunityCompetitionService {
         if (!season.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "Não podes alterar regras de uma época encerrada");
         Community community = season.getCommunity();
-        if (!community.isRankingsEnabled() || !CommunityRaceMetrics.isRaceSport(request.sport()))
+        if (!community.isRankingsEnabled() || !CommunityRoundEventType.supportsRaceChampionship(request.sport()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "A modalidade não suporta classificação de corrida");
         String sport;
@@ -167,7 +167,7 @@ public class CommunityCompetitionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Prova não encontrada"));
         if (!round.getCommunity().getId().equals(communityId) ||
-                !CommunityRaceMetrics.isRaceSport(round.getSport()))
+                !CommunityRoundEventType.isRaceEvent(round.getSport(), round.getEventType()))
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Prova não encontrada");
         if (round.getSeason() == null || !round.getSeason().isActive())
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -203,7 +203,7 @@ public class CommunityCompetitionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Prova não encontrada"));
         if (!round.getCommunity().getId().equals(communityId)
-                || !CommunityRaceMetrics.isRaceSport(round.getSport())) {
+                || !CommunityRoundEventType.isRaceEvent(round.getSport(), round.getEventType())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Prova não encontrada");
         }
         if (round.getSeason() == null || !round.getSeason().isActive()) {
@@ -422,7 +422,9 @@ public class CommunityCompetitionService {
         }
 
         String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
-        CommunityRaceMetrics.validate(resolvedSport, request.entries());
+        String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
+        CommunityRaceMetrics.validate(resolvedSport, resolvedEventType, request.entries());
+        CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
         String racketScores = CommunityRacketResults.validateAndEncode(
                 resolvedSport, request.matchFormat(), request.setScores(), request.entries());
 
@@ -443,6 +445,7 @@ public class CommunityCompetitionService {
                 .season(activeSeason)
                 .name(request.name().trim())
                 .sport(resolvedSport)
+                .eventType(resolvedEventType)
                 .matchFormat(racketScores == null ? null : request.matchFormat())
                 .setScores(racketScores)
                 .playedAt(request.playedAt())
@@ -562,7 +565,10 @@ public class CommunityCompetitionService {
             // Preserve historical rows but never award W/D/L leaderboard points
             // from race events. A separate race championship is a later feature.
             if (entry.getRound() != null &&
-                    (CommunityRaceMetrics.isRaceSport(entry.getRound().getSport())
+                    (CommunityRoundEventType.isRaceEvent(entry.getRound().getSport(),
+                            entry.getRound().getEventType())
+                    || CommunityRoundEventType.isNeutralEvent(entry.getRound().getSport(),
+                            entry.getRound().getEventType())
                     || entry.getRound().getMatchFormat() != null)) continue;
             CommunityPlayer communityPlayer = entry.getCommunityPlayer();
             Profile profile = entry.getProfile() != null
@@ -680,7 +686,8 @@ public class CommunityCompetitionService {
                 entries,
                 round.getSport(),
                 round.getMatchFormat(),
-                CommunityRacketResults.decode(round.getSetScores())
+                CommunityRacketResults.decode(round.getSetScores()),
+                round.getEventType()
         );
     }
 

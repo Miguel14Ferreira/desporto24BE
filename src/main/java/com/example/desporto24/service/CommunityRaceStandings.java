@@ -59,7 +59,7 @@ final class CommunityRaceStandings {
         Map<String, Map<Long, Tally>> totals = new LinkedHashMap<>();
         Map<String, String> display = new HashMap<>();
         for (CommunityRoundResponse round : rounds) {
-            if (round == null || !CommunityRaceMetrics.isRaceSport(round.sport())
+            if (round == null || !CommunityRoundEventType.isRaceEvent(round.sport(), round.eventType())
                     || round.entries() == null) continue;
             String sport = round.sport().trim().toLowerCase(Locale.ROOT);
             CommunityRaceRuleResponse rule = bySport.get(sport);

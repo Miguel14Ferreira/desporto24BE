@@ -15,15 +15,21 @@ public record CreateCommunityRoundRequest(
         @NotEmpty List<@Valid CommunityRoundEntryRequest> entries,
         @Size(max = 100) String sport,
         String matchFormat,
-        List<@Valid CommunitySetScore> setScores
+        List<@Valid CommunitySetScore> setScores,
+        @Size(max = 20) String eventType
 ) {
     // Older callers/clients do not require structured racket scores.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries) {
-        this(name, playedAt, entries, null, null, null);
+        this(name, playedAt, entries, null, null, null, null);
     }
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries, String sport) {
-        this(name, playedAt, entries, sport, null, null);
+        this(name, playedAt, entries, sport, null, null, null);
+    }
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores) {
+        this(name, playedAt, entries, sport, matchFormat, setScores, null);
     }
 }
