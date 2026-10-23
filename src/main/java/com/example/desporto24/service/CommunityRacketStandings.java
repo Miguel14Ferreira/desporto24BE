@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.dto.community.CommunityRacketStandingGroupResponse;
 import com.example.desporto24.model.dto.community.CommunityRacketStandingResponse;
 import com.example.desporto24.model.dto.community.CommunityRoundEntryResponse;
@@ -65,6 +66,7 @@ final class CommunityRacketStandings {
 
     static List<CommunityRacketStandingGroupResponse> calculate(List<CommunityRoundResponse> rounds) {
         Map<GroupKey, Map<Long, PlayerTotals>> groups = new LinkedHashMap<>();
+        Map<GroupKey, String> displaySports = new HashMap<>();
         for (CommunityRoundResponse round : rounds) {
             if (round == null || !CommunityRacketResults.isSupported(round.sport())
                     || (!"SINGLES".equals(round.matchFormat())
@@ -101,12 +103,15 @@ final class CommunityRacketStandings {
             if (!valid || setsA == setsB) continue;
             boolean aWon = setsA > setsB;
             // All recorded player outcomes must agree with the actual match score.
-            if (a.stream().anyMatch(p -> !"WIN".equals(p.result().name()) == aWon)
-                    || b.stream().anyMatch(p -> !"WIN".equals(p.result().name()) != aWon)) {
+            if (a.stream().anyMatch(p -> p.result() !=
+                    (aWon ? CommunityMatchResult.WIN : CommunityMatchResult.LOSS))
+                    || b.stream().anyMatch(p -> p.result() !=
+                    (aWon ? CommunityMatchResult.LOSS : CommunityMatchResult.WIN))) {
                 continue;
             }
             GroupKey key = new GroupKey(round.sport().trim().toLowerCase(Locale.ROOT),
                     round.matchFormat());
+            displaySports.putIfAbsent(key, round.sport().trim());
             Map<Long, PlayerTotals> players = groups.computeIfAbsent(key, ignored -> new HashMap<>());
             recordSide(players, a, aWon, setsA, setsB, scoreA, scoreB);
             recordSide(players, b, !aWon, setsB, setsA, scoreB, scoreA);
@@ -131,7 +136,7 @@ final class CommunityRacketStandings {
                                 p.setsDifference(), p.scored, p.conceded, p.scoreDifference()));
                     }
                     response.add(new CommunityRacketStandingGroupResponse(
-                            group.getKey().sport(), group.getKey().format(), List.copyOf(rows)));
+                            displaySports.get(group.getKey()), group.getKey().format(), List.copyOf(rows)));
                 });
         return List.copyOf(response);
     }
