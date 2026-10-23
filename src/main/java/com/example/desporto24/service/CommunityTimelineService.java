@@ -1,6 +1,10 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.websocket.CommunityChatMessageCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
@@ -29,6 +33,7 @@ public class CommunityTimelineService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityTimelineEntryRepository timelineRepository;
     private final ProfileRepository profileRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<CommunityTimelineEntryResponse> list(Long communityId, CommunityTimelineEntry.Kind kind, String username) {
@@ -55,7 +60,18 @@ public class CommunityTimelineService {
                 .body(normalized)
                 .createdAt(Instant.now())
                 .build());
-        return toResponse(saved);
+        CommunityTimelineEntryResponse response = toResponse(saved);
+        if (kind == CommunityTimelineEntry.Kind.CHAT) {
+            // Fan out to current members only; the listener delivers AFTER_COMMIT.
+            Set<String> recipients = new LinkedHashSet<>();
+            if (access.community().getOwner() != null) {
+                recipients.add(access.community().getOwner().getUsername());
+            }
+            memberRepository.findByCommunityIdOrderByJoinedAtAsc(communityId)
+                    .forEach(member -> recipients.add(member.getProfile().getUsername()));
+            eventPublisher.publishEvent(new CommunityChatMessageCreatedEvent(response, recipients));
+        }
+        return response;
     }
 
     @Transactional
