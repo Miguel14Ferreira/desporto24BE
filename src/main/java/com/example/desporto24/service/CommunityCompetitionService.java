@@ -25,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.*;
@@ -135,10 +137,11 @@ public class CommunityCompetitionService {
         // Lock this row until deletion so a concurrent import cannot attach history
         // between the empty checks and the actual delete.
         CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
-                .orElseThrow(() -> new IllegalArgumentException("Época não encontrada nesta comunidade"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
         if (roundRepository.existsByCommunityIdAndSeasonId(communityId, seasonId)
                 || standingsArchiveRepository.existsByCommunityIdAndSeasonId(communityId, seasonId)) {
-            throw new IllegalStateException(
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta época tem jornadas ou histórico associado e não pode ser eliminada");
         }
         seasonRepository.delete(season);
