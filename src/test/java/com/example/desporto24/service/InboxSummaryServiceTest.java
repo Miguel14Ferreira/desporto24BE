@@ -201,6 +201,49 @@ class InboxSummaryServiceTest {
     }
 
     @Test
+    void advancingDirectReadCursorNotifiesOnlyAfterPersistingTheClampedWatermark() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "Bea")));
+        Chat latest = new Chat("Bea", "ana", "Olá", "",
+                Date.from(Instant.parse("2026-10-23T08:00:00Z")));
+        latest.setId(45L);
+        when(chats.findConversationPage(eq("ana"), eq("Bea"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(latest)));
+        ChatReadCursor previous = new ChatReadCursor();
+        previous.setLastReadMessageId(40L);
+        when(cursors.findByProfileIdAndConversationKindAndConversationKey(1L, "direct", "bea"))
+                .thenReturn(Optional.of(previous));
+
+        service.markRead("ana", new InboxReadRequest("direct", "bea", Long.MAX_VALUE));
+
+        var order = inOrder(cursors, events);
+        order.verify(cursors).advance(1L, "direct", "bea", 45L);
+        order.verify(events).publishEvent(new DirectChatReadConfirmedEvent("ana", "Bea", 45L));
+    }
+
+    @Test
+    void alreadyReadDirectMessageDoesNotRepublishReadEvent() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "Bea")));
+        Chat latest = new Chat("Bea", "ana", "Olá", "",
+                Date.from(Instant.parse("2026-10-23T08:00:00Z")));
+        latest.setId(45L);
+        when(chats.findConversationPage(eq("ana"), eq("Bea"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(latest)));
+        ChatReadCursor previous = new ChatReadCursor();
+        previous.setLastReadMessageId(45L);
+        when(cursors.findByProfileIdAndConversationKindAndConversationKey(1L, "direct", "bea"))
+                .thenReturn(Optional.of(previous));
+
+        service.markRead("ana", new InboxReadRequest("direct", "bea", 45L));
+
+        verify(cursors, never()).advance(anyLong(), anyString(), anyString(), anyLong());
+        verifyNoInteractions(events);
+    }
+
+    @Test
     void rejectsUnknownKindsAndMalformedIdsWithoutQueryingMessages() {
         actor();
         assertThrows(ResponseStatusException.class,
