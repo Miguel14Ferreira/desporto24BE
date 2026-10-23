@@ -144,6 +144,41 @@ class CommunityTimelineServiceTest {
     }
 
     @Test
+    void olderMessagesRequireMembershipAndReturnOrderedBoundedHistory() {
+        setup(member, true);
+        var cursor = entry(91L, Kind.CHAT, member);
+        when(timelines.findById(91L)).thenReturn(Optional.of(cursor));
+        when(timelines.findByCommunityIdAndKindAndIdLessThanOrderByIdDesc(
+                eq(7L), eq(Kind.CHAT), eq(91L), any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of(entry(90L, Kind.CHAT, owner), entry(89L, Kind.CHAT, member)));
+        var result = service.olderMessages(7L, 91L, "member");
+        assertEquals(List.of(89L, 90L), result.stream().map(x -> x.id()).toList());
+        verify(timelines).findByCommunityIdAndKindAndIdLessThanOrderByIdDesc(
+                eq(7L), eq(Kind.CHAT), eq(91L),
+                argThat(page -> page.getPageSize() == 60 && page.getPageNumber() == 0));
+    }
+
+    @Test
+    void olderMessagesCannotBeQueriedByOutsidersOrWithForeignCursor() {
+        setup(outsider, false);
+        assertThrows(AccessDeniedException.class,
+                () -> service.olderMessages(7L, 91L, "outsider"));
+        verifyNoInteractions(timelines);
+    }
+
+    @Test
+    void olderMessagesRejectPostCursorAndInvalidIdentifiers() {
+        setup(owner, true);
+        when(timelines.findById(91L)).thenReturn(Optional.of(entry(91L, Kind.POST, member)));
+        assertThrows(ResponseStatusException.class,
+                () -> service.olderMessages(7L, 91L, "owner"));
+        assertThrows(ResponseStatusException.class,
+                () -> service.olderMessages(7L, 0L, "owner"));
+        verify(timelines, never()).findByCommunityIdAndKindAndIdLessThanOrderByIdDesc(
+                anyLong(), any(), anyLong(), any());
+    }
+
+    @Test
     void nonModeratorCannotDeleteSomeoneElsesPost() {
         setup(member, true);
         when(timelines.findById(22L)).thenReturn(Optional.of(entry(22L, Kind.POST, owner)));

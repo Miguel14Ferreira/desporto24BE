@@ -45,6 +45,13 @@ public class CommunityTimelineController {
         return service.list(communityId, Kind.CHAT, authentication.getName());
     }
 
+    @GetMapping("/messages/older")
+    public List<CommunityTimelineEntryResponse> olderMessages(
+            @PathVariable Long communityId, @RequestParam Long before,
+            Authentication authentication) {
+        return service.olderMessages(communityId, before, authentication.getName());
+    }
+
     @PostMapping("/messages")
     public CommunityTimelineEntryResponse message(
             @PathVariable Long communityId, @RequestBody @Valid CommunityTimelineEntryRequest request,
