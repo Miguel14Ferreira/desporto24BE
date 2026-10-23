@@ -178,6 +178,24 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         }
     }
 
+    public void publishChatReaction(Set<String> usernames, ChatReactionChangedEvent reaction) {
+        if (usernames == null || usernames.isEmpty() || reaction == null) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "CHAT_REACTION_CHANGED")
+                    .set("reaction", objectMapper.valueToTree(reaction))
+                    .toString();
+            for (String username : usernames) {
+                Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+                if (sockets == null) continue;
+                for (WebSocketSession socket : sockets) {
+                    if (!socket.isOpen()) continue;
+                    try { send(socket, payload); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) { }
+    }
+
     private void send(WebSocketSession session, String payload) throws IOException {
         synchronized (session) {
             if (session.isOpen()) {
