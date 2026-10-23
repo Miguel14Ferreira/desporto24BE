@@ -32,7 +32,11 @@ final class CommunityTeamFinalResults {
                 || "LACROSSE_M_REG".equals(type)
                 || "LACROSSE_M_OT".equals(type)
                 || "AMFOOTBALL_SCORE".equals(type)
-                || "FLAGFOOTBALL_SCORE".equals(type);
+                || "FLAGFOOTBALL_SCORE".equals(type)
+                || "CURLING_REG".equals(type)
+                || "CURLING_EXTRA".equals(type)
+                || "PETANQUE_13".equals(type)
+                || "PETANQUE_11".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -57,6 +61,10 @@ final class CommunityTeamFinalResults {
                         "LACROSSE_M_REG".equals(eventType) || "LACROSSE_M_OT".equals(eventType))
                 || "Futebol Americano".equals(sport) && "AMFOOTBALL_SCORE".equals(eventType)
                 || "Flag Football".equals(sport) && "FLAGFOOTBALL_SCORE".equals(eventType)
+                || "Curling".equals(sport) && (
+                        "CURLING_REG".equals(eventType) || "CURLING_EXTRA".equals(eventType))
+                || "Petanca".equals(sport) && (
+                        "PETANQUE_13".equals(eventType) || "PETANQUE_11".equals(eventType))
                 || "Hóquei no Gelo".equals(sport) && (
                         "ICE_HOCKEY_REG".equals(eventType)
                         || "ICE_HOCKEY_OT".equals(eventType)
@@ -77,6 +85,20 @@ final class CommunityTeamFinalResults {
                 && Math.abs(score.sideA() - score.sideB()) != 1)
             throw new IllegalArgumentException(
                     "O desempate por golo decisivo exige um vencedor por exatamente um golo");
+        // World Curling: tied regulation requires extra ends. An extra-end
+        // result denotes a decided game, but the winning margin is NOT capped
+        // at one (several stones can score in an end).
+        if ("CURLING_EXTRA".equals(eventType) && score.sideA().equals(score.sideB()))
+            throw new IllegalArgumentException("Após extra ends, o Curling exige um vencedor");
+        // FIPJP: the selected untimed game targets 13, or 11 in permitted
+        // league/qualifying formats. Timed/shortened games need a separate type.
+        int petanqueTarget = "PETANQUE_13".equals(eventType) ? 13
+                : "PETANQUE_11".equals(eventType) ? 11 : 0;
+        if (petanqueTarget > 0 && (
+                Math.max(score.sideA(), score.sideB()) != petanqueTarget
+                || Math.min(score.sideA(), score.sideB()) >= petanqueTarget))
+            throw new IllegalArgumentException(
+                    "Petanca: uma equipa tem de atingir exatamente os pontos do formato selecionado");
         int a = 0, b = 0;
         for (CommunityRoundEntryRequest e : entries) {
             if ("A".equals(e.team())) a++;
@@ -95,6 +117,10 @@ final class CommunityTeamFinalResults {
         }
         if (a == 0 || b == 0)
             throw new IllegalArgumentException("Regista participantes nas duas equipas");
+        // FIPJP permits singles (1v1), doubles (2v2), or triples (3v3).
+        if (petanqueTarget > 0 && (a != b || a > 3))
+            throw new IllegalArgumentException(
+                    "Petanca exige singulares, pares ou triplos com equipas da mesma dimensão");
         return score;
     }
 
