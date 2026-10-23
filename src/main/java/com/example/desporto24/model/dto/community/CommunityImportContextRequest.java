@@ -9,10 +9,16 @@ public record CommunityImportContextRequest(
         @NotNull Long seasonId,
         @Min(1900) @Max(2100) Integer defaultYear,
         @Size(max = 60) String sourceCompetition,
-        @Size(max = 40) String sourceRound
+        @Size(max = 40) String sourceRound,
+        @Size(max = 100) String sport
 ) {
-    // Keep Java callers and old JSON files compatible with the two original fields.
+    // Keep Java callers and old JSON payloads compatible.
     public CommunityImportContextRequest(Long seasonId, Integer defaultYear) {
-        this(seasonId, defaultYear, null, null);
+        this(seasonId, defaultYear, null, null, null);
+    }
+
+    public CommunityImportContextRequest(Long seasonId, Integer defaultYear,
+            String sourceCompetition, String sourceRound) {
+        this(seasonId, defaultYear, sourceCompetition, sourceRound, null);
     }
 }

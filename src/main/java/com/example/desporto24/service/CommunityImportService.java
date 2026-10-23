@@ -705,6 +705,7 @@ public class CommunityImportService {
                         .community(community)
                         .season(season)
                         .name(importedName)
+                        .sport(CommunityRoundSport.resolve(community, context.sport()))
                         .playedAt(playedAt)
                         .createdAt(Instant.now())
                         .build());

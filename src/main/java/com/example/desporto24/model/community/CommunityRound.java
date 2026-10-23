@@ -29,6 +29,10 @@ public class CommunityRound {
     @Column(nullable = false, length = 100)
     private String name;
 
+    // Historical rows remain null until their discipline is explicitly known.
+    @Column(name = "sport", length = 100)
+    private String sport;
+
     @Column(name = "played_at", nullable = false)
     private Instant playedAt;
 

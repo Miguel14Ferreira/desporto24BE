@@ -7,6 +7,11 @@ public record CommunityRoundResponse(
         Long id,
         String name,
         Instant playedAt,
-        List<CommunityRoundEntryResponse> entries
+        List<CommunityRoundEntryResponse> entries,
+        String sport
 ) {
+    public CommunityRoundResponse(Long id, String name, Instant playedAt,
+            List<CommunityRoundEntryResponse> entries) {
+        this(id, name, playedAt, entries, null);
+    }
 }

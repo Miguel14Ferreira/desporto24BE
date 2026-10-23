@@ -12,6 +12,12 @@ import java.util.List;
 public record CreateCommunityRoundRequest(
         @NotBlank @Size(max = 100) String name,
         @NotNull Instant playedAt,
-        @NotEmpty List<@Valid CommunityRoundEntryRequest> entries
+        @NotEmpty List<@Valid CommunityRoundEntryRequest> entries,
+        @Size(max = 100) String sport
 ) {
+    // Existing Java callers remain source compatible.
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries) {
+        this(name, playedAt, entries, null);
+    }
 }
