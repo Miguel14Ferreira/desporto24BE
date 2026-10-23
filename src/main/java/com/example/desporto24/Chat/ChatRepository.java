@@ -34,5 +34,16 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                                       @Param("beforeId") Long beforeId,
                                       Pageable pageable);
 
+    @Query("""
+            select count(c) from Chat c
+            where ((c.username1 = :sender and c.username2 = :recipient)
+                or (c.username1 = :recipient and c.username2 = :sender))
+              and c.id > :lastReadId
+              and c.username1 = :recipient
+            """)
+    long countUnread(@Param("sender") String sender,
+                     @Param("recipient") String recipient,
+                     @Param("lastReadId") long lastReadId);
+
     long deleteByUsername1OrUsername2(String username1, String username2);
 }
