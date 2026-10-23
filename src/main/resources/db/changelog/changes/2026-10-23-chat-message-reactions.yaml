@@ -1,0 +1,51 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-23-chat-message-reactions
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: chat_message_reaction
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_chat_message_reaction
+                    nullable: false
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_kind
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: emoji
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: chat_message_reaction
+            columnNames: profile_id,conversation_kind,message_id
+            constraintName: uq_chat_reaction_actor_message
+        - createIndex:
+            schemaName: desporto24
+            tableName: chat_message_reaction
+            indexName: idx_chat_reaction_lookup
+            columns:
+              - column:
+                  name: conversation_kind
+              - column:
+                  name: message_id
