@@ -134,6 +134,34 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * A server-confirmed direct read cursor, sent only to the authenticated
+     * original sender. The caller must revalidate friendship/blocks. This
+     * socket event is emitted after the cursor transaction commits.
+     */
+    public void publishDirectReadReceipt(
+            String senderUsername, String readerUsername, long lastReadMessageId) {
+        if (senderUsername == null || readerUsername == null
+                || senderUsername.equalsIgnoreCase(readerUsername)
+                || lastReadMessageId <= 0) return;
+        Set<WebSocketSession> sockets = sessionsByUsername.get(senderUsername);
+        if (sockets == null || sockets.isEmpty()) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "CHAT_READ_RECEIPT")
+                    .set("receipt", objectMapper.createObjectNode()
+                            .put("peerUsername", readerUsername)
+                            .put("lastReadMessageId", lastReadMessageId))
+                    .toString();
+            for (WebSocketSession socket : sockets) {
+                if (!socket.isOpen()) continue;
+                try { send(socket, payload); } catch (IOException ignored) { }
+            }
+        } catch (RuntimeException ignored) {
+            // Polling the persisted GET remains the recovery path.
+        }
+    }
+
     public void publishChatMessage(String username, Chat chat) {
         Set<WebSocketSession> sessions = sessionsByUsername.get(username);
         if (sessions == null || sessions.isEmpty()) {

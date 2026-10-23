@@ -21,6 +21,8 @@ import com.example.desporto24.repository.community.CommunityTimelineEntryReposit
 import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.service.interfaces.ChatService;
+import com.example.desporto24.websocket.DirectChatReadConfirmedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -52,6 +54,7 @@ class InboxSummaryServiceTest {
     @Mock SessionParticipantRepository participants;
     @Mock SessionMessageRepository sessionMessages;
     @Mock ChatReadCursorRepository cursors;
+    @Mock ApplicationEventPublisher events;
     @InjectMocks InboxSummaryService service;
 
     private Profile profile(long id, String username) {
@@ -195,6 +198,49 @@ class InboxSummaryServiceTest {
         assertThrows(AccessDeniedException.class,
                 () -> service.peerDirectReadReceipt("ana", "ana"));
         verifyNoInteractions(cursors);
+    }
+
+    @Test
+    void advancingDirectReadCursorNotifiesOnlyAfterPersistingTheClampedWatermark() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "Bea")));
+        Chat latest = new Chat("Bea", "ana", "Olá", "",
+                Date.from(Instant.parse("2026-10-23T08:00:00Z")));
+        latest.setId(45L);
+        when(chats.findConversationPage(eq("ana"), eq("Bea"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(latest)));
+        ChatReadCursor previous = new ChatReadCursor();
+        previous.setLastReadMessageId(40L);
+        when(cursors.findByProfileIdAndConversationKindAndConversationKey(1L, "direct", "bea"))
+                .thenReturn(Optional.of(previous));
+
+        service.markRead("ana", new InboxReadRequest("direct", "bea", Long.MAX_VALUE));
+
+        var order = inOrder(cursors, events);
+        order.verify(cursors).advance(1L, "direct", "bea", 45L);
+        order.verify(events).publishEvent(new DirectChatReadConfirmedEvent("ana", "Bea", 45L));
+    }
+
+    @Test
+    void alreadyReadDirectMessageDoesNotRepublishReadEvent() {
+        actor();
+        when(profiles.findUserByUsernameIgnoreCase("bea"))
+                .thenReturn(Optional.of(profile(2L, "Bea")));
+        Chat latest = new Chat("Bea", "ana", "Olá", "",
+                Date.from(Instant.parse("2026-10-23T08:00:00Z")));
+        latest.setId(45L);
+        when(chats.findConversationPage(eq("ana"), eq("Bea"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(latest)));
+        ChatReadCursor previous = new ChatReadCursor();
+        previous.setLastReadMessageId(45L);
+        when(cursors.findByProfileIdAndConversationKindAndConversationKey(1L, "direct", "bea"))
+                .thenReturn(Optional.of(previous));
+
+        service.markRead("ana", new InboxReadRequest("direct", "bea", 45L));
+
+        verify(cursors, never()).advance(anyLong(), anyString(), anyString(), anyLong());
+        verifyNoInteractions(events);
     }
 
     @Test

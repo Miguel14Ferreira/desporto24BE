@@ -21,6 +21,8 @@ import com.example.desporto24.repository.community.CommunityTimelineEntryReposit
 import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.service.interfaces.ChatService;
+import com.example.desporto24.websocket.DirectChatReadConfirmedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -55,6 +57,7 @@ public class InboxSummaryService {
     private final SessionParticipantRepository participants;
     private final SessionMessageRepository sessionMessages;
     private final ChatReadCursorRepository cursors;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public List<InboxSummaryResponse> summaries(String username, InboxRequest request) {
@@ -116,10 +119,23 @@ public class InboxSummaryService {
         InboxSummaryResponse snapshot = summary(actor, kind, key);
         if (snapshot.latestMessageId() == null) return snapshot;
         long watermark = Math.min(request.lastSeenMessageId(), snapshot.latestMessageId());
-        if (watermark > 0) {
+        long previous = "direct".equals(kind)
+                ? cursors.findByProfileIdAndConversationKindAndConversationKey(
+                        actor.getId(), kind, key)
+                    .map(c -> c.getLastReadMessageId()).orElse(0L)
+                : 0L;
+        if (watermark > 0 && (!"direct".equals(kind) || watermark > previous)) {
             // Atomic monotonic upsert: concurrent tabs/devices must never move
             // the read cursor backwards, nor create duplicate rows.
             cursors.advance(actor.getId(), kind, key, watermark);
+            if ("direct".equals(kind)) {
+                // This durable cursor (never an inferred device receipt) is
+                // announced only AFTER_COMMIT. The listener rechecks access.
+                Profile sender = profiles.findUserByUsernameIgnoreCase(key)
+                        .orElseThrow(() -> new AccessDeniedException("No accessible chat"));
+                events.publishEvent(new DirectChatReadConfirmedEvent(
+                        actor.getUsername(), sender.getUsername(), watermark));
+            }
         }
         return summary(actor, kind, key);
     }
