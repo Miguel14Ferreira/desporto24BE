@@ -17,6 +17,8 @@ import com.example.desporto24.websocket.SessionChatMessageCreatedEvent;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Date;
@@ -176,7 +178,7 @@ class SessionChatServiceTest {
         Session session = session(10L, creator);
         session.setGameDate(Date.from(Instant.now().minusSeconds(1)));
         stubActor(session, creator);
-        assertThrows(IllegalStateException.class,
+        assertThrows(ResponseStatusException.class,
                 () -> service.post(10L, "new message", "creator"));
         assertThrows(AccessDeniedException.class,
                 () -> service.messages(10L, "creator"));
@@ -193,7 +195,7 @@ class SessionChatServiceTest {
         when(messageRepository.save(any(SessionMessage.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(ResponseStatusException.class,
                 () -> service.post(10L, "still playing", "creator"));
         verify(messageRepository, never()).save(any(SessionMessage.class));
     }
@@ -209,15 +211,29 @@ class SessionChatServiceTest {
                 SessionStatus.COMPLETED, SessionStatus.CANCELLED
         }) {
             session.setStatus(status);
-            assertThrows(IllegalStateException.class,
+            assertThrows(ResponseStatusException.class,
                     () -> service.post(10L, "after the game", "creator"));
         }
 
         session.setStatus(SessionStatus.OPEN);
         session.setProblemType(SessionProblemType.NOT_OCCURRED);
-        assertThrows(IllegalStateException.class,
+        assertThrows(ResponseStatusException.class,
                 () -> service.post(10L, "game did not happen", "creator"));
         verify(messageRepository, never()).save(any());
+    }
+
+    @Test
+    void expiredChatPostReturnsConflictInsteadOfInternalServerError() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(2)));
+        stubActor(session, creator);
+
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> service.post(10L, "too late", "creator"));
+        assertEquals(HttpStatus.CONFLICT, blocked.getStatusCode());
+        verifyNoInteractions(messageRepository);
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
