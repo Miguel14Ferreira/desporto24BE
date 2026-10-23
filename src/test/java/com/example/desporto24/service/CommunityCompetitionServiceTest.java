@@ -125,6 +125,38 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void raceRecordsNeverEarnFootballPointsAndOtherRoundsRemainUnchanged() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community group = Community.builder()
+                .id(7L).name("CNG").owner(owner).rankingsEnabled(true)
+                .winPoints(3).drawPoints(1).lossPoints(0).build();
+        var race = entry(owner, CommunityMatchResult.WIN, 0, 0, false, false);
+        race.setRound(CommunityRound.builder().id(11L).community(group).sport("Karting").build());
+        var football = entry(owner, CommunityMatchResult.WIN, 2, 0, false, false);
+        football.setRound(CommunityRound.builder().id(12L).community(group).sport("Futebol").build());
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(group));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(group, owner, CommunityRole.OWNER)));
+        when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
+                .thenReturn(List.of());
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+        when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
+                .thenReturn(List.of(race, football));
+
+        var standings = service.overview(7L, "TMF14").standings();
+        assertEquals(1, standings.size());
+        assertEquals(1, standings.get(0).games());
+        assertEquals(1, standings.get(0).wins());
+        assertEquals(3, standings.get(0).points());
+        assertEquals(2, standings.get(0).goals());
+    }
+
+    @Test
     void createsAnActiveSeasonWhenNoSeasonIsOpen() {
         Profile miguel = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder()

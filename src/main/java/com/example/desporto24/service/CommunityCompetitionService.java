@@ -238,6 +238,9 @@ public class CommunityCompetitionService {
             throw new IllegalStateException("Ativa primeiro o módulo de classificação desta comunidade");
         }
 
+        String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
+        CommunityRaceMetrics.validate(resolvedSport, request.entries());
+
         Set<String> usernames = new HashSet<>();
         for (CommunityRoundEntryRequest entry : request.entries()) {
             String normalized = entry.username().trim().toLowerCase(Locale.ROOT);
@@ -254,7 +257,7 @@ public class CommunityCompetitionService {
                 .community(community)
                 .season(activeSeason)
                 .name(request.name().trim())
-                .sport(CommunityRoundSport.resolve(community, request.sport()))
+                .sport(resolvedSport)
                 .playedAt(request.playedAt())
                 .createdAt(Instant.now())
                 .build());
@@ -289,6 +292,10 @@ public class CommunityCompetitionService {
                     .assists(valueOrZero(requestEntry.assists()))
                     .mvp(requestEntry.mvp())
                     .cleanSheet(requestEntry.cleanSheet())
+                    .finishPosition(requestEntry.finishPosition())
+                    .elapsedSeconds(requestEntry.elapsedSeconds())
+                    .bestLapSeconds(requestEntry.bestLapSeconds())
+                    .lapsCompleted(requestEntry.lapsCompleted())
                     .build());
         }
 
@@ -364,6 +371,11 @@ public class CommunityCompetitionService {
                 : entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(seasonId);
 
         for (CommunityRoundEntry entry : sourceEntries) {
+            // Race results have positions/times, not football's 3-1-0 points.
+            // Preserve historical rows but never award W/D/L leaderboard points
+            // from race events. A separate race championship is a later feature.
+            if (entry.getRound() != null &&
+                    CommunityRaceMetrics.isRaceSport(entry.getRound().getSport())) continue;
             CommunityPlayer communityPlayer = entry.getCommunityPlayer();
             Profile profile = entry.getProfile() != null
                     ? entry.getProfile()
@@ -455,7 +467,11 @@ public class CommunityCompetitionService {
                         entry.getGoals(),
                         entry.getAssists(),
                         entry.isMvp(),
-                        entry.isCleanSheet()
+                        entry.isCleanSheet(),
+                        entry.getFinishPosition(),
+                        entry.getElapsedSeconds(),
+                        entry.getBestLapSeconds(),
+                        entry.getLapsCompleted()
                     );
                 })
                 .toList();
