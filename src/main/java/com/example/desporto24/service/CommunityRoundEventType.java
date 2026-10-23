@@ -21,7 +21,9 @@ final class CommunityRoundEventType {
             "Bodyboard", List.of("BODYBOARD_HEAT"),
             "Ginástica Artística", List.of("APPARATUS"),
             "Skate", List.of("SKATE_PARK", "SKATE_STREET"),
-            "Parkour", List.of("PARKOUR_SPEED", "PARKOUR_FREESTYLE")
+            "Parkour", List.of("PARKOUR_SPEED", "PARKOUR_FREESTYLE"),
+            "Breaking", List.of("BREAKING_BATTLE"),
+            "Trampolim", List.of("TRAMPOLINE_INDIVIDUAL")
     );
 
     static String validate(String sport, String requested) {
@@ -49,7 +51,29 @@ final class CommunityRoundEventType {
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
         boolean neutral = isNeutralEvent(sport, type);
+        // Judging returns a winner for one Breaking battle, NOT a scalar score.
+        // Generic season W/D/L already excludes neutral events (including this one).
+        if ("BREAKING_BATTLE".equals(type)) {
+            if (entries.size() != 2
+                    || entries.stream().filter(e -> e.result() == CommunityMatchResult.WIN).count() != 1
+                    || entries.stream().filter(e -> e.result() == CommunityMatchResult.LOSS).count() != 1) {
+                throw new IllegalArgumentException(
+                        "Uma batalha de Breaking exige dois participantes, um vencedor e um derrotado");
+            }
+        }
         for (CommunityRoundEntryRequest e : entries) {
+            if ("BREAKING_BATTLE".equals(type)) {
+                if (e.team() != null && !e.team().isBlank()
+                        || e.goals() != null && e.goals() != 0
+                        || e.assists() != null && e.assists() != 0
+                        || e.mvp() || e.cleanSheet()
+                        || e.performanceValue() != null
+                        || e.waveScore1() != null || e.waveScore2() != null) {
+                    throw new IllegalArgumentException(
+                            "Breaking usa apenas a decisão da batalha, sem pontos ou estatísticas de futebol");
+                }
+                continue;
+            }
             java.math.BigDecimal value = e.performanceValue();
             if (!neutral) {
                 if (value != null || e.waveScore1() != null || e.waveScore2() != null)
@@ -81,6 +105,12 @@ final class CommunityRoundEventType {
                         if (value.compareTo(new java.math.BigDecimal("100")) > 0)
                             throw new IllegalArgumentException(
                                     "A nota final registada deve estar entre 0 e 100");
+                    } else if ("TRAMPOLINE_INDIVIDUAL".equals(type)) {
+                        // Technical storage guard, NOT an invented federation maximum.
+                        if (value.compareTo(new java.math.BigDecimal("9999.99")) > 0
+                                || value.stripTrailingZeros().scale() > 2)
+                            throw new IllegalArgumentException(
+                                    "A nota final individual de Trampolim deve ter até duas casas decimais");
                     } else if ("SKATE_STREET".equals(type)) {
                         // Community-entered final score, not an automatic run/trick calculation.
                         if (value.compareTo(new java.math.BigDecimal("300")) > 0)
