@@ -19,6 +19,8 @@ import com.example.desporto24.websocket.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,10 +49,38 @@ public class ChatServiceImpl implements ChatService {
             throw new ChatBlockedException(CHAT_BLOCKED);
         }
 
+        attachVerifiedReply(chat);
         Chat saved = saveChatMessage(chat, new Date());
         createChatNotification(saved);
         eventPublisher.publishEvent(new ChatMessageCreatedEvent(saved));
         return saved;
+    }
+
+
+    /**
+     * Resolve quoted messages ONLY after friendship/block authorization and
+     * ONLY within the authenticated direct conversation. Never trust quoted
+     * author or text from a client. Persist a snapshot so history pagination
+     * still renders the quote when the original message is outside the page.
+     */
+    private void attachVerifiedReply(Chat chat) {
+        Long parentId = chat.getReplyToMessageId();
+        if (parentId == null) return;
+        if (parentId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+        }
+        Chat parent = chatRepository.findById(parentId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Invalid reply message"));
+        boolean forward = chat.getUsername1().equals(parent.getUsername1())
+                && chat.getUsername2().equals(parent.getUsername2());
+        boolean reverse = chat.getUsername1().equals(parent.getUsername2())
+                && chat.getUsername2().equals(parent.getUsername1());
+        if (!forward && !reverse) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+        }
+        chat.setReplyToSender(parent.getUsername1());
+        chat.setReplyToText(parent.getText());
     }
 
     private Chat saveChatMessage(Chat chat, Date date) {
