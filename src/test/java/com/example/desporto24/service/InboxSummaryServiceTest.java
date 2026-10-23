@@ -22,6 +22,7 @@ import com.example.desporto24.repository.session.SessionMessageRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.websocket.DirectChatReadConfirmedEvent;
+import com.example.desporto24.websocket.InboxOwnReadUpdatedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -147,6 +148,7 @@ class InboxSummaryServiceTest {
                 .thenReturn(2L);
         var result = service.markRead("ana", new InboxReadRequest("community", "7", Long.MAX_VALUE));
         verify(cursors).advance(1L, "community", "7", 12L);
+        verify(events).publishEvent(new InboxOwnReadUpdatedEvent("ana", "community", "7", 12L));
         assertEquals(12L, result.latestMessageId());
     }
 
@@ -219,6 +221,7 @@ class InboxSummaryServiceTest {
 
         var order = inOrder(cursors, events);
         order.verify(cursors).advance(1L, "direct", "bea", 45L);
+        order.verify(events).publishEvent(new InboxOwnReadUpdatedEvent("ana", "direct", "bea", 45L));
         order.verify(events).publishEvent(new DirectChatReadConfirmedEvent("ana", "Bea", 45L));
     }
 
@@ -241,6 +244,48 @@ class InboxSummaryServiceTest {
 
         verify(cursors, never()).advance(anyLong(), anyString(), anyString(), anyLong());
         verifyNoInteractions(events);
+    }
+
+    @Test
+    void unchangedCommunityCursorDoesNotEmitAnotherOwnReadEvent() {
+        actor();
+        when(communities.findById(7L)).thenReturn(Optional.of(Community.builder()
+                .id(7L).owner(profile(1, "ana")).build()));
+        CommunityTimelineEntry last = CommunityTimelineEntry.builder()
+                .id(12L).body("Olá").createdAt(Instant.now())
+                .community(Community.builder().id(7L).build())
+                .author(profile(90, "someone")).kind(CommunityTimelineEntry.Kind.CHAT).build();
+        when(timelines.findByCommunityIdAndKindOrderByIdDesc(eq(7L),
+                eq(CommunityTimelineEntry.Kind.CHAT), any(Pageable.class)))
+                .thenReturn(List.of(last));
+        ChatReadCursor cursor = new ChatReadCursor();
+        cursor.setLastReadMessageId(12L);
+        when(cursors.findByProfileIdAndConversationKindAndConversationKey(1L, "community", "7"))
+                .thenReturn(Optional.of(cursor));
+        service.markRead("ana", new InboxReadRequest("community", "7", 12L));
+        verify(cursors, never()).advance(anyLong(), anyString(), anyString(), anyLong());
+        verifyNoInteractions(events);
+    }
+
+    @Test
+    void authorizedSessionReadAlsoNotifiesOnlyItsReader() {
+        actor();
+        Session session = new Session();
+        session.setId(8L);
+        session.setGameDate(Date.from(Instant.now().plusSeconds(3600)));
+        session.setProfile(profile(1, "ana"));
+        when(sessions.findById(8L)).thenReturn(Optional.of(session));
+        var last = new com.example.desporto24.model.session.SessionMessage();
+        last.setId(25L);
+        last.setBody("Sessão");
+        last.setSenderProfile(profile(90, "bea"));
+        last.setCreatedAt(Instant.now());
+        when(sessionMessages.findBySessionIdOrderByIdDesc(eq(8L), any(Pageable.class)))
+                .thenReturn(List.of(last));
+        service.markRead("ana", new InboxReadRequest("session", "8", 25L));
+        verify(cursors).advance(1L, "session", "8", 25L);
+        verify(events).publishEvent(new InboxOwnReadUpdatedEvent("ana", "session", "8", 25L));
+        verify(events, never()).publishEvent(isA(DirectChatReadConfirmedEvent.class));
     }
 
     @Test
