@@ -1,0 +1,57 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-23-chat-read-cursor
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: chat_read_cursor
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_chat_read_cursor
+                    nullable: false
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_kind
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_key
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_read_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: chat_read_cursor
+            baseColumnNames: profile_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_chat_read_cursor_profile
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: chat_read_cursor
+            columnNames: profile_id, conversation_kind, conversation_key
+            constraintName: uq_chat_read_cursor_reader_conversation
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.chat_read_cursor
+              ADD CONSTRAINT ck_chat_read_cursor_kind
+              CHECK (conversation_kind IN ('direct', 'community', 'session'))
