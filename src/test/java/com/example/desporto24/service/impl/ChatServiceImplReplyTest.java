@@ -70,7 +70,7 @@ class ChatServiceImplReplyTest {
         assertEquals("bea", saved.getReplyToSender());
         assertEquals("Vamos jogar?", saved.getReplyToText());
         verify(chats).save(reply);
-        verify(events).publishEvent(any());
+        verify(events).publishEvent(any(com.example.desporto24.websocket.ChatMessageCreatedEvent.class));
     }
 
     @Test
