@@ -171,22 +171,21 @@ class SessionChatServiceTest {
     }
 
     @Test
-    void chatClosesAutomaticallyTwoHoursAfterKickoffButHistoryRemainsReadable() {
+    void chatClosesAtKickoffAndHistoryIsNotExposedThroughActiveChatEndpoint() {
         Profile creator = profile(1L, "creator");
         Session session = session(10L, creator);
-        session.setGameDate(Date.from(Instant.now().minusSeconds(3 * 3600)));
+        session.setGameDate(Date.from(Instant.now().minusSeconds(1)));
         stubActor(session, creator);
-        when(messageRepository.findBySessionIdOrderByCreatedAtAsc(10L)).thenReturn(List.of());
-
         assertThrows(IllegalStateException.class,
                 () -> service.post(10L, "new message", "creator"));
-        assertTrue(service.messages(10L, "creator").isEmpty());
+        assertThrows(AccessDeniedException.class,
+                () -> service.messages(10L, "creator"));
         verify(messageRepository, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
-    void gameDayChatStillWorksUntilTwoHoursAfterKickoff() {
+    void startedGameNeverAcceptsNewMessagesEvenDuringFormerGracePeriod() {
         Profile creator = profile(1L, "creator");
         Session session = session(10L, creator);
         session.setGameDate(Date.from(Instant.now().minusSeconds(30 * 60)));
@@ -194,9 +193,9 @@ class SessionChatServiceTest {
         when(messageRepository.save(any(SessionMessage.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.post(10L, "still playing", "creator");
-
-        verify(messageRepository).save(any(SessionMessage.class));
+        assertThrows(IllegalStateException.class,
+                () -> service.post(10L, "still playing", "creator"));
+        verify(messageRepository, never()).save(any(SessionMessage.class));
     }
 
     @Test
@@ -291,6 +290,7 @@ class SessionChatServiceTest {
         Session session = new Session();
         session.setId(id);
         session.setProfile(creator);
+        session.setGameDate(Date.from(Instant.now().plusSeconds(3600)));
         return session;
     }
 }

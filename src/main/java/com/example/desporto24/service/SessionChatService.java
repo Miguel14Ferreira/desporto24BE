@@ -47,6 +47,9 @@ public class SessionChatService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new AccessDeniedException("Session chat is available only before the game");
+        }
 
         return messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
                 .stream()
@@ -69,7 +72,7 @@ public class SessionChatService {
 
         requireChatAccess(session, actor);
         if (!isChatOpen(session, Instant.now())) {
-            throw new IllegalStateException("Session chat is closed after the game");
+            throw new IllegalStateException("Session chat is available only before the game");
         }
 
         String normalized = body == null ? "" : body.trim();
@@ -139,9 +142,9 @@ public class SessionChatService {
             return false;
         }
 
-        // Preserve game-day coordination. The chat becomes read-only two hours after kick-off.
-        return session.getGameDate() == null
-                || session.getGameDate().toInstant().plus(Duration.ofHours(2)).isAfter(now);
+        // Session chat exists only before kick-off. Missing dates fail closed.
+        return session.getGameDate() != null
+                && session.getGameDate().toInstant().isAfter(now);
     }
 
     private void requireChatAccess(Session session, Profile actor) {

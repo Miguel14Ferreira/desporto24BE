@@ -69,6 +69,7 @@ class ChatTypingServiceTest {
         owner.setUsername("ana");
         Session session = new Session();
         session.setStatus(SessionStatus.OPEN);
+        session.setGameDate(java.util.Date.from(java.time.Instant.now().plusSeconds(3600)));
         session.setProfile(owner);
         when(sessions.findById(41L)).thenReturn(Optional.of(session));
         var result = service.authorizedRecipients("ana", "session", "41");
