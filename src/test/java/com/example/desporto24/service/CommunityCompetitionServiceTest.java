@@ -11,6 +11,7 @@ import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.CommunityHistoricalPlayerLink;
 import com.example.desporto24.model.community.CommunitySeason;
+import com.example.desporto24.model.community.CommunityStandingsArchive;
 import com.example.desporto24.model.dto.community.CreateCommunitySeasonRequest;
 import com.example.desporto24.model.dto.community.UpdateCommunitySeasonRequest;
 import com.example.desporto24.repository.ProfileRepository;
@@ -22,6 +23,7 @@ import com.example.desporto24.repository.community.CommunityRoundEntryRepository
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
+import com.example.desporto24.repository.community.CommunityStandingsArchiveRowRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
@@ -54,6 +56,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityRoundEntryRepository entryRepository;
     @Mock private CommunitySeasonRepository seasonRepository;
     @Mock private CommunityStandingsArchiveRepository standingsArchiveRepository;
+    @Mock private CommunityStandingsArchiveRowRepository standingsArchiveRowRepository;
     @Mock private ProfileRepository profileRepository;
 
     @InjectMocks
@@ -401,47 +404,65 @@ class CommunityCompetitionServiceTest {
         when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
                 .thenReturn(Optional.of(season));
 
-        service.deleteEmptySeason(7L, 44L, "TMF14");
+        service.deleteSeason(7L, 44L, "TMF14");
 
         verify(seasonRepository).delete(season);
         verify(seasonRepository).flush();
     }
 
     @Test
-    void neverDeletesSeasonWithAnyRound() {
+    void deletingSeasonRemovesOnlyItsRoundEntriesAndArchivedStandingRows() {
         Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder().id(7L).owner(owner).build();
         CommunitySeason season = CommunitySeason.builder().id(44L).community(community).build();
+        CommunityRound first = CommunityRound.builder().id(91L).community(community).season(season).build();
+        CommunityRound second = CommunityRound.builder().id(92L).community(community).season(season).build();
+        CommunityStandingsArchive archive = CommunityStandingsArchive.builder().id(77L)
+                .community(community).season(season).build();
+
         when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
         when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
                 .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
-        when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
-                .thenReturn(Optional.of(season));
-        when(roundRepository.existsByCommunityIdAndSeasonId(7L, 44L)).thenReturn(true);
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L)).thenReturn(Optional.of(season));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
+                .thenReturn(List.of(first, second));
+        when(standingsArchiveRepository.findByCommunityIdAndSeasonId(7L, 44L))
+                .thenReturn(List.of(archive));
 
-        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
-                () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
-        assertEquals(HttpStatus.CONFLICT, blocked.getStatusCode());
-        verify(seasonRepository, never()).delete(any());
+        service.deleteSeason(7L, 44L, "TMF14");
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(
+                entryRepository, roundRepository, standingsArchiveRowRepository,
+                standingsArchiveRepository, seasonRepository);
+        order.verify(entryRepository).deleteByRoundId(91L);
+        order.verify(entryRepository).deleteByRoundId(92L);
+        order.verify(entryRepository).flush();
+        order.verify(roundRepository).deleteAll(List.of(first, second));
+        order.verify(roundRepository).flush();
+        order.verify(standingsArchiveRowRepository).deleteByArchiveId(77L);
+        order.verify(standingsArchiveRowRepository).flush();
+        order.verify(standingsArchiveRepository).deleteAll(List.of(archive));
+        order.verify(standingsArchiveRepository).flush();
+        order.verify(seasonRepository).delete(season);
+        order.verify(seasonRepository).flush();
+
+        verify(roundRepository, never()).findByCommunityIdOrderByPlayedAtDescIdDesc(any());
+        verify(standingsArchiveRepository, never()).findByCommunityIdOrderByCreatedAtDescIdDesc(any(), any());
     }
 
     @Test
-    void neverDeletesSeasonWithImportedStandingsArchive() {
+    void deletingEmptyActiveSeasonStillWorks() {
         Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder().id(7L).owner(owner).build();
-        CommunitySeason season = CommunitySeason.builder().id(44L).community(community).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community).active(true).build();
         when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
         when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
                 .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
-        when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
-                .thenReturn(Optional.of(season));
-        when(standingsArchiveRepository.existsByCommunityIdAndSeasonId(7L, 44L))
-                .thenReturn(true);
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L)).thenReturn(Optional.of(season));
 
-        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
-                () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
-        assertEquals(HttpStatus.CONFLICT, blocked.getStatusCode());
-        verify(seasonRepository, never()).delete(any());
+        service.deleteSeason(7L, 44L, "TMF14");
+
+        verify(seasonRepository).delete(season);
     }
 
     @Test
@@ -456,7 +477,7 @@ class CommunityCompetitionServiceTest {
                 () -> service.renameSeason(7L, 44L, "member",
                         new UpdateCommunitySeasonRequest("Novo nome")));
         assertThrows(org.springframework.security.access.AccessDeniedException.class,
-                () -> service.deleteEmptySeason(7L, 44L, "member"));
+                () -> service.deleteSeason(7L, 44L, "member"));
         verify(seasonRepository, never()).delete(any());
     }
 
@@ -476,7 +497,7 @@ class CommunityCompetitionServiceTest {
                 () -> service.renameSeason(7L, 44L, "TMF14",
                         new UpdateCommunitySeasonRequest("Não permitido")));
         ResponseStatusException wrongCommunity = assertThrows(ResponseStatusException.class,
-                () -> service.deleteEmptySeason(7L, 44L, "TMF14"));
+                () -> service.deleteSeason(7L, 44L, "TMF14"));
         assertEquals(HttpStatus.NOT_FOUND, wrongCommunity.getStatusCode());
         verify(seasonRepository, never()).delete(any());
     }
