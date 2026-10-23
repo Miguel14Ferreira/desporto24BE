@@ -12,6 +12,9 @@ final class CommunityFieldDisciplines {
             "THROW", List.of("SHOT_PUT", "DISCUS", "JAVELIN", "HAMMER")
     );
 
+    // Bodyboard heats are divided by stance; never rank prone vs drop knee together.
+    private static final List<String> BODYBOARD_STANCES = List.of("PRONE", "DROP_KNEE");
+
     private static final List<String> APPARATUS = List.of(
             "FLOOR", "VAULT", "POMMEL_HORSE", "RINGS",
             "PARALLEL_BARS", "HORIZONTAL_BAR", "UNEVEN_BARS", "BALANCE_BEAM");
@@ -19,7 +22,9 @@ final class CommunityFieldDisciplines {
     static String validate(String sport, String eventType, String requested) {
         List<String> allowed = "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
                 : "Ginástica Artística".equals(sport) && "APPARATUS".equals(eventType)
-                ? APPARATUS : null;
+                ? APPARATUS
+                : "Bodyboard".equals(sport) && "BODYBOARD_HEAT".equals(eventType)
+                ? BODYBOARD_STANCES : null;
         if (allowed == null) {
             if (requested != null && !requested.isBlank()) {
                 throw new IllegalArgumentException(
