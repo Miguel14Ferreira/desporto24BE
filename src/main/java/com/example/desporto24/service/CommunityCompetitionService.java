@@ -431,8 +431,15 @@ public class CommunityCompetitionService {
         String groupScoresJson = CommunityGroupRoutineResults.validateAndEncode(
                 resolvedSport, resolvedEventType, request.entries(), request.groupScores());
         CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
-        String racketScores = CommunityRacketResults.validateAndEncode(
-                resolvedSport, request.matchFormat(), request.setScores(), request.entries());
+        // Volleyball shares the compact per-set storage format with racket sports, but
+        // not their rules, roster validation, or single/doubles match format.
+        boolean volleyballEvent = CommunityVolleyballResults.isVolleyballEvent(resolvedEventType);
+        String encodedSetScores = volleyballEvent
+                ? CommunityVolleyballResults.validateAndEncode(
+                        resolvedSport, resolvedEventType, request.matchFormat(),
+                        request.setScores(), request.entries())
+                : CommunityRacketResults.validateAndEncode(
+                        resolvedSport, request.matchFormat(), request.setScores(), request.entries());
 
         Set<String> usernames = new HashSet<>();
         for (CommunityRoundEntryRequest entry : request.entries()) {
@@ -456,8 +463,8 @@ public class CommunityCompetitionService {
                 .groupScoresJson(groupScoresJson)
                 .basketballPointsA(basketballScore == null ? null : basketballScore.sideA())
                 .basketballPointsB(basketballScore == null ? null : basketballScore.sideB())
-                .matchFormat(racketScores == null ? null : request.matchFormat())
-                .setScores(racketScores)
+                .matchFormat(volleyballEvent || encodedSetScores == null ? null : request.matchFormat())
+                .setScores(encodedSetScores)
                 .playedAt(request.playedAt())
                 .createdAt(Instant.now())
                 .build());
