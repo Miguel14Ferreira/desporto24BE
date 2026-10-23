@@ -83,7 +83,8 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
                     .put("type", "CHAT_TYPING")
                     .set("typing", objectMapper.createObjectNode()
                             .put("kind", kind.toLowerCase(Locale.ROOT))
-                            .put("conversationId", audience.conversationId())
+                            .put("conversationId", "direct".equalsIgnoreCase(kind)
+                                    ? actor.toLowerCase(Locale.ROOT) : audience.conversationId())
                             .put("username", actor)
                             .put("active", active))
                     .toString();
