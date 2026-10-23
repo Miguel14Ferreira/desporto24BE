@@ -6,5 +6,11 @@ import java.util.List;
 public record CommunityRacketStandingGroupResponse(
         String sport,
         String matchFormat,
-        List<CommunityRacketStandingResponse> standings
-) {}
+        List<CommunityRacketStandingResponse> standings,
+        CommunityRacketRuleResponse rule
+) {
+    public CommunityRacketStandingGroupResponse(String sport, String matchFormat,
+            List<CommunityRacketStandingResponse> standings) {
+        this(sport, matchFormat, standings, null);
+    }
+}
