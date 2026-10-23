@@ -2,6 +2,7 @@ package com.example.desporto24.repository.session;
 
 import com.example.desporto24.model.session.SessionMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -38,6 +39,15 @@ public interface SessionMessageRepository extends JpaRepository<SessionMessage, 
     org.springframework.data.domain.Page<SessionMessage> searchConversation(
             @Param("sessionId") Long sessionId, @Param("term") String escapedTerm,
             Pageable pageable);
+
+
+    @EntityGraph(attributePaths = "senderProfile")
+    List<SessionMessage> findBySessionIdAndIdLessThanEqualOrderByIdDesc(
+            Long sessionId, Long targetId, Pageable limit);
+
+    @EntityGraph(attributePaths = "senderProfile")
+    List<SessionMessage> findBySessionIdAndIdGreaterThanOrderByIdAsc(
+            Long sessionId, Long targetId, Pageable limit);
 
     long deleteBySenderProfileId(Long senderProfileId);
 }

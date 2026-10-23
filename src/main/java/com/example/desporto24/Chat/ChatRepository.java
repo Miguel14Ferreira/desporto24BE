@@ -63,5 +63,24 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                                   @Param("term") String escapedTerm,
                                   Pageable pageable);
 
+
+    @Query("""
+        select c from Chat c
+        where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+            or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+          and c.id <= :targetId order by c.id desc
+        """)
+    List<Chat> findConversationContextBefore(@Param("actor") String actor,
+            @Param("other") String other, @Param("targetId") Long targetId, Pageable limit);
+
+    @Query("""
+        select c from Chat c
+        where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+            or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+          and c.id > :targetId order by c.id asc
+        """)
+    List<Chat> findConversationContextAfter(@Param("actor") String actor,
+            @Param("other") String other, @Param("targetId") Long targetId, Pageable limit);
+
     long deleteByUsername1OrUsername2(String username1, String username2);
 }

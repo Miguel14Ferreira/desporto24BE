@@ -44,6 +44,15 @@ public interface CommunityTimelineEntryRepository extends JpaRepository<Communit
             @Param("kind") CommunityTimelineEntry.Kind kind,
             @Param("term") String escapedTerm, Pageable pageable);
 
+
+    @EntityGraph(attributePaths = "author")
+    List<CommunityTimelineEntry> findByCommunityIdAndKindAndIdLessThanEqualOrderByIdDesc(
+            Long communityId, CommunityTimelineEntry.Kind kind, Long targetId, Pageable limit);
+
+    @EntityGraph(attributePaths = "author")
+    List<CommunityTimelineEntry> findByCommunityIdAndKindAndIdGreaterThanOrderByIdAsc(
+            Long communityId, CommunityTimelineEntry.Kind kind, Long targetId, Pageable limit);
+
     @EntityGraph(attributePaths = "author")
     List<CommunityTimelineEntry> findTop60ByCommunityIdAndKindOrderByCreatedAtDescIdDesc(
             Long communityId, CommunityTimelineEntry.Kind kind);
