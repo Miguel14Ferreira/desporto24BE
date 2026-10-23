@@ -16,7 +16,9 @@ final class CommunityRoundEventType {
     private static final Map<String, List<String>> TYPES = Map.of(
             "BMX", List.of("RACE", "FREESTYLE"),
             "Atletismo", List.of("TRACK", "JUMP", "THROW"),
-            "Snowboard", List.of("RACE", "FREESTYLE")
+            "Snowboard", List.of("RACE", "FREESTYLE"),
+            "Surf", List.of("HEAT"),
+            "Ginástica Artística", List.of("APPARATUS")
     );
 
     static String validate(String sport, String requested) {
@@ -47,24 +49,32 @@ final class CommunityRoundEventType {
         for (CommunityRoundEntryRequest e : entries) {
             java.math.BigDecimal value = e.performanceValue();
             if (!neutral) {
-                if (value != null)
+                if (value != null || e.waveScore1() != null || e.waveScore2() != null)
                     throw new IllegalArgumentException(
-                            "Esta modalidade não suporta marcas ou notas de avaliação");
+                            "Esta modalidade não suporta estas marcas ou notas");
                 continue;
             }
-            if (value != null) {
-                if (value.scale() > 3 || value.precision() - value.scale() > 6
-                        || value.signum() < 0) {
-                    throw new IllegalArgumentException(
-                            "A marca ou nota deve ser positiva, até 3 casas decimais");
-                }
-                if ("FREESTYLE".equals(type)) {
-                    if (value.compareTo(new java.math.BigDecimal("100")) > 0)
+            if ("HEAT".equals(type)) {
+                if (value != null)
+                    throw new IllegalArgumentException("Baterias de surf usam notas por onda");
+                validateWave(e.waveScore1());
+                validateWave(e.waveScore2());
+            } else {
+                if (e.waveScore1() != null || e.waveScore2() != null)
+                    throw new IllegalArgumentException("Notas por onda só são permitidas no surf");
+                if (value != null) {
+                    if (value.scale() > 3 || value.precision() - value.scale() > 6
+                            || value.signum() < 0)
                         throw new IllegalArgumentException(
-                                "A nota agregada da prova deve estar entre 0 e 100");
-                } else if (value.signum() <= 0) {
-                    throw new IllegalArgumentException(
-                            "A marca em metros deve ser superior a zero");
+                                "A marca ou nota deve ser positiva, até 3 casas decimais");
+                    if ("FREESTYLE".equals(type) || "APPARATUS".equals(type)) {
+                        if (value.compareTo(new java.math.BigDecimal("100")) > 0)
+                            throw new IllegalArgumentException(
+                                    "A nota final registada deve estar entre 0 e 100");
+                    } else if (value.signum() <= 0) {
+                        throw new IllegalArgumentException(
+                                "A marca em metros deve ser superior a zero");
+                    }
                 }
             }
             if (e.result() != CommunityMatchResult.DRAW
@@ -76,6 +86,13 @@ final class CommunityRoundEventType {
                         "Este tipo de prova ainda só permite registar participantes, sem resultados calculados");
             }
         }
+    }
+
+    private static void validateWave(java.math.BigDecimal value) {
+        if (value == null) return;
+        if (value.signum() < 0 || value.scale() > 3
+                || value.compareTo(java.math.BigDecimal.TEN) > 0)
+            throw new IllegalArgumentException("Nota de onda: 0 a 10, até 3 casas decimais");
     }
 
     static boolean isRaceEvent(String sport, String eventType) {

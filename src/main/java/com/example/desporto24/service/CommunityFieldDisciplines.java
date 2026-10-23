@@ -12,8 +12,14 @@ final class CommunityFieldDisciplines {
             "THROW", List.of("SHOT_PUT", "DISCUS", "JAVELIN", "HAMMER")
     );
 
+    private static final List<String> APPARATUS = List.of(
+            "FLOOR", "VAULT", "POMMEL_HORSE", "RINGS",
+            "PARALLEL_BARS", "HORIZONTAL_BAR", "UNEVEN_BARS", "BALANCE_BEAM");
+
     static String validate(String sport, String eventType, String requested) {
-        List<String> allowed = "Atletismo".equals(sport) ? ATHLETICS.get(eventType) : null;
+        List<String> allowed = "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
+                : "Ginástica Artística".equals(sport) && "APPARATUS".equals(eventType)
+                ? APPARATUS : null;
         if (allowed == null) {
             if (requested != null && !requested.isBlank()) {
                 throw new IllegalArgumentException(
@@ -22,7 +28,7 @@ final class CommunityFieldDisciplines {
             return null;
         }
         if (requested == null || requested.isBlank()) {
-            throw new IllegalArgumentException("Seleciona a disciplina de atletismo");
+            throw new IllegalArgumentException("Seleciona a disciplina ou aparelho da prova");
         }
         String code = requested.trim();
         if (!allowed.contains(code)) {

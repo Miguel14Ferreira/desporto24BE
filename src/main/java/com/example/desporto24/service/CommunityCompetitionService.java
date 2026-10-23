@@ -490,6 +490,8 @@ public class CommunityCompetitionService {
                     .bestLapSeconds(requestEntry.bestLapSeconds())
                     .lapsCompleted(requestEntry.lapsCompleted())
                     .performanceValue(requestEntry.performanceValue())
+                    .waveScore1(requestEntry.waveScore1())
+                    .waveScore2(requestEntry.waveScore2())
                     .build());
         }
 
@@ -679,7 +681,9 @@ public class CommunityCompetitionService {
                                 entry.getElapsedSeconds(), entry.getRaceTimePenaltySeconds()),
                         entry.isRaceDisqualified(),
                         entry.getRaceStewardReason(),
-                        entry.getPerformanceValue()
+                        entry.getPerformanceValue(),
+                        entry.getWaveScore1(),
+                        entry.getWaveScore2()
                     );
                 })
                 .toList();
