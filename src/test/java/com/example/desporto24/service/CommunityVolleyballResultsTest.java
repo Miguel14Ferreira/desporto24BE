@@ -16,6 +16,10 @@ class CommunityVolleyballResultsTest {
     private List<CommunityRoundEntryRequest> beach =
             List.of(p("a1","A"),p("a2","A"),p("b1","B"),p("b2","B"));
     private CommunitySetScore s(int a, int b) { return new CommunitySetScore(a,b); }
+    private String footvolley(String eventType, List<CommunitySetScore> sets) {
+        return CommunityVolleyballResults.validateAndEncode(
+                "Futevólei",eventType,null,sets,beach);
+    }
     private String indoor(List<CommunitySetScore> sets) {
         return CommunityVolleyballResults.validateAndEncode(
                 "Voleibol","VOLLEYBALL_FINAL",null,sets,indoor);
@@ -49,6 +53,39 @@ class CommunityVolleyballResultsTest {
         assertThrows(IllegalArgumentException.class,() ->
                 beach(List.of(s(21,19),s(19,21),s(15,14))));
         assertEquals("25:23,21:19",beach(List.of(s(25,23),s(21,19))));
+    }
+    @Test void footvolleyCompetitionFormatsUseTheirOwnTargetsAndPairs() {
+        for (String type : List.of("FOOTVOLLEY_SINGLE_18",
+                "FOOTVOLLEY_BEST_OF_3", "FOOTVOLLEY_SINGLE_15")) {
+            assertEquals(type, CommunityRoundEventType.validate("Futevólei", type));
+            assertTrue(CommunityRoundEventType.isNeutralEvent("Futevólei", type));
+            assertTrue(CommunityVolleyballResults.isVolleyballEvent(type));
+        }
+        assertEquals("18:16",footvolley("FOOTVOLLEY_SINGLE_18",List.of(s(18,16))));
+        assertEquals("23:21",footvolley("FOOTVOLLEY_SINGLE_18",List.of(s(23,21))));
+        assertEquals("15:11",footvolley("FOOTVOLLEY_SINGLE_15",List.of(s(15,11))));
+        assertEquals("18:16,18:13",footvolley("FOOTVOLLEY_BEST_OF_3",
+                List.of(s(18,16),s(18,13))));
+        assertEquals("18:16,16:18,17:15",footvolley("FOOTVOLLEY_BEST_OF_3",
+                List.of(s(18,16),s(16,18),s(17,15))));
+        assertThrows(IllegalArgumentException.class, () -> footvolley(
+                "FOOTVOLLEY_SINGLE_18",List.of(s(15,11))));
+        assertThrows(IllegalArgumentException.class, () -> footvolley(
+                "FOOTVOLLEY_SINGLE_15",List.of(s(18,11))));
+        assertThrows(IllegalArgumentException.class, () -> footvolley(
+                "FOOTVOLLEY_BEST_OF_3",List.of(s(18,16),s(18,16),s(15,11))));
+        assertThrows(IllegalArgumentException.class, () -> footvolley(
+                "FOOTVOLLEY_BEST_OF_3",List.of(s(18,16),s(16,18),s(15,14))));
+        assertThrows(IllegalArgumentException.class, () -> footvolley(
+                "FOOTVOLLEY_SINGLE_18",List.of(s(18,18))));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityRoundEventType.validate("Voleibol de Praia","FOOTVOLLEY_SINGLE_18"));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityVolleyballResults.validateAndEncode(
+                        "Futevólei","BEACH_VOLLEY_FINAL",null,List.of(s(21,18),s(21,17)),beach));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityVolleyballResults.validateAndEncode("Futevólei",
+                        "FOOTVOLLEY_SINGLE_18",null,List.of(s(18,15)),indoor));
     }
     @Test void detectsIncompleteImpossibleOrIncorrectSetScores() {
         for (CommunitySetScore first : List.of(
