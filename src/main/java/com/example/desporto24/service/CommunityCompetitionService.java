@@ -20,6 +20,7 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
+import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class CommunityCompetitionService {
     private final CommunityRoundRepository roundRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
+    private final CommunityStandingsArchiveRepository standingsArchiveRepository;
     private final ProfileRepository profileRepository;
 
     @Transactional(readOnly = true)
@@ -111,6 +113,36 @@ public class CommunityCompetitionService {
                 .build());
 
         return seasonResponse(community, season);
+    }
+
+    public CommunitySeasonResponse renameSeason(
+            Long communityId, Long seasonId, String username, UpdateCommunitySeasonRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        Community community = community(communityId);
+        CommunitySeason season = seasonRepository.findById(seasonId)
+                .orElseThrow(() -> new IllegalArgumentException("Época não encontrada"));
+        if (!season.getCommunity().getId().equals(communityId)) {
+            throw new IllegalArgumentException("A época não pertence a esta comunidade");
+        }
+        season.setName(request.name().trim());
+        return seasonResponse(community, seasonRepository.save(season));
+    }
+
+    public void deleteEmptySeason(Long communityId, Long seasonId, String username) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        // Lock this row until deletion so a concurrent import cannot attach history
+        // between the empty checks and the actual delete.
+        CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Época não encontrada nesta comunidade"));
+        if (roundRepository.existsByCommunityIdAndSeasonId(communityId, seasonId)
+                || standingsArchiveRepository.existsByCommunityIdAndSeasonId(communityId, seasonId)) {
+            throw new IllegalStateException(
+                    "Esta época tem jornadas ou histórico associado e não pode ser eliminada");
+        }
+        seasonRepository.delete(season);
+        seasonRepository.flush();
     }
 
     public CommunitySeasonResponse closeSeason(
