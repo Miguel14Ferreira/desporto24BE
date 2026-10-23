@@ -1,0 +1,34 @@
+package com.example.desporto24.service;
+
+import java.util.List;
+import java.util.Map;
+
+/** A discipline is descriptive metadata, not an official points or attempt rule. */
+final class CommunityFieldDisciplines {
+    private CommunityFieldDisciplines() {}
+
+    private static final Map<String, List<String>> ATHLETICS = Map.of(
+            "JUMP", List.of("LONG_JUMP", "TRIPLE_JUMP", "HIGH_JUMP", "POLE_VAULT"),
+            "THROW", List.of("SHOT_PUT", "DISCUS", "JAVELIN", "HAMMER")
+    );
+
+    static String validate(String sport, String eventType, String requested) {
+        List<String> allowed = "Atletismo".equals(sport) ? ATHLETICS.get(eventType) : null;
+        if (allowed == null) {
+            if (requested != null && !requested.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Esta modalidade ou tipo de prova não suporta subdisciplinas");
+            }
+            return null;
+        }
+        if (requested == null || requested.isBlank()) {
+            throw new IllegalArgumentException("Seleciona a disciplina de atletismo");
+        }
+        String code = requested.trim();
+        if (!allowed.contains(code)) {
+            throw new IllegalArgumentException(
+                    "Disciplina inválida para o tipo de prova selecionado");
+        }
+        return code;
+    }
+}

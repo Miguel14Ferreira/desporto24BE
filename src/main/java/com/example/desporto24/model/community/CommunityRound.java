@@ -37,6 +37,10 @@ public class CommunityRound {
     @Column(name = "event_type", length = 20)
     private String eventType;
 
+    // NULL for historical rounds. Explicitly identifies the athletics field discipline.
+    @Column(name = "event_discipline", length = 32)
+    private String eventDiscipline;
+
     // NULL for legacy rounds and for disciplines without structured set scoring.
     @Column(name = "match_format", length = 12)
     private String matchFormat;

@@ -11,8 +11,14 @@ public record CommunityRoundResponse(
         String sport,
         String matchFormat,
         List<CommunitySetScore> setScores,
-        String eventType
+        String eventType,
+        String eventDiscipline
 ) {
+    public CommunityRoundResponse(Long id, String name, Instant playedAt,
+            List<CommunityRoundEntryResponse> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores, String eventType) {
+        this(id, name, playedAt, entries, sport, matchFormat, setScores, eventType, null);
+    }
     public CommunityRoundResponse(Long id, String name, Instant playedAt,
             List<CommunityRoundEntryResponse> entries) {
         this(id, name, playedAt, entries, null, null, List.of(), null);
