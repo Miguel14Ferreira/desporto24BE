@@ -17,8 +17,18 @@ public record CreateCommunityRoundRequest(
         String matchFormat,
         List<@Valid CommunitySetScore> setScores,
         @Size(max = 20) String eventType,
-        @Size(max = 32) String eventDiscipline
+        @Size(max = 32) String eventDiscipline,
+        List<@Valid CommunityGroupRoutineScore> groupScores
 ) {
+    // Previous canonical constructor must remain source compatible.
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline) {
+        this(name, playedAt, entries, sport, matchFormat, setScores,
+                eventType, eventDiscipline, null);
+    }
+
     // Source compatibility for callers prior to optional discipline support.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries, String sport,

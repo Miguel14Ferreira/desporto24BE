@@ -41,6 +41,11 @@ public class CommunityRound {
     @Column(name = "event_discipline", length = 32)
     private String eventDiscipline;
 
+    // One final result per group, not repeated across each athlete.
+    // JSON only for new group routines; nullable and untouched on legacy rounds.
+    @Column(name = "group_scores_json", columnDefinition = "text")
+    private String groupScoresJson;
+
     // NULL for legacy rounds and for disciplines without structured set scoring.
     @Column(name = "match_format", length = 12)
     private String matchFormat;
