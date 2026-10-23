@@ -121,6 +121,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-23-session-community-chat-reply-snapshots.yaml
   - include:
+      file: db/changelog/changes/2026-10-23-chat-message-reactions.yaml
+  - include:
       file: db/changelog/changes/2026-10-23-community-round-sport.yaml
   - include:
       file: db/changelog/changes/2026-10-23-community-round-race-metrics.yaml
