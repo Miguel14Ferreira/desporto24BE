@@ -424,6 +424,7 @@ public class CommunityCompetitionService {
         String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
         String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
         CommunityRaceMetrics.validate(resolvedSport, resolvedEventType, request.entries());
+        CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
         String racketScores = CommunityRacketResults.validateAndEncode(
                 resolvedSport, request.matchFormat(), request.setScores(), request.entries());
 
