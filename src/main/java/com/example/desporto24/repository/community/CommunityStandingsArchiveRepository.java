@@ -11,4 +11,5 @@ public interface CommunityStandingsArchiveRepository extends JpaRepository<Commu
     List<CommunityStandingsArchive> findByCommunityIdOrderByCreatedAtDescIdDesc(Long communityId, Pageable pageable);
     Optional<CommunityStandingsArchive> findByIdAndCommunityId(Long id, Long communityId);
     boolean existsByCommunityIdAndSeasonId(Long communityId, Long seasonId);
+    List<CommunityStandingsArchive> findByCommunityIdAndSeasonId(Long communityId, Long seasonId);
 }
