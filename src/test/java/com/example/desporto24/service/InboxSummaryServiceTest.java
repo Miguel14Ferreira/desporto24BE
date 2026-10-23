@@ -277,6 +277,9 @@ class InboxSummaryServiceTest {
         when(sessions.findById(8L)).thenReturn(Optional.of(session));
         var last = new com.example.desporto24.model.session.SessionMessage();
         last.setId(25L);
+        last.setBody("Sessão");
+        last.setSenderProfile(profile(90, "bea"));
+        last.setCreatedAt(Instant.now());
         when(sessionMessages.findBySessionIdOrderByIdDesc(eq(8L), any(Pageable.class)))
                 .thenReturn(List.of(last));
         service.markRead("ana", new InboxReadRequest("session", "8", 25L));
