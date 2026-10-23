@@ -15,7 +15,7 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.server.ResponseStatusException;
 import jakarta.persistence.NoResultException;
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
+import org.springframework.security.access.AccessDeniedException;
 import java.util.Objects;
 
 import static com.example.desporto24.constant.UserImplConstant.*;
@@ -68,6 +68,8 @@ public class ExceptionHandling {
         return createHttpResponse(UNAUTHORIZED,CHAT_BLOCKED);
     }
 
+    // Membership guards throw Spring Security's AccessDeniedException, not
+    // java.nio.file.AccessDeniedException. Never map denied chat reads to 500.
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<HttpResponse> accessDeniedException(){
         return createHttpResponse(FORBIDDEN,NOT_ENOUGH_PERMISSION);
