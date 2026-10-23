@@ -56,6 +56,11 @@ public class SessionChatService {
 
     @Transactional
     public SessionMessageResponse post(Long sessionId, String body, String username) {
+        return post(sessionId, body, username, null);
+    }
+
+    @Transactional
+    public SessionMessageResponse post(Long sessionId, String body, String username, Long replyToMessageId) {
         // Serialize with cancellation/completion so closed sessions cannot receive new messages.
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
@@ -75,10 +80,28 @@ public class SessionChatService {
             throw new IllegalArgumentException("Message body must not exceed 2000 characters");
         }
 
+        SessionMessage quoted = null;
+        if (replyToMessageId != null) {
+            if (replyToMessageId <= 0) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+            quoted = messageRepository.findById(replyToMessageId)
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid reply message"));
+            if (!sessionId.equals(quoted.getSession().getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+        }
+
         SessionMessage saved = messageRepository.save(SessionMessage.builder()
                 .session(session)
                 .senderProfile(actor)
                 .body(normalized)
+                .replyToMessageId(quoted == null ? null : quoted.getId())
+                .replyToSender(quoted == null ? null : quoted.getSenderProfile().getUsername())
+                .replyToText(quoted == null ? null : quoted.getBody())
                 .createdAt(Instant.now())
                 .build());
 
@@ -138,7 +161,10 @@ public class SessionChatService {
                 message.getSession().getId(),
                 message.getSenderProfile().getUsername(),
                 message.getBody(),
-                message.getCreatedAt()
+                message.getCreatedAt(),
+                message.getReplyToMessageId(),
+                message.getReplyToSender(),
+                message.getReplyToText()
         );
     }
 }
