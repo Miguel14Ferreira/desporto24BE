@@ -64,6 +64,52 @@ public class ChatMessageSearchService {
         return new ChatSearchResponse(matches.getContent(), matches.hasNext(), page);
     }
 
+
+    /** Up to 20 earlier messages, the original and 20 newer messages. */
+    @Transactional(readOnly = true)
+    public java.util.List<ChatSearchHit> context(String username, String kind,
+                                                  String id, long targetMessageId) {
+        if (kind == null || id == null || targetMessageId <= 0) throw invalidSearch();
+        String normalizedKind = kind.toLowerCase(Locale.ROOT);
+        if (!normalizedKind.equals("direct") && !normalizedKind.equals("session")
+                && !normalizedKind.equals("community")) throw invalidSearch();
+        // Validate access before fetching any message or revealing target existence.
+        inbox.requireConversationAccess(username, normalizedKind, id);
+        PageRequest older = PageRequest.of(0, 21), newer = PageRequest.of(0, 20);
+        return switch (normalizedKind) {
+            case "direct" -> window(
+                    direct.findConversationContextBefore(username, id, targetMessageId, older)
+                            .stream().map(this::directHit).toList(),
+                    direct.findConversationContextAfter(username, id, targetMessageId, newer)
+                            .stream().map(this::directHit).toList(), targetMessageId);
+            case "session" -> window(
+                    sessions.findBySessionIdAndIdLessThanEqualOrderByIdDesc(
+                            Long.parseLong(id), targetMessageId, older)
+                            .stream().map(this::sessionHit).toList(),
+                    sessions.findBySessionIdAndIdGreaterThanOrderByIdAsc(
+                            Long.parseLong(id), targetMessageId, newer)
+                            .stream().map(this::sessionHit).toList(), targetMessageId);
+            case "community" -> window(
+                    communities.findByCommunityIdAndKindAndIdLessThanEqualOrderByIdDesc(
+                            Long.parseLong(id), CommunityTimelineEntry.Kind.CHAT, targetMessageId, older)
+                            .stream().map(this::communityHit).toList(),
+                    communities.findByCommunityIdAndKindAndIdGreaterThanOrderByIdAsc(
+                            Long.parseLong(id), CommunityTimelineEntry.Kind.CHAT, targetMessageId, newer)
+                            .stream().map(this::communityHit).toList(), targetMessageId);
+            default -> throw invalidSearch();
+        };
+    }
+
+    private java.util.List<ChatSearchHit> window(
+            java.util.List<ChatSearchHit> before, java.util.List<ChatSearchHit> after, long id) {
+        if (before.stream().noneMatch(hit -> hit.id() == id))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not in conversation");
+        var list = new java.util.ArrayList<ChatSearchHit>(before);
+        list.addAll(after);
+        list.sort(java.util.Comparator.comparingLong(ChatSearchHit::id));
+        return list;
+    }
+
     private ChatSearchHit directHit(Chat msg) {
         return new ChatSearchHit(msg.getId(), msg.getUsername1(), msg.getText(),
                 msg.getDate() == null ? null : msg.getDate().toInstant(),

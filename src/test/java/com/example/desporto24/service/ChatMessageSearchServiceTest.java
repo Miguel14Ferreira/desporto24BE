@@ -103,6 +103,58 @@ class ChatMessageSearchServiceTest {
         verifyNoInteractions(direct, sessions, communities);
     }
 
+
+    @Test
+    void fetchesBoundedContextInChronologicalOrderForAllKinds() {
+        Chat older = new Chat("ana", "bea", "older", null, new Date());
+        older.setId(29L);
+        Chat target = new Chat("bea", "ana", "target", null, new Date());
+        target.setId(30L);
+        when(direct.findConversationContextBefore("ana", "bea", 30L, PageRequest.of(0, 21)))
+                .thenReturn(List.of(target, older));
+        when(direct.findConversationContextAfter("ana", "bea", 30L, PageRequest.of(0, 20)))
+                .thenReturn(List.of());
+        assertEquals(List.of(29L, 30L), service.context("ana", "direct", "bea", 30)
+                .stream().map(hit -> hit.id()).toList());
+        verify(inbox).requireConversationAccess("ana", "direct", "bea");
+
+        var session = SessionMessage.builder().id(4L).senderProfile(profile("ana"))
+                .body("old session").createdAt(Instant.now()).build();
+        when(sessions.findBySessionIdAndIdLessThanEqualOrderByIdDesc(
+                51L, 4L, PageRequest.of(0, 21))).thenReturn(List.of(session));
+        when(sessions.findBySessionIdAndIdGreaterThanOrderByIdAsc(
+                51L, 4L, PageRequest.of(0, 20))).thenReturn(List.of());
+        assertEquals(4L, service.context("ana", "session", "51", 4).getFirst().id());
+
+        var community = CommunityTimelineEntry.builder().id(9L).author(profile("bea"))
+                .body("old community").createdAt(Instant.now()).build();
+        when(communities.findByCommunityIdAndKindAndIdLessThanEqualOrderByIdDesc(
+                7L, CommunityTimelineEntry.Kind.CHAT, 9L, PageRequest.of(0, 21)))
+                .thenReturn(List.of(community));
+        when(communities.findByCommunityIdAndKindAndIdGreaterThanOrderByIdAsc(
+                7L, CommunityTimelineEntry.Kind.CHAT, 9L, PageRequest.of(0, 20)))
+                .thenReturn(List.of());
+        assertEquals(9L, service.context("ana", "community", "7", 9).getFirst().id());
+    }
+
+    @Test
+    void contextChecksAuthorizationAndRejectsAnUnrelatedTarget() {
+        doThrow(new AccessDeniedException("No accessible chat"))
+                .when(inbox).requireConversationAccess("ana", "direct", "outsider");
+        assertThrows(AccessDeniedException.class,
+                () -> service.context("ana", "direct", "outsider", 19));
+        verifyNoInteractions(direct, sessions, communities);
+        when(direct.findConversationContextBefore(eq("ana"), eq("bea"), eq(19L), any(PageRequest.class)))
+                .thenReturn(List.of());
+        when(direct.findConversationContextAfter(eq("ana"), eq("bea"), eq(19L), any(PageRequest.class)))
+                .thenReturn(List.of());
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.context("ana", "direct", "bea", 19));
+        assertEquals(404, error.getStatusCode().value());
+        assertThrows(ResponseStatusException.class,
+                () -> service.context("ana", "direct", "bea", 0));
+    }
+
     @Test
     void invalidQueryAndPageAreRejectedBeforeDataAccess() {
         for (String query : List.of("", "a", " ", "x".repeat(81))) {
