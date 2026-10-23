@@ -25,6 +25,13 @@ public class Chat {
     private String text;
     private String dataDisplay;
     private Date date;
+    // Server-owned immutable quote snapshot. References never cross conversations.
+    @Column(name = "reply_to_message_id")
+    private Long replyToMessageId;
+    @Column(name = "reply_to_sender", length = 128)
+    private String replyToSender;
+    @Column(name = "reply_to_text", length = 2000)
+    private String replyToText;
 
     public Chat(String username1, String username2, String text, String dataDisplay,Date date) {
         this.username1 = username1;
