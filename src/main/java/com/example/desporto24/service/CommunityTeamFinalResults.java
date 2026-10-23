@@ -26,7 +26,11 @@ final class CommunityTeamFinalResults {
                 || "ICE_HOCKEY_OT".equals(type)
                 || "ICE_HOCKEY_SO".equals(type)
                 || "BASEBALL_RUNS".equals(type)
-                || "SOFTBALL_RUNS".equals(type);
+                || "SOFTBALL_RUNS".equals(type)
+                || "KORFBALL_REG".equals(type)
+                || "KORFBALL_GOLDEN".equals(type)
+                || "LACROSSE_M_REG".equals(type)
+                || "LACROSSE_M_OT".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -45,6 +49,10 @@ final class CommunityTeamFinalResults {
                 || "Polo Aquático".equals(sport) && "WATER_POLO_FINAL".equals(eventType)
                 || "Basebol".equals(sport) && "BASEBALL_RUNS".equals(eventType)
                 || "Softbol".equals(sport) && "SOFTBALL_RUNS".equals(eventType)
+                || "Corfebol".equals(sport) && (
+                        "KORFBALL_REG".equals(eventType) || "KORFBALL_GOLDEN".equals(eventType))
+                || "Lacrosse".equals(sport) && (
+                        "LACROSSE_M_REG".equals(eventType) || "LACROSSE_M_OT".equals(eventType))
                 || "Hóquei no Gelo".equals(sport) && (
                         "ICE_HOCKEY_REG".equals(eventType)
                         || "ICE_HOCKEY_OT".equals(eventType)
@@ -57,12 +65,14 @@ final class CommunityTeamFinalResults {
                 || score.sideA() < 0 || score.sideB() < 0
                 || score.sideA() > 999 || score.sideB() > 999)
             throw new IllegalArgumentException("Regista dois resultados finais inteiros de 0 a 999");
-        // The extra goal in a decided OT/SO game must leave an official one-goal margin.
-        // Regulation scores may be level: that is NOT a completed IIHF winner.
-        if (("ICE_HOCKEY_OT".equals(eventType) || "ICE_HOCKEY_SO".equals(eventType))
+        // Sudden-decision results: IKF golden goal, men's field lacrosse
+        // overtime and IIHF ice hockey OT/SO all end with one decisive goal.
+        // Regulation scores can be level, without implying a final winner.
+        if (("KORFBALL_GOLDEN".equals(eventType) || "LACROSSE_M_OT".equals(eventType)
+                || "ICE_HOCKEY_OT".equals(eventType) || "ICE_HOCKEY_SO".equals(eventType))
                 && Math.abs(score.sideA() - score.sideB()) != 1)
             throw new IllegalArgumentException(
-                    "O resultado oficial após prolongamento ou shootout exige um vencedor por um golo");
+                    "O desempate por golo decisivo exige um vencedor por exatamente um golo");
         int a = 0, b = 0;
         for (CommunityRoundEntryRequest e : entries) {
             if ("A".equals(e.team())) a++;
