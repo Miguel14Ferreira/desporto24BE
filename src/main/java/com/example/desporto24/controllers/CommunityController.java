@@ -194,6 +194,24 @@ public class CommunityController {
         );
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/race-rules")
+    public ResponseEntity<CommunityRaceRuleResponse> updateRaceRule(
+            @PathVariable Long id, @PathVariable Long seasonId,
+            @RequestBody @Valid UpdateCommunityRaceRuleRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(competitionService.updateRaceRule(
+                id, seasonId, authentication.getName(), request));
+    }
+
+    @PutMapping("/{id}/rounds/{roundId}/entries/{entryId}/race-penalty")
+    public ResponseEntity<CommunityRoundEntryResponse> updateRacePenalty(
+            @PathVariable Long id, @PathVariable Long roundId, @PathVariable Long entryId,
+            @RequestBody @Valid UpdateCommunityRacePenaltyRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(competitionService.updateRacePenalty(
+                id, roundId, entryId, authentication.getName(), request));
+    }
+
     @PutMapping("/{id}/seasons/{seasonId}/racket-rules")
     public ResponseEntity<CommunityRacketRuleResponse> updateRacketRule(
             @PathVariable Long id, @PathVariable Long seasonId,
