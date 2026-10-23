@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-23-community-group-routine-scores
+      author: desporto24
+      comment: "Optional group score payload; never backfill individual marks or historical teams"
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_round
+            columns:
+              - column:
+                  name: group_scores_json
+                  type: TEXT
+                  constraints:
+                    nullable: true

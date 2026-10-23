@@ -12,8 +12,18 @@ public record CommunityRoundResponse(
         String matchFormat,
         List<CommunitySetScore> setScores,
         String eventType,
-        String eventDiscipline
+        String eventDiscipline,
+        List<CommunityGroupRoutineScore> groupScores
 ) {
+    // Keep existing Java constructors compatible with older tests/callers.
+    public CommunityRoundResponse(Long id, String name, Instant playedAt,
+            List<CommunityRoundEntryResponse> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline) {
+        this(id, name, playedAt, entries, sport, matchFormat,
+                setScores, eventType, eventDiscipline, List.of());
+    }
+
     public CommunityRoundResponse(Long id, String name, Instant playedAt,
             List<CommunityRoundEntryResponse> entries, String sport,
             String matchFormat, List<CommunitySetScore> setScores, String eventType) {

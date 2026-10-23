@@ -144,3 +144,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-23-community-surf-gymnastics.yaml
   - include:
       file: db/changelog/changes/2026-10-23-community-final-score-precision.yaml
+  - include:
+      file: db/changelog/changes/2026-10-23-community-group-routine-scores.yaml
