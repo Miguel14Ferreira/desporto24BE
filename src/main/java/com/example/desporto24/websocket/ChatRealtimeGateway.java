@@ -16,6 +16,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -24,13 +25,16 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
 
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileRepository profileRepository;
+    private final com.example.desporto24.service.ChatTypingService typingService;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     public ChatRealtimeGateway(
             JWTokenProvider jwtTokenProvider,
-            ProfileRepository profileRepository) {
+            ProfileRepository profileRepository,
+            com.example.desporto24.service.ChatTypingService typingService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.profileRepository = profileRepository;
+        this.typingService = typingService;
     }
 
     private final ConcurrentHashMap<String, Set<WebSocketSession>> sessionsByUsername =
@@ -38,20 +42,63 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
     private final ConcurrentHashMap<String, String> usernameBySessionId =
             new ConcurrentHashMap<>();
 
+    // In-memory, socket-scoped abuse protection; never persisted.
+    private final ConcurrentHashMap<String, Long> lastTypingAtBySocket = new ConcurrentHashMap<>();
+
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         JsonNode payload = objectMapper.readTree(message.getPayload());
         String type = payload.path("type").asText("");
 
         if (!"AUTH".equals(type)) {
-            if (!usernameBySessionId.containsKey(session.getId())) {
+            String actor = usernameBySessionId.get(session.getId());
+            if (actor == null) {
                 session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Authentication required"));
+                return;
             }
+            if ("CHAT_TYPING".equals(type)) handleTyping(session, actor, payload);
             return;
         }
 
         String token = payload.path("token").asText("");
         authenticate(session, token);
+    }
+
+
+    /** Broadcast only authenticated, authorized, rate-limited ephemeral presence. */
+    private void handleTyping(WebSocketSession origin, String actor, JsonNode payload) {
+        if (payload.toString().length() > 256
+                || !payload.path("active").isBoolean()) return;
+        String kind = payload.path("kind").asText("");
+        String id = payload.path("id").asText("");
+        if (kind.length() > 16 || id.isBlank() || id.length() > 128) return;
+        boolean active = payload.path("active").asBoolean();
+        long now = System.currentTimeMillis();
+        // At most one typing event per socket per second, including STOP.
+        Long prev = lastTypingAtBySocket.put(origin.getId(), now);
+        if (prev != null && now - prev < 1000) return;
+        try {
+            var audience = typingService.authorizedRecipients(actor, kind, id);
+            String wire = objectMapper.createObjectNode()
+                    .put("type", "CHAT_TYPING")
+                    .set("typing", objectMapper.createObjectNode()
+                            .put("kind", kind.toLowerCase(Locale.ROOT))
+                            .put("conversationId", "direct".equalsIgnoreCase(kind)
+                                    ? actor.toLowerCase(Locale.ROOT) : audience.conversationId())
+                            .put("username", actor)
+                            .put("active", active))
+                    .toString();
+            for (String username : audience.usernames()) {
+                if (username.equalsIgnoreCase(actor)) continue;
+                Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+                if (sockets == null) continue;
+                for (WebSocketSession recipient : sockets) {
+                    try { send(recipient, wire); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Fail closed: never disclose a conversation's existence or its users.
+        }
     }
 
     private void authenticate(WebSocketSession session, String token) throws IOException {
@@ -206,6 +253,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        lastTypingAtBySocket.remove(session.getId());
         String username = usernameBySessionId.remove(session.getId());
         if (username == null) {
             return;
