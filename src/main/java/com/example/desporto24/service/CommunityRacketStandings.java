@@ -3,6 +3,7 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.dto.community.CommunityRacketStandingGroupResponse;
 import com.example.desporto24.model.dto.community.CommunityRacketStandingResponse;
+import com.example.desporto24.model.dto.community.CommunityRacketRuleResponse;
 import com.example.desporto24.model.dto.community.CommunityRoundEntryResponse;
 import com.example.desporto24.model.dto.community.CommunityRoundResponse;
 import com.example.desporto24.model.dto.community.CommunitySetScore;
@@ -65,6 +66,16 @@ final class CommunityRacketStandings {
                     .thenComparing(p -> p.profileId);
 
     static List<CommunityRacketStandingGroupResponse> calculate(List<CommunityRoundResponse> rounds) {
+        return calculate(rounds, List.of());
+    }
+
+    static List<CommunityRacketStandingGroupResponse> calculate(
+            List<CommunityRoundResponse> rounds, List<CommunityRacketRuleResponse> rules) {
+        Map<GroupKey, CommunityRacketRuleResponse> rulesByKey = new HashMap<>();
+        for (CommunityRacketRuleResponse rule : rules) {
+            rulesByKey.put(new GroupKey(rule.sport().trim().toLowerCase(Locale.ROOT),
+                    rule.matchFormat()), rule);
+        }
         Map<GroupKey, Map<Long, PlayerTotals>> groups = new LinkedHashMap<>();
         Map<GroupKey, String> displaySports = new HashMap<>();
         for (CommunityRoundResponse round : rounds) {
@@ -122,23 +133,68 @@ final class CommunityRacketStandings {
                 .sorted(Comparator.comparing((Map.Entry<GroupKey, ?> e) -> e.getKey().sport)
                         .thenComparing(e -> e.getKey().format))
                 .forEach(group -> {
-                    List<PlayerTotals> ordered = group.getValue().values().stream().sorted(ORDER).toList();
+                    CommunityRacketRuleResponse rule = rulesByKey.get(group.getKey());
+                    Comparator<PlayerTotals> ordering = rule == null
+                            ? ORDER : customOrder(rule);
+                    List<PlayerTotals> ordered = group.getValue().values().stream().sorted(ordering).toList();
                     List<CommunityRacketStandingResponse> rows = new ArrayList<>();
                     int previousPosition = 0;
                     for (int index = 0; index < ordered.size(); index++) {
                         PlayerTotals p = ordered.get(index);
-                        if (index == 0 || sportingCompare(ordered.get(index - 1), p) != 0) {
+                        if (index == 0 || (rule == null
+                                ? sportingCompare(ordered.get(index - 1), p)
+                                : customSportingCompare(ordered.get(index - 1), p, rule)) != 0) {
                             previousPosition = index + 1;
                         }
                         rows.add(new CommunityRacketStandingResponse(
                                 previousPosition, p.profileId, p.username, p.name(), p.picture,
                                 p.matches(), p.wins, p.losses, p.setsWon, p.setsLost,
-                                p.setsDifference(), p.scored, p.conceded, p.scoreDifference()));
+                                p.setsDifference(), p.scored, p.conceded, p.scoreDifference(),
+                                rule == null ? null : points(p, rule)));
                     }
                     response.add(new CommunityRacketStandingGroupResponse(
-                            displaySports.get(group.getKey()), group.getKey().format(), List.copyOf(rows)));
+                            displaySports.get(group.getKey()), group.getKey().format(),
+                            List.copyOf(rows), rule));
                 });
         return List.copyOf(response);
+    }
+
+    private static int points(PlayerTotals p, CommunityRacketRuleResponse rule) {
+        return p.wins * rule.winPoints() + p.losses * rule.lossPoints();
+    }
+
+    private static int customSportingCompare(
+            PlayerTotals a, PlayerTotals b, CommunityRacketRuleResponse rule) {
+        int c = Integer.compare(points(a, rule), points(b, rule));
+        if (c != 0) return c;
+        c = Integer.compare(a.wins, b.wins);
+        if (c != 0) return c;
+        if ("SCORE_FIRST".equals(rule.tieBreak())) {
+            c = Integer.compare(a.scoreDifference(), b.scoreDifference());
+            if (c != 0) return c;
+            c = Integer.compare(a.scored, b.scored);
+            if (c != 0) return c;
+        }
+        c = Integer.compare(a.setsDifference(), b.setsDifference());
+        if (c != 0) return c;
+        c = Integer.compare(a.setsWon, b.setsWon);
+        if (c != 0) return c;
+        if (!"SCORE_FIRST".equals(rule.tieBreak())) {
+            c = Integer.compare(a.scoreDifference(), b.scoreDifference());
+            if (c != 0) return c;
+            c = Integer.compare(a.scored, b.scored);
+        }
+        return c;
+    }
+
+    private static Comparator<PlayerTotals> customOrder(CommunityRacketRuleResponse rule) {
+        return (a, b) -> {
+            int c = customSportingCompare(b, a, rule); // descending sport metrics
+            if (c != 0) return c;
+            c = String.CASE_INSENSITIVE_ORDER.compare(a.name(), b.name());
+            if (c != 0) return c;
+            return a.profileId.compareTo(b.profileId);
+        };
     }
 
     private static int sportingCompare(PlayerTotals a, PlayerTotals b) {
