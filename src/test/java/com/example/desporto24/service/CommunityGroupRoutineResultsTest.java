@@ -94,11 +94,11 @@ class CommunityGroupRoutineResultsTest {
                 validate("RHYTHMIC_GROUP_5",group,List.of()));
         assertThrows(IllegalArgumentException.class,() ->
                 validate("RHYTHMIC_GROUP_5",group,List.of(score("Outro","10"))));
-        var mixed=new ArrayList<>(group);
-        mixed.add(entrant("noGroup",null));
+        var noGroupMembers=new ArrayList<>(group);
+        noGroupMembers.add(entrant("noGroup",null));
         assertThrows(IllegalArgumentException.class,() ->
-                validate("RHYTHMIC_GROUP_5",mixed,List.of(score("Conjunto","10"))));
-        mixed=new ArrayList<>(group);
+                validate("RHYTHMIC_GROUP_5",noGroupMembers,List.of(score("Conjunto","10"))));
+        var mixed=new ArrayList<>(group);
         mixed.set(0,new CommunityRoundEntryRequest("Conjunto1","Conjunto",
                 CommunityMatchResult.DRAW,0,0,false,false,null,null,null,null,
                 new BigDecimal("10"),null,null));
