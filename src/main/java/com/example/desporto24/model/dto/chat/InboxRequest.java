@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record InboxRequest(
-        @NotNull @Size(max = 150) List<@NotNull @Valid Conversation conversation> conversations) {
+        @NotNull @Size(max = 150) List<@NotNull @Valid Conversation> conversations) {
     public record Conversation(
             @NotNull String kind,
             @NotNull String id) {}
