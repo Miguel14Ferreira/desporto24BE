@@ -254,6 +254,7 @@ public class CommunityCompetitionService {
                 .community(community)
                 .season(activeSeason)
                 .name(request.name().trim())
+                .sport(CommunityRoundSport.resolve(community, request.sport()))
                 .playedAt(request.playedAt())
                 .createdAt(Instant.now())
                 .build());
@@ -463,7 +464,8 @@ public class CommunityCompetitionService {
                 round.getId(),
                 round.getName(),
                 round.getPlayedAt(),
-                entries
+                entries,
+                round.getSport()
         );
     }
 
