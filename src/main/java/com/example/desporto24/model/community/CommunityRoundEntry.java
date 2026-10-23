@@ -68,4 +68,12 @@ public class CommunityRoundEntry {
 
     @Column(name = "laps_completed")
     private Integer lapsCompleted;
+
+    // Sports-specific penalty, kept separate from the measured finishing position.
+    @Builder.Default
+    @Column(name = "race_penalty_points", nullable = false)
+    private int racePenaltyPoints = 0;
+
+    @Column(name = "race_penalty_reason", length = 255)
+    private String racePenaltyReason;
 }

@@ -124,3 +124,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-23-community-round-racket-scores.yaml
   - include:
       file: db/changelog/changes/2026-10-23-community-racket-season-rules.yaml
+  - include:
+      file: db/changelog/changes/2026-10-23-community-race-championship.yaml

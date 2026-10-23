@@ -17,8 +17,23 @@ public record CommunityRoundEntryResponse(
         Integer finishPosition,
         BigDecimal elapsedSeconds,
         BigDecimal bestLapSeconds,
-        Integer lapsCompleted
+        Integer lapsCompleted,
+        Long entryId,
+        Long communityPlayerId,
+        int racePenaltyPoints,
+        String racePenaltyReason
 ) {
+    public CommunityRoundEntryResponse(Long profileId, String username,
+            String fullName, String profilePicUrl, String team,
+            CommunityMatchResult result, int goals, int assists,
+            boolean mvp, boolean cleanSheet,
+            Integer finishPosition, BigDecimal elapsedSeconds,
+            BigDecimal bestLapSeconds, Integer lapsCompleted) {
+        this(profileId, username, fullName, profilePicUrl, team,
+                result, goals, assists, mvp, cleanSheet,
+                finishPosition, elapsedSeconds, bestLapSeconds, lapsCompleted,
+                null, null, 0, null);
+    }
     public CommunityRoundEntryResponse(Long profileId, String username,
             String fullName, String profilePicUrl, String team,
             CommunityMatchResult result, int goals, int assists,
