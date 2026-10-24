@@ -18,6 +18,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.example.desporto24.storage.MediaStorage;
+import org.springframework.web.multipart.MultipartFile;
+import java.net.URI;
+import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -35,6 +40,9 @@ public class CommunityTimelineService {
     private final CommunityTimelineEntryRepository timelineRepository;
     private final ProfileRepository profileRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Autowired(required = false)
+    private MediaStorage mediaStorage;
 
     @Transactional(readOnly = true)
     public List<CommunityTimelineEntryResponse> list(Long communityId, CommunityTimelineEntry.Kind kind, String username) {
@@ -117,6 +125,64 @@ public class CommunityTimelineService {
         return response;
     }
 
+    /**
+     * Public API mirrors the regular social composer while maintaining
+     * membership checks and keeping chat entries text-only.
+     * File contents are validated by the shared MediaStorage implementation.
+     */
+    @Transactional
+    public CommunityTimelineEntryResponse postWithMedia(
+            Long communityId, String body, MultipartFile image, MultipartFile video, String username) {
+        Access access = requireMember(communityId, username);
+        boolean hasImage = image != null && !image.isEmpty();
+        boolean hasVideo = video != null && !video.isEmpty();
+        if (hasImage && hasVideo) {
+            throw new IllegalArgumentException("Only one photo or video per post");
+        }
+        String normalized = body == null ? "" : body.trim();
+        if (normalized.length() > 1000 || (normalized.isBlank() && !hasImage && !hasVideo)) {
+            throw new IllegalArgumentException("Post must have a message or media and at most 1000 characters");
+        }
+        if (!hasImage && !hasVideo) {
+            return post(communityId, CommunityTimelineEntry.Kind.POST, normalized, username);
+        }
+        if (mediaStorage == null) {
+            throw new IllegalStateException("Media storage is not configured");
+        }
+
+        String base = "community-posts/" + communityId + "/" + UUID.randomUUID();
+        URI uri = hasImage ? mediaStorage.store(base, image) : mediaStorage.storeVideo(base, video);
+        String key = mediaKey(uri);
+        try {
+            CommunityTimelineEntry entry = timelineRepository.save(
+                    CommunityTimelineEntry.builder()
+                            .community(access.community())
+                            .author(access.actor())
+                            .kind(CommunityTimelineEntry.Kind.POST)
+                            .body(normalized)
+                            .imageUrl(hasImage ? uri.toString() : null)
+                            .imageStorageKey(hasImage ? key : null)
+                            .videoUrl(hasVideo ? uri.toString() : null)
+                            .videoStorageKey(hasVideo ? key : null)
+                            .createdAt(Instant.now())
+                            .build());
+            return toResponse(entry);
+        } catch (RuntimeException exception) {
+            if (key != null) {
+                try { mediaStorage.delete(key); }
+                catch (RuntimeException cleanupFailure) { exception.addSuppressed(cleanupFailure); }
+            }
+            throw exception;
+        }
+    }
+
+    private String mediaKey(URI uri) {
+        String path = uri.getPath();
+        if (path == null) return null;
+        int index = path.indexOf("community-posts/");
+        return index < 0 ? null : path.substring(index);
+    }
+
     @Transactional
     public void delete(Long communityId, CommunityTimelineEntry.Kind kind, Long entryId, String username) {
         Access access = requireMember(communityId, username);
@@ -132,6 +198,11 @@ public class CommunityTimelineService {
                    .orElse(false);
         if (!author && !manager) throw new AccessDeniedException("Only the author or a community manager can delete");
         timelineRepository.delete(entry);
+        timelineRepository.flush();
+        if (kind == CommunityTimelineEntry.Kind.POST && mediaStorage != null) {
+            if (entry.getImageStorageKey() != null) mediaStorage.delete(entry.getImageStorageKey());
+            if (entry.getVideoStorageKey() != null) mediaStorage.delete(entry.getVideoStorageKey());
+        }
     }
 
     private Access requireMember(Long communityId, String username) {
@@ -150,7 +221,8 @@ public class CommunityTimelineService {
         return new CommunityTimelineEntryResponse(
                 entry.getId(), entry.getCommunity().getId(), entry.getKind().name(),
                 entry.getAuthor().getUsername(), entry.getBody(), entry.getCreatedAt(),
-                entry.getReplyToMessageId(), entry.getReplyToSender(), entry.getReplyToText());
+                entry.getReplyToMessageId(), entry.getReplyToSender(), entry.getReplyToText(),
+                entry.getImageUrl(), entry.getVideoUrl());
     }
 
     private record Access(Community community, Profile actor) {}

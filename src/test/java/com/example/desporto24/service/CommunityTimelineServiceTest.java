@@ -15,6 +15,10 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityTimelineEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
+import com.example.desporto24.storage.MediaStorage;
+import org.springframework.test.util.ReflectionTestUtils;
+import java.net.URI;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -246,6 +250,77 @@ class CommunityTimelineServiceTest {
                 () -> service.post(7L, Kind.CHAT, "Olá", "owner", 77L)).getStatusCode().value());
         verify(timelines, never()).save(any());
         verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void membersUploadPhotosAndVideosWithoutChangingCommunityChat() {
+        setup(member, true);
+        MediaStorage media = mock(MediaStorage.class);
+        ReflectionTestUtils.setField(service, "mediaStorage", media);
+        MockMultipartFile image = new MockMultipartFile("image", "photo.png", "image/png", new byte[] {1, 2});
+        MockMultipartFile video = new MockMultipartFile("video", "clip.mp4", "video/mp4", new byte[] {3, 4});
+        when(media.store(startsWith("community-posts/7/"), same(image)))
+                .thenReturn(URI.create("/media/community-posts/7/photo.png"));
+        when(media.storeVideo(startsWith("community-posts/7/"), same(video)))
+                .thenReturn(URI.create("/media/community-posts/7/clip.mp4"));
+        when(timelines.save(any())).thenAnswer(inv -> {
+            CommunityTimelineEntry entry = inv.getArgument(0);
+            entry.setId(entry.getImageUrl() == null ? 15L : 14L);
+            return entry;
+        });
+
+        var photo = service.postWithMedia(7L, "  Foi um bom jogo! ", image, null, "member");
+        assertEquals("Foi um bom jogo!", photo.body());
+        assertEquals("/media/community-posts/7/photo.png", photo.imageUrl());
+        assertNull(photo.videoUrl());
+
+        var movie = service.postWithMedia(7L, "", null, video, "member");
+        assertEquals("", movie.body());
+        assertEquals("/media/community-posts/7/clip.mp4", movie.videoUrl());
+        assertNull(movie.imageUrl());
+        verify(timelines, times(2)).save(argThat(entry ->
+                entry.getKind() == Kind.POST && entry.getCommunity() == group));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void outsidersCannotUploadEvenBeforeMediaValidationOrStorage() {
+        setup(outsider, false);
+        MediaStorage media = mock(MediaStorage.class);
+        ReflectionTestUtils.setField(service, "mediaStorage", media);
+        MockMultipartFile image = new MockMultipartFile("image", "photo.png", "image/png", new byte[] {1});
+        assertThrows(AccessDeniedException.class,
+                () -> service.postWithMedia(7L, "a", image, null, "outsider"));
+        verifyNoInteractions(media, timelines);
+    }
+
+    @Test
+    void combinedPhotoAndVideoAreRejectedBeforeWritingObjects() {
+        setup(owner, true);
+        MediaStorage media = mock(MediaStorage.class);
+        ReflectionTestUtils.setField(service, "mediaStorage", media);
+        MockMultipartFile image = new MockMultipartFile("image", "p.png", "image/png", new byte[] {1});
+        MockMultipartFile video = new MockMultipartFile("video", "v.mp4", "video/mp4", new byte[] {2});
+        assertThrows(IllegalArgumentException.class,
+                () -> service.postWithMedia(7L, "hello", image, video, "owner"));
+        verifyNoInteractions(media, timelines);
+    }
+
+    @Test
+    void deletingCommunityPostAlsoDeletesItsUploadedMedia() {
+        setup(owner, true);
+        MediaStorage media = mock(MediaStorage.class);
+        ReflectionTestUtils.setField(service, "mediaStorage", media);
+        var post = entry(50L, Kind.POST, member);
+        post.setImageStorageKey("community-posts/7/previous.png");
+        when(timelines.findById(50L)).thenReturn(Optional.of(post));
+
+        service.delete(7L, Kind.POST, 50L, "owner");
+
+        var order = inOrder(timelines, media);
+        order.verify(timelines).delete(post);
+        order.verify(timelines).flush();
+        order.verify(media).delete("community-posts/7/previous.png");
     }
 
     private CommunityTimelineEntry entry(Long id, Kind kind, Profile actor) {

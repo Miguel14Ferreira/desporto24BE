@@ -7,6 +7,8 @@ import com.example.desporto24.service.CommunityTimelineService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +32,16 @@ public class CommunityTimelineController {
             @PathVariable Long communityId, @RequestBody @Valid CommunityTimelineEntryRequest request,
             Authentication authentication) {
         return service.post(communityId, Kind.POST, request.body(), authentication.getName(), request.replyToMessageId());
+    }
+
+    @PostMapping(value = "/posts", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public CommunityTimelineEntryResponse publishWithMedia(
+            @PathVariable Long communityId,
+            @RequestPart(value = "content", required = false) String content,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "video", required = false) MultipartFile video,
+            Authentication authentication) {
+        return service.postWithMedia(communityId, content, image, video, authentication.getName());
     }
 
     @DeleteMapping("/posts/{entryId}")
