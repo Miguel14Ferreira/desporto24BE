@@ -86,6 +86,23 @@ class CommunityRaceStandingsTest {
         assertNull(standings.get(0).championshipPoints());
     }
 
+    @Test void roadCyclingStandingsNeverMixTimeTrialsIntoRacePoints() {
+        var road = new CommunityRoundResponse(70L, "Prova em linha",
+                Instant.parse("2026-10-20T18:00:00Z"),
+                List.of(driver(1, 11, "Ana", 1, 0), driver(2, 22, "Rui", 2, 0)),
+                "Ciclismo de Estrada", null, List.of(), "ROAD_RACE");
+        var tt = new CommunityRoundResponse(71L, "Contrarrelógio",
+                Instant.parse("2026-10-21T18:00:00Z"),
+                List.of(driver(3, 11, "Ana", 2, 0), driver(4, 22, "Rui", 1, 0)),
+                "Ciclismo de Estrada", null, List.of(), "TIME_TRIAL");
+        var group = CommunityRaceStandings.calculate(List.of(road, tt),
+                List.of(new CommunityRaceRuleResponse("Ciclismo de Estrada", List.of(25, 18))))
+                .get(0);
+        assertEquals(25, group.standings().get(0).championshipPoints());
+        assertEquals(1, group.standings().get(0).races());
+        assertEquals(11L, group.standings().get(0).playerId());
+    }
+
     @Test void penaltiesCannotTakePerRaceScoreBelowZero() {
         var round = race(1, "Karting", driver(1, 11, "A", 1, 1000),
                 driver(2, 22, "B", 2, 0));
