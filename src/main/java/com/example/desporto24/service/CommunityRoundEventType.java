@@ -29,6 +29,7 @@ final class CommunityRoundEventType {
             Map.entry("Bilhar", List.of("POOL_9_RACKS")),
             Map.entry("Esgrima", List.of("FENCING_POOL_5", "FENCING_DE_15")),
             Map.entry("Teqball", List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")),
+            Map.entry("Xadrez", List.of("CHESS_GAME")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(
@@ -87,6 +88,10 @@ final class CommunityRoundEventType {
                 || CommunityBasketballResults.isBasketballEvent(type)
                 || CommunityVolleyballResults.isVolleyballEvent(type)
                 || CommunityTeamFinalResults.isTeamFinalEvent(type)) return;
+        if ("CHESS_GAME".equals(type)) {
+            validateChessGame(sport, entries);
+            return;
+        }
         boolean neutral = isNeutralEvent(sport, type);
         // Judging returns a winner for one Breaking battle, NOT a scalar score.
         // Generic season W/D/L already excludes neutral events (including this one).
@@ -173,6 +178,41 @@ final class CommunityRoundEventType {
                     || e.mvp() || e.cleanSheet()) {
                 throw new IllegalArgumentException(
                         "Este tipo de prova ainda só permite registar participantes, sem resultados calculados");
+            }
+        }
+    }
+
+    /**
+     * A played chess game has one White and one Black, with a reciprocal
+     * 1-0, 0-1 or half-half result. Exceptional arbiter awards and forfeits
+     * need a separate contract: do not misrepresent them as played games.
+     */
+    private static void validateChessGame(String sport,
+            List<CommunityRoundEntryRequest> entries) {
+        if (!"Xadrez".equals(sport) || entries.size() != 2)
+            throw new IllegalArgumentException("Xadrez exige duas pessoas: Brancas e Pretas");
+        CommunityRoundEntryRequest white = entries.stream()
+                .filter(e -> "WHITE".equals(e.team())).findFirst().orElse(null);
+        CommunityRoundEntryRequest black = entries.stream()
+                .filter(e -> "BLACK".equals(e.team())).findFirst().orElse(null);
+        if (white == null || black == null)
+            throw new IllegalArgumentException("Seleciona exatamente um jogador por cor");
+        boolean validResult =
+                white.result() == CommunityMatchResult.WIN && black.result() == CommunityMatchResult.LOSS
+                || white.result() == CommunityMatchResult.LOSS && black.result() == CommunityMatchResult.WIN
+                || white.result() == CommunityMatchResult.DRAW && black.result() == CommunityMatchResult.DRAW;
+        if (!validResult)
+            throw new IllegalArgumentException("Resultado de Xadrez inválido: 1-0, 0-1 ou ½-½");
+        for (CommunityRoundEntryRequest e : entries) {
+            if (e.goals() != null && e.goals() != 0
+                    || e.assists() != null && e.assists() != 0
+                    || e.mvp() || e.cleanSheet()
+                    || e.finishPosition() != null || e.elapsedSeconds() != null
+                    || e.bestLapSeconds() != null || e.lapsCompleted() != null
+                    || e.performanceValue() != null
+                    || e.waveScore1() != null || e.waveScore2() != null) {
+                throw new IllegalArgumentException(
+                        "Xadrez apenas admite cor das peças e resultado; sem estatísticas de outras modalidades");
             }
         }
     }
