@@ -22,6 +22,12 @@ class CommunityKickboxingResultsTest {
         return List.of(entry("red","RED",red,a,0),entry("blue","BLUE",blue,b,0));
     }
 
+    @Test void nullEventProbePreservesUnrelatedSports() {
+        assertFalse(CommunityKickboxingResults.isKickboxingEvent(null));
+        assertFalse(CommunityKickboxingResults.isKickboxingEvent("BOXING_WB_KO"));
+        assertEquals(null, CommunityRoundEventType.validate("Caminhada", null));
+    }
+
     @Test void allSixWakoDisciplinesAreAllowedOnlyForExistingKickboxing() {
         for (String type : new String[] {"WAKO_POINT_FIGHTING","WAKO_LIGHT_CONTACT",
                 "WAKO_KICK_LIGHT","WAKO_FULL_CONTACT","WAKO_LOW_KICK","WAKO_K1"}) {
