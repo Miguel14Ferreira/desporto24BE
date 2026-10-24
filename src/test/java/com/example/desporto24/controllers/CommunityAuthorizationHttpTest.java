@@ -3,6 +3,7 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.exception.ExceptionHandling;
 import com.example.desporto24.model.dto.community.UpdateCommunityFeaturesRequest;
 import com.example.desporto24.service.CommunityCompetitionService;
+import com.example.desporto24.service.CommunityInlineHeatProgressionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
 import com.example.desporto24.service.CommunityHistoricalPlayerLinkService;
@@ -45,6 +46,7 @@ class CommunityAuthorizationHttpTest {
         var controller = new CommunityController(
                 service,
                 mock(CommunityCompetitionService.class),
+                mock(CommunityInlineHeatProgressionService.class),
                 mock(CommunityHistoricalPlayerLinkService.class),
                 mock(CommunityImportService.class),
                 mock(CommunityStandingsArchiveService.class),
