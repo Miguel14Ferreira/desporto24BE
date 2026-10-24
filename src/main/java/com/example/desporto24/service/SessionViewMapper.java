@@ -143,7 +143,11 @@ public class SessionViewMapper {
                 waitlistEntry.isPresent(),
                 waitlistPosition,
                 session.getGamePhoto(),
-                session.getVenue() == null ? null : venueService.toResponse(session.getVenue()),
+                // The venue response includes its street address, GPS coordinates and ID.
+                // Never reveal the exact meeting point through this nested DTO
+                // while the top-level session address is intentionally hidden.
+                canSeeExactAddress && session.getVenue() != null
+                        ? venueService.toResponse(session.getVenue()) : null,
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 session.getRecurrenceSeriesId(),
                 session.getProblemType(),
