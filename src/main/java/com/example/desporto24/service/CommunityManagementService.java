@@ -29,6 +29,11 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -483,6 +488,53 @@ public class CommunityManagementService {
 
         memberRepository.delete(membership);
         eventPublisher.publishEvent(new CommunityMembershipEndedEvent(communityId, current.getId()));
+    }
+
+    /**
+     * Only empty, single-owner communities may be permanently removed.
+     * A content check protects known historical records even when their database
+     * foreign keys use ON DELETE CASCADE. Other references are protected by FK
+     * constraints, and any failure rolls back this entire transaction.
+     */
+    public void deleteCommunity(Long communityId, String username, String confirmationName) {
+        Profile actor = profile(username);
+        CommunityMember membership = requireOwner(communityId, actor);
+        Community community = membership.getCommunity();
+
+        if (!community.getOwner().getId().equals(actor.getId())) {
+            throw new SecurityException("Apenas o proprietário pode eliminar a comunidade");
+        }
+        if (confirmationName == null || !community.getName().equals(confirmationName)) {
+            throw new IllegalArgumentException("Escreve exatamente o nome da comunidade para confirmar");
+        }
+        if (memberRepository.findByCommunityIdOrderByJoinedAtAsc(communityId).size() != 1
+                || inviteRepository.countByCommunityId(communityId) > 0
+                || joinRequestRepository.countByCommunityId(communityId) > 0
+                || communityRepository.hasActivityPreventingDeletion(communityId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A comunidade tem membros, convites ou atividade associada e não pode ser eliminada em segurança");
+        }
+
+        try {
+            memberRepository.delete(membership);
+            memberRepository.flush();
+            communityRepository.delete(community);
+            communityRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            // A concurrent join or an older linked record must not be destroyed.
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A comunidade ainda tem dados associados. A eliminação foi cancelada", exception);
+        }
+
+        String photoUrl = community.getPhotoUrl();
+        // Deleting stored media before a successful DB commit would be irreversible.
+        if (photoUrl != null && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() {
+                    deleteCommunityPhoto(photoUrl, communityId);
+                }
+            });
+        }
     }
 
     public CommunityResponse transferOwnership(

@@ -52,6 +52,19 @@ public class CommunityController {
         return ResponseEntity.ok(service.get(id, authentication.getName()));
     }
 
+    // Deliberately uses a confirmation body; never delete a group via an unsafe link.
+    @PostMapping("/{id}/delete")
+    public ResponseEntity<Void> deleteCommunity(
+            @PathVariable Long id,
+            @RequestBody @Valid ConfirmCommunityDeletionRequest confirmation,
+            Authentication authentication) {
+        service.deleteCommunity(id, authentication.getName(), confirmation.name());
+        return ResponseEntity.noContent().build();
+    }
+
+    public record ConfirmCommunityDeletionRequest(
+            @jakarta.validation.constraints.NotBlank String name) {}
+
     @PostMapping("/{id}/join")
     public ResponseEntity<CommunityResponse> joinPublic(
             @PathVariable Long id,
