@@ -26,7 +26,7 @@ class CommunityInlineProgressionRulesTest {
                 Map.of(source.getId(), originEntries));
     }
 
-    @Test void 2026TrackAndRoadProgressionMustFollowStagesAndDistance() {
+    @Test void trackAndRoadProgression2026MustFollowStagesAndDistance() {
         assertTrue(CommunityInlineProgressionRules.allowedTransition(
                 "INLINE_TRACK_500D_FIRST_ROUND", "INLINE_TRACK_500D_QUARTER_HEAT"));
         assertTrue(CommunityInlineProgressionRules.allowedTransition(
