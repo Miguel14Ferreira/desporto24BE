@@ -48,6 +48,10 @@ public class CommunityTournamentFinalizationService {
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
         }
+        if (tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "O campeonato de Karting deve ser encerrado pela classificação por corridas");
+        }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "A conclusão de competições por equipas requer classificação por equipas");
