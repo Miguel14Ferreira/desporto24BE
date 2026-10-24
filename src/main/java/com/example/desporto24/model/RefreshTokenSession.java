@@ -26,6 +26,14 @@ public class RefreshTokenSession {
     @Column(name = "consumed_at")
     private Instant consumedAt;
 
+    // Each browser login creates an independent family. The family is
+    // inherited across refresh rotations and is never derived from a JWT.
+    @Column(name = "family_id", length = 36)
+    private String familyId;
+
+    @Column(name = "revoked_at")
+    private Instant revokedAt;
+
     protected RefreshTokenSession() {}
 
     public RefreshTokenSession(String tokenHash, Long profileId, Instant expiresAt, Instant consumedAt) {
@@ -34,6 +42,16 @@ public class RefreshTokenSession {
         this.expiresAt = expiresAt;
         this.consumedAt = consumedAt;
     }
+
+    public RefreshTokenSession(String tokenHash, Long profileId, Instant expiresAt,
+                               Instant consumedAt, String familyId) {
+        this(tokenHash, profileId, expiresAt, consumedAt);
+        this.familyId = familyId;
+    }
+
+    public String getFamilyId() { return familyId; }
+    public void setFamilyId(String familyId) { this.familyId = familyId; }
+    public Instant getRevokedAt() { return revokedAt; }
 
     public String getTokenHash() { return tokenHash; }
     public Long getProfileId() { return profileId; }

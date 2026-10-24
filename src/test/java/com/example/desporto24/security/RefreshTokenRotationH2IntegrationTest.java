@@ -50,8 +50,10 @@ class RefreshTokenRotationH2IntegrationTest {
     @Autowired private RefreshTokenRotationService rotation;
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void registeredRefreshTokenCanBeConsumedOnlyOnce() {
         Profile account = account("once-" + UUID.randomUUID());
+        try {
         String first = tokens.generateRefreshToken(new ProfilePrincipal(account));
         String replacement = tokens.generateRefreshToken(new ProfilePrincipal(account));
         rotation.registerIssued(account.getUsername(), first);
@@ -62,11 +64,17 @@ class RefreshTokenRotationH2IntegrationTest {
                         tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(2, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void legacyCookieWithoutJwtIdIsAcceptedOnlyOnce() {
         Profile account = account("legacy-" + UUID.randomUUID());
+        try {
         String legacy = JWT.create()
                 .withIssuer(SecurityConstant.DESPORTO_24)
                 .withAudience(SecurityConstant.DESPORTO_24_ADMINISTRATION)
@@ -84,22 +92,34 @@ class RefreshTokenRotationH2IntegrationTest {
                 () -> rotation.rotate(legacy, tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(2, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void unregisteredModernCookieIsRejectedEvenWithValidSignature() {
         Profile account = account("unknown-" + UUID.randomUUID());
+        try {
         String forgedAsIssued = tokens.generateRefreshToken(new ProfilePrincipal(account));
         assertThrows(BadCredentialsException.class,
                 () -> rotation.rotate(forgedAsIssued,
                         tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(0, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void mismatchingAccountVersionRevokesAnAlreadyIssuedRefreshCookie() {
         Profile account = account("revoked-" + UUID.randomUUID());
+        try {
         String cookie = tokens.generateRefreshToken(new ProfilePrincipal(account));
         rotation.registerIssued(account.getUsername(), cookie);
         account.setTokenVersion(account.getTokenVersion() + 1);
@@ -109,6 +129,121 @@ class RefreshTokenRotationH2IntegrationTest {
                 () -> rotation.rotate(cookie, tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(1, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void delayedReplayRevokesOnlyThatDeviceAndPersistsDespiteAuthenticationFailure() {
+        Profile account = account("replay-device-" + UUID.randomUUID());
+        try {
+            String original = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            String otherDevice = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            rotation.registerIssued(account.getUsername(), original);
+            rotation.registerIssued(account.getUsername(), otherDevice);
+
+            String activeChild = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            rotation.rotate(original, activeChild, account.getUsername());
+
+            var consumedParent = sessions.findAll().stream()
+                    .filter(t -> t.getConsumedAt() != null)
+                    .findFirst().orElseThrow();
+            String compromisedFamily = consumedParent.getFamilyId();
+            var sibling = sessions.findAll().stream()
+                    .filter(t -> t.getTokenHash().equals(hash(otherDevice)))
+                    .findFirst().orElseThrow();
+            assertNotEquals(compromisedFamily, sibling.getFamilyId());
+
+            // Simulate a replay observed after the benign retry grace window.
+            consumedParent.setConsumedAt(Instant.now().minusSeconds(60));
+            sessions.saveAndFlush(consumedParent);
+
+            assertThrows(BadCredentialsException.class,
+                    () -> rotation.rotate(original,
+                            tokens.generateRefreshToken(new ProfilePrincipal(account)),
+                            account.getUsername()));
+
+            // The outer HTTP caller receives 401, but the revoke transaction
+            // MUST have committed independently; the active successor is denied.
+            var revoked = sessions.findAll().stream()
+                    .filter(t -> compromisedFamily.equals(t.getFamilyId()))
+                    .toList();
+            assertEquals(2, revoked.size());
+            assertTrue(revoked.stream().allMatch(t -> t.getRevokedAt() != null));
+            assertNull(sessions.findById(hash(otherDevice)).orElseThrow().getRevokedAt());
+
+            assertThrows(BadCredentialsException.class,
+                    () -> rotation.rotate(activeChild,
+                            tokens.generateRefreshToken(new ProfilePrincipal(account)),
+                            account.getUsername()));
+            assertDoesNotThrow(() -> rotation.rotate(otherDevice,
+                    tokens.generateRefreshToken(new ProfilePrincipal(account)),
+                    account.getUsername()));
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void immediateDuplicateRequestIsDeniedWithoutRevokingTheValidSuccessor() {
+        Profile account = account("duplicate-tab-" + UUID.randomUUID());
+        try {
+            String initial = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            String successor = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            rotation.registerIssued(account.getUsername(), initial);
+            rotation.rotate(initial, successor, account.getUsername());
+
+            assertThrows(BadCredentialsException.class,
+                    () -> rotation.rotate(initial,
+                            tokens.generateRefreshToken(new ProfilePrincipal(account)),
+                            account.getUsername()));
+            assertTrue(sessions.findAll().stream().allMatch(t -> t.getRevokedAt() == null));
+            assertDoesNotThrow(() -> rotation.rotate(successor,
+                    tokens.generateRefreshToken(new ProfilePrincipal(account)),
+                    account.getUsername()));
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void preexistingModernSessionWithoutFamilyAcquiresOneOnRefresh() {
+        Profile account = account("upgrade-family-" + UUID.randomUUID());
+        try {
+            String initial = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            String rotated = tokens.generateRefreshToken(new ProfilePrincipal(account));
+            rotation.registerIssued(account.getUsername(), initial);
+
+            var stored = sessions.findById(hash(initial)).orElseThrow();
+            stored.setFamilyId(null); // Mimics persisted sessions before migration.
+            sessions.saveAndFlush(stored);
+
+            rotation.rotate(initial, rotated, account.getUsername());
+            var predecessor = sessions.findById(hash(initial)).orElseThrow();
+            var successor = sessions.findById(hash(rotated)).orElseThrow();
+            assertNotNull(predecessor.getFamilyId());
+            assertEquals(predecessor.getFamilyId(), successor.getFamilyId());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
+    }
+
+    private String hash(String jwt) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(jwt.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new AssertionError(impossible);
+        }
     }
 
     @Test
