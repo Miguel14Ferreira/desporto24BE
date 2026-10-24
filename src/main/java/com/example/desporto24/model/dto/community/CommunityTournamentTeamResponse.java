@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record CommunityTournamentTeamResponse(
-        Long id, String name, int playersPerTeam, Instant createdAt,
+        Long id, String name, Integer playersPerTeam, Instant createdAt,
         List<Player> players
 ) {
     public record Player(Long profileId, String username, String displayName) {}
