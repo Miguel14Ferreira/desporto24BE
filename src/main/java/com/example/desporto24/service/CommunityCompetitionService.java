@@ -430,6 +430,8 @@ public class CommunityCompetitionService {
                 resolvedSport, resolvedEventType, request.entries(), request.basketballScore());
         CommunityTeamFinalScore teamScore = CommunityTeamFinalResults.validate(
                 resolvedSport, resolvedEventType, request.entries(), request.teamScore());
+        CommunityCricketDetails cricketDetails = CommunityCricketResults.validate(
+                resolvedSport, resolvedEventType, teamScore, request.cricketDetails());
         String groupScoresJson = CommunityGroupRoutineResults.validateAndEncode(
                 resolvedSport, resolvedEventType, request.entries(), request.groupScores());
         CommunityRoundEventType.validateEntries(resolvedSport, resolvedEventType, request.entries());
@@ -467,6 +469,10 @@ public class CommunityCompetitionService {
                 .basketballPointsB(basketballScore == null ? null : basketballScore.sideB())
                 .teamScoreA(teamScore == null ? null : teamScore.sideA())
                 .teamScoreB(teamScore == null ? null : teamScore.sideB())
+                .cricketWicketsA(cricketDetails == null ? null : cricketDetails.wicketsA())
+                .cricketBallsA(cricketDetails == null ? null : cricketDetails.legalBallsA())
+                .cricketWicketsB(cricketDetails == null ? null : cricketDetails.wicketsB())
+                .cricketBallsB(cricketDetails == null ? null : cricketDetails.legalBallsB())
                 .matchFormat(volleyballEvent || encodedSetScores == null ? null : request.matchFormat())
                 .setScores(encodedSetScores)
                 .playedAt(request.playedAt())
@@ -720,7 +726,9 @@ public class CommunityCompetitionService {
                 CommunityBasketballResults.decode(
                         round.getBasketballPointsA(), round.getBasketballPointsB()),
                 CommunityTeamFinalResults.decode(
-                        round.getTeamScoreA(), round.getTeamScoreB())
+                        round.getTeamScoreA(), round.getTeamScoreB()),
+                CommunityCricketResults.decode(round.getCricketWicketsA(), round.getCricketBallsA(),
+                        round.getCricketWicketsB(), round.getCricketBallsB())
         );
     }
 

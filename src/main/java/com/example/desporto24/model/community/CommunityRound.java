@@ -61,6 +61,19 @@ public class CommunityRound {
     @Column(name = "team_score_b")
     private Integer teamScoreB;
 
+    // NULL for old rounds and all non-cricket disciplines. Team scores store runs.
+    @Column(name = "cricket_wickets_a")
+    private Integer cricketWicketsA;
+
+    @Column(name = "cricket_balls_a")
+    private Integer cricketBallsA;
+
+    @Column(name = "cricket_wickets_b")
+    private Integer cricketWicketsB;
+
+    @Column(name = "cricket_balls_b")
+    private Integer cricketBallsB;
+
     // NULL for legacy rounds and for disciplines without structured set scoring.
     @Column(name = "match_format", length = 12)
     private String matchFormat;

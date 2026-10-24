@@ -20,8 +20,21 @@ public record CreateCommunityRoundRequest(
         @Size(max = 32) String eventDiscipline,
         List<@Valid CommunityGroupRoutineScore> groupScores,
         @Valid CommunityBasketballScore basketballScore,
-        @Valid CommunityTeamFinalScore teamScore
+        @Valid CommunityTeamFinalScore teamScore,
+        @Valid CommunityCricketDetails cricketDetails
 ) {
+    // Existing 11-field canonical signature must remain source-compatible.
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline,
+            List<CommunityGroupRoutineScore> groupScores,
+            CommunityBasketballScore basketballScore,
+            CommunityTeamFinalScore teamScore) {
+        this(name, playedAt, entries, sport, matchFormat, setScores,
+                eventType, eventDiscipline, groupScores, basketballScore, teamScore, null);
+    }
+
     // Keep the old 10-argument canonical signature source compatible.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries, String sport,

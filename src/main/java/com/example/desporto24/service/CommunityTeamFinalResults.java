@@ -27,6 +27,7 @@ final class CommunityTeamFinalResults {
                 || "ICE_HOCKEY_SO".equals(type)
                 || "BASEBALL_RUNS".equals(type)
                 || "SOFTBALL_RUNS".equals(type)
+                || "CRICKET_T20".equals(type)
                 || "KORFBALL_REG".equals(type)
                 || "KORFBALL_GOLDEN".equals(type)
                 || "LACROSSE_M_REG".equals(type)
@@ -59,6 +60,7 @@ final class CommunityTeamFinalResults {
                 || "Polo Aquático".equals(sport) && "WATER_POLO_FINAL".equals(eventType)
                 || "Basebol".equals(sport) && "BASEBALL_RUNS".equals(eventType)
                 || "Softbol".equals(sport) && "SOFTBALL_RUNS".equals(eventType)
+                || "Cricket".equals(sport) && "CRICKET_T20".equals(eventType)
                 || "Corfebol".equals(sport) && (
                         "KORFBALL_REG".equals(eventType) || "KORFBALL_GOLDEN".equals(eventType))
                 || "Lacrosse".equals(sport) && (
