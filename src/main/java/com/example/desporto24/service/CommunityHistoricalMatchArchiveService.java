@@ -1,6 +1,9 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentFormat;
+import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.model.community.*;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
@@ -26,6 +29,7 @@ public class CommunityHistoricalMatchArchiveService {
     private final CommunityMemberRepository memberRepository;
     private final CommunityRepository communityRepository;
     private final CommunityHistoricalMatchArchiveRepository archiveRepository;
+    private final CommunityTournamentRepository tournamentRepository;
     private final CommunityHistoricalMatchArchiveRowRepository rowRepository;
 
     /**
@@ -47,6 +51,29 @@ public class CommunityHistoricalMatchArchiveService {
         if (!List.of("INDIVIDUAL", "TEAM").contains(type)) {
             throw new IllegalArgumentException("Escolhe histórico individual ou por equipas");
         }
+        boolean asTournament = Boolean.TRUE.equals(context.createTournament());
+        TournamentFormat tournamentFormat = TournamentFormat.LEAGUE;
+        String tournamentSport = null;
+        if (asTournament) {
+            if (context.format() != null && !context.format().isBlank()) {
+                try {
+                    tournamentFormat = TournamentFormat.valueOf(
+                            context.format().trim().toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException exception) {
+                    throw new IllegalArgumentException("Formato histórico inválido");
+                }
+            }
+            if (tournamentFormat != TournamentFormat.LEAGUE
+                    && tournamentFormat != TournamentFormat.KNOCKOUT) {
+                throw new IllegalArgumentException("O Excel histórico suporta liga ou eliminatórias");
+            }
+            tournamentSport = context.sport() == null ? null : context.sport().trim();
+            if (tournamentSport == null || tournamentSport.isBlank()
+                    || tournamentSport.length() > 100) {
+                throw new IllegalArgumentException("Indica a modalidade do torneio histórico");
+            }
+        }
+
         // This repeats OWNER/ADMIN checks and all source-data validation at
         // confirmation time; no data is trusted from a previous browser preview.
         CommunityHistoricalMatchPreviewResponse plan = previewService.preview(
@@ -64,6 +91,10 @@ public class CommunityHistoricalMatchArchiveService {
                         .createdAt(Instant.now())
                         .build());
 
+        if (asTournament && plan.rows().isEmpty()) {
+            throw new IllegalArgumentException("Não existem partidas válidas para criar um torneio");
+        }
+
         List<CommunityHistoricalMatchArchiveRow> rows = plan.rows().stream()
                 .map(row -> CommunityHistoricalMatchArchiveRow.builder()
                         .archive(archive)
@@ -77,7 +108,28 @@ public class CommunityHistoricalMatchArchiveService {
                         .potentialDuplicate(row.potentialDuplicate())
                         .build()).toList();
         rowRepository.saveAll(rows);
-        return toResponse(archive, plan.rows());
+        Long tournamentId = null;
+        if (asTournament) {
+            // A historical entry is a completed read-only edition. Source rows
+            // remain owned by the archive so names never impersonate profiles.
+            CommunityTournament tournament = tournamentRepository.save(
+                    CommunityTournament.builder()
+                            .community(community)
+                            .name(context.title().trim())
+                            .sport(tournamentSport)
+                            .entryType(TournamentEntryType.valueOf(type))
+                            .format(tournamentFormat)
+                            .status(TournamentStatus.COMPLETED)
+                            .winPoints(3).drawPoints(1).lossPoints(0)
+                            .historicalArchiveId(archive.getId())
+                            .createdAt(Instant.now())
+                            .completedAt(Instant.now())
+                            .build());
+            tournamentId = tournament.getId();
+        }
+        return new CommunityHistoricalMatchArchiveResponse(
+                archive.getId(), archive.getTitle(), archive.getEntryType(),
+                archive.getSourceFilename(), archive.getCreatedAt(), plan.rows(), tournamentId);
     }
 
     @Transactional(readOnly = true)
