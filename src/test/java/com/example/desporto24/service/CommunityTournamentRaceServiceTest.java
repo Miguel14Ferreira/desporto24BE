@@ -144,7 +144,9 @@ class CommunityTournamentRaceServiceTest {
                 .thenReturn(overview(new CommunityRoundResponse(50L, "BMX corrida",
                         Instant.now(), race(50L, "BMX").entries(),
                         "BMX", null, List.of(), "RACE")));
-        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of());
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(
+                List.of(), List.of(CommunityTournamentRaceRound.builder()
+                        .tournament(tournament).round(good).build()));
 
         var result = service.link(7L, 19L, 50L, "owner");
         assertEquals(2, result.standings().size());
