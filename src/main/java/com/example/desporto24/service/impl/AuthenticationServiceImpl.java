@@ -81,6 +81,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             .expireAfterWrite(5, TimeUnit.MINUTES)
             .maximumSize(10_000)
             .build();
+    // A new MFA challenge must not reset the account's guess budget.
+    // This prevents repeated /mfa/resend or fresh login challenges from
+    // multiplying TOTP attempts. A shared edge limiter is still needed for
+    // deployments with more than one API instance.
+    private final Cache<String, Integer> mfaAccountAttempts = CacheBuilder.newBuilder()
+            .expireAfterWrite(15, TimeUnit.MINUTES)
+            .maximumSize(10_000)
+            .build();
+    private final Cache<String, Boolean> mfaResendCooldown = CacheBuilder.newBuilder()
+            .expireAfterWrite(60, TimeUnit.SECONDS)
+            .maximumSize(10_000)
+            .build();
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -175,13 +187,33 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
+    @Transactional
     public LoginResponse resendMfa(String challengeId) {
         MFAVerification previousChallenge = mfaVerificationService.getByChallengeId(challengeId)
                 .orElseThrow(() -> new SMSNotFoundException(SMS_FAIL));
+        validateMfaCodeExpiryAndConfirmation(previousChallenge);
 
         Profile profile = profileRepository.findUserByUsername(previousChallenge.getPerfil())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         validateProfileStatus(profile);
+        if (!Boolean.TRUE.equals(profile.getMFA())
+                || profile.getMfaSecret() == null || profile.getMfaSecret().isBlank()) {
+            throw new BadCredentialsException(SMS_FAIL);
+        }
+
+        String account = profile.getUsername().trim().toLowerCase(Locale.ROOT);
+        // Reserving per account prevents chaining fresh challenge IDs to
+        // bypass the old per-challenge endpoint cooldown.
+        if (mfaResendCooldown.asMap().putIfAbsent(account, Boolean.TRUE) != null) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Tenta novamente dentro de 60 segundos.");
+        }
+        // Single-use rotation: both concurrent resend requests cannot mint
+        // a usable challenge from the same predecessor.
+        if (!mfaVerificationService.confirmIfPending(
+                previousChallenge.getChallengeId(), LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
+        }
 
         MFAVerification challenge = createMfaChallenge(profile);
         return new LoginResponse(
@@ -216,6 +248,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
                     "Demasiadas tentativas de confirmação. Inicia sessão novamente.");
         }
+        String account = profile.getUsername().trim().toLowerCase(Locale.ROOT);
+        int accountAttempt = mfaAccountAttempts.asMap().merge(
+                account, 1, (previous, increment) -> Math.min(6, previous + increment));
+        if (accountAttempt > 5) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Demasiadas tentativas MFA. Tenta novamente mais tarde.");
+        }
         String secret = decryptString(profile.getMfaSecret(), profile.getUserId());
         String normalizedCode = request.code().trim();
         if (!totpService.verify(secret, normalizedCode)) {
@@ -227,6 +266,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
         }
         mfaAttempts.invalidate(challenge.getChallengeId());
+        mfaAccountAttempts.invalidate(account);
+        mfaResendCooldown.invalidate(account);
 
         return completedLogin(profile);
     }
