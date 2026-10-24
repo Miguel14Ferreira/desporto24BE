@@ -1,6 +1,8 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.exception.*;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.example.desporto24.enumeration.Role;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Status;
@@ -33,6 +35,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -48,6 +52,7 @@ import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.security.SecureRandom;
 
 import static com.example.desporto24.constant.FileConstant.*;
@@ -71,6 +76,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private static final int USER_ID_LENGTH = 10;
     private static final String TERMS_VERSION = "2026-10-01";
     private static final String PRIVACY_VERSION = "2026-10-01";
+    // This is per-instance protection. Edge/distributed throttling remains a separate task.
+    private final Cache<String, Integer> mfaAttempts = CacheBuilder.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(10_000)
+            .build();
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -198,6 +208,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new BadCredentialsException(SMS_FAIL);
         }
 
+        // Reserve a try atomically BEFORE checking the TOTP. Concurrent requests
+        // cannot bypass the five-attempt limit for the same MFA challenge.
+        int attemptNumber = mfaAttempts.asMap().merge(
+                challenge.getChallengeId(), 1, (previous, increment) -> Math.min(6, previous + increment));
+        if (attemptNumber > 5) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Demasiadas tentativas de confirmação. Inicia sessão novamente.");
+        }
         String secret = decryptString(profile.getMfaSecret(), profile.getUserId());
         String normalizedCode = request.code().trim();
         if (!totpService.verify(secret, normalizedCode)) {
@@ -208,6 +226,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (!mfaVerificationService.confirmIfPending(challenge.getChallengeId(), confirmedAt)) {
             throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
         }
+        mfaAttempts.invalidate(challenge.getChallengeId());
 
         return completedLogin(profile);
     }
