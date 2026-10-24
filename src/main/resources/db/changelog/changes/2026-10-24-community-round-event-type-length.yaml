@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-community-round-event-type-length-v1
+      author: desporto24
+      changes:
+        - modifyDataType:
+            schemaName: desporto24
+            tableName: community_round
+            columnName: event_type
+            newDataType: VARCHAR(48)
