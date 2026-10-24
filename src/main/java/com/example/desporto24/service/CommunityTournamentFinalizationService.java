@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentStatus;
@@ -79,7 +80,9 @@ public class CommunityTournamentFinalizationService {
         }
 
         var leader = rows.get(0);
-        boolean tied = rows.size() > 1 && equalSportingRank(leader, rows.get(1));
+        boolean tied = rows.size() > 1 && (tournament.getScoringMode() == TournamentScoringMode.CHESS_HALF_POINTS
+                ? leader.points() == rows.get(1).points() && leader.won() == rows.get(1).won()
+                : equalSportingRank(leader, rows.get(1)));
         tournament.setChampionTied(tied);
         tournament.setChampionProfileId(tied ? null : leader.profileId());
         tournament.setChampionUsername(tied ? null : leader.username());
