@@ -60,6 +60,12 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             return;
         }
 
+        // One socket is bound to one account. Re-authentication on the same
+        // connection must never leave this socket subscribed to two users.
+        if (usernameBySessionId.containsKey(session.getId())) {
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Reconnect to change account"));
+            return;
+        }
         String token = payload.path("token").asText("");
         authenticate(session, token);
     }
@@ -107,6 +113,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             Profile profile = profileRepository.findUserByUsername(username).orElse(null);
 
             boolean profileActive = profile != null
+                    && profile.getModerationSuspendedAt() == null
                     && !Boolean.FALSE.equals(profile.getNotLocked())
                     && !Boolean.FALSE.equals(profile.getEnabled());
 
