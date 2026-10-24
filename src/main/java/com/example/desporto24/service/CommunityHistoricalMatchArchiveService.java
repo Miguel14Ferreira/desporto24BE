@@ -1,5 +1,6 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentFormat;
@@ -55,13 +56,15 @@ public class CommunityHistoricalMatchArchiveService {
         TournamentFormat tournamentFormat = TournamentFormat.LEAGUE;
         String tournamentSport = null;
         if (asTournament) {
-            if (context.format() != null && !context.format().isBlank()) {
-                try {
-                    tournamentFormat = TournamentFormat.valueOf(
-                            context.format().trim().toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException exception) {
-                    throw new IllegalArgumentException("Formato histórico inválido");
-                }
+            // Never silently turn a knockout archive into a league.
+            if (context.format() == null || context.format().isBlank()) {
+                throw new IllegalArgumentException("Indica liga ou eliminatórias para o torneio histórico");
+            }
+            try {
+                tournamentFormat = TournamentFormat.valueOf(
+                        context.format().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("Formato histórico inválido");
             }
             if (tournamentFormat != TournamentFormat.LEAGUE
                     && tournamentFormat != TournamentFormat.KNOCKOUT) {
@@ -71,6 +74,11 @@ public class CommunityHistoricalMatchArchiveService {
             if (tournamentSport == null || tournamentSport.isBlank()
                     || tournamentSport.length() > 100) {
                 throw new IllegalArgumentException("Indica a modalidade do torneio histórico");
+            }
+            // The canonical 121-sport registry is the only valid source.
+            // Historical archive-only imports keep their legacy flexibility.
+            if (!SportsCatalog.ALLOWED.contains(tournamentSport)) {
+                throw new IllegalArgumentException("Modalidade fora do catálogo Jynlo");
             }
         }
 
