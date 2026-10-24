@@ -66,7 +66,9 @@ final class CommunityRaceStandings {
                     || "Natação em Águas Abertas".equals(round.sport())
                     && "OWS_INDIVIDUAL".equals(round.eventType())
                     || "Orientação".equals(round.sport())
-                    && "FOOT_ORIENTEERING".equals(round.eventType()))) continue;
+                    && "FOOT_ORIENTEERING".equals(round.eventType())
+                    || "Patinagem de Velocidade".equals(round.sport())
+                    && "INLINE_TRACK_200_TT".equals(round.eventType()))) continue;
             if (round == null || !CommunityRoundEventType.isRaceEvent(round.sport(), round.eventType())
                     || round.entries() == null) continue;
             String sport = round.sport().trim().toLowerCase(Locale.ROOT);
