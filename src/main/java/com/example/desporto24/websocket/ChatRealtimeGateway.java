@@ -41,6 +41,10 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> usernameBySessionId =
             new ConcurrentHashMap<>();
+    // Version observed at AUTH. A logout, reset, role change or suspension
+    // increments the persisted version; old sockets must not receive events.
+    private final ConcurrentHashMap<String, Long> versionBySessionId =
+            new ConcurrentHashMap<>();
 
     // In-memory, socket-scoped abuse protection; never persisted.
     private final ConcurrentHashMap<String, Long> lastTypingAtBySocket = new ConcurrentHashMap<>();
@@ -52,8 +56,8 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
 
         if (!"AUTH".equals(type)) {
             String actor = usernameBySessionId.get(session.getId());
-            if (actor == null) {
-                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Authentication required"));
+            if (actor == null || !isCurrentAuthenticatedSession(session)) {
+                closeRevokedSession(session);
                 return;
             }
             if ("CHAT_TYPING".equals(type)) handleTyping(session, actor, payload);
@@ -128,6 +132,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             }
 
             usernameBySessionId.put(session.getId(), username);
+            versionBySessionId.put(session.getId(), profile.getTokenVersion());
             sessionsByUsername
                     .computeIfAbsent(username, ignored -> new CopyOnWriteArraySet<>())
                     .add(session);
@@ -319,17 +324,50 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         } catch (RuntimeException ignored) { }
     }
 
+    /**
+     * Guard both outgoing private events and incoming chat control frames.
+     * Authentication at handshake time alone does not revoke already-open sockets
+     * after account moderation, password reset, role changes or logout.
+     * Fail closed on storage errors; never deliver private data on uncertainty.
+     */
+    private boolean isCurrentAuthenticatedSession(WebSocketSession session) {
+        String username = usernameBySessionId.get(session.getId());
+        Long authenticatedVersion = versionBySessionId.get(session.getId());
+        if (username == null || authenticatedVersion == null) return false;
+        try {
+            return profileRepository.findUserByUsername(username)
+                    .filter(profile -> profile.getModerationSuspendedAt() == null
+                            && Boolean.TRUE.equals(profile.getEnabled())
+                            && Boolean.TRUE.equals(profile.getNotLocked())
+                            && profile.getTokenVersion() == authenticatedVersion)
+                    .isPresent();
+        } catch (RuntimeException failedLookup) {
+            return false;
+        }
+    }
+
+    private void closeRevokedSession(WebSocketSession session) throws IOException {
+        afterConnectionClosed(session, CloseStatus.POLICY_VIOLATION);
+        if (session.isOpen()) {
+            session.close(CloseStatus.POLICY_VIOLATION.withReason("Session expired"));
+        }
+    }
+
     private void send(WebSocketSession session, String payload) throws IOException {
         synchronized (session) {
-            if (session.isOpen()) {
-                session.sendMessage(new TextMessage(payload));
+            if (!session.isOpen()) return;
+            if (!isCurrentAuthenticatedSession(session)) {
+                closeRevokedSession(session);
+                return;
             }
+            session.sendMessage(new TextMessage(payload));
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         lastTypingAtBySocket.remove(session.getId());
+        versionBySessionId.remove(session.getId());
         String username = usernameBySessionId.remove(session.getId());
         if (username == null) {
             return;
