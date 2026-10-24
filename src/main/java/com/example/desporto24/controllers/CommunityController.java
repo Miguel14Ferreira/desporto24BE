@@ -439,6 +439,14 @@ public class CommunityController {
         return ResponseEntity.ok(historicalMatchArchiveService.list(id, authentication.getName()));
     }
 
+    @PostMapping("/{id}/competition/match-archives/{archiveId}/tournament")
+    public ResponseEntity<CommunityTournamentResponse> convertHistoricalMatches(
+            @PathVariable Long id, @PathVariable Long archiveId,
+            Authentication authentication) {
+        return ResponseEntity.ok(historicalMatchArchiveService.createHistoricalTournament(
+                id, archiveId, authentication.getName()));
+    }
+
     @GetMapping("/{id}/competition/match-archives/{archiveId}")
     public ResponseEntity<CommunityHistoricalMatchArchiveResponse> historicalMatchArchive(
             @PathVariable Long id, @PathVariable Long archiveId, Authentication authentication) {
