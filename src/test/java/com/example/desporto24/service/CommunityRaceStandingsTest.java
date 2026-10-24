@@ -103,6 +103,21 @@ class CommunityRaceStandingsTest {
         assertEquals(11L, group.standings().get(0).playerId());
     }
 
+    @Test void trackScratchPositionsEarnCommunityPointsButTrackTimeTrialsDoNot() {
+        var scratch = new CommunityRoundResponse(100L, "Scratch", Instant.now(),
+                List.of(driver(1, 11, "Ana", 1, 0), driver(2, 22, "Rui", 2, 0)),
+                "Ciclismo de Pista", null, List.of(), "TRACK_SCRATCH");
+        var timed = new CommunityRoundResponse(101L, "Contrarrelógio", Instant.now(),
+                List.of(driver(3, 11, "Ana", 2, 0), driver(4, 22, "Rui", 1, 0)),
+                "Ciclismo de Pista", null, List.of(), "TRACK_TIME_TRIAL");
+        var group = CommunityRaceStandings.calculate(List.of(scratch, timed),
+                List.of(new CommunityRaceRuleResponse("Ciclismo de Pista", List.of(25, 18)))).get(0);
+        assertEquals(11L, group.standings().get(0).playerId());
+        assertEquals(25, group.standings().get(0).championshipPoints());
+        assertEquals(1, group.standings().get(0).races());
+        assertEquals(18, group.standings().get(1).championshipPoints());
+    }
+
     @Test void penaltiesCannotTakePerRaceScoreBelowZero() {
         var round = race(1, "Karting", driver(1, 11, "A", 1, 1000),
                 driver(2, 22, "B", 2, 0));
