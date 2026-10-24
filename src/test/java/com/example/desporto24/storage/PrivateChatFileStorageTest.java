@@ -23,7 +23,7 @@ class PrivateChatFileStorageTest {
     }
 
     @Test
-    void pdfIsStoredOutsidePublicMediaAndCanBeReadOnlyThroughStorageApi() {
+    void pdfIsStoredOutsidePublicMediaAndCanBeReadOnlyThroughStorageApi() throws Exception {
         var storage = local(tmp.resolve("private").toString());
         var file = new MockMultipartFile("file", "partida.pdf", "application/pdf",
                 ("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n")
