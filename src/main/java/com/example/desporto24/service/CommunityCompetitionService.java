@@ -580,6 +580,17 @@ public class CommunityCompetitionService {
             throw new IllegalStateException("Não podes apagar jornadas de uma época encerrada");
         }
 
+        // Deleting a non-final heat would leave a false numbered series.
+        if (round.getSprintSeriesKey() != null && round.getSeason() != null
+                && round.getSprintHeatNumber() != null) {
+            boolean laterHeatExists = roundRepository
+                    .findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                            communityId, round.getSeason().getId(), round.getSprintSeriesKey())
+                    .stream().anyMatch(other -> other.getSprintHeatNumber() != null
+                            && other.getSprintHeatNumber() > round.getSprintHeatNumber());
+            if (laterHeatExists)
+                throw new IllegalStateException("Apaga primeiro as mangas seguintes desta série Sprint");
+        }
         entryRepository.deleteByRoundId(roundId);
         roundRepository.delete(round);
     }
