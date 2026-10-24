@@ -116,6 +116,49 @@ class MediaStorageTest {
         assertTrue(Files.exists(tempDir.resolve("posts/1/clip.webm")));
     }
 
+    @Test
+    void preservesAnimatedGifFramesWhenSavingCommunityAvatar() throws Exception {
+        byte[] animatedGif = Base64.getDecoder().decode(
+                "R0lGODlhAgACAIEAAP8AAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQAFAAAACwAAAAAAgACAAAIBgABCAQQEAAh+QQBFAABACwAAAAAAgACAIEAgAAAAAAAAAAAAAAIBgABCAQQEAA7");
+        var file = new MockMultipartFile("photo", "animation.gif", "image/gif", animatedGif);
+
+        var uri = storage().storeCommunityPhoto("communities/10/avatar", file);
+
+        assertEquals("/media/communities/10/avatar.gif", uri.toString());
+        assertArrayEquals(animatedGif, Files.readAllBytes(tempDir.resolve("communities/10/avatar.gif")));
+        try (var input = javax.imageio.ImageIO.createImageInputStream(
+                tempDir.resolve("communities/10/avatar.gif").toFile())) {
+            var readers = javax.imageio.ImageIO.getImageReadersByFormatName("gif");
+            var reader = readers.next();
+            try {
+                reader.setInput(input);
+                assertEquals(2, reader.getNumImages(true));
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    @Test
+    void preventsGifUploadsInUnrelatedImageStorage() {
+        byte[] gif = Base64.getDecoder().decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==");
+        var file = new MockMultipartFile("photo", "avatar.gif", "image/gif", gif);
+        assertThrows(IllegalArgumentException.class,
+                () -> storage().store("posts/1/photo", file));
+    }
+
+    @Test
+    void rejectsSpoofedAndOversizedCommunityGifAvatars() {
+        var spoofed = new MockMultipartFile("photo", "not-gif.gif", "image/gif",
+                "this is not a GIF".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThrows(IllegalArgumentException.class,
+                () -> storage().storeCommunityPhoto("communities/1/photo", spoofed));
+        var big = new MockMultipartFile("photo", "huge.gif", "image/gif",
+                new byte[5 * 1024 * 1024 + 1]);
+        assertThrows(IllegalArgumentException.class,
+                () -> storage().storeCommunityPhoto("communities/1/photo", big));
+    }
+
     private LocalMediaStorage storage() {
         MediaStorageProperties properties = new MediaStorageProperties();
         properties.setLocalRoot(tempDir.toString());
