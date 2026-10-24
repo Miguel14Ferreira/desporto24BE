@@ -67,6 +67,13 @@ public class SocialStoryService {
     }
 
     @Transactional(readOnly = true)
+    public List<StoryResponse> mine(String username) {
+        Profile actor = actor(username);
+        return stories.findTop20ByAuthorIdAndExpiresAtAfterOrderByCreatedAtDesc(actor.getId(), Instant.now())
+                .stream().map(story -> response(story, actor)).toList();
+    }
+
+    @Transactional(readOnly = true)
     public StoryResponse view(Long id, String username) {
         Profile actor = actor(username);
         SocialStory story = activeStory(id);
