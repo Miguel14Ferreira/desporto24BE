@@ -48,7 +48,6 @@ final class CommunityRoundEventType {
                     "INLINE_TRACK_500D_FINAL_A",
                     "INLINE_ROAD_LAP_QUARTER_HEAT",
                     "INLINE_ROAD_LAP_SEMI_HEAT",
-                    "INLINE_ROAD_LAP_FINAL_A",
                     "INLINE_ROAD_LAP_FINAL_A")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
