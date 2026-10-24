@@ -24,6 +24,7 @@ import com.example.desporto24.repository.community.CommunityPlayerRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
+import com.example.desporto24.repository.community.CommunityTrackSprintBracketRepository;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRowRepository;
@@ -56,6 +57,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityPlayerRepository playerRepository;
     @Mock private CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     @Mock private CommunityRoundRepository roundRepository;
+    @Mock private CommunityTrackSprintBracketRepository trackSprintBracketRepository;
     @Mock private CommunityRacketRuleRepository racketRuleRepository;
     @Mock private CommunityRoundEntryRepository entryRepository;
     @Mock private CommunitySeasonRepository seasonRepository;
