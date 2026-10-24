@@ -36,6 +36,7 @@ import com.example.desporto24.repository.session.SessionOrganizerExclusionReposi
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
+import com.example.desporto24.service.SessionDiscoveryLocationGrid;
 import com.example.desporto24.service.SessionViewMapper;
 import com.example.desporto24.service.SessionCapacity;
 import com.example.desporto24.service.SessionNotificationService;
@@ -447,10 +448,17 @@ public class SessionServiceImpl implements SessionService {
             Set<Long> joinedSessionIds,
             Set<Long> waitlistedSessionIds) {
         Double distanceKm = null;
-        if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
+        if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null
+                && Double.isFinite(session.getLatitude()) && Double.isFinite(session.getLongitude())
+                && Math.abs(session.getLatitude()) <= 90 && Math.abs(session.getLongitude()) <= 180) {
+            // No direct or indirect access to the precise coordinates through
+            // the anonymous discovery endpoint. The same approximate distance
+            // drives returned values, sorting and radius inclusion.
+            var publicPoint = SessionDiscoveryLocationGrid.approximate(
+                    session.getLatitude(), session.getLongitude());
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
-                    session.getLatitude(), session.getLongitude());
+                    publicPoint.latitude(), publicPoint.longitude());
         }
         return sessionViewMapper.toSummary(
                 session, distanceKm, participantCounts, joinedSessionIds, waitlistedSessionIds);
