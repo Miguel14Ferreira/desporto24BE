@@ -36,7 +36,7 @@ public class CommunityTournamentRaceService {
     public static final String DEFAULT_POINTS = "25,18,15,12,10,8,6,4,2,1";
     private static final int MAX_ROUNDS = 100;
     private static final Set<String> SUPPORTED_SPORTS =
-            Set.of("karting", "bmx", "ciclismo", "mountain bike", "ciclocrosse");
+            Set.of("karting", "bmx", "ciclismo", "mountain bike", "ciclocrosse", "ciclismo de estrada");
 
     /** Explicitly limited to sports with validated generic race-result contracts. */
     public static boolean supportsRaceChampionship(String sport) {
@@ -133,7 +133,7 @@ public class CommunityTournamentRaceService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Corrida não encontrada"));
         if (!round.getCommunity().getId().equals(communityId)
                 || !tournament.getSport().equalsIgnoreCase(Objects.toString(round.getSport(), "").trim())
-                || !CommunityRoundEventType.isRaceEvent(round.getSport(), round.getEventType())) {
+                || !CommunityRoundEventType.isChampionshipRaceEvent(round.getSport(), round.getEventType())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Escolhe uma jornada de corrida da modalidade deste campeonato, na mesma comunidade");
         }
@@ -219,7 +219,7 @@ public class CommunityTournamentRaceService {
                 .filter(Objects::nonNull).toList();
         List<CommunityRoundResponse> available = all.stream()
                 .filter(r -> tournament.getSport().equalsIgnoreCase(Objects.toString(r.sport(), "").trim()))
-                .filter(r -> CommunityRoundEventType.isRaceEvent(r.sport(), r.eventType()))
+                .filter(r -> CommunityRoundEventType.isChampionshipRaceEvent(r.sport(), r.eventType()))
                 .filter(r -> !selectedIds.contains(r.id()))
                 .limit(100).toList();
         List<Integer> points = CommunityRaceStandings.parsePoints(
