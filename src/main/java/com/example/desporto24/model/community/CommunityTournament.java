@@ -94,6 +94,11 @@ public class CommunityTournament {
     @Builder.Default
     private int lossPoints = 0;
 
+    // Historical tournaments are immutable snapshots backed by imported match archive rows.
+    // They do not create artificial user profiles or editable live fixtures.
+    @Column(name = "historical_archive_id", unique = true)
+    private Long historicalArchiveId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
