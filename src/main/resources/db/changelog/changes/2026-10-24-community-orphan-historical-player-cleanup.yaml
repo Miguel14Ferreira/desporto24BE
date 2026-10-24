@@ -1,0 +1,37 @@
+databaseChangeLog:
+  # One-time repair for historical names left behind by the old season-delete path.
+  # It cannot infer which deleted season each old record belonged to, so only
+  # anonymous identities with NO round entries anywhere are eligible.
+  # Registered community players and historical names still used in any
+  # season (or unassigned round) are always preserved.
+  - changeSet:
+      id: 2026-10-24-community-orphan-historical-player-cleanup
+      author: desporto24
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: |
+              DELETE FROM desporto24.community_historical_player_link link
+              WHERE EXISTS (
+                SELECT 1
+                FROM desporto24.community_player player
+                WHERE player.id = link.community_player_id
+                  AND player.profile_id IS NULL
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM desporto24.community_round_entry entry
+                    WHERE entry.community_player_id = player.id
+                  )
+              );
+              DELETE FROM desporto24.community_player player
+              WHERE player.profile_id IS NULL
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM desporto24.community_round_entry entry
+                  WHERE entry.community_player_id = player.id
+                )
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM desporto24.community_historical_player_link link
+                  WHERE link.community_player_id = player.id
+                );
