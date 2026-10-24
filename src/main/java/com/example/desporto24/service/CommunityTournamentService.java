@@ -146,7 +146,7 @@ public class CommunityTournamentService {
                     || request.winPoints() != null || request.drawPoints() != null
                     || request.lossPoints() != null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Campeonatos por posições disponíveis apenas para Karting ou BMX Racing individual");
+                        "Campeonatos por posições disponíveis apenas para Karting, BMX Racing, Ciclismo ou Mountain Bike individual");
             }
         }
 
