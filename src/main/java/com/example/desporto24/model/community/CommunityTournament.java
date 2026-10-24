@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -56,6 +57,11 @@ public class CommunityTournament {
 
     @Column(name = "players_per_team")
     private Integer playersPerTeam;
+
+    // Null preserves the meaning of existing competitions and their stored results.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scoring_mode", length = 40)
+    private TournamentScoringMode scoringMode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
