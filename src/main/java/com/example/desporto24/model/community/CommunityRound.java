@@ -81,6 +81,13 @@ public class CommunityRound {
     @Column(name = "set_scores", length = 255)
     private String setScores;
 
+    // Optional explicit grouping. Never inferred from historic names or riders.
+    @Column(name = "sprint_series_key", length = 40)
+    private String sprintSeriesKey;
+
+    @Column(name = "sprint_heat_number")
+    private Integer sprintHeatNumber;
+
     @Column(name = "played_at", nullable = false)
     private Instant playedAt;
 
