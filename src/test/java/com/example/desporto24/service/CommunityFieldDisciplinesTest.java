@@ -23,6 +23,23 @@ class CommunityFieldDisciplinesTest {
                 CommunityFieldDisciplines.validate("Atletismo", "THROW", "POLE_VAULT"));
     }
 
+    @Test void trackSprintRequiresAnExplicitKnockoutStage() {
+        for (String phase : new String[] {
+                "SPRINT_QUARTER_FINAL", "SPRINT_SEMI_FINAL",
+                "SPRINT_BRONZE_FINAL", "SPRINT_GOLD_FINAL"}) {
+            assertEquals(phase, CommunityFieldDisciplines.validate(
+                    "Ciclismo de Pista", "TRACK_SPRINT_HEAT", phase));
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityFieldDisciplines.validate("Ciclismo de Pista", "TRACK_SPRINT_HEAT", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityFieldDisciplines.validate("Ciclismo de Pista", "TRACK_SPRINT_HEAT", "SPRINT_OMNIUM"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityFieldDisciplines.validate("Ciclismo de Pista", "TRACK_FLYING_200", "SPRINT_GOLD_FINAL"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityFieldDisciplines.validate("Ciclismo de Estrada", "TRACK_SPRINT_HEAT", "SPRINT_GOLD_FINAL"));
+    }
+
     @Test void racesAndOtherSportsRejectUnexpectedDiscipline() {
         assertNull(CommunityFieldDisciplines.validate("Atletismo", "TRACK", null));
         assertNull(CommunityFieldDisciplines.validate("BMX", "FREESTYLE", null));

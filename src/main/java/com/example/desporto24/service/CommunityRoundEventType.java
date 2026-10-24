@@ -19,7 +19,7 @@ final class CommunityRoundEventType {
     private static final Map<String, List<String>> TYPES = Map.ofEntries(
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
             Map.entry("Ciclismo de Estrada", List.of("ROAD_RACE", "TIME_TRIAL")),
-            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL", "TRACK_FLYING_200")),
+            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL", "TRACK_FLYING_200", "TRACK_SPRINT_HEAT")),
             Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Basebol", List.of("BASEBALL_RUNS")),
@@ -111,6 +111,10 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
+        if ("TRACK_SPRINT_HEAT".equals(type)) {
+            validateTrackSprintHeat(sport, entries);
+            return;
+        }
         if (CommunityInlineSpeedResults.isRecordedTimeEvent(type)) {
             CommunityInlineSpeedResults.validate(sport, entries);
             return;
@@ -286,6 +290,30 @@ final class CommunityRoundEventType {
                     || e.waveScore1() != null || e.waveScore2() != null)
                 throw new IllegalArgumentException(
                         "Musculação regista apenas participantes; sem vencedor, empate, notas ou métricas de outros desportos");
+        }
+    }
+
+    /** One independently decided head-to-head heat, not an inferred best-of-three winner. */
+    private static void validateTrackSprintHeat(String sport,
+            List<CommunityRoundEntryRequest> entries) {
+        if (!"Ciclismo de Pista".equals(sport) || entries == null || entries.size() != 2
+                || entries.stream().filter(e -> e.result() == CommunityMatchResult.WIN).count() != 1
+                || entries.stream().filter(e -> e.result() == CommunityMatchResult.LOSS).count() != 1) {
+            throw new IllegalArgumentException(
+                    "Uma manga Sprint exige dois ciclistas, um vencedor e um derrotado");
+        }
+        for (CommunityRoundEntryRequest e : entries) {
+            if (e.team() != null && !e.team().isBlank()
+                    || e.goals() != null && e.goals() != 0
+                    || e.assists() != null && e.assists() != 0
+                    || e.mvp() || e.cleanSheet()
+                    || e.finishPosition() != null || e.elapsedSeconds() != null
+                    || e.bestLapSeconds() != null || e.lapsCompleted() != null
+                    || e.performanceValue() != null
+                    || e.waveScore1() != null || e.waveScore2() != null) {
+                throw new IllegalArgumentException(
+                        "Sprint regista apenas o vencedor da manga, sem pontos de Scratch, tempos ou estatísticas de futebol");
+            }
         }
     }
 
