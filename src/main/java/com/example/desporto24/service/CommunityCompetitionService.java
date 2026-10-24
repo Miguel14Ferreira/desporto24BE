@@ -331,6 +331,12 @@ public class CommunityCompetitionService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
 
+        // Capture imported identity IDs before removing their only source entries.
+        // These identities are community-scoped, so the regular season cascade
+        // cannot decide which of them are now safe to remove.
+        List<Long> historicalPlayerIds =
+                entryRepository.findHistoricalPlayerIdsBySeason(communityId, seasonId);
+
         List<CommunityRound> rounds =
                 roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId);
         for (CommunityRound round : rounds) {
@@ -351,6 +357,20 @@ public class CommunityCompetitionService {
 
         seasonRepository.delete(season);
         seasonRepository.flush();
+
+        // Purge historical names and self-claims only when every linked round is gone.
+        // Do not delete registered community players or names shared with other seasons.
+        if (!historicalPlayerIds.isEmpty()) {
+            List<CommunityPlayer> orphans = playerRepository.findUnusedHistoricalPlayers(
+                    communityId, historicalPlayerIds);
+            for (CommunityPlayer orphan : orphans) {
+                historicalPlayerLinkRepository.findByCommunityIdAndPlayerId(communityId, orphan.getId())
+                        .ifPresent(historicalPlayerLinkRepository::delete);
+            }
+            historicalPlayerLinkRepository.flush();
+            playerRepository.deleteAll(orphans);
+            playerRepository.flush();
+        }
     }
 
     public CommunitySeasonResponse closeSeason(

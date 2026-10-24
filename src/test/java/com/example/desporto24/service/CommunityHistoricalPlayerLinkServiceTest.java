@@ -145,10 +145,20 @@ class CommunityHistoricalPlayerLinkServiceTest {
     }
 
     @Test
+    void historicalNameWithNoRemainingRoundIsNotOfferedForClaim() {
+        when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(players.findHistoricalPlayersWithResults(7L)).thenReturn(List.of());
+
+        assertTrue(service.candidates(7L, "TMF14").isEmpty());
+        verify(players).findHistoricalPlayersWithResults(7L);
+    }
+
+    @Test
     void normalMemberMayBrowseHistoricalNamesWithoutSeeingOtherProfiles() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(players.findByCommunityIdOrderByDisplayNameAsc(7L)).thenReturn(List.of(historical));
+        when(players.findHistoricalPlayersWithResults(7L)).thenReturn(List.of(historical));
         when(links.findByCommunityIdAndStatus(7L, "ACCEPTED"))
                 .thenReturn(List.of(link(90L, historical, owner, "ACCEPTED")));
         var candidates = service.candidates(7L, "TMF14");
@@ -187,7 +197,7 @@ class CommunityHistoricalPlayerLinkServiceTest {
     void pendingUnacceptedSuggestionsAppearAsAvailableToAllCommunityMembers() {
         when(profiles.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(target));
         when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
-        when(players.findByCommunityIdOrderByDisplayNameAsc(7L)).thenReturn(List.of(historical));
+        when(players.findHistoricalPlayersWithResults(7L)).thenReturn(List.of(historical));
         when(links.findByCommunityIdAndStatus(7L, "ACCEPTED")).thenReturn(List.of());
 
         var candidates = service.candidates(7L, "TMF14");

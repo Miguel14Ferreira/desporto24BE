@@ -39,7 +39,7 @@ public class CommunityHistoricalPlayerLinkService {
         for (CommunityHistoricalPlayerLink link : linkRepository.findByCommunityIdAndStatus(communityId, "ACCEPTED")) {
             links.put(link.getPlayer().getId(), link);
         }
-        return playerRepository.findByCommunityIdOrderByDisplayNameAsc(communityId).stream()
+        return playerRepository.findHistoricalPlayersWithResults(communityId).stream()
                 .filter(player -> player.getProfile() == null)
                 .map(player -> {
                     CommunityHistoricalPlayerLink link = links.get(player.getId());

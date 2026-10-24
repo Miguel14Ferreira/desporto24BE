@@ -19,7 +19,26 @@ public interface CommunityPlayerRepository extends JpaRepository<CommunityPlayer
 
     List<CommunityPlayer> findByCommunityIdOrderByDisplayNameAsc(Long communityId);
 
+    /** Only historical names that still have at least one recorded game. */
+    @Query("select player from CommunityPlayer player where player.community.id = :communityId " +
+           "and player.profile is null and exists (select entry.id from CommunityRoundEntry entry " +
+           "where entry.communityPlayer = player) order by player.displayName asc")
+    List<CommunityPlayer> findHistoricalPlayersWithResults(@Param("communityId") Long communityId);
+
     Optional<CommunityPlayer> findByCommunityIdAndNormalizedName(Long communityId, String normalizedName);
 
     Optional<CommunityPlayer> findByCommunityIdAndProfileId(Long communityId, Long profileId);
+
+    /**
+     * Only anonymous historical identities from the deleted season, no longer
+     * used by any remaining season or community round. Real member profiles
+     * and historical players used by other seasons must survive.
+     */
+    @Query("select player from CommunityPlayer player where player.community.id = :communityId " +
+           "and player.id in :playerIds and player.profile is null " +
+           "and not exists (select entry.id from CommunityRoundEntry entry " +
+           "where entry.communityPlayer = player)")
+    List<CommunityPlayer> findUnusedHistoricalPlayers(
+            @Param("communityId") Long communityId, @Param("playerIds") List<Long> playerIds);
+
 }

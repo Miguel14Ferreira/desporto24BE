@@ -487,6 +487,57 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void deletingImportedSeasonAlsoRemovesOnlyOrphanHistoricalNamesAndClaims() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Community community = Community.builder().id(7L).owner(owner).build();
+        CommunitySeason deletedSeason = CommunitySeason.builder().id(44L).community(community).build();
+        CommunityRound importedRound = CommunityRound.builder()
+                .id(91L).community(community).season(deletedSeason).build();
+        CommunityPlayer orphan = CommunityPlayer.builder()
+                .id(10L).community(community).displayName("Ferreirinha").build();
+        CommunityPlayer preservedShared = CommunityPlayer.builder()
+                .id(11L).community(community).displayName("André").build();
+        CommunityPlayer preservedRegistered = CommunityPlayer.builder()
+                .id(12L).community(community).displayName("Miguel").profile(owner).build();
+        CommunityHistoricalPlayerLink orphanClaim = CommunityHistoricalPlayerLink.builder()
+                .id(77L).community(community).player(orphan).profile(owner).status("ACCEPTED").build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L))
+                .thenReturn(Optional.of(deletedSeason));
+        when(entryRepository.findHistoricalPlayerIdsBySeason(7L, 44L))
+                .thenReturn(List.of(10L, 11L, 12L));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
+                .thenReturn(List.of(importedRound));
+        // Query only returns anonymous players with no remaining entries.
+        when(playerRepository.findUnusedHistoricalPlayers(7L, List.of(10L, 11L, 12L)))
+                .thenReturn(List.of(orphan));
+        when(historicalPlayerLinkRepository.findByCommunityIdAndPlayerId(7L, 10L))
+                .thenReturn(Optional.of(orphanClaim));
+
+        service.deleteSeason(7L, 44L, "TMF14");
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(
+                entryRepository, roundRepository, seasonRepository, historicalPlayerLinkRepository, playerRepository);
+        order.verify(entryRepository).deleteByRoundId(91L);
+        order.verify(entryRepository).flush();
+        order.verify(roundRepository).deleteAll(List.of(importedRound));
+        order.verify(roundRepository).flush();
+        order.verify(seasonRepository).delete(deletedSeason);
+        order.verify(seasonRepository).flush();
+        order.verify(historicalPlayerLinkRepository).delete(orphanClaim);
+        order.verify(historicalPlayerLinkRepository).flush();
+        order.verify(playerRepository).deleteAll(List.of(orphan));
+        order.verify(playerRepository).flush();
+        verify(playerRepository, never()).delete(preservedShared);
+        verify(playerRepository, never()).delete(preservedRegistered);
+        verify(historicalPlayerLinkRepository, never()).findByCommunityIdAndPlayerId(7L, 11L);
+        verify(historicalPlayerLinkRepository, never()).findByCommunityIdAndPlayerId(7L, 12L);
+    }
+
+    @Test
     void deletingEmptyActiveSeasonStillWorks() {
         Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder().id(7L).owner(owner).build();
