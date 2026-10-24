@@ -15,8 +15,21 @@ public record CommunityRoundResponse(
         String eventDiscipline,
         List<CommunityGroupRoutineScore> groupScores,
         CommunityBasketballScore basketballScore,
-        CommunityTeamFinalScore teamScore
+        CommunityTeamFinalScore teamScore,
+        CommunityCricketDetails cricketDetails
 ) {
+    // Preserve the prior 12-argument record constructor for existing Java callers.
+    public CommunityRoundResponse(Long id, String name, Instant playedAt,
+            List<CommunityRoundEntryResponse> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline,
+            List<CommunityGroupRoutineScore> groupScores,
+            CommunityBasketballScore basketballScore, CommunityTeamFinalScore teamScore) {
+        this(id, name, playedAt, entries, sport, matchFormat,
+                setScores, eventType, eventDiscipline, groupScores,
+                basketballScore, teamScore, null);
+    }
+
     public CommunityRoundResponse(Long id, String name, Instant playedAt,
             List<CommunityRoundEntryResponse> entries, String sport,
             String matchFormat, List<CommunitySetScore> setScores,
