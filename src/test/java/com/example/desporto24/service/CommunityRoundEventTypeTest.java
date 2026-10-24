@@ -72,6 +72,47 @@ class CommunityRoundEventTypeTest {
         assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Estrada", "TRACK_SCRATCH"));
     }
 
+    @Test void trackSprintHeatCannotEnterScratchPointsOrOtherSports() {
+        assertEquals("TRACK_SPRINT_HEAT", CommunityRoundEventType.validate(
+                "Ciclismo de Pista", "TRACK_SPRINT_HEAT"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validate("Ciclismo de Estrada", "TRACK_SPRINT_HEAT"));
+        assertFalse(CommunityRoundEventType.isRaceEvent("Ciclismo de Pista", "TRACK_SPRINT_HEAT"));
+        assertTrue(CommunityRoundEventType.isNeutralEvent("Ciclismo de Pista", "TRACK_SPRINT_HEAT"));
+        assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Pista", "TRACK_SPRINT_HEAT"));
+    }
+
+    @Test void trackSprintHeatRequiresExactlyOneWinnerWithoutFootballOrTimingMetrics() {
+        var winner = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "ana", null, com.example.desporto24.enumeration.CommunityMatchResult.WIN,
+                0, 0, false, false);
+        var loser = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "rui", null, com.example.desporto24.enumeration.CommunityMatchResult.LOSS,
+                0, 0, false, false);
+        var draw = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "rui", null, com.example.desporto24.enumeration.CommunityMatchResult.DRAW,
+                0, 0, false, false);
+        var football = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "rui", null, com.example.desporto24.enumeration.CommunityMatchResult.LOSS,
+                1, 0, false, false);
+        var time = new com.example.desporto24.model.dto.community.CommunityRoundEntryRequest(
+                "rui", null, com.example.desporto24.enumeration.CommunityMatchResult.LOSS,
+                0, 0, false, false, null, new java.math.BigDecimal("10.235"), null, null);
+        assertDoesNotThrow(() -> CommunityRoundEventType.validateEntries(
+                "Ciclismo de Pista", "TRACK_SPRINT_HEAT", java.util.List.of(winner, loser)));
+        for (var entrants : java.util.List.of(
+                java.util.List.of(winner), java.util.List.of(winner, winner),
+                java.util.List.of(winner, draw), java.util.List.of(winner, football),
+                java.util.List.of(winner, time))) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> CommunityRoundEventType.validateEntries(
+                            "Ciclismo de Pista", "TRACK_SPRINT_HEAT", entrants));
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validateEntries(
+                        "Ciclismo de Estrada", "TRACK_SPRINT_HEAT", java.util.List.of(winner, loser)));
+    }
+
     @Test void neverConfusesFreestyleOrFieldEventsWithRaceScoring() {
         assertTrue(CommunityRoundEventType.isRaceEvent("BMX", "RACE"));
         assertTrue(CommunityRoundEventType.isRaceEvent("BMX", null)); // historic
