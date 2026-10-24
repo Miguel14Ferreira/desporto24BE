@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-community-cricket-t20-innings
+      author: desporto24
+      comment: "Nullable T20 wicket and legal-ball counts per innings; preserve all historical data"
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_round
+            columns:
+              - column:
+                  name: cricket_wickets_a
+                  type: INT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: cricket_balls_a
+                  type: INT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: cricket_wickets_b
+                  type: INT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: cricket_balls_b
+                  type: INT
+                  constraints:
+                    nullable: true
