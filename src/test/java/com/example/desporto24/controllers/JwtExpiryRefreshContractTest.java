@@ -15,6 +15,7 @@ import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.security.RefreshOriginValidator;
+import com.example.desporto24.security.RefreshTokenRotationService;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
@@ -92,6 +93,7 @@ class JwtExpiryRefreshContractTest {
     @MockitoBean private ProfileRepository profiles;
     @MockitoBean private AuthenticationService auth;
     @MockitoBean private SensitiveActionRateLimiter rateLimiter;
+    @MockitoBean private RefreshTokenRotationService refreshTokenRotationService;
     @MockitoBean private GoogleAuthenticationService google;
     @MockitoBean private CommunityManagementService communities;
     @MockitoBean private CommunityCompetitionService competitions;
