@@ -3,6 +3,8 @@ package com.example.desporto24.security;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Duration;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -22,6 +24,9 @@ public class MfaSettingsAttemptLimiter {
 
     private final Cache<String, Integer> attempts;
 
+    @Autowired(required = false)
+    private DistributedAuthRateLimiter distributedAttempts;
+
     public MfaSettingsAttemptLimiter() {
         this(CacheBuilder.newBuilder()
                 .expireAfterWrite(WINDOW_MINUTES, TimeUnit.MINUTES)
@@ -34,6 +39,10 @@ public class MfaSettingsAttemptLimiter {
     }
 
     public void reserveAttempt(String username) {
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("mfa-settings", username,
+                    MAX_ATTEMPTS, Duration.ofMinutes(WINDOW_MINUTES));
+        }
         String key = normalize(username);
         // Reserve before TOTP verification, with atomic increments even under
         // concurrent requests from multiple tabs.
@@ -47,6 +56,9 @@ public class MfaSettingsAttemptLimiter {
 
     public void resetAfterSuccess(String username) {
         attempts.invalidate(normalize(username));
+        if (distributedAttempts != null) {
+            distributedAttempts.clearAfterSuccess("mfa-settings", username);
+        }
     }
 
     private String normalize(String username) {

@@ -19,6 +19,8 @@ import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
+import com.example.desporto24.security.DistributedAuthRateLimiter;
+import java.time.Duration;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.email.TransactionalEmailTemplate;
@@ -117,6 +119,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Autowired(required = false)
     private MediaStorage mediaStorage;
 
+    @Autowired(required = false)
+    private DistributedAuthRateLimiter distributedAttempts;
+
     @Override
     public LoginResponse login(ProfileDTO credentials) {
         String suppliedUsername = credentials.getUsername() == null
@@ -205,6 +210,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         String account = profile.getUsername().trim().toLowerCase(Locale.ROOT);
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("mfa-resend", account, 1, Duration.ofSeconds(60));
+        }
         // Reserving per account prevents chaining fresh challenge IDs to
         // bypass the old per-challenge endpoint cooldown.
         if (mfaResendCooldown.asMap().putIfAbsent(account, Boolean.TRUE) != null) {
@@ -252,6 +260,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     "Demasiadas tentativas de confirmação. Inicia sessão novamente.");
         }
         String account = profile.getUsername().trim().toLowerCase(Locale.ROOT);
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("mfa-confirm", account, 5, Duration.ofMinutes(15));
+        }
         int accountAttempt = mfaAccountAttempts.asMap().merge(
                 account, 1, (previous, increment) -> Math.min(6, previous + increment));
         if (accountAttempt > 5) {
@@ -271,6 +282,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         mfaAttempts.invalidate(challenge.getChallengeId());
         mfaAccountAttempts.invalidate(account);
         mfaResendCooldown.invalidate(account);
+        if (distributedAttempts != null) {
+            distributedAttempts.clearAfterSuccess("mfa-confirm", account);
+            distributedAttempts.clearAfterSuccess("mfa-resend", account);
+        }
 
         return completedLogin(profile);
     }

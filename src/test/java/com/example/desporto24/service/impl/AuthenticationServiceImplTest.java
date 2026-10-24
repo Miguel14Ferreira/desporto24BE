@@ -18,6 +18,8 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
+import com.example.desporto24.security.DistributedAuthRateLimiter;
+import java.time.Duration;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.PilotEventService;
@@ -514,6 +516,29 @@ class AuthenticationServiceImplTest {
 
         verify(totpService).verify(totpSecret, "wrong");
         verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void distributedMfaLimitBlocksBeforeEvenCheckingAuthenticatorCode() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(challenge));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        DistributedAuthRateLimiter shared = mock(DistributedAuthRateLimiter.class);
+        doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS))
+                .when(shared).reserveAttempt("mfa-confirm", TEST_USERNAME, 5, Duration.ofMinutes(15));
+        AuthenticationServiceImpl instance = service();
+        ReflectionTestUtils.setField(instance, "distributedAttempts", shared);
+
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "123456")));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verifyNoInteractions(totpService, jwtTokenProvider);
         verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
     }
 
