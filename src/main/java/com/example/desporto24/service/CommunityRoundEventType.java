@@ -31,6 +31,7 @@ final class CommunityRoundEventType {
             Map.entry("Teqball", List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")),
             Map.entry("Xadrez", List.of("CHESS_GAME")),
             Map.entry("Cricket", List.of("CRICKET_T20")),
+            Map.entry("Golfe", List.of("GOLF_STROKE_9", "GOLF_STROKE_18")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(
@@ -89,6 +90,10 @@ final class CommunityRoundEventType {
                 || CommunityBasketballResults.isBasketballEvent(type)
                 || CommunityVolleyballResults.isVolleyballEvent(type)
                 || CommunityTeamFinalResults.isTeamFinalEvent(type)) return;
+        if (CommunityGolfStrokeResults.isGolfStrokeEvent(type)) {
+            CommunityGolfStrokeResults.validate(sport, type, entries);
+            return;
+        }
         if ("CHESS_GAME".equals(type)) {
             validateChessGame(sport, entries);
             return;
