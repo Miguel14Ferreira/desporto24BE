@@ -334,6 +334,10 @@ final class CommunityRoundEventType {
     /** Only explicit ROAD_RACE rounds may join a road championship.
      * Untyped legacy rounds are left unchanged and not reinterpreted. */
     static boolean isChampionshipRaceEvent(String sport, String eventType) {
+        // Separate distances must never share the generic sport-wide points table.
+        // Untyped historical race records retain their prior classification behavior.
+        if ("Natação em Águas Abertas".equals(sport) && "OWS_INDIVIDUAL".equals(eventType))
+            return false;
         if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
         return isRaceEvent(sport, eventType);
     }
