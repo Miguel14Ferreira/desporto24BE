@@ -22,6 +22,8 @@ public class Chat {
     private Long id;
     private String username1;
     private String username2;
+    // Match the authenticated message request and the chat.text Liquibase column.
+    @Column(name = "text", length = 2000)
     private String text;
     private String dataDisplay;
     private Date date;

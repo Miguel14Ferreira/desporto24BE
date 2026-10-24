@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-direct-chat-text-2000
+      author: desporto24
+      comment: "Allow the full 2000-character authenticated direct-chat message contract without truncating older messages."
+      changes:
+        - modifyDataType:
+            schemaName: desporto24
+            tableName: chat
+            columnName: text
+            newDataType: VARCHAR(2000)
