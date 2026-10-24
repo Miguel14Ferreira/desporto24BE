@@ -195,6 +195,55 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void realJsonArchiveRoundTripsAndNeverReadsEditedJornadasAfterClosing() throws Exception {
+        // Earlier tests mock JSON serialization. This verifies the actual
+        // Jackson 3 mapping of nested race entries, Instant and BigDecimal.
+        admin();
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Karting").build();
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(
+                List.of(CommunityTournamentRaceRound.builder()
+                        .tournament(tournament).round(recorded).build()));
+        when(competition.overview(7L, "owner", null))
+                .thenReturn(overview(race(50L, "Karting")));
+        when(tournaments.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var realService = new CommunityTournamentRaceService(profiles, members,
+                tournaments, rounds, links, competition, new ObjectMapper());
+        var result = realService.complete(7L, 19L, "owner");
+
+        assertEquals(TournamentStatus.COMPLETED, result.status());
+        assertNotNull(tournament.getRaceFinalSnapshotJson());
+        assertTrue(tournament.getRaceFinalSnapshotJson().contains("Corrida 50"));
+        assertEquals(20L, result.championProfileId());
+        assertEquals(25L, result.championPoints());
+
+        // The original round could be edited or deleted afterwards.
+        // A completed championship must deserialize the stored JSON, not
+        // rebuild the table or retrieve the mutable community round.
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        clearInvocations(competition, links);
+
+        var archived = realService.overview(7L, 19L, "owner");
+        assertEquals(List.of(25, 18, 15), archived.pointsByPlace());
+        assertEquals(1, archived.linkedRaces().size());
+        assertEquals("Corrida 50", archived.linkedRaces().get(0).name());
+        assertEquals(2, archived.linkedRaces().get(0).entries().size());
+        assertNotNull(archived.linkedRaces().get(0).playedAt());
+        assertEquals(new BigDecimal("120.500"),
+                archived.linkedRaces().get(0).entries().get(0).elapsedSeconds());
+        assertTrue(archived.availableRaces().isEmpty());
+        assertEquals(2, archived.standings().size());
+        assertEquals("Ana", archived.standings().get(0).fullName());
+        assertEquals(25, archived.standings().get(0).championshipPoints());
+        assertEquals(18, archived.standings().get(1).championshipPoints());
+        verifyNoInteractions(competition, links);
+    }
+
+    @Test
     void refusesClosingDraftOrChampionshipWithoutLinkedRaces() {
         admin();
         assertEquals(HttpStatus.CONFLICT,
