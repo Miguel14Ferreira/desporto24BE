@@ -45,6 +45,19 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     java.util.Optional<Community> findWithSportsById(@Param("id") Long id);
 
 
+    // Protect the community's history: never cascade-delete existing activity.
+    @Query(value = """
+            SELECT CASE WHEN EXISTS (
+                SELECT 1 FROM community_timeline_entry WHERE community_id = :id
+                UNION ALL SELECT 1 FROM community_season WHERE community_id = :id
+                UNION ALL SELECT 1 FROM community_round WHERE community_id = :id
+                UNION ALL SELECT 1 FROM community_tournament WHERE community_id = :id
+                UNION ALL SELECT 1 FROM community_standings_archive WHERE community_id = :id
+                UNION ALL SELECT 1 FROM community_match_archive WHERE community_id = :id
+            ) THEN TRUE ELSE FALSE END
+            """, nativeQuery = true)
+    boolean hasActivityPreventingDeletion(@Param("id") Long id);
+
     java.util.List<Community> findByOwnerId(Long ownerId);
     boolean existsByOwnerId(Long ownerId);
 }
