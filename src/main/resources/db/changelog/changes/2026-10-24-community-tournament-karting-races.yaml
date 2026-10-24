@@ -1,0 +1,64 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-community-tournament-karting-races
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: race_points_by_place
+                  type: VARCHAR(160)
+        - createTable:
+            schemaName: desporto24
+            tableName: community_tournament_race_round
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tournament_race_round
+                    nullable: false
+              - column:
+                  name: tournament_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: round_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_tournament_race_round
+            columnNames: tournament_id, round_id
+            constraintName: uk_tournament_race_round
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_race_round
+            baseColumnNames: tournament_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+            constraintName: fk_tournament_race_link_tournament
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_race_round
+            baseColumnNames: round_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_round
+            referencedColumnNames: id
+            constraintName: fk_tournament_race_link_round
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament_race_round
+            indexName: idx_tournament_race_round_tournament
+            columns:
+              - column:
+                  name: tournament_id
