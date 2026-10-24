@@ -296,7 +296,9 @@ public class CommunityManagementService {
 
         Community community = community(communityId);
         String previousPhotoUrl = community.getPhotoUrl();
-        var uri = mediaStorage.store(
+        // Dedicated validation accepts animated GIFs only for community avatars.
+        // Keep all GIF frames intact: never transcode the uploaded bytes.
+        var uri = mediaStorage.storeCommunityPhoto(
                 "communities/" + community.getId() + "/" + UUID.randomUUID(),
                 photo
         );

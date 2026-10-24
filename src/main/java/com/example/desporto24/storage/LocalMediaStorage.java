@@ -28,6 +28,11 @@ public class LocalMediaStorage implements MediaStorage {
         return storeValidated(key, MediaStorageSupport.validateVideo(file));
     }
 
+    @Override
+    public URI storeCommunityPhoto(String key, MultipartFile file) {
+        return storeValidated(key, MediaStorageSupport.validateCommunityPhoto(file));
+    }
+
     private URI storeValidated(String key, MediaStorageSupport.ValidatedMedia media) {
         String objectKey = key + media.extension();
         Path root = Path.of(properties.getLocalRoot()).toAbsolutePath().normalize();

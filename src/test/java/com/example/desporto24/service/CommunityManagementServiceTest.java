@@ -113,7 +113,7 @@ class CommunityManagementServiceTest {
                 .thenReturn(List.of(membership));
         when(communities.findById(10L)).thenReturn(Optional.of(community));
         when(communities.save(community)).thenReturn(community);
-        when(storage.store(anyString(), same(upload))).thenReturn(
+        when(storage.storeCommunityPhoto(anyString(), same(upload))).thenReturn(
                 URI.create("https://cdn.example.test/communities/10/new-photo"));
         CommunityManagementService service = new CommunityManagementService(
                 communities, members, mock(CommunityInviteRepository.class),
@@ -151,7 +151,7 @@ class CommunityManagementServiceTest {
                 .thenReturn(List.of(membership));
         when(communities.findById(10L)).thenReturn(Optional.of(community));
         when(communities.save(community)).thenReturn(community);
-        when(storage.store(anyString(), same(upload))).thenReturn(
+        when(storage.storeCommunityPhoto(anyString(), same(upload))).thenReturn(
                 URI.create("https://cdn.example.test/communities/10/first-photo"));
         CommunityManagementService service = new CommunityManagementService(
                 communities, members, mock(CommunityInviteRepository.class),
