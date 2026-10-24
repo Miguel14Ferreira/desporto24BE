@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-community-historical-tournament
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: historical_archive_id
+                  type: BIGINT
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_tournament
+            columnNames: historical_archive_id
+            constraintName: uk_community_tournament_historical_archive
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament
+            baseColumnNames: historical_archive_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_match_archive
+            referencedColumnNames: id
+            constraintName: fk_community_tournament_historical_archive
