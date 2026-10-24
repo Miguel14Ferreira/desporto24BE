@@ -41,6 +41,20 @@ public class PrivateChatFileStorage {
     public record StoredFile(String key, String name, String mime, long size) {}
     private record ValidFile(byte[] bytes, String name, String mime, String extension) {}
 
+    public boolean isConfigured() {
+        if ("s3".equalsIgnoreCase(settings.getProvider())) {
+            String bucket = settings.getPrivateBucket();
+            return bucket != null && !bucket.isBlank()
+                    && !bucket.equals(settings.getS3().getBucket());
+        }
+        if ("local".equalsIgnoreCase(settings.getProvider())) {
+            Path publicRoot = Path.of(settings.getLocalRoot()).toAbsolutePath().normalize();
+            Path privateRoot = Path.of(settings.getPrivateRoot()).toAbsolutePath().normalize();
+            return !privateRoot.startsWith(publicRoot) && !publicRoot.startsWith(privateRoot);
+        }
+        return false;
+    }
+
     public StoredFile store(MultipartFile file) {
         // Reject malicious content before writing anywhere.
         ValidFile validated = validate(file);
