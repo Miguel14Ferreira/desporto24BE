@@ -230,6 +230,22 @@ public class CommunityController {
                 id, seasonId, authentication.getName(), request));
     }
 
+    @GetMapping("/{id}/seasons/{seasonId}/track-sprint-brackets")
+    public ResponseEntity<List<CommunityTrackSprintBracketDtos.Overview>> trackSprintBrackets(
+            @PathVariable Long id, @PathVariable Long seasonId, Authentication auth) {
+        return ResponseEntity.ok(competitionService.trackSprintBrackets(
+                id, seasonId, auth.getName()));
+    }
+
+    @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets")
+    public ResponseEntity<CommunityTrackSprintBracketDtos.Overview> createTrackSprintBracket(
+            @PathVariable Long id, @PathVariable Long seasonId,
+            @RequestBody @Valid CommunityTrackSprintBracketDtos.Create request,
+            Authentication auth) {
+        return ResponseEntity.ok(competitionService.createTrackSprintBracket(
+                id, seasonId, auth.getName(), request));
+    }
+
     @PostMapping("/{id}/seasons")
     public ResponseEntity<CommunitySeasonResponse> createSeason(
             @PathVariable Long id,
