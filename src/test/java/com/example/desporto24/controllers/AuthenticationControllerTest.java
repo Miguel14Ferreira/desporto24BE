@@ -10,6 +10,7 @@ import com.example.desporto24.model.dto.auth.RegistrationRequest;
 import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.security.RefreshOriginValidator;
+import com.example.desporto24.security.RefreshTokenRotationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -46,6 +47,8 @@ class AuthenticationControllerTest {
     @Mock
     private RefreshOriginValidator refreshOriginValidator;
 
+    @Mock private RefreshTokenRotationService refreshTokenRotationService;
+
     @InjectMocks
     private AuthenticationController controller;
 
@@ -74,11 +77,26 @@ class AuthenticationControllerTest {
         assertEquals(OK, response.getStatusCode());
         verify(refreshOriginValidator).requireAllowedOrigin("https://d24sports.com");
         verify(authenticationService).refresh("old-token");
+        verify(refreshTokenRotationService).rotate("old-token", "new-token", "miguel");
         String cookie = response.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
         assertNotNull(cookie);
         assertTrue(cookie.contains("HttpOnly"));
         assertTrue(cookie.contains("Secure"));
         assertTrue(cookie.contains("SameSite=None"));
+        verify(refreshTokenRotationService).rotate("old-token", "new-token", "miguel");
+    }
+
+    @Test
+    void replayRejectionDoesNotReturnAnAccessTokenOrCookie() {
+        ProfileDTO profile = credentials();
+        when(authenticationService.refresh("replayed-cookie"))
+                .thenReturn(new LoginResponse(false, null, null, "new-access-jwt", profile));
+        when(authenticationService.createRefreshToken("miguel")).thenReturn("candidate");
+        doThrow(new org.springframework.security.authentication.BadCredentialsException("Already used"))
+                .when(refreshTokenRotationService).rotate("replayed-cookie", "candidate", "miguel");
+
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> controller.refresh("replayed-cookie", "https://d24sports.com"));
     }
 
     @Test
