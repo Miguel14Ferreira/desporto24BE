@@ -36,6 +36,7 @@ final class CommunityRoundEventType {
             Map.entry("Xadrez", List.of("CHESS_GAME")),
             Map.entry("Musculação", List.of("STRENGTH_TRAINING")),
             Map.entry("Natação", List.of("SWIM_LCM")),
+            Map.entry("Natação em Águas Abertas", List.of("OWS_INDIVIDUAL")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",
@@ -104,6 +105,10 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
+        if ("OWS_INDIVIDUAL".equals(type)) {
+            CommunityOpenWaterSwimmingResults.validate(sport, entries);
+            return;
+        }
         if ("SWIM_LCM".equals(type)) {
             CommunitySwimmingResults.validate(sport, entries);
             return;
@@ -316,6 +321,8 @@ final class CommunityRoundEventType {
         if (sport == null) return false;
         if ("Atletismo".equals(sport)) return "TRACK".equals(eventType);
         if ("Natação".equals(sport)) return eventType == null || "SWIM_LCM".equals(eventType);
+        if ("Natação em Águas Abertas".equals(sport))
+            return eventType == null || "OWS_INDIVIDUAL".equals(eventType);
         if ("Snowboard".equals(sport)) return "RACE".equals(eventType);
         if ("Parkour".equals(sport)) return "PARKOUR_SPEED".equals(eventType);
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
@@ -327,6 +334,10 @@ final class CommunityRoundEventType {
     /** Only explicit ROAD_RACE rounds may join a road championship.
      * Untyped legacy rounds are left unchanged and not reinterpreted. */
     static boolean isChampionshipRaceEvent(String sport, String eventType) {
+        // Separate distances must never share the generic sport-wide points table.
+        // Untyped historical race records retain their prior classification behavior.
+        if ("Natação em Águas Abertas".equals(sport) && "OWS_INDIVIDUAL".equals(eventType))
+            return false;
         if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
         return isRaceEvent(sport, eventType);
     }

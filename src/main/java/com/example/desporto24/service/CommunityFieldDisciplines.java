@@ -20,6 +20,10 @@ final class CommunityFieldDisciplines {
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
             "BREAST_100", "FLY_100", "IM_200");
 
+    // Only separately timed individual distances; knockout sprint and relays need
+    // dedicated multi-stage and team contracts, so they are not offered here.
+    private static final List<String> OPEN_WATER = List.of("OWS_5K", "OWS_10K");
+
     // Individual senior rhythmic apparatus, distinct from group all-around.
     private static final List<String> RHYTHMIC_APPARATUS = List.of(
             "HOOP", "BALL", "CLUBS", "RIBBON");
@@ -29,7 +33,9 @@ final class CommunityFieldDisciplines {
             "PARALLEL_BARS", "HORIZONTAL_BAR", "UNEVEN_BARS", "BALANCE_BEAM");
 
     static String validate(String sport, String eventType, String requested) {
-        List<String> allowed = "Natação".equals(sport) && "SWIM_LCM".equals(eventType)
+        List<String> allowed = "Natação em Águas Abertas".equals(sport)
+                && "OWS_INDIVIDUAL".equals(eventType) ? OPEN_WATER
+                : "Natação".equals(sport) && "SWIM_LCM".equals(eventType)
                 ? SWIM_LCM
                 : "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
                 : "Ginástica Artística".equals(sport) && "APPARATUS".equals(eventType)
