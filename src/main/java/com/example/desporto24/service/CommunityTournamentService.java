@@ -142,11 +142,11 @@ public class CommunityTournamentService {
         if (scoringMode == TournamentScoringMode.RACE_POINTS) {
             if (type != TournamentEntryType.INDIVIDUAL
                     || format != TournamentFormat.LEAGUE
-                    || !"karting".equalsIgnoreCase(selectedSport)
+                    || !CommunityTournamentRaceService.supportsRaceChampionship(selectedSport)
                     || request.winPoints() != null || request.drawPoints() != null
                     || request.lossPoints() != null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "O campeonato por posições está disponível apenas para Karting individual");
+                        "Campeonatos por posições disponíveis apenas para Karting ou BMX Racing individual");
             }
         }
 

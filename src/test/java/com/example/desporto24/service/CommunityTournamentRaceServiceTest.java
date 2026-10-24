@@ -134,6 +134,63 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void bmxRacingAcceptsOnlyRaceRoundsFromSameSportAndCommunity() {
+        tournament.setSport("BMX");
+        admin();
+        var good = CommunityRound.builder().id(50L).community(community)
+                .sport("BMX").eventType("RACE").build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(good));
+        when(competition.overview(7L, "owner", null))
+                .thenReturn(overview(new CommunityRoundResponse(50L, "BMX corrida",
+                        Instant.now(), race(50L, "BMX").entries(),
+                        "BMX", null, List.of(), "RACE")));
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(
+                List.of(), List.of(CommunityTournamentRaceRound.builder()
+                        .tournament(tournament).round(good).build()));
+
+        var result = service.link(7L, 19L, 50L, "owner");
+        assertEquals(2, result.standings().size());
+        assertEquals(25, result.standings().get(0).championshipPoints());
+        verify(links).save(argThat(link -> link.getRound().getId().equals(50L)));
+    }
+
+    @Test
+    void bmxFreestyleAndOtherSportsCannotBeAddedToBmxRacingChampionships() {
+        tournament.setSport("BMX");
+        admin();
+        var freestyle = CommunityRound.builder().id(50L).community(community)
+                .sport("BMX").eventType("FREESTYLE").build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(freestyle));
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        freestyle.setEventType("RACE");
+        freestyle.setSport("Karting");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        verifyNoInteractions(competition);
+        verify(links, never()).save(any());
+    }
+
+    @Test
+    void bmxChampionshipReadModelExcludesFreestyleAndKarting() {
+        tournament.setSport("BMX");
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        var raceRound = new CommunityRoundResponse(50L, "BMX corrida", Instant.now(),
+                race(50L, "BMX").entries(), "BMX", null, List.of(), "RACE");
+        var freestyle = new CommunityRoundResponse(51L, "BMX freestyle", Instant.now(),
+                race(50L, "BMX").entries(), "BMX", null, List.of(), "FREESTYLE");
+        when(competition.overview(7L, "owner", null))
+                .thenReturn(overview(raceRound, freestyle, race(52L, "Karting")));
+        var result = service.overview(7L, 19L, "owner");
+        assertEquals(List.of(50L), result.availableRaces().stream()
+                .map(CommunityRoundResponse::id).toList());
+    }
+
+    @Test
     void completesAndArchivesWinnerAndReadModelInOneTransaction() throws Exception {
         admin();
         tournament.setStatus(TournamentStatus.IN_PROGRESS);
