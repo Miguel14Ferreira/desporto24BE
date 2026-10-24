@@ -287,9 +287,19 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
     public void publishChatReaction(Set<String> usernames, ChatReactionChangedEvent reaction) {
         if (usernames == null || usernames.isEmpty() || reaction == null) return;
         try {
+            // NEVER serialize the domain event itself: it includes the private
+            // recipients list, which must stay server-side for fan-out only.
+            var details = objectMapper.createObjectNode()
+                    .put("kind", reaction.kind())
+                    .put("conversationId", reaction.conversationId())
+                    .put("messageId", reaction.messageId())
+                    .put("actorUsername", reaction.actorUsername());
+            details.set("counts", objectMapper.valueToTree(reaction.counts()));
+            if (reaction.emoji() == null) details.putNull("emoji");
+            else details.put("emoji", reaction.emoji());
             String payload = objectMapper.createObjectNode()
                     .put("type", "CHAT_REACTION_CHANGED")
-                    .set("reaction", objectMapper.valueToTree(reaction))
+                    .set("reaction", details)
                     .toString();
             for (String username : usernames) {
                 Set<WebSocketSession> sockets = sessionsByUsername.get(username);
