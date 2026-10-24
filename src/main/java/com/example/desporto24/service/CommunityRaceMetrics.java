@@ -53,7 +53,8 @@ final class CommunityRaceMetrics {
                         "As métricas de corrida só podem ser usadas numa jornada de prova");
             }
             if (!race) continue;
-            if ("Ciclismo de Estrada".equals(sport) && "TIME_TRIAL".equals(eventType)) {
+            if (("Ciclismo de Estrada".equals(sport) && "TIME_TRIAL".equals(eventType))
+                    || ("Ciclismo de Pista".equals(sport) && "TRACK_TIME_TRIAL".equals(eventType))) {
                 if (entry.lapsCompleted() != null || entry.bestLapSeconds() != null)
                     throw new IllegalArgumentException(
                             "Contrarrelógio individual não admite métricas de voltas");

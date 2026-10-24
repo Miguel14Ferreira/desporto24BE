@@ -19,6 +19,7 @@ final class CommunityRoundEventType {
     private static final Map<String, List<String>> TYPES = Map.ofEntries(
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
             Map.entry("Ciclismo de Estrada", List.of("ROAD_RACE", "TIME_TRIAL")),
+            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL")),
             Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Basebol", List.of("BASEBALL_RUNS")),
@@ -335,6 +336,8 @@ final class CommunityRoundEventType {
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
         if ("Ciclismo de Estrada".equals(sport))
             return eventType == null || "ROAD_RACE".equals(eventType) || "TIME_TRIAL".equals(eventType);
+        if ("Ciclismo de Pista".equals(sport))
+            return eventType == null || "TRACK_SCRATCH".equals(eventType) || "TRACK_TIME_TRIAL".equals(eventType);
         return CommunityRaceMetrics.isRaceSport(sport) && eventType == null;
     }
 
@@ -349,6 +352,7 @@ final class CommunityRoundEventType {
         if ("Orientação".equals(sport) && "FOOT_ORIENTEERING".equals(eventType))
             return false;
         if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
+        if ("Ciclismo de Pista".equals(sport)) return "TRACK_SCRATCH".equals(eventType);
         return isRaceEvent(sport, eventType);
     }
 

@@ -308,6 +308,69 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void trackScratchChampionshipOnlyOffersExplicitScratchEvents() {
+        tournament.setSport("Ciclismo de Pista");
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        var scratch = new CommunityRoundResponse(50L, "Scratch", Instant.now(),
+                race(50L, "Ciclismo de Pista").entries(),
+                "Ciclismo de Pista", null, List.of(), "TRACK_SCRATCH");
+        var timeTrial = new CommunityRoundResponse(51L, "Contra o relógio", Instant.now(),
+                race(51L, "Ciclismo de Pista").entries(),
+                "Ciclismo de Pista", null, List.of(), "TRACK_TIME_TRIAL");
+        when(competition.overview(7L, "owner", null)).thenReturn(overview(
+                scratch, timeTrial, race(52L, "Ciclismo de Pista"), race(53L, "Ciclismo de Estrada")));
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of());
+        var result = service.overview(7L, 19L, "owner");
+        assertEquals(List.of(50L), result.availableRaces().stream().map(CommunityRoundResponse::id).toList());
+    }
+
+    @Test
+    void trackScratchRejectsTimedLegacyAndOtherCyclingRounds() {
+        tournament.setSport("Ciclismo de Pista");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Ciclismo de Pista").eventType("TRACK_TIME_TRIAL").build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        for (String kind : java.util.Arrays.asList("TRACK_TIME_TRIAL", null, "TRACK", "ROAD_RACE")) {
+            recorded.setEventType(kind);
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        }
+        recorded.setEventType("TRACK_SCRATCH");
+        recorded.setSport("Ciclismo de Estrada");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        verifyNoInteractions(competition);
+        verify(links, never()).save(any());
+    }
+
+    @Test
+    void linkedTrackRoundEditedToTimeTrialIsExcludedFromSeriesStandings() {
+        tournament.setSport("Ciclismo de Pista");
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        var stored = CommunityRound.builder().id(50L).community(community)
+                .sport("Ciclismo de Pista").eventType("TRACK_SCRATCH").build();
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(
+                List.of(CommunityTournamentRaceRound.builder().tournament(tournament).round(stored).build()));
+        // Previously linked but since retyped: never award its finishing positions
+        // to a scratch championship on the next overview.
+        var edited = new CommunityRoundResponse(50L, "Timed after edit", Instant.now(),
+                race(50L, "Ciclismo de Pista").entries(),
+                "Ciclismo de Pista", null, List.of(), "TRACK_TIME_TRIAL");
+        when(competition.overview(7L, "owner", null)).thenReturn(overview(edited));
+        var result = service.overview(7L, 19L, "owner");
+        assertTrue(result.linkedRaces().isEmpty());
+        assertTrue(result.standings().isEmpty());
+        assertTrue(result.availableRaces().isEmpty());
+    }
+
+    @Test
     void cyclingCannotImportMtbOrRoadSubdisciplineRoundsAndRejectsNonRaceEvent() {
         tournament.setSport("Ciclismo");
         admin();
