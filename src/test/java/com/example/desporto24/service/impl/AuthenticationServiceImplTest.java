@@ -28,6 +28,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -481,6 +483,30 @@ class AuthenticationServiceImplTest {
         verify(totpService).verify(totpSecret, "wrong");
         verifyNoInteractions(jwtTokenProvider);
         verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void mfaChallengeRejectsSixthGuessWithoutCallingTotp() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        String secret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(secret, profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(challenge));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(totpService.verify(secret, "wrong")).thenReturn(false);
+
+        AuthenticationServiceImpl instance = service();
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong")));
+        }
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong")));
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verify(totpService, times(5)).verify(secret, "wrong");
+        verifyNoInteractions(jwtTokenProvider);
     }
 
     @Test
