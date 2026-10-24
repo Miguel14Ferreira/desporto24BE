@@ -63,6 +63,24 @@ class CommunityRaceMetricsTest {
                         List.of(racer("ana", 1, null), racer("rui", 1, null))));
     }
 
+    @Test void flying200QualifyingRecordsTimeAndOrganizerAssignedPlaceWithoutScratchScores() {
+        assertDoesNotThrow(() -> CommunityRaceMetrics.validate("Ciclismo de Pista", "TRACK_FLYING_200",
+                List.of(racer("ana", 1, "11.235"), racer("rui", 2, "11.406"),
+                        racer("dnf", null, null))));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRaceMetrics.validate("Ciclismo de Pista", "TRACK_FLYING_200",
+                        List.of(racer("ana", 1, null))));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRaceMetrics.validate("Ciclismo de Pista", "TRACK_FLYING_200",
+                        List.of(racer("ana", null, "11.235"))));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRaceMetrics.validate("Ciclismo de Pista", "TRACK_FLYING_200",
+                        List.of(racer("ana", 1, "11.235"), racer("rui", 1, "11.406"))));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRaceMetrics.validate("Ciclismo de Pista", "TRACK_FLYING_200",
+                        List.of(racer("ana", 1, "0"))));
+    }
+
     @Test void preventsDuplicateFinishPositionsAndInvalidOrFakeStats() {
         assertThrows(IllegalArgumentException.class, () -> CommunityRaceMetrics.validate(
                 "Karting", List.of(racer("maria", 1, null), racer("joao", 1, null))));
