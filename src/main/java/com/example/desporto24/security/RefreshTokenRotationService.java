@@ -10,6 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import java.util.UUID;
+import java.time.Duration;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -33,6 +36,10 @@ import java.util.Objects;
 public class RefreshTokenRotationService {
 
     private static final String BAD_REFRESH = "Invalid refresh session";
+    // Normal double-submit/retry traffic must not trigger family-wide denial.
+    // An older spent JWT is denied immediately, but only a later replay
+    // signals likely theft and revokes the associated browser session family.
+    private static final Duration REPLAY_GRACE = Duration.ofSeconds(15);
     private final ProfileRepository profiles;
     private final RefreshTokenSessionRepository sessions;
     private final JWTokenProvider tokens;
@@ -43,10 +50,15 @@ public class RefreshTokenRotationService {
         String hash = fingerprint(refreshToken);
         if (sessions.existsById(hash)) throw denied();
         sessions.save(new RefreshTokenSession(
-                hash, profile.getId(), tokens.getRefreshTokenExpiry(refreshToken), null));
+                hash, profile.getId(), tokens.getRefreshTokenExpiry(refreshToken),
+                null, UUID.randomUUID().toString()));
     }
 
-    @Transactional
+    // For intentional replay rejection, commit revocation before returning 401.
+    // Otherwise Spring would roll back the revocation along with the exception.
+    // DB failures still roll back and do not grant tokens.
+    @Transactional(propagation = Propagation.REQUIRES_NEW,
+            noRollbackFor = BadCredentialsException.class)
     public void rotate(String oldToken, String newToken, String username) {
         // This lock serializes two requests using the same old cookie, even if
         // they hit different JVMs. It also serializes simultaneous new logins.
@@ -60,16 +72,39 @@ public class RefreshTokenRotationService {
         Instant now = Instant.now();
         String oldHash = fingerprint(oldToken);
         RefreshTokenSession prior = sessions.findById(oldHash).orElse(null);
+        String familyId;
         if (prior == null) {
-            // A previously-issued cookie (no jti) has no persisted record.
-            // Migration is one-time and the spent hash is now recorded.
+            // Pre-rollout cookies with no signed jti are migrated once. Modern
+            // signed cookies absent from the registry fail closed, not guessed.
             if (tokens.getRefreshTokenId(oldToken) != null) throw denied();
+            familyId = UUID.randomUUID().toString();
             sessions.save(new RefreshTokenSession(
-                    oldHash, profile.getId(), tokens.getRefreshTokenExpiry(oldToken), now));
+                    oldHash, profile.getId(), tokens.getRefreshTokenExpiry(oldToken),
+                    now, familyId));
         } else {
             if (!profile.getId().equals(prior.getProfileId())
-                    || prior.getConsumedAt() != null || !prior.getExpiresAt().isAfter(now)) {
+                    || !prior.getExpiresAt().isAfter(now)
+                    || prior.getRevokedAt() != null) {
                 throw denied();
+            }
+            if (prior.getConsumedAt() != null) {
+                // A legacy spent record predating this migration might not
+                // have a family. We cannot infer it without risking revoking
+                // an unrelated device's session.
+                if (prior.getFamilyId() != null
+                        && !prior.getConsumedAt().plus(REPLAY_GRACE).isAfter(now)) {
+                    sessions.revokeFamily(prior.getFamilyId(), now);
+                }
+                // Always reject a replay, including those inside the short
+                // benign double-submit grace period.
+                throw denied();
+            }
+            familyId = prior.getFamilyId();
+            if (familyId == null) {
+                // Existing live cookies issued before the family schema
+                // acquire a family on their next legitimate refresh.
+                familyId = UUID.randomUUID().toString();
+                prior.setFamilyId(familyId);
             }
             prior.setConsumedAt(now);
             sessions.save(prior);
@@ -77,7 +112,8 @@ public class RefreshTokenRotationService {
         String newHash = fingerprint(newToken);
         if (sessions.existsById(newHash)) throw denied();
         sessions.save(new RefreshTokenSession(
-                newHash, profile.getId(), tokens.getRefreshTokenExpiry(newToken), null));
+                newHash, profile.getId(), tokens.getRefreshTokenExpiry(newToken),
+                null, familyId));
     }
 
     // Scheduled purge bounds storage to refresh TTL while retaining expired
