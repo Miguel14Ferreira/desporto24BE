@@ -1,6 +1,7 @@
 package com.example.desporto24.websocket;
 
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.model.Profile;
 import com.example.desporto24.service.ChatTypingService;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,6 +12,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,9 +25,9 @@ class ChatReactionRealtimePayloadTest {
     @Test
     @SuppressWarnings("unchecked")
     void doesNotSerializePrivateCommunityRecipientsIntoBrowserWebSocketPayload() throws Exception {
+        ProfileRepository profiles = mock(ProfileRepository.class);
         ChatRealtimeGateway gateway = new ChatRealtimeGateway(
-                mock(JWTokenProvider.class), mock(ProfileRepository.class),
-                mock(ChatTypingService.class));
+                mock(JWTokenProvider.class), profiles, mock(ChatTypingService.class));
         WebSocketSession socket = mock(WebSocketSession.class);
         when(socket.isOpen()).thenReturn(true);
         ConcurrentHashMap<String, Set<WebSocketSession>> sessions =
@@ -33,6 +35,7 @@ class ChatReactionRealtimePayloadTest {
                         gateway, "sessionsByUsername");
         assertNotNull(sessions);
         sessions.put("ana", Set.of(socket));
+        registerAuthenticatedSocket(gateway, socket, profiles);
         var event = new ChatReactionChangedEvent("community", "7", 42L,
                 Map.of("👍", 2L, "😂", 1L), "ana", "👍",
                 Set.of("ana", "other-private-member", "another-private-member"));
@@ -55,9 +58,9 @@ class ChatReactionRealtimePayloadTest {
     @Test
     @SuppressWarnings("unchecked")
     void deletionBroadcastsNullEmojiButNotInternalRecipients() throws Exception {
+        ProfileRepository profiles = mock(ProfileRepository.class);
         ChatRealtimeGateway gateway = new ChatRealtimeGateway(
-                mock(JWTokenProvider.class), mock(ProfileRepository.class),
-                mock(ChatTypingService.class));
+                mock(JWTokenProvider.class), profiles, mock(ChatTypingService.class));
         WebSocketSession socket = mock(WebSocketSession.class);
         when(socket.isOpen()).thenReturn(true);
         ConcurrentHashMap<String, Set<WebSocketSession>> sessions =
@@ -65,6 +68,7 @@ class ChatReactionRealtimePayloadTest {
                         gateway, "sessionsByUsername");
         assertNotNull(sessions);
         sessions.put("ana", Set.of(socket));
+        registerAuthenticatedSocket(gateway, socket, profiles);
         gateway.publishChatReaction(Set.of("ana"), new ChatReactionChangedEvent(
                 "direct", "bea", 1L, Map.of(), "ana", null, Set.of("ana", "bea")));
 
@@ -74,5 +78,25 @@ class ChatReactionRealtimePayloadTest {
         assertTrue(reaction.has("emoji"));
         assertTrue(reaction.get("emoji").isNull());
         assertFalse(reaction.has("recipients"));
+    }
+    @SuppressWarnings("unchecked")
+    private void registerAuthenticatedSocket(ChatRealtimeGateway gateway,
+                                            WebSocketSession socket, ProfileRepository profiles) {
+        when(socket.getId()).thenReturn("socket-ana");
+        Profile profile = new Profile();
+        profile.setUsername("ana");
+        profile.setEnabled(true);
+        profile.setNotLocked(true);
+        profile.setTokenVersion(3L);
+        when(profiles.findUserByUsername("ana")).thenReturn(Optional.of(profile));
+
+        Map<String, String> identities =
+                (Map<String, String>) ReflectionTestUtils.getField(gateway, "usernameBySessionId");
+        Map<String, Long> versions =
+                (Map<String, Long>) ReflectionTestUtils.getField(gateway, "versionBySessionId");
+        assertNotNull(identities);
+        assertNotNull(versions);
+        identities.put("socket-ana", "ana");
+        versions.put("socket-ana", 3L);
     }
 }
