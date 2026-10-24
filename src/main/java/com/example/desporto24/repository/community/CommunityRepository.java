@@ -54,6 +54,8 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
                 UNION ALL SELECT 1 FROM community_tournament WHERE community_id = :id
                 UNION ALL SELECT 1 FROM community_standings_archive WHERE community_id = :id
                 UNION ALL SELECT 1 FROM community_match_archive WHERE community_id = :id
+                UNION ALL SELECT 1 FROM session WHERE community_id = :id
+                UNION ALL SELECT 1 FROM social_story WHERE community_id = :id
             ) THEN TRUE ELSE FALSE END
             """, nativeQuery = true)
     boolean hasActivityPreventingDeletion(@Param("id") Long id);
