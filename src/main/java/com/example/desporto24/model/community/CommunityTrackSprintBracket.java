@@ -3,6 +3,7 @@ package com.example.desporto24.model.community;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
+import java.util.List;
 
 /** Fixed eight-rider Sprint finals draw, explicitly created within one season.
  * The existing Sprint heat records remain the only source of athletic results.
@@ -24,6 +25,21 @@ public class CommunityTrackSprintBracket {
 
     @Column(nullable = false, length = 80)
     private String name;
+
+    @Column(name = "format", nullable = false, length = 30)
+    private String format;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "qualifying_round_id")
+    private CommunityRound qualifyingRound;
+
+    // Snapshot the exact official 200m seed order on creation.
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "community_track_sprint_qualified_rider",
+            joinColumns = @JoinColumn(name = "bracket_id"))
+    @OrderColumn(name = "qualifying_seed")
+    @Column(name = "username", nullable = false, length = 100)
+    private List<String> qualifiedRiders;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
