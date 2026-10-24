@@ -63,7 +63,7 @@ class CommunityTournamentRaceServiceTest {
         CommunityRoundEntryResponse first = entry(10L, 20L, "Ana", 1, false);
         CommunityRoundEntryResponse second = entry(11L, 21L, "Rui", 2, false);
         return new CommunityRoundResponse(id, "Corrida " + id, Instant.now(),
-                List.of(first, second), sport, null, List.of(), "RACE");
+                List.of(first, second), sport, null, List.of(), null);
     }
 
     private CommunityRoundEntryResponse entry(Long playerId, Long profileId,
@@ -86,7 +86,7 @@ class CommunityTournamentRaceServiceTest {
         when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
         when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
         var recorded = CommunityRound.builder().id(50L).community(community)
-                .sport("Karting").eventType("RACE").build();
+                .sport("Karting").eventType(null).build();
         when(links.findByTournamentIdOrderByIdAsc(19L))
                 .thenReturn(List.of(CommunityTournamentRaceRound.builder()
                         .tournament(tournament).round(recorded).build()));
@@ -108,7 +108,7 @@ class CommunityTournamentRaceServiceTest {
     void linksRecordedKartingOnlyAndStartsTheCompetition() {
         admin();
         when(rounds.findById(50L)).thenReturn(Optional.of(CommunityRound.builder()
-                .id(50L).community(community).sport("Karting").eventType("RACE").build()));
+                .id(50L).community(community).sport("Karting").eventType(null).build()));
         when(competition.overview(7L, "owner", null)).thenReturn(overview(race(50L, "Karting")));
         when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of());
 
@@ -124,7 +124,7 @@ class CommunityTournamentRaceServiceTest {
     void blocksOtherSportsAndUnrelatedCommunitiesWithoutChangingAnything() {
         admin();
         when(rounds.findById(50L)).thenReturn(Optional.of(CommunityRound.builder()
-                .id(50L).community(community).sport("Futebol").eventType("RACE").build()));
+                .id(50L).community(community).sport("Futebol").eventType(null).build()));
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
                 assertThrows(ResponseStatusException.class,
                         () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
