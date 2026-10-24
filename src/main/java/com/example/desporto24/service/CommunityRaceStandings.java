@@ -59,6 +59,10 @@ final class CommunityRaceStandings {
         Map<String, Map<Long, Tally>> totals = new LinkedHashMap<>();
         Map<String, String> display = new HashMap<>();
         for (CommunityRoundResponse round : rounds) {
+            // Swimming pool results have distance/stroke-specific times. Do not combine
+            // them in a sport-wide race championship or inherit generic positions.
+            if (round != null && "Natação".equals(round.sport())
+                    && "SWIM_LCM".equals(round.eventType())) continue;
             if (round == null || !CommunityRoundEventType.isRaceEvent(round.sport(), round.eventType())
                     || round.entries() == null) continue;
             String sport = round.sport().trim().toLowerCase(Locale.ROOT);
