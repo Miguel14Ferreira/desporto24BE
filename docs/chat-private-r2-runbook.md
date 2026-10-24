@@ -10,7 +10,7 @@ O FE e o BE já têm envio/receção de fotografias, GIFs, PDFs e áudio Opus pa
 1. Em **Cloudflare Dashboard → R2 object storage**, criar um bucket novo, por exemplo `jynlo-chat-private` (confirmar que o nome está disponível).
 2. **Não ativar R2.dev nem associar domínio público ao bucket.** Os downloads passam exclusivamente pela API autenticada da Jynlo.
 3. Em **R2 → API Tokens**, criar um token *Object Read & Write*, restringido **apenas a este novo bucket**.
-4. Guardar o **Access Key ID** e **Secret Access Key** como segredos do Render. Não reutilizar as credenciais do bucket público.
+4. Guardar o **Access Key ID** e **Secret Access Key** como segredos do Render. **Ambos têm de ser diferentes** dos valores utilizados pelo feed público: se alguma das duas chaves for reutilizada, o backend rejeita a configuração privada antes de contactar o R2.
 
 ## Configuração do backend no Render
 

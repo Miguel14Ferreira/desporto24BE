@@ -16,8 +16,24 @@ public record CommunityRoundResponse(
         List<CommunityGroupRoutineScore> groupScores,
         CommunityBasketballScore basketballScore,
         CommunityTeamFinalScore teamScore,
-        CommunityCricketDetails cricketDetails
+        CommunityCricketDetails cricketDetails,
+        String sprintSeriesKey,
+        Integer sprintHeatNumber
 ) {
+    // Compatibility for all existing response mappers and test fixtures.
+    public CommunityRoundResponse(Long id, String name, Instant playedAt,
+            List<CommunityRoundEntryResponse> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline,
+            List<CommunityGroupRoutineScore> groupScores,
+            CommunityBasketballScore basketballScore,
+            CommunityTeamFinalScore teamScore,
+            CommunityCricketDetails cricketDetails) {
+        this(id, name, playedAt, entries, sport, matchFormat, setScores,
+                eventType, eventDiscipline, groupScores, basketballScore,
+                teamScore, cricketDetails, null, null);
+    }
+
     // Preserve the prior 12-argument record constructor for existing Java callers.
     public CommunityRoundResponse(Long id, String name, Instant playedAt,
             List<CommunityRoundEntryResponse> entries, String sport,

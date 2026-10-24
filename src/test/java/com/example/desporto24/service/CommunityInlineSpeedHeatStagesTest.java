@@ -30,7 +30,6 @@ class CommunityInlineSpeedHeatStagesTest {
             assertTrue(CommunityInlineSpeedResults.isPlacedHeat(code));
             assertTrue(CommunityInlineSpeedResults.isInlineEvent(code));
             if (code.endsWith("_FINAL_B")) {
-                // Pre-2026 legacy finals remain readable but can no longer be created.
                 assertThrows(IllegalArgumentException.class,
                         () -> CommunityRoundEventType.validate("Patinagem de Velocidade", code));
             } else {

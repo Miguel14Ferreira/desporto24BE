@@ -130,6 +130,40 @@ class PrivateChatFileStorageTest {
     }
 
     @Test
+    void rejectsCopiedPublicFeedAccessKeyWithoutContactingR2() {
+        MediaStorageProperties settings = r2Settings();
+        settings.setPrivateAccessKey(settings.getS3().getAccessKey());
+        var storage = new PrivateChatFileStorage(settings);
+        S3Client client = mock(S3Client.class);
+        ReflectionTestUtils.setField(storage, "s3Client", client);
+
+        assertFalse(storage.isConfigured());
+        verifyNoInteractions(client);
+        var file = new MockMultipartFile("file", "jogo.pdf", "application/pdf",
+                "%PDF-1.4\\n%%EOF".getBytes(StandardCharsets.US_ASCII));
+        var error = assertThrows(ResponseStatusException.class, () -> storage.store(file));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatusCode());
+        verifyNoInteractions(client);
+    }
+
+    @Test
+    void rejectsCopiedPublicFeedSecretKeyWithoutContactingR2() {
+        MediaStorageProperties settings = r2Settings();
+        settings.setPrivateSecretKey(settings.getS3().getSecretKey());
+        var storage = new PrivateChatFileStorage(settings);
+        S3Client client = mock(S3Client.class);
+        ReflectionTestUtils.setField(storage, "s3Client", client);
+
+        assertFalse(storage.isConfigured());
+        verifyNoInteractions(client);
+        var file = new MockMultipartFile("file", "jogo.pdf", "application/pdf",
+                "%PDF-1.4\\n%%EOF".getBytes(StandardCharsets.US_ASCII));
+        var error = assertThrows(ResponseStatusException.class, () -> storage.store(file));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatusCode());
+        verifyNoInteractions(client);
+    }
+
+    @Test
     void confirmsBucketAccessWithHeadRequestAndCachesTheResult() {
         var storage = new PrivateChatFileStorage(r2Settings());
         S3Client client = mock(S3Client.class);

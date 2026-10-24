@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-track-sprint-series-v1
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_round
+            columns:
+              - column:
+                  name: sprint_series_key
+                  type: VARCHAR(40)
+              - column:
+                  name: sprint_heat_number
+                  type: INT
+        - createIndex:
+            tableName: community_round
+            indexName: idx_community_sprint_series
+            columns:
+              - column: { name: community_id }
+              - column: { name: season_id }
+              - column: { name: sprint_series_key }
+              - column: { name: sprint_heat_number }
+        - addUniqueConstraint:
+            tableName: community_round
+            columnNames: community_id, season_id, sprint_series_key, sprint_heat_number
+            constraintName: uk_community_sprint_heat_number

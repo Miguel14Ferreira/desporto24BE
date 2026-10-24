@@ -48,12 +48,11 @@ public class CommunityDiscoveryController {
         }
         String nameTerm = name.trim().toLowerCase(Locale.ROOT);
         String sportTerm = sport.trim().toLowerCase(Locale.ROOT);
-        // An unfiltered browse only discovers public communities.
-        // Explicit searches retain existing visibility behaviour.
-        var results = nameTerm.isEmpty() && sportTerm.isEmpty()
-                ? repository.discoverPublicPresentations(PageRequest.of(page, 20))
-                : repository.searchPresentations(
-                        escape(nameTerm), escape(sportTerm), PageRequest.of(page, 20));
+        // Browse and filtered searches share one safe presentation projection:
+        // PUBLIC and PRIVATE communities are discoverable, but never expose
+        // member lists, chats, sessions or competition data to non-members.
+        var results = repository.searchPresentations(
+                escape(nameTerm), escape(sportTerm), PageRequest.of(page, 20));
         // Enrich only the current page, preserving the original sort order and page boundaries.
         var presentations = results.getContent();
         if (presentations.isEmpty()) {
