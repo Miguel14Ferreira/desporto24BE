@@ -30,6 +30,7 @@ final class CommunityRoundEventType {
             Map.entry("Esgrima", List.of("FENCING_POOL_5", "FENCING_DE_15")),
             Map.entry("Teqball", List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")),
             Map.entry("Xadrez", List.of("CHESS_GAME")),
+            Map.entry("Cricket", List.of("CRICKET_T20")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(
