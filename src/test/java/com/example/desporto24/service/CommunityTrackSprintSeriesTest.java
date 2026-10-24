@@ -54,12 +54,21 @@ class CommunityTrackSprintSeriesTest {
                 () -> valid("SPRINT_GOLD_FINAL", "Gold 1", 2, one, two));
     }
 
-    @Test void quarterfinalIsSingleHeat() {
+    @Test void quarterfinalIsAlsoBestOfThreePerUci2026() {
+        var one = heat("SPRINT_QUARTER_FINAL", 1, "rui");
+        var two = heat("SPRINT_QUARTER_FINAL", 2, "rui");
         valid("SPRINT_QUARTER_FINAL", "Quarter A", 1);
-        assertEquals("rui", CommunityTrackSprintSeries.seriesWinner("SPRINT_QUARTER_FINAL",
-                List.of(heat("SPRINT_QUARTER_FINAL", 1, "rui"))));
+        valid("SPRINT_QUARTER_FINAL", "Quarter A", 2, one);
+        assertNull(CommunityTrackSprintSeries.seriesWinner("SPRINT_QUARTER_FINAL", List.of(one)));
+        assertEquals("rui", CommunityTrackSprintSeries.seriesWinner(
+                "SPRINT_QUARTER_FINAL", List.of(one, two)));
         assertThrows(IllegalArgumentException.class,
-                () -> valid("SPRINT_QUARTER_FINAL", "Quarter A", 2));
+                () -> valid("SPRINT_QUARTER_FINAL", "Quarter A", 3, one, two));
+        var split = heat("SPRINT_QUARTER_FINAL", 2, "ana");
+        valid("SPRINT_QUARTER_FINAL", "Quarter B", 3, one, split);
+        assertEquals("ana", CommunityTrackSprintSeries.seriesWinner(
+                "SPRINT_QUARTER_FINAL", List.of(one, split,
+                        heat("SPRINT_QUARTER_FINAL", 3, "ana"))));
     }
 
     @Test void rejectMixedPairPhasesAndNonconsecutiveHeats() {
