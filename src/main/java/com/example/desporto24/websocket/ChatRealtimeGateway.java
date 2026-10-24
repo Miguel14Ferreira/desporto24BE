@@ -348,9 +348,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
 
     private void closeRevokedSession(WebSocketSession session) throws IOException {
         afterConnectionClosed(session, CloseStatus.POLICY_VIOLATION);
-        if (session.isOpen()) {
-            session.close(CloseStatus.POLICY_VIOLATION.withReason("Session expired"));
-        }
+        session.close(CloseStatus.POLICY_VIOLATION.withReason("Session expired"));
     }
 
     private void send(WebSocketSession session, String payload) throws IOException {
