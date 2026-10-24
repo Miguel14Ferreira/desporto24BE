@@ -37,7 +37,7 @@ final class CommunityInlineSpeedResults {
             "INLINE_ROAD_LAP_FINAL_B");
 
     static boolean isPlacedHeat(String eventType) {
-        return PLACED_HEATS.contains(eventType);
+        return eventType != null && PLACED_HEATS.contains(eventType);
     }
 
     static boolean isInlineEvent(String eventType) {
