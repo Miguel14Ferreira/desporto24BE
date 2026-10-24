@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 
 import com.example.desporto24.enumeration.TournamentMatchStatus;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
@@ -118,11 +119,20 @@ public class CommunityTournamentStandingsService {
 
         // Sporting tie-breakers: points, goal difference, goals for, wins.
         // Profile ID is only a stable last resort, not a sporting tie-breaker.
-        rows.sort(Comparator.comparingLong((Row row) -> row.points).reversed()
-                .thenComparing(Comparator.comparingInt(Row::goalDifference).reversed())
-                .thenComparing(Comparator.comparingInt((Row row) -> row.goalsFor).reversed())
-                .thenComparing(Comparator.comparingInt((Row row) -> row.won).reversed())
-                .thenComparing(row -> row.profileId));
+        if (tournament.getScoringMode() == TournamentScoringMode.CHESS_HALF_POINTS) {
+            // Do not pretend "goal difference" is a chess tie-breaker.
+            // Wins are the only secondary sporting metric currently available.
+            // Profile id is only a stable display ordering, not a title tie-break.
+            rows.sort(Comparator.comparingLong((Row row) -> row.points).reversed()
+                    .thenComparing(Comparator.comparingInt((Row row) -> row.won).reversed())
+                    .thenComparing(row -> row.profileId));
+        } else {
+            rows.sort(Comparator.comparingLong((Row row) -> row.points).reversed()
+                    .thenComparing(Comparator.comparingInt(Row::goalDifference).reversed())
+                    .thenComparing(Comparator.comparingInt((Row row) -> row.goalsFor).reversed())
+                    .thenComparing(Comparator.comparingInt((Row row) -> row.won).reversed())
+                    .thenComparing(row -> row.profileId));
+        }
 
         List<CommunityTournamentStandingRowResponse> standings = new ArrayList<>();
         int position = 1;
