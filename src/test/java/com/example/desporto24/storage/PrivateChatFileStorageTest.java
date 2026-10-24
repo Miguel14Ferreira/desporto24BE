@@ -57,6 +57,45 @@ class PrivateChatFileStorageTest {
     }
 
     @Test
+    void acceptsOpusVoiceNotesAsPrivateWebmAndOgg() throws Exception {
+        var storage = local(tmp.resolve("private").toString());
+        byte[] webm = new byte[]{
+            0x1a, 0x45, (byte) 0xdf, (byte) 0xa3, (byte) 0x9f,
+            0x42, (byte) 0x82, (byte) 0x84, 'w', 'e', 'b', 'm',
+            (byte) 0x83, (byte) 0x81, 0x02, 'A', '_', 'O', 'P', 'U', 'S',
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        };
+        var voice = new MockMultipartFile("file", "voz.webm", "audio/webm", webm);
+        var saved = storage.store(voice);
+        assertEquals("audio/webm", saved.mime());
+        assertTrue(saved.key().endsWith(".webm"));
+        assertArrayEquals(webm, storage.read(saved.key()));
+        storage.delete(saved.key());
+
+        byte[] ogg = new byte[65];
+        System.arraycopy("OggS".getBytes(StandardCharsets.US_ASCII), 0, ogg, 0, 4);
+        System.arraycopy("OpusHead".getBytes(StandardCharsets.US_ASCII), 0, ogg, 32, 8);
+        var opus = new MockMultipartFile("file", "voz.ogg", "audio/ogg", ogg);
+        var savedOgg = storage.store(opus);
+        assertEquals("audio/ogg", savedOgg.mime());
+        assertArrayEquals(ogg, storage.read(savedOgg.key()));
+    }
+
+    @Test
+    void rejectsAudioSpoofedAsHtmlOrVideoAndTraversalKeys() {
+        var storage = local(tmp.resolve("private").toString());
+        var html = new MockMultipartFile("file", "voice.webm", "audio/webm",
+                "<script>attack</script>".getBytes(StandardCharsets.UTF_8));
+        var video = new MockMultipartFile("file", "voice.webm", "audio/webm",
+                new byte[]{0x1a,0x45,(byte)0xdf,(byte)0xa3,0,'w','e','b','m',
+                    (byte)0x83,(byte)0x81,1,'A','_','V','P','9',0,0,0,0,0});
+        assertThrows(ResponseStatusException.class, () -> storage.store(html));
+        assertThrows(ResponseStatusException.class, () -> storage.store(video));
+        assertThrows(IllegalArgumentException.class,
+                () -> storage.read("../private-chat/44444444-4444-4444-4444-444444444444.webm"));
+    }
+
+    @Test
     void failsClosedWhenProviderIsS3ButOnlyPublicBucketExists() {
         MediaStorageProperties settings = new MediaStorageProperties();
         settings.setProvider("s3");
