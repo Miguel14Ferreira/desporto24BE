@@ -1,0 +1,47 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-community-track-sprint-bracket8
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: community_track_sprint_bracket
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: community_id
+                  type: BIGINT
+                  constraints: { nullable: false }
+              - column:
+                  name: season_id
+                  type: BIGINT
+                  constraints: { nullable: false }
+              - column:
+                  name: name
+                  type: VARCHAR(80)
+                  constraints: { nullable: false }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: { nullable: false }
+        - addForeignKeyConstraint:
+            baseTableName: community_track_sprint_bracket
+            baseColumnNames: community_id
+            referencedTableName: community
+            referencedColumnNames: id
+            constraintName: fk_track_sprint_bracket_community
+        - addForeignKeyConstraint:
+            baseTableName: community_track_sprint_bracket
+            baseColumnNames: season_id
+            referencedTableName: community_season
+            referencedColumnNames: id
+            constraintName: fk_track_sprint_bracket_season
+        - createIndex:
+            tableName: community_track_sprint_bracket
+            indexName: idx_track_sprint_bracket_season
+            columns:
+              - column: { name: community_id }
+              - column: { name: season_id }
