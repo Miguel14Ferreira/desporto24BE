@@ -1,0 +1,58 @@
+name: Jynlo distributed auth throttle - isolated PostgreSQL 16
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/main/java/com/example/desporto24/security/DistributedAuthRateLimiter.java'
+      - 'src/main/java/com/example/desporto24/service/LoginAttemptService.java'
+      - 'src/main/java/com/example/desporto24/security/MfaSettingsAttemptLimiter.java'
+      - 'src/main/java/com/example/desporto24/security/SensitiveActionRateLimiter.java'
+      - 'src/main/java/com/example/desporto24/service/impl/AuthenticationServiceImpl.java'
+      - 'src/main/resources/db/changelog/changes/2026-10-24-auth-rate-limit-v1.yaml'
+      - 'src/test/java/com/example/desporto24/security/DistributedAuthRateLimiterPostgresTest.java'
+      - '.github/workflows/auth-rate-limit-postgres-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-pg16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-pg16:
+    name: Shared auth limiter — PostgreSQL 16
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: qa_local_only
+          POSTGRES_DB: auth_limit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d auth_limit_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AES_ENCRYPTION_KEY: ciKey1
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/auth_limit_test
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: qa_local_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Test atomic cross-instance rate limiting in disposable PostgreSQL
+        run: bash ./mvnw -B -ntp -Dtest=DistributedAuthRateLimiterPostgresTest test
