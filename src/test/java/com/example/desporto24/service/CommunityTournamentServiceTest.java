@@ -160,7 +160,7 @@ class CommunityTournamentServiceTest {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        for (String sport : List.of("Ciclismo", "Mountain Bike", "Ciclocrosse")) {
+        for (String sport : List.of("Ciclismo", "Mountain Bike", "Ciclocrosse", "Ciclismo de Estrada")) {
             var request = new CreateCommunityTournamentRequest(
                     "Campeonato " + sport, null, null, null, sport,
                     TournamentEntryType.INDIVIDUAL, null, null, null,
