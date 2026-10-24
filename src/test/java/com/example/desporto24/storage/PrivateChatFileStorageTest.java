@@ -5,6 +5,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
@@ -93,6 +100,63 @@ class PrivateChatFileStorageTest {
         assertThrows(ResponseStatusException.class, () -> storage.store(video));
         assertThrows(IllegalArgumentException.class,
                 () -> storage.read("../private-chat/44444444-4444-4444-4444-444444444444.webm"));
+    }
+
+    private MediaStorageProperties r2Settings() {
+        MediaStorageProperties settings = new MediaStorageProperties();
+        settings.setProvider("s3");
+        settings.setPrivateBucket("jynlo-chat-private");
+        settings.getS3().setBucket("jynlo-public-feed");
+        settings.getS3().setEndpoint("https://fake-account-id.r2.cloudflarestorage.com");
+        settings.getS3().setRegion("auto");
+        settings.setPrivateAccessKey("private-test-access-key");
+        settings.setPrivateSecretKey("private-test-secret-key");
+        // Deliberately different public credentials to prove isolation.
+        settings.getS3().setAccessKey("public-test-access-key");
+        settings.getS3().setSecretKey("public-test-secret-key");
+        return settings;
+    }
+
+    @Test
+    void doesNotEnablePrivateChatForBucketNameAlone() {
+        MediaStorageProperties settings = r2Settings();
+        settings.setPrivateSecretKey("");
+        var storage = new PrivateChatFileStorage(settings);
+        assertFalse(storage.isConfigured());
+        var file = new MockMultipartFile("file", "jogo.pdf", "application/pdf",
+                "%PDF-1.4\\n%%EOF".getBytes(StandardCharsets.US_ASCII));
+        var error = assertThrows(ResponseStatusException.class, () -> storage.store(file));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatusCode());
+    }
+
+    @Test
+    void confirmsBucketAccessWithHeadRequestAndCachesTheResult() {
+        var storage = new PrivateChatFileStorage(r2Settings());
+        S3Client client = mock(S3Client.class);
+        ReflectionTestUtils.setField(storage, "s3Client", client);
+        when(client.headBucket(any(HeadBucketRequest.class)))
+                .thenReturn(HeadBucketResponse.builder().build());
+        assertTrue(storage.isConfigured());
+        assertTrue(storage.isConfigured());
+        verify(client, times(1)).headBucket(any(HeadBucketRequest.class));
+    }
+
+    @Test
+    void refusesUploadsWhenPrivateBucketIsMissingOrCredentialsDenied() {
+        var storage = new PrivateChatFileStorage(r2Settings());
+        S3Client client = mock(S3Client.class);
+        ReflectionTestUtils.setField(storage, "s3Client", client);
+        when(client.headBucket(any(HeadBucketRequest.class)))
+                .thenThrow(S3Exception.builder().statusCode(403).message("Forbidden").build());
+        assertFalse(storage.isConfigured());
+        assertFalse(storage.isConfigured());
+        verify(client, times(1)).headBucket(any(HeadBucketRequest.class));
+        var file = new MockMultipartFile("file", "jogo.pdf", "application/pdf",
+                "%PDF-1.4\\n%%EOF".getBytes(StandardCharsets.US_ASCII));
+        var error = assertThrows(ResponseStatusException.class, () -> storage.store(file));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatusCode());
+        verify(client, never()).putObject(any(software.amazon.awssdk.services.s3.model.PutObjectRequest.class),
+                any(software.amazon.awssdk.core.sync.RequestBody.class));
     }
 
     @Test

@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -38,15 +39,43 @@ public class PrivateChatFileStorage {
     private static final String PREFIX = "private-chat/";
     private final MediaStorageProperties settings;
     private volatile S3Client s3Client;
+    // Avoid an R2 network request for every composer refresh. A failed check
+    // remains unavailable and can be retried after a short bounded interval.
+    private volatile Boolean privateBucketReady;
+    private volatile long privateBucketCheckedAtNanos;
+    private static final long BUCKET_CHECK_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
 
     public record StoredFile(String key, String name, String mime, long size) {}
     private record ValidFile(byte[] bytes, String name, String mime, String extension) {}
 
     public boolean isConfigured() {
         if ("s3".equalsIgnoreCase(settings.getProvider())) {
-            String bucket = settings.getPrivateBucket();
-            return bucket != null && !bucket.isBlank()
-                    && !bucket.equals(settings.getS3().getBucket());
+            if (!hasPrivateR2Settings()) return false;
+            long now = System.nanoTime();
+            Boolean cached = privateBucketReady;
+            if (cached != null && now - privateBucketCheckedAtNanos < BUCKET_CHECK_NANOS) {
+                return cached;
+            }
+            synchronized (this) {
+                now = System.nanoTime();
+                cached = privateBucketReady;
+                if (cached != null && now - privateBucketCheckedAtNanos < BUCKET_CHECK_NANOS) {
+                    return cached;
+                }
+                boolean ready;
+                try {
+                    // R2 implements S3 HeadBucket. A configured name alone does
+                    // not prove that the bucket exists or credentials can access it.
+                    client().headBucket(HeadBucketRequest.builder()
+                            .bucket(privateBucket()).build());
+                    ready = true;
+                } catch (RuntimeException unavailable) {
+                    ready = false; // Fail closed; never fall back to the public feed bucket.
+                }
+                privateBucketReady = ready;
+                privateBucketCheckedAtNanos = System.nanoTime();
+                return ready;
+            }
         }
         if ("local".equalsIgnoreCase(settings.getProvider())) {
             Path publicRoot = Path.of(settings.getLocalRoot()).toAbsolutePath().normalize();
@@ -56,7 +85,28 @@ public class PrivateChatFileStorage {
         return false;
     }
 
+    private boolean hasPrivateR2Settings() {
+        MediaStorageProperties.S3 s3 = settings.getS3();
+        String bucket = settings.getPrivateBucket();
+        if (bucket == null || bucket.isBlank() || bucket.equals(s3.getBucket())
+                || s3.getEndpoint() == null || s3.getEndpoint().isBlank()
+                || settings.getPrivateAccessKey() == null || settings.getPrivateAccessKey().isBlank()
+                || settings.getPrivateSecretKey() == null || settings.getPrivateSecretKey().isBlank()) return false;
+        try {
+            URI uri = URI.create(s3.getEndpoint());
+            return "https".equalsIgnoreCase(uri.getScheme())
+                    && uri.getHost() != null
+                    && uri.getHost().toLowerCase(Locale.ROOT).endsWith(".r2.cloudflarestorage.com");
+        } catch (IllegalArgumentException invalidEndpoint) {
+            return false;
+        }
+    }
+
     public StoredFile store(MultipartFile file) {
+        if (!isConfigured()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Private attachment storage is unavailable");
+        }
         // Reject malicious content before writing anywhere.
         ValidFile validated = validate(file);
         String key = PREFIX + UUID.randomUUID() + validated.extension();
@@ -78,6 +128,10 @@ public class PrivateChatFileStorage {
 
     public byte[] read(String key) {
         validKey(key);
+        if (!isConfigured()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Private attachment storage is unavailable");
+        }
         if (usesS3()) {
             return client().getObjectAsBytes(GetObjectRequest.builder()
                     .bucket(privateBucket()).key(key).build()).asByteArray();
@@ -235,10 +289,9 @@ public class PrivateChatFileStorage {
                             .serviceConfiguration(S3Configuration.builder()
                                     .pathStyleAccessEnabled(true).build());
                 }
-                if (s.getAccessKey() != null && !s.getAccessKey().isBlank()) {
-                    builder.credentialsProvider(StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create(s.getAccessKey(), s.getSecretKey())));
-                }
+                builder.credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(settings.getPrivateAccessKey(),
+                                settings.getPrivateSecretKey())));
                 s3Client = builder.build();
             }
             return s3Client;
