@@ -1,0 +1,72 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-community-inline-heat-progression
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_inline_heat_progression
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_inline_heat_progression
+                    nullable: false
+              - column:
+                  name: source_round_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_round_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confirmed_by_username
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confirmation_reason
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confirmed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_inline_heat_progression
+            columnNames: source_round_id, target_round_id
+            constraintName: uk_inline_heat_progression_pair
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_inline_heat_progression
+            baseColumnNames: source_round_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_round
+            referencedColumnNames: id
+            constraintName: fk_inline_progress_source
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_inline_heat_progression
+            baseColumnNames: target_round_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_round
+            referencedColumnNames: id
+            constraintName: fk_inline_progress_target
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_inline_heat_progression
+            indexName: idx_inline_progress_target
+            columns:
+              - column:
+                  name: target_round_id
