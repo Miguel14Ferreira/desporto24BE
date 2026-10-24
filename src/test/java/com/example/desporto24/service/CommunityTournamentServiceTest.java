@@ -107,6 +107,43 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsExplicitKartingRaceModeWithItsOwnPointsAndNoFakeMatchRules() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var request = new CreateCommunityTournamentRequest(
+                "Campeonato de Karting", null, null, null, "Karting",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+        var created = service.create(7L, "owner", request);
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
+                created.scoringMode());
+        var saved = org.mockito.ArgumentCaptor.forClass(CommunityTournament.class);
+        verify(tournamentRepository).save(saved.capture());
+        assertEquals("25,18,15,12,10,8,6,4,2,1",
+                saved.getValue().getRacePointsByPlace());
+        assertEquals(TournamentStatus.DRAFT, saved.getValue().getStatus());
+    }
+
+    @Test
+    void rejectsRaceModeForFootballOrTeamCompetitions() {
+        actingAsOwner(CommunityRole.OWNER);
+        for (var sport : List.of("Futebol", "Natação")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Campeonato", null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", request)).getStatusCode());
+        }
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
     void legacyCreationSnapshotsCommunityPrimarySportOrLeavesSportless() {
         community.setSport("Padel");
         actingAsOwner(CommunityRole.OWNER);
