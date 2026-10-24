@@ -171,7 +171,7 @@ class CommunityTournamentServiceTest {
             assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
                     created.scoringMode());
         }
-        verify(tournamentRepository, times(3)).save(argThat(t ->
+        verify(tournamentRepository, times(4)).save(argThat(t ->
                 "25,18,15,12,10,8,6,4,2,1".equals(t.getRacePointsByPlace())
                 && t.getStatus() == TournamentStatus.DRAFT));
     }
@@ -179,7 +179,7 @@ class CommunityTournamentServiceTest {
     @Test
     void doesNotEnableOtherCyclingSubdisciplinesOrUnofficialDuelRules() {
         actingAsOwner(CommunityRole.OWNER);
-        for (String sport : List.of("Ciclismo de Estrada", "Ciclismo de Pista",
+        for (String sport : List.of("Ciclismo de Pista", "Corrida de obstáculos",
                 "Triatlo", "Corrida")) {
             var request = new CreateCommunityTournamentRequest(
                     "Liga não suportada", null, null, null, sport,
