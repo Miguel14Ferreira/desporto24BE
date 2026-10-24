@@ -1,6 +1,10 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.model.Profile;
+import com.example.desporto24.enumeration.CommunityRole;
+import com.example.desporto24.enumeration.TournamentStatus;
+import com.example.desporto24.enumeration.TournamentFormat;
+import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
@@ -31,6 +35,7 @@ public class CommunityHistoricalMatchArchiveService {
     private final CommunityHistoricalMatchArchiveRepository archiveRepository;
     private final CommunityTournamentRepository tournamentRepository;
     private final CommunityHistoricalMatchArchiveRowRepository rowRepository;
+    private final CommunityTournamentRepository tournamentRepository;
 
     /**
      * Separate, immutable historical source data. No live fixture, team, ranking
@@ -130,6 +135,51 @@ public class CommunityHistoricalMatchArchiveService {
         return new CommunityHistoricalMatchArchiveResponse(
                 archive.getId(), archive.getTitle(), archive.getEntryType(),
                 archive.getSourceFilename(), archive.getCreatedAt(), plan.rows(), tournamentId);
+    }
+
+    /**
+     * Promotes a previously verified match archive into a read-only completed
+     * historical tournament. The archive remains the source of truth: no fake
+     * accounts or live fixtures are generated. Repeated requests are idempotent.
+     */
+    @Transactional
+    public CommunityTournamentResponse createHistoricalTournament(
+            Long communityId, Long archiveId, String username) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new AccessDeniedException("Utilizador não encontrado"));
+        CommunityMember membership = memberRepository.findByCommunityIdAndProfileId(
+                communityId, actor.getId())
+                .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
+        if (membership.getRole() != CommunityRole.OWNER && membership.getRole() != CommunityRole.ADMIN) {
+            throw new AccessDeniedException("Apenas gestores podem importar torneios");
+        }
+        CommunityHistoricalMatchArchive archive = archiveRepository.findByIdAndCommunityId(
+                archiveId, communityId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Arquivo histórico não encontrado"));
+        CommunityTournament existing = tournamentRepository.findByHistoricalArchiveId(archiveId)
+                .orElse(null);
+        if (existing != null) {
+            if (!existing.getCommunity().getId().equals(communityId)) {
+                throw new AccessDeniedException("Torneio de outra comunidade");
+            }
+            return CommunityTournamentResponse.from(existing);
+        }
+        boolean hasRows = !rowRepository.findByArchiveIdOrderBySourceRowAscIdAsc(archiveId).isEmpty();
+        if (!hasRows) throw new IllegalArgumentException("Não existem partidas para importar");
+        TournamentEntryType type = TournamentEntryType.valueOf(archive.getEntryType());
+        CommunityTournament tournament = CommunityTournament.builder()
+                .community(archive.getCommunity())
+                .name(archive.getTitle())
+                .sport(null)
+                .entryType(type)
+                .format(TournamentFormat.LEAGUE)
+                .status(TournamentStatus.COMPLETED)
+                .historicalArchiveId(archiveId)
+                .createdAt(Instant.now())
+                .completedAt(Instant.now())
+                .build();
+        return CommunityTournamentResponse.from(tournamentRepository.saveAndFlush(tournament));
     }
 
     @Transactional(readOnly = true)
