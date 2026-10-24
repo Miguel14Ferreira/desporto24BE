@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -130,6 +131,23 @@ public class PrivateChatFileStorage {
                 }
                 return new ValidFile(bytes, name, detected, ".pdf");
             }
+            // Browser voice notes are Opus recordings. Validate both the
+            // declared format and recognizable audio headers before upload.
+            // Files are always served as attachment from an authenticated URL.
+            String declared = file.getContentType() == null ? ""
+                    : file.getContentType().split(";")[0].trim().toLowerCase(Locale.ROOT);
+            if ("audio/webm".equals(declared)) {
+                if (!isOpusWebm(bytes)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid WebM/Opus audio");
+                }
+                return new ValidFile(bytes, name, "audio/webm", ".webm");
+            }
+            if ("audio/ogg".equals(declared)) {
+                if (!isOpusOgg(bytes)) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Ogg/Opus audio");
+                }
+                return new ValidFile(bytes, name, "audio/ogg", ".ogg");
+            }
             // Shared image validation detects real bytes, checks declared MIME,
             // verifies GIF frames and limits GIF dimensions to 1024x1024.
             MediaStorageSupport.ValidatedMedia image = MediaStorageSupport.validateCommunityPhoto(file);
@@ -137,6 +155,32 @@ public class PrivateChatFileStorage {
         } catch (IOException | IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or unsupported attachment", ex);
         }
+    }
+
+    private static boolean isOpusWebm(byte[] data) {
+        if (data.length < 32 || (data[0] & 0xff) != 0x1a
+                || (data[1] & 0xff) != 0x45 || (data[2] & 0xff) != 0xdf
+                || (data[3] & 0xff) != 0xa3) return false;
+        // Require an EBML WebM DocType and an Opus audio track, rather than
+        // trusting a user-controlled filename or Content-Type alone.
+        String prefix = new String(data, 0, Math.min(data.length, 65536),
+                StandardCharsets.ISO_8859_1);
+        if (!prefix.substring(0, Math.min(prefix.length(), 1024)).contains("webm")
+                || !prefix.contains("A_OPUS")) return false;
+        // EBML TrackType = 2 (audio), encoded as ID 0x83, size 0x81, value 0x02.
+        for (int i = 4; i + 2 < Math.min(data.length, 65536); i++) {
+            if ((data[i] & 0xff) == 0x83 && (data[i+1] & 0xff) == 0x81
+                    && (data[i+2] & 0xff) == 0x02) return true;
+        }
+        return false;
+    }
+
+    private static boolean isOpusOgg(byte[] data) {
+        if (data.length < 48 || data[0] != 'O' || data[1] != 'g'
+                || data[2] != 'g' || data[3] != 'S') return false;
+        String header = new String(data, 0, Math.min(data.length, 512),
+                StandardCharsets.ISO_8859_1);
+        return header.contains("OpusHead");
     }
 
     private boolean usesS3() {
@@ -156,7 +200,7 @@ public class PrivateChatFileStorage {
     }
 
     private static void validKey(String key) {
-        if (key == null || !key.matches("private-chat/[a-f0-9-]{36}\\.(jpg|png|webp|gif|pdf)")) {
+        if (key == null || !key.matches("private-chat/[a-f0-9-]{36}\\.(jpg|png|webp|gif|pdf|webm|ogg)")) {
             throw new IllegalArgumentException("Invalid private attachment key");
         }
     }
