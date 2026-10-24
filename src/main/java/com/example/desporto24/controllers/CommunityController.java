@@ -237,6 +237,15 @@ public class CommunityController {
                 id, seasonId, auth.getName()));
     }
 
+    @DeleteMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}")
+    public ResponseEntity<Void> deleteTrackSprintBracket(
+            @PathVariable Long id, @PathVariable Long seasonId,
+            @PathVariable Long bracketId, Authentication auth) {
+        competitionService.deleteTrackSprintBracket(
+                id, seasonId, bracketId, auth.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets")
     public ResponseEntity<CommunityTrackSprintBracketDtos.Overview> createTrackSprintBracket(
             @PathVariable Long id, @PathVariable Long seasonId,
