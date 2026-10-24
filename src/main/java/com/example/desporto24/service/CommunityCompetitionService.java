@@ -479,7 +479,7 @@ public class CommunityCompetitionService {
 
         // Grouping is opt-in. Explicit keys are isolated by community and season.
         // Lock the season to serialize concurrent writes to the same series.
-        List<CommunityRoundResponse> existingSprintHeats = List.of();
+        List<CommunityTrackSprintSeries.Heat> existingSprintHeats = List.of();
         if (request.sprintSeriesKey() != null && !request.sprintSeriesKey().isBlank()
                 && "TRACK_SPRINT_HEAT".equals(resolvedEventType)) {
             if (activeSeason == null) {
@@ -491,7 +491,7 @@ public class CommunityCompetitionService {
             existingSprintHeats = roundRepository
                     .findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
                             communityId, activeSeason.getId(), request.sprintSeriesKey().trim())
-                    .stream().map(item -> roundResponse(item, aliases)).toList();
+                    .stream().map(item -> CommunityTrackSprintSeries.fromRound(roundResponse(item, aliases))).toList();
         }
         CommunityTrackSprintSeries.validate(resolvedEventType, resolvedDiscipline,
                 request.sprintSeriesKey(), request.sprintHeatNumber(),
