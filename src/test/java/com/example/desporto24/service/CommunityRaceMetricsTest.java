@@ -32,6 +32,21 @@ class CommunityRaceMetricsTest {
                 racer("maria", null, null), racer("joao", 2, null))));
     }
 
+    @Test void roadTimeTrialRequiresRecordedTimeForEveryPlacedFinisher() {
+        assertDoesNotThrow(() -> CommunityRaceMetrics.validate(
+                "Ciclismo de Estrada", "TIME_TRIAL", List.of(
+                        racer("ana", 1, "102.500"), racer("rui", 2, "104.800"),
+                        racer("dnf", null, null))));
+        assertThrows(IllegalArgumentException.class, () -> CommunityRaceMetrics.validate(
+                "Ciclismo de Estrada", "TIME_TRIAL", List.of(racer("ana", 1, null))));
+        assertThrows(IllegalArgumentException.class, () -> CommunityRaceMetrics.validate(
+                "Ciclismo de Estrada", "TIME_TRIAL", List.of(racer("ana", null, "102.500"))));
+        assertDoesNotThrow(() -> CommunityRaceMetrics.validate(
+                "Ciclismo de Estrada", "ROAD_RACE", List.of(racer("ana", 1, null))));
+        assertThrows(IllegalArgumentException.class, () -> CommunityRaceMetrics.validate(
+                "Ciclismo de Estrada", "ROAD_RACE", List.of(racer("ana", 1, "-1.0"))));
+    }
+
     @Test void preventsDuplicateFinishPositionsAndInvalidOrFakeStats() {
         assertThrows(IllegalArgumentException.class, () -> CommunityRaceMetrics.validate(
                 "Karting", List.of(racer("maria", 1, null), racer("joao", 1, null))));

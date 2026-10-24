@@ -18,6 +18,7 @@ final class CommunityRoundEventType {
 
     private static final Map<String, List<String>> TYPES = Map.ofEntries(
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
+            Map.entry("Ciclismo de Estrada", List.of("ROAD_RACE", "TIME_TRIAL")),
             Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Basebol", List.of("BASEBALL_RUNS")),
@@ -318,7 +319,16 @@ final class CommunityRoundEventType {
         if ("Snowboard".equals(sport)) return "RACE".equals(eventType);
         if ("Parkour".equals(sport)) return "PARKOUR_SPEED".equals(eventType);
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
+        if ("Ciclismo de Estrada".equals(sport))
+            return eventType == null || "ROAD_RACE".equals(eventType) || "TIME_TRIAL".equals(eventType);
         return CommunityRaceMetrics.isRaceSport(sport) && eventType == null;
+    }
+
+    /** Only explicit ROAD_RACE rounds may join a road championship.
+     * Untyped legacy rounds are left unchanged and not reinterpreted. */
+    static boolean isChampionshipRaceEvent(String sport, String eventType) {
+        if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
+        return isRaceEvent(sport, eventType);
     }
 
     static boolean supportsRaceChampionship(String sport) {

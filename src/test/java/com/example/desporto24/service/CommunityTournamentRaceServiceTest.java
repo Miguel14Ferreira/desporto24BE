@@ -259,6 +259,55 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void roadRaceChampionshipLinksOnlyExplicitRoadRacesNeverTimeTrialsOrUnknownLegacy() {
+        tournament.setSport("Ciclismo de Estrada");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Ciclismo de Estrada").eventType("ROAD_RACE").build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        var road = new CommunityRoundResponse(50L, "Prova em linha", Instant.now(),
+                race(50L, "Ciclismo de Estrada").entries(),
+                "Ciclismo de Estrada", null, List.of(), "ROAD_RACE");
+        var trial = new CommunityRoundResponse(51L, "Contrarrelógio", Instant.now(),
+                race(51L, "Ciclismo de Estrada").entries(),
+                "Ciclismo de Estrada", null, List.of(), "TIME_TRIAL");
+        var legacy = race(52L, "Ciclismo de Estrada");
+        when(competition.overview(7L, "owner", null))
+                .thenReturn(overview(road, trial, legacy, race(53L, "Mountain Bike")));
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(
+                List.of(), List.of(CommunityTournamentRaceRound.builder()
+                        .tournament(tournament).round(recorded).build()));
+
+        var result = service.link(7L, 19L, 50L, "owner");
+        assertEquals(1, result.linkedRaces().size());
+        assertEquals(25, result.standings().get(0).championshipPoints());
+        assertTrue(result.availableRaces().isEmpty());
+        verify(links).save(argThat(link -> link.getRound().getId().equals(50L)));
+    }
+
+    @Test
+    void roadRaceChampionshipRejectsTimeTrialLegacyAndOtherCyclingDisciplines() {
+        tournament.setSport("Ciclismo de Estrada");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Ciclismo de Estrada").eventType("TIME_TRIAL").build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        for (String kind : java.util.Arrays.asList("TIME_TRIAL", null, "RACE")) {
+            recorded.setEventType(kind);
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        }
+        recorded.setEventType("ROAD_RACE");
+        recorded.setSport("Ciclismo");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        verifyNoInteractions(competition);
+        verify(links, never()).save(any());
+    }
+
+    @Test
     void cyclingCannotImportMtbOrRoadSubdisciplineRoundsAndRejectsNonRaceEvent() {
         tournament.setSport("Ciclismo");
         admin();
