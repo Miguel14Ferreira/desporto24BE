@@ -139,6 +139,17 @@ public class CommunityTournamentService {
             }
         }
 
+        if (scoringMode == TournamentScoringMode.RACE_POINTS) {
+            if (type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || !"karting".equalsIgnoreCase(selectedSport)
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "O campeonato por posições está disponível apenas para Karting individual");
+            }
+        }
+
         TournamentTeamTieBreakPriority tieBreakPriority = request.teamTieBreakPriority() == null
                 ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
                 : request.teamTieBreakPriority();
@@ -148,6 +159,8 @@ public class CommunityTournamentService {
                 .name(request.name().trim())
                 .sport(selectedSport)
                 .scoringMode(scoringMode)
+                .racePointsByPlace(scoringMode == TournamentScoringMode.RACE_POINTS
+                        ? CommunityTournamentRaceService.DEFAULT_POINTS : null)
                 .entryType(type)
                 .playersPerTeam(request.playersPerTeam())
                 .roundRobinLegs(roundRobinLegs)
