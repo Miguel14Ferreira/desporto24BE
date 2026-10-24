@@ -54,7 +54,8 @@ final class CommunityRaceMetrics {
             }
             if (!race) continue;
             if (("Ciclismo de Estrada".equals(sport) && "TIME_TRIAL".equals(eventType))
-                    || ("Ciclismo de Pista".equals(sport) && "TRACK_TIME_TRIAL".equals(eventType))) {
+                    || ("Ciclismo de Pista".equals(sport) && ("TRACK_TIME_TRIAL".equals(eventType)
+                            || "TRACK_FLYING_200".equals(eventType)))) {
                 if (entry.lapsCompleted() != null || entry.bestLapSeconds() != null)
                     throw new IllegalArgumentException(
                             "Contrarrelógio individual não admite métricas de voltas");

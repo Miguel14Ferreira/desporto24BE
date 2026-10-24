@@ -319,8 +319,12 @@ class CommunityTournamentRaceServiceTest {
         var timeTrial = new CommunityRoundResponse(51L, "Contra o relógio", Instant.now(),
                 race(51L, "Ciclismo de Pista").entries(),
                 "Ciclismo de Pista", null, List.of(), "TRACK_TIME_TRIAL");
+        var flying = new CommunityRoundResponse(54L, "200m lançados", Instant.now(),
+                race(54L, "Ciclismo de Pista").entries(),
+                "Ciclismo de Pista", null, List.of(), "TRACK_FLYING_200");
         when(competition.overview(7L, "owner", null)).thenReturn(overview(
-                scratch, timeTrial, race(52L, "Ciclismo de Pista"), race(53L, "Ciclismo de Estrada")));
+                scratch, timeTrial, flying, race(52L, "Ciclismo de Pista"),
+                race(53L, "Ciclismo de Estrada")));
         when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of());
         var result = service.overview(7L, 19L, "owner");
         assertEquals(List.of(50L), result.availableRaces().stream().map(CommunityRoundResponse::id).toList());
@@ -333,7 +337,7 @@ class CommunityTournamentRaceServiceTest {
         var recorded = CommunityRound.builder().id(50L).community(community)
                 .sport("Ciclismo de Pista").eventType("TRACK_TIME_TRIAL").build();
         when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
-        for (String kind : java.util.Arrays.asList("TRACK_TIME_TRIAL", null, "TRACK", "ROAD_RACE")) {
+        for (String kind : java.util.Arrays.asList("TRACK_TIME_TRIAL", "TRACK_FLYING_200", null, "TRACK", "ROAD_RACE")) {
             recorded.setEventType(kind);
             assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
                     assertThrows(ResponseStatusException.class,

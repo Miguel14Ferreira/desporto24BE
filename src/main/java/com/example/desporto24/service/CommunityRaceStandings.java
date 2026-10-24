@@ -86,7 +86,8 @@ final class CommunityRaceStandings {
             if (("Ciclismo de Estrada".equals(round.sport())
                     && "TIME_TRIAL".equals(round.eventType()))
                     || ("Ciclismo de Pista".equals(round.sport())
-                    && "TRACK_TIME_TRIAL".equals(round.eventType()))) continue;
+                    && ("TRACK_TIME_TRIAL".equals(round.eventType())
+                            || "TRACK_FLYING_200".equals(round.eventType())))) continue;
             display.putIfAbsent(sport, round.sport().trim());
             Map<Long, Tally> players = totals.computeIfAbsent(sport, unused -> new HashMap<>());
             for (CommunityRoundEntryResponse entry : round.entries()) {
