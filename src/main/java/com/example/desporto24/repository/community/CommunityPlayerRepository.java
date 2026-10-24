@@ -19,6 +19,12 @@ public interface CommunityPlayerRepository extends JpaRepository<CommunityPlayer
 
     List<CommunityPlayer> findByCommunityIdOrderByDisplayNameAsc(Long communityId);
 
+    /** Only historical names that still have at least one recorded game. */
+    @Query("select player from CommunityPlayer player where player.community.id = :communityId " +
+           "and player.profile is null and exists (select entry.id from CommunityRoundEntry entry " +
+           "where entry.communityPlayer = player) order by player.displayName asc")
+    List<CommunityPlayer> findHistoricalPlayersWithResults(@Param("communityId") Long communityId);
+
     Optional<CommunityPlayer> findByCommunityIdAndNormalizedName(Long communityId, String normalizedName);
 
     Optional<CommunityPlayer> findByCommunityIdAndProfileId(Long communityId, Long profileId);
