@@ -134,10 +134,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         validateProfileStatus(profile);
         loginAttemptService.handleLoginAttempt(profile.getUsername(), credentials.getPassword(), profile);
 
+        // An inconsistent MFA configuration must not silently downgrade the
+        // account to password-only login. Recovery must be an explicit,
+        // separately authorized operation.
         if (Boolean.TRUE.equals(profile.getMFA())
                 && (profile.getMfaSecret() == null || profile.getMfaSecret().isBlank())) {
-            profile.setMFA(false);
-            profileRepository.save(profile);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "A configuração MFA desta conta necessita de recuperação.");
         }
 
         if (Boolean.TRUE.equals(profile.getMFA())
