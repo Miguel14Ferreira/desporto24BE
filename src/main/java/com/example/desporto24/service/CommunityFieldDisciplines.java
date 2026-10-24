@@ -15,6 +15,11 @@ final class CommunityFieldDisciplines {
     // Bodyboard heats are divided by stance; never rank prone vs drop knee together.
     private static final List<String> BODYBOARD_STANCES = List.of("PRONE", "DROP_KNEE");
 
+    // Conservative 50-metre pool, individual events only. No relays, short course or open water.
+    private static final List<String> SWIM_LCM = List.of(
+            "FREE_50", "FREE_100", "FREE_200", "BACK_100",
+            "BREAST_100", "FLY_100", "IM_200");
+
     // Individual senior rhythmic apparatus, distinct from group all-around.
     private static final List<String> RHYTHMIC_APPARATUS = List.of(
             "HOOP", "BALL", "CLUBS", "RIBBON");
@@ -24,7 +29,9 @@ final class CommunityFieldDisciplines {
             "PARALLEL_BARS", "HORIZONTAL_BAR", "UNEVEN_BARS", "BALANCE_BEAM");
 
     static String validate(String sport, String eventType, String requested) {
-        List<String> allowed = "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
+        List<String> allowed = "Natação".equals(sport) && "SWIM_LCM".equals(eventType)
+                ? SWIM_LCM
+                : "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
                 : "Ginástica Artística".equals(sport) && "APPARATUS".equals(eventType)
                 ? APPARATUS
                 : "Bodyboard".equals(sport) && "BODYBOARD_HEAT".equals(eventType)

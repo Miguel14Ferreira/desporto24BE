@@ -96,4 +96,20 @@ class CommunityRaceStandingsTest {
         assertEquals(1000, first.penaltyPoints());
         assertEquals(1, first.wins());
     }
+
+    @Test void newPoolResultsAreIsolatedFromLegacySwimmingRaceStandings() {
+        var newPool = new CommunityRoundResponse(10L, "100 m livres",
+                Instant.parse("2026-10-24T10:00:00Z"),
+                List.of(driver(11, 101, "Ana", 1, 0)),
+                "Natação", null, List.of(), "SWIM_LCM", "FREE_100");
+        var oldRace = race(11, "Natação", driver(12, 102, "Histórico", 1, 0));
+        var rule = new CommunityRaceRuleResponse("Natação", List.of(25, 18));
+        var groups = CommunityRaceStandings.calculate(List.of(newPool, oldRace), List.of(rule));
+        assertEquals(1, groups.size());
+        assertEquals("Natação", groups.get(0).sport());
+        assertEquals(1, groups.get(0).standings().size());
+        assertEquals(102L, groups.get(0).standings().get(0).playerId());
+        assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
+        assertTrue(CommunityRaceStandings.calculate(List.of(newPool), List.of(rule)).isEmpty());
+    }
 }
