@@ -13,6 +13,9 @@ public class ProfileDTO implements Serializable {
     private String userId;
     private String username;
     private String newUsername;
+    // Login accepts the supplied password, but no API response may expose it,
+    // even if another mapper accidentally populates this field in the future.
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     private String fullName;
     private String nickname;
