@@ -23,7 +23,7 @@ final class CommunityFieldDisciplines {
     // Descriptive stage for an independently recorded Sprint heat.
     // A complete bracket or best-of-three match outcome requires a separate relation.
     private static final List<String> TRACK_SPRINT_PHASES = List.of(
-            "SPRINT_QUARTER_FINAL", "SPRINT_SEMI_FINAL",
+            "SPRINT_EIGHTH_FINAL", "SPRINT_QUARTER_FINAL", "SPRINT_SEMI_FINAL",
             "SPRINT_BRONZE_FINAL", "SPRINT_GOLD_FINAL");
 
     // Only separately timed individual distances; knockout sprint and relays need
