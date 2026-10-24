@@ -286,6 +286,55 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void ordinaryMemberCanReadFinalSnapshotButCannotMutateKartingChampionship() throws Exception {
+        var member = new Profile();
+        member.setId(2L);
+        member.setUsername("member");
+        tournament.setStatus(TournamentStatus.COMPLETED);
+        tournament.setRaceFinalSnapshotJson("{\"final\":true}");
+        var archived = new CommunityTournamentRaceOverviewResponse(19L, List.of(25, 18),
+                List.of(race(50L, "Karting")), List.of(),
+                List.of(new CommunityRaceStandingResponse(1, 10L, 20L, "ana", "Ana",
+                        null, 1, 1, 1, 1, 25, 0)));
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(members.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        when(json.readValue("{\"final\":true}", CommunityTournamentRaceOverviewResponse.class))
+                .thenReturn(archived);
+        when(members.findByCommunityIdAndProfileId(7L, 2L)).thenReturn(Optional.of(
+                CommunityMember.builder().role(CommunityRole.MEMBER).build()));
+
+        assertSame(archived, service.overview(7L, 19L, "member"));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.complete(7L, 19L, "member"));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.link(7L, 19L, 50L, "member"));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.unlink(7L, 19L, 50L, "member"));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.changePoints(7L, 19L, "member", "25,18"));
+
+        verify(tournaments, never()).findByIdForUpdate(anyLong());
+        verify(tournaments, never()).save(any());
+        verifyNoInteractions(links, rounds, competition);
+    }
+
+    @Test
+    void outsiderCannotReadKartingArchiveOrReachTournamentRepository() {
+        var outsider = new Profile();
+        outsider.setId(99L);
+        outsider.setUsername("outsider");
+        tournament.setStatus(TournamentStatus.COMPLETED);
+        tournament.setRaceFinalSnapshotJson("{\"final\":true}");
+        when(profiles.findUserByUsernameIgnoreCase("outsider")).thenReturn(Optional.of(outsider));
+        when(members.existsByCommunityIdAndProfileId(7L, 99L)).thenReturn(false);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.overview(7L, 19L, "outsider"));
+        verifyNoInteractions(tournaments, json, links, rounds, competition);
+    }
+
+    @Test
     void preventsChangingPointsAfterTheFirstRace() {
         admin();
         tournament.setStatus(TournamentStatus.IN_PROGRESS);
