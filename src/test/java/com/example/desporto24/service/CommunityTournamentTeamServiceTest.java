@@ -219,6 +219,44 @@ class CommunityTournamentTeamServiceTest {
     }
 
     @Test
+    void flexibleRosterAllowsInvitesAndManualAdditionsWithoutFixedSize() {
+        teamTournament.setPlayersPerTeam(null);
+        manager();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(profileRepository.findById(2L)).thenReturn(Optional.of(player));
+        when(playerRepository.countByTeamId(10L)).thenReturn(5L);
+        var assigned = service.assignPlayer(7L, 19L, 10L, "owner", 2L);
+        assertNull(assigned.playersPerTeam());
+        verify(playerRepository).save(any(CommunityTournamentTeamPlayer.class));
+
+        // A player invited by WhatsApp or link can join even when the roster
+        // already contains more players than the old default of five.
+        when(profileRepository.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(player));
+        var accepted = service.joinInvitedTeam(7L, 19L, 10L, "ana");
+        assertNull(accepted.playersPerTeam());
+        verify(playerRepository, times(2)).save(any(CommunityTournamentTeamPlayer.class));
+    }
+
+    @Test
+    void flexibleRosterEnforcesSafetyCapacityOfThirtyPlayers() {
+        teamTournament.setPlayersPerTeam(null);
+        manager();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        when(playerRepository.countByTeamId(10L)).thenReturn(30L);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.assignPlayer(7L, 19L, 10L, "owner", 2L)).getStatusCode());
+        verify(playerRepository, never()).save(any());
+
+        when(profileRepository.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(player));
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana")).getStatusCode());
+    }
+
+    @Test
     void cannotManageTeamOwnedByAnotherTournament() {
         manager();
         draft();

@@ -225,6 +225,52 @@ class CommunityTournamentTeamScheduleServiceTest {
     }
 
     @Test
+    void publishesFlexibleLeagueWithDifferentNonEmptyRosterSizes() {
+        tournament.setPlayersPerTeam(null);
+        manager(CommunityRole.OWNER);
+        locked();
+        var first = CommunityTournamentTeam.builder().id(20L).name("Verdes").build();
+        var second = CommunityTournamentTeam.builder().id(21L).name("Azuis").build();
+        when(teams.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of(first, second));
+        var registrations = List.of(
+                CommunityTournamentTeamPlayer.builder()
+                        .team(first).profile(profile(100L, "a")).build(),
+                CommunityTournamentTeamPlayer.builder()
+                        .team(second).profile(profile(101L, "b")).build(),
+                CommunityTournamentTeamPlayer.builder()
+                        .team(second).profile(profile(102L, "c")).build());
+        when(players.findByTournamentIdOrderByTeamIdAscIdAsc(19L)).thenReturn(registrations);
+        for (var registration : registrations) {
+            when(members.existsByCommunityIdAndProfileId(7L, registration.getProfile().getId()))
+                    .thenReturn(true);
+        }
+
+        var result = service.generate(7L, 19L, "owner");
+        assertEquals(TournamentStatus.IN_PROGRESS, result.status());
+        assertEquals(1, result.matchCount());
+        assertEquals(1, captured().size());
+    }
+
+    @Test
+    void rejectsFlexibleCompetitionWithAnEmptyTeam() {
+        tournament.setPlayersPerTeam(null);
+        manager(CommunityRole.OWNER);
+        locked();
+        var first = CommunityTournamentTeam.builder().id(20L).build();
+        var second = CommunityTournamentTeam.builder().id(21L).build();
+        when(teams.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of(first, second));
+        var registration = CommunityTournamentTeamPlayer.builder()
+                .team(first).profile(profile(100L, "a")).build();
+        when(players.findByTournamentIdOrderByTeamIdAscIdAsc(19L))
+                .thenReturn(List.of(registration));
+        when(members.existsByCommunityIdAndProfileId(7L, 100L)).thenReturn(true);
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, assertThrows(ResponseStatusException.class,
+                () -> service.generate(7L, 19L, "owner")).getStatusCode());
+        verify(matches, never()).saveAll(any());
+        assertEquals(TournamentStatus.DRAFT, tournament.getStatus());
+    }
+
+    @Test
     void rejectsPlayersWhoAreNoLongerCommunityMembers() {
         manager(CommunityRole.OWNER);
         locked();

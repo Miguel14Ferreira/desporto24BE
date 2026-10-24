@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class CommunityTournamentTeamService {
     private static final int MAX_TEAMS = 32;
+    private static final int MAX_PLAYERS_PER_TEAM = 30;
 
     private final ProfileRepository profileRepository;
     private final CommunityMemberRepository memberRepository;
@@ -80,7 +81,7 @@ public class CommunityTournamentTeamService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "O jogador já pertence a uma equipa desta competição");
         }
-        if (playerRepository.countByTeamId(teamId) >= tournament.getPlayersPerTeam()) {
+        if (playerRepository.countByTeamId(teamId) >= capacity(tournament)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "A equipa já atingiu o número definido de jogadores");
         }
@@ -117,7 +118,7 @@ public class CommunityTournamentTeamService {
                         .stream().filter(entry -> entry.getTeam().getId().equals(teamId)).toList());
         }
 
-        if (playerRepository.countByTeamId(teamId) >= tournament.getPlayersPerTeam()) {
+        if (playerRepository.countByTeamId(teamId) >= capacity(tournament)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A equipa já está completa");
         }
         playerRepository.save(CommunityTournamentTeamPlayer.builder()
@@ -165,7 +166,7 @@ public class CommunityTournamentTeamService {
                 byTeam.getOrDefault(t.getId(), List.of()))).toList();
     }
 
-    private CommunityTournamentTeamResponse toResponse(CommunityTournamentTeam team, int size,
+    private CommunityTournamentTeamResponse toResponse(CommunityTournamentTeam team, Integer size,
             List<CommunityTournamentTeamPlayer> roster) {
         return new CommunityTournamentTeamResponse(team.getId(), team.getName(), size, team.getCreatedAt(),
                 roster.stream().map(p -> {
@@ -176,6 +177,12 @@ public class CommunityTournamentTeamService {
                     return new CommunityTournamentTeamResponse.Player(profile.getId(),
                             profile.getUsername(), display);
                 }).toList());
+    }
+
+    // Null means an open roster: no predetermined size, but bounded to prevent abuse.
+    private int capacity(CommunityTournament tournament) {
+        return tournament.getPlayersPerTeam() == null
+                ? MAX_PLAYERS_PER_TEAM : tournament.getPlayersPerTeam();
     }
 
     private CommunityTournamentTeam team(Long tournamentId, Long teamId) {
