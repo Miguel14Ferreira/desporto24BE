@@ -61,8 +61,10 @@ final class CommunityRaceStandings {
         for (CommunityRoundResponse round : rounds) {
             // Swimming pool results have distance/stroke-specific times. Do not combine
             // them in a sport-wide race championship or inherit generic positions.
-            if (round != null && "Natação".equals(round.sport())
-                    && "SWIM_LCM".equals(round.eventType())) continue;
+            if (round != null && ("Natação".equals(round.sport())
+                    && "SWIM_LCM".equals(round.eventType())
+                    || "Natação em Águas Abertas".equals(round.sport())
+                    && "OWS_INDIVIDUAL".equals(round.eventType()))) continue;
             if (round == null || !CommunityRoundEventType.isRaceEvent(round.sport(), round.eventType())
                     || round.entries() == null) continue;
             String sport = round.sport().trim().toLowerCase(Locale.ROOT);
