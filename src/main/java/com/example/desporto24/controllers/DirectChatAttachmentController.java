@@ -21,6 +21,13 @@ import java.nio.charset.StandardCharsets;
 public class DirectChatAttachmentController {
     private final DirectChatAttachmentService attachments;
 
+    @GetMapping("/availability")
+    public java.util.Map<String, Boolean> available(@PathVariable String peer,
+                                                      Authentication authentication) {
+        return java.util.Map.of("available",
+                attachments.available(authentication.getName(), peer));
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Chat send(@PathVariable String peer,
                      @RequestPart("file") MultipartFile file,
