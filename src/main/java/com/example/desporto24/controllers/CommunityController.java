@@ -3,6 +3,7 @@ package com.example.desporto24.controllers;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.service.CommunityCompetitionService;
+import com.example.desporto24.service.CommunityInlineHeatProgressionService;
 import com.example.desporto24.service.CommunityImportService;
 import com.example.desporto24.service.CommunityStandingsArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
@@ -26,6 +27,7 @@ public class CommunityController {
 
     private final CommunityManagementService service;
     private final CommunityCompetitionService competitionService;
+    private final CommunityInlineHeatProgressionService inlineHeatProgressionService;
     private final CommunityHistoricalPlayerLinkService historicalPlayerLinkService;
     private final CommunityImportService communityImportService;
     private final CommunityStandingsArchiveService historicalStandingsService;
@@ -491,6 +493,22 @@ public class CommunityController {
         return ResponseEntity.ok(
                 competitionService.createRound(id, authentication.getName(), request)
         );
+    }
+
+    @GetMapping("/{id}/rounds/{roundId}/inline-progression")
+    public ResponseEntity<CommunityInlineHeatProgressionResponse> inlineProgression(
+            @PathVariable Long id, @PathVariable Long roundId, Authentication authentication) {
+        return ResponseEntity.ok(inlineHeatProgressionService.get(
+                id, roundId, authentication.getName()));
+    }
+
+    @PutMapping("/{id}/rounds/{roundId}/inline-progression")
+    public ResponseEntity<CommunityInlineHeatProgressionResponse> confirmInlineProgression(
+            @PathVariable Long id, @PathVariable Long roundId,
+            @RequestBody @Valid ConfirmInlineHeatProgressionRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(inlineHeatProgressionService.confirm(
+                id, roundId, authentication.getName(), request));
     }
 
     @DeleteMapping("/{id}/rounds/{roundId}")
