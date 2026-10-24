@@ -55,6 +55,11 @@ public class DirectChatAttachmentService {
         }
     }
 
+    public boolean available(String actor, String peer) {
+        var friendship = chats.getChatInfo(actor, peer);
+        return !friendship.isChatBlocked() && files.isConfigured();
+    }
+
     public AttachmentContent download(String actor, String peer, Long messageId) {
         if (messageId == null || messageId <= 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
