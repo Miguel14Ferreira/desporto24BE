@@ -2,6 +2,7 @@ package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
 import com.example.desporto24.service.VenueMapLinkService;
+import com.example.desporto24.service.VenueSuggestionService;
 import com.example.desporto24.service.VenuePhotoService;
 import com.example.desporto24.service.VenueService;
 import com.example.desporto24.service.VenueSportConditionService;
@@ -15,7 +16,7 @@ import static org.mockito.Mockito.*;
 class VenuePagedSearchControllerTest {
     private final VenueService service = mock(VenueService.class);
     private final VenueController controller = new VenueController(
-            service, mock(VenueMapLinkService.class), mock(VenuePhotoService.class),
+            service, mock(VenueSuggestionService.class), mock(VenueMapLinkService.class), mock(VenuePhotoService.class),
             mock(VenueSportConditionService.class));
 
     @Test

@@ -29,6 +29,7 @@ import java.util.List;
 public class VenueController {
 
     private final VenueService venueService;
+    private final com.example.desporto24.service.VenueSuggestionService suggestionService;
     private final VenueMapLinkService venueMapLinkService;
     private final VenuePhotoService venuePhotoService;
     private final VenueSportConditionService venueSportConditionService;
@@ -83,12 +84,13 @@ public class VenueController {
         return venueSportConditionService.list(id);
     }
 
+    /** Public submissions are private suggestions until approved by an administrator. */
     @PostMapping
-    public ResponseEntity<VenueResponse> create(
+    public ResponseEntity<com.example.desporto24.model.dto.venue.VenueSuggestionResponse> create(
             @RequestBody @Valid CreateVenueRequest request,
             Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(venueService.create(request, authentication.getName()));
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(suggestionService.submit(request, authentication.getName()));
     }
 
     @PostMapping(value = "/{id}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
