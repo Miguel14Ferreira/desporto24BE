@@ -30,6 +30,8 @@ final class CommunityRoundEventType {
             Map.entry("Esgrima", List.of("FENCING_POOL_5", "FENCING_DE_15")),
             Map.entry("Teqball", List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")),
             Map.entry("Xadrez", List.of("CHESS_GAME")),
+            Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
+                    "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",
                     "WAKO_KICK_LIGHT", "WAKO_FULL_CONTACT", "WAKO_LOW_KICK", "WAKO_K1")),
             Map.entry("Boxe", List.of("BOXING_WB_POINTS", "BOXING_WB_KO", "BOXING_WB_RSC")),
@@ -102,6 +104,10 @@ final class CommunityRoundEventType {
                 || CommunityTeamFinalResults.isTeamFinalEvent(type)) return;
         if (CommunityGolfStrokeResults.isGolfStrokeEvent(type)) {
             CommunityGolfStrokeResults.validate(sport, type, entries);
+            return;
+        }
+        if (CommunityMuayThaiResults.isMuayThaiEvent(type)) {
+            CommunityMuayThaiResults.validate(sport, type, entries);
             return;
         }
         if (CommunityKickboxingResults.isKickboxingEvent(type)) {
