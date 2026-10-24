@@ -10,7 +10,8 @@ import java.util.*;
  * Pure, read-only progression preview for a manually seeded eight-rider Sprint
  * knockout. No result is fabricated and no next heat is ever created.
  *
- * Q1/Q2 feed S1; Q3/Q4 feed S2. Winners of S1/S2 feed G (gold);
+ * UCI seeded quarterfinal slots: Q1/Q4 feed S1; Q2/Q3 feed S2.
+ * Winners of S1/S2 feed G (gold);
  * losers feed B (bronze). Other tournament sizes need a separate format.
  */
 final class CommunityTrackSprintBracketPlanner {
@@ -29,9 +30,9 @@ final class CommunityTrackSprintBracketPlanner {
             String phase = phase(slot);
             String a = null, b = null;
             if ("S1".equals(slot) || "S2".equals(slot)) {
-                int index = "S1".equals(slot) ? 1 : 3;
-                a = advanced(matches.get("Q" + index), false);
-                b = advanced(matches.get("Q" + (index + 1)), false);
+                // UCI 2026 QF bracket positions: winners Q1-v-Q4, Q2-v-Q3.
+                a = advanced(matches.get("S1".equals(slot) ? "Q1" : "Q2"), false);
+                b = advanced(matches.get("S1".equals(slot) ? "Q4" : "Q3"), false);
             } else if ("G".equals(slot) || "B".equals(slot)) {
                 boolean consolation = "B".equals(slot);
                 a = advanced(matches.get("S1"), consolation);
