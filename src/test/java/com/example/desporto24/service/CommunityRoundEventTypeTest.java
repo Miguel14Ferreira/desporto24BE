@@ -56,15 +56,18 @@ class CommunityRoundEventTypeTest {
     @Test void trackCyclingSeparatesScratchFromTimedEventsAndKeepsLegacyAmbiguous() {
         assertEquals("TRACK_SCRATCH", CommunityRoundEventType.validate("Ciclismo de Pista", "TRACK_SCRATCH"));
         assertEquals("TRACK_TIME_TRIAL", CommunityRoundEventType.validate("Ciclismo de Pista", "TRACK_TIME_TRIAL"));
+        assertEquals("TRACK_FLYING_200", CommunityRoundEventType.validate("Ciclismo de Pista", "TRACK_FLYING_200"));
         assertThrows(IllegalArgumentException.class,
                 () -> CommunityRoundEventType.validate("Ciclismo de Pista", null));
         assertThrows(IllegalArgumentException.class,
                 () -> CommunityRoundEventType.validate("Ciclismo de Pista", "TIME_TRIAL"));
         assertTrue(CommunityRoundEventType.isRaceEvent("Ciclismo de Pista", null)); // historical
         assertTrue(CommunityRoundEventType.isRaceEvent("Ciclismo de Pista", "TRACK_TIME_TRIAL"));
+        assertTrue(CommunityRoundEventType.isRaceEvent("Ciclismo de Pista", "TRACK_FLYING_200"));
         assertTrue(CommunityRoundEventType.isRaceEvent("Ciclismo de Pista", "TRACK_SCRATCH"));
         assertTrue(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Pista", "TRACK_SCRATCH"));
         assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Pista", "TRACK_TIME_TRIAL"));
+        assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Pista", "TRACK_FLYING_200"));
         assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Pista", null));
         assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Ciclismo de Estrada", "TRACK_SCRATCH"));
     }
