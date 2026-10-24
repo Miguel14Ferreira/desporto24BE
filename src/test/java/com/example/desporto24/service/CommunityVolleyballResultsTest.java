@@ -87,6 +87,44 @@ class CommunityVolleyballResultsTest {
                 CommunityVolleyballResults.validateAndEncode("Futevólei",
                         "FOOTVOLLEY_SINGLE_18",null,List.of(s(18,15)),indoor));
     }
+    @Test void teqballSinglesAndDoublesRespectFirstToTwelveAndTwoPointDecider() {
+        for (String type : List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")) {
+            assertTrue(type.length() <= 20);
+            assertEquals(type, CommunityRoundEventType.validate("Teqball", type));
+            assertTrue(CommunityRoundEventType.isNeutralEvent("Teqball", type));
+            assertTrue(CommunityVolleyballResults.isVolleyballEvent(type));
+            List<CommunityRoundEntryRequest> roster =
+                    "TEQBALL_SINGLES".equals(type) ? indoor : beach;
+            assertEquals("12:11,12:0",CommunityVolleyballResults.validateAndEncode(
+                    "Teqball",type,null,List.of(s(12,11),s(12,0)),roster));
+            assertEquals("12:11,11:12,14:12",CommunityVolleyballResults.validateAndEncode(
+                    "Teqball",type,null,List.of(s(12,11),s(11,12),s(14,12)),roster));
+            assertEquals("11:12,12:11,12:10",CommunityVolleyballResults.validateAndEncode(
+                    "Teqball",type,null,List.of(s(11,12),s(12,11),s(12,10)),roster));
+            for (List<CommunitySetScore> bad : List.of(
+                    List.of(s(12,11)), List.of(s(11,10),s(12,5)),
+                    List.of(s(13,11),s(12,7)), List.of(s(12,8),s(12,7),s(12,3)),
+                    List.of(s(12,8),s(8,12),s(12,11)),
+                    List.of(s(12,8),s(8,12),s(14,11)),
+                    List.of(s(12,8),s(8,12),s(1000,998))))
+                assertThrows(IllegalArgumentException.class, () ->
+                        CommunityVolleyballResults.validateAndEncode(
+                                "Teqball",type,null,bad,roster));
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityVolleyballResults.validateAndEncode(
+                            "Teqball",type,"DOUBLES",List.of(s(12,8),s(12,5)),roster));
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityVolleyballResults.validateAndEncode(
+                            "Teqball",type,null,List.of(s(12,8),s(12,5)),
+                            "TEQBALL_SINGLES".equals(type) ? beach : indoor));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityRoundEventType.validate("Futevólei", "TEQBALL_SINGLES"));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityVolleyballResults.validateAndEncode(
+                        "Voleibol","TEQBALL_DOUBLES",null,
+                        List.of(s(12,8),s(12,5)),beach));
+    }
     @Test void detectsIncompleteImpossibleOrIncorrectSetScores() {
         for (CommunitySetScore first : List.of(
                 s(24,24),s(25,24),s(26,23),s(24,20),s(-1,25),
