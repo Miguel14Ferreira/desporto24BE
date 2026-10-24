@@ -9,4 +9,5 @@ public interface CommunityTrackSprintBracketRepository extends JpaRepository<Com
     List<CommunityTrackSprintBracket> findByCommunityIdAndSeasonIdOrderByIdAsc(Long communityId, Long seasonId);
     Optional<CommunityTrackSprintBracket> findByIdAndCommunityIdAndSeasonId(Long id, Long communityId, Long seasonId);
     void deleteBySeasonId(Long seasonId);
+    boolean existsByCommunityIdAndQualifyingRoundId(Long communityId, Long qualifyingRoundId);
 }

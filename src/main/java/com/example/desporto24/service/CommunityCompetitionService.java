@@ -134,10 +134,58 @@ public class CommunityCompetitionService {
         String name = request.name() == null ? "" : request.name().trim();
         if (name.isBlank() || name.length() > 80)
             throw new IllegalArgumentException("Indica um nome válido para o quadro");
+        String format = request.format() == null || request.format().isBlank()
+                ? "EIGHT_RIDER_FINALS" : request.format();
+        if (!Set.of("EIGHT_RIDER_FINALS", "SIXTEEN_RIDER_1_8").contains(format))
+            throw new IllegalArgumentException("Formato de Sprint não suportado");
+        CommunityRound qualification = null;
+        List<String> seeds = List.of();
+        if ("SIXTEEN_RIDER_1_8".equals(format)) {
+            if (request.qualifyingRoundId() == null)
+                throw new IllegalArgumentException("Seleciona a qualificação real de 200 m");
+            qualification = roundRepository.findById(request.qualifyingRoundId())
+                    .orElseThrow(() -> new IllegalArgumentException("Qualificação não encontrada"));
+            if (!qualification.getCommunity().getId().equals(communityId)
+                    || qualification.getSeason() == null
+                    || !qualification.getSeason().getId().equals(seasonId))
+                throw new IllegalArgumentException("Qualificação de outra comunidade ou época");
+            seeds = CommunityTrackSprintQualifying16.seeds(
+                    roundResponse(qualification, acceptedAliasProfiles(communityId)));
+        } else if (request.qualifyingRoundId() != null) {
+            throw new IllegalArgumentException("A qualificação só pode ligar ao quadro de 16 ciclistas");
+        }
         CommunityTrackSprintBracket bracket = trackSprintBracketRepository.save(
                 CommunityTrackSprintBracket.builder().community(community).season(season)
-                        .name(name).createdAt(Instant.now()).build());
+                        .name(name).format(format).qualifyingRound(qualification)
+                        .qualifiedRiders(seeds).createdAt(Instant.now()).build());
         return trackSprintBracketResponse(bracket, List.of());
+    }
+
+    public void deleteTrackSprintBracket(Long communityId, Long seasonId,
+            Long bracketId, String username) {
+        requireAdmin(communityId, profile(username));
+        CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Época não encontrada"));
+        if (!season.isActive())
+            throw new IllegalStateException("Não podes apagar um quadro de época encerrada");
+        CommunityTrackSprintBracket bracket = trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId, communityId, seasonId)
+                .orElseThrow(() -> new IllegalArgumentException("Quadro não encontrado"));
+        String prefix = "SP" + bracketId + "-";
+        boolean containsHeats = roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId)
+                .stream().anyMatch(r -> r.getSprintSeriesKey() != null
+                        && r.getSprintSeriesKey().startsWith(prefix));
+        if (containsHeats)
+            throw new IllegalStateException("Apaga as mangas do quadro antes de o eliminar");
+        trackSprintBracketRepository.delete(bracket);
+        trackSprintBracketRepository.flush();
+    }
+
+    private void protectSprintQualification(Long communityId, Long roundId) {
+        if (trackSprintBracketRepository.existsByCommunityIdAndQualifyingRoundId(communityId, roundId))
+            throw new IllegalStateException(
+                    "O resultado dos 200 m já suporta um quadro Sprint; elimina primeiro o quadro");
     }
 
     @Transactional(readOnly = true)
@@ -163,12 +211,15 @@ public class CommunityCompetitionService {
             CommunityTrackSprintBracket bracket, List<CommunityRoundResponse> rounds) {
         return new CommunityTrackSprintBracketDtos.Overview(
                 bracket.getId(), bracket.getSeason().getId(), bracket.getName(),
-                "EIGHT_RIDER_FINALS",
-                CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds));
+                bracket.getFormat() == null ? "EIGHT_RIDER_FINALS" : bracket.getFormat(),
+                CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds,
+                        bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders()),
+                bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
+                bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()));
     }
 
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
-            java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(Q[1-4]|S[1-2]|B|G)$");
+            java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(R[1-8]|Q[1-4]|S[1-2]|B|G)$");
 
     /** Guards organizer-created heats against the source knockout series. */
     private void validateBracketRound(Long communityId, CommunitySeason season,
@@ -182,7 +233,7 @@ public class CommunityCompetitionService {
         catch (NumberFormatException ex) {
             throw new IllegalArgumentException("Identificador do quadro inválido");
         }
-        trackSprintBracketRepository
+        CommunityTrackSprintBracket bracket = trackSprintBracketRepository
                 .findByIdAndCommunityIdAndSeasonId(bracketId, communityId, season.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Quadro Sprint não pertence à época"));
         AcceptedAliases aliases = acceptedAliasProfiles(communityId);
@@ -191,7 +242,8 @@ public class CommunityCompetitionService {
                 .stream().filter(r -> "TRACK_SPRINT_HEAT".equals(r.getEventType()))
                 .map(r -> roundResponse(r, aliases)).toList();
         CommunityTrackSprintBracketPlanner.validateNewHeat(
-                bracketId, seriesKey, phase, rounds, entrants);
+                bracketId, seriesKey, phase, rounds, entrants,
+                bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders());
     }
 
     /** Protect all child results when a parent quarter/semifinal is deleted. */
@@ -201,6 +253,10 @@ public class CommunityCompetitionService {
         if (!match.matches()) return;
         String slot = match.group(2);
         List<String> next = switch (slot) {
+            case "R1", "R8" -> List.of("Q1");
+            case "R2", "R7" -> List.of("Q2");
+            case "R3", "R6" -> List.of("Q3");
+            case "R4", "R5" -> List.of("Q4");
             case "Q1", "Q4" -> List.of("S1");
             case "Q2", "Q3" -> List.of("S2");
             case "S1", "S2" -> List.of("B", "G");
@@ -278,6 +334,7 @@ public class CommunityCompetitionService {
         if (request.penaltyPoints() > 0 && (request.reason() == null || request.reason().isBlank()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Indica o motivo da penalização");
+        protectSprintQualification(communityId, roundId);
         CommunityRoundEntry entry = entryRepository.findById(entryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Participante não encontrado"));
@@ -313,6 +370,7 @@ public class CommunityCompetitionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Não podes alterar decisões de épocas encerradas");
         }
+        protectSprintQualification(communityId, roundId);
         CommunityRoundEntry entry = entryRepository.findById(entryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Participante não encontrado"));
@@ -440,6 +498,10 @@ public class CommunityCompetitionService {
         List<Long> historicalPlayerIds =
                 entryRepository.findHistoricalPlayerIdsBySeason(communityId, seasonId);
 
+        // Bracket references its flying-200m source; remove the dependent
+        // record and its ordered seeds before season rounds or their FK.
+        trackSprintBracketRepository.deleteBySeasonId(seasonId);
+        trackSprintBracketRepository.flush();
         List<CommunityRound> rounds =
                 roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId);
         for (CommunityRound round : rounds) {
@@ -458,8 +520,6 @@ public class CommunityCompetitionService {
         standingsArchiveRepository.deleteAll(archives);
         standingsArchiveRepository.flush();
 
-        trackSprintBracketRepository.deleteBySeasonId(seasonId);
-        trackSprintBracketRepository.flush();
         seasonRepository.delete(season);
         seasonRepository.flush();
 
@@ -698,6 +758,7 @@ public class CommunityCompetitionService {
             if (laterHeatExists)
                 throw new IllegalStateException("Apaga primeiro as mangas seguintes desta série Sprint");
         }
+        protectSprintQualification(communityId, roundId);
         preventBracketAncestorRemoval(communityId, round);
         entryRepository.deleteByRoundId(roundId);
         roundRepository.delete(round);

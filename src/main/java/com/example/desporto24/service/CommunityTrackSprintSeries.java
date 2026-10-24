@@ -48,7 +48,7 @@ final class CommunityTrackSprintSeries {
             throw new IllegalArgumentException("Indica uma série (até 40 caracteres) e o número da manga");
         // UCI Part III art. 3.2.050 (2026): quarterfinals, semifinals and finals
         // all require two winning heats; a third is held only when needed.
-        int maxHeats = 3;
+        int maxHeats = "SPRINT_EIGHTH_FINAL".equals(phase) ? 1 : 3;
         if (heatNumber < 1 || heatNumber > maxHeats)
             throw new IllegalArgumentException("Número de manga incompatível com a fase Sprint");
         if (upcoming.size() != 2)
@@ -73,7 +73,7 @@ final class CommunityTrackSprintSeries {
 
     static String seriesWinner(String phase, List<Heat> heats) {
         if (heats.isEmpty()) return null;
-        int required = 2;
+        int required = "SPRINT_EIGHTH_FINAL".equals(phase) ? 1 : 2;
         Map<String,Integer> wins = new HashMap<>();
         for (Heat heat : heats) {
             int count = wins.merge(id(heat.winner()), 1, Integer::sum);
