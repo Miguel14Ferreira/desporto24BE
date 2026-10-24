@@ -28,10 +28,13 @@ class RefreshTokenFamilyLiquibaseH2Test {
         apply(db, "db/changelog/changes/2026-10-24-refresh-token-once-v1.yaml");
 
         try (var connection = db.getConnection();
-             var statement = connection.createStatement()) {
-            statement.execute("insert into refresh_token_session "
-                    + "(token_hash, profile_id, expires_at, consumed_at) values "
-                    + "('" + "a".repeat(64) + "', 1, current_timestamp + interval '1 day', null)");
+             var insert = connection.prepareStatement(
+                     "insert into refresh_token_session " +
+                     "(token_hash, profile_id, expires_at, consumed_at) values (?, 1, ?, null)")) {
+            insert.setString(1, "a".repeat(64));
+            insert.setTimestamp(2, java.sql.Timestamp.from(
+                    java.time.Instant.now().plusSeconds(86400)));
+            assertEquals(1, insert.executeUpdate());
         }
 
         String change = "db/changelog/changes/2026-10-24-refresh-family-replay-v1.yaml";
