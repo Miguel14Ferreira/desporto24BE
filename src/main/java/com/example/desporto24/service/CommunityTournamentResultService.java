@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
@@ -60,6 +61,13 @@ public class CommunityTournamentResultService {
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este endpoint apenas regista resultados individuais");
+        }
+        if (tournament.getScoringMode() == TournamentScoringMode.CHESS_HALF_POINTS
+                && !((request.homeScore() == 1 && request.awayScore() == 0)
+                     || (request.homeScore() == 0 && request.awayScore() == 1)
+                     || (request.homeScore() == 0 && request.awayScore() == 0))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Xadrez: regista vitória branca, vitória preta ou empate");
         }
         if (tournament.getStatus() != TournamentStatus.IN_PROGRESS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
