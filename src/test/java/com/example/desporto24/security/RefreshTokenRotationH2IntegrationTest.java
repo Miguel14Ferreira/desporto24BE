@@ -50,8 +50,10 @@ class RefreshTokenRotationH2IntegrationTest {
     @Autowired private RefreshTokenRotationService rotation;
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void registeredRefreshTokenCanBeConsumedOnlyOnce() {
         Profile account = account("once-" + UUID.randomUUID());
+        try {
         String first = tokens.generateRefreshToken(new ProfilePrincipal(account));
         String replacement = tokens.generateRefreshToken(new ProfilePrincipal(account));
         rotation.registerIssued(account.getUsername(), first);
@@ -62,11 +64,17 @@ class RefreshTokenRotationH2IntegrationTest {
                         tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(2, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void legacyCookieWithoutJwtIdIsAcceptedOnlyOnce() {
         Profile account = account("legacy-" + UUID.randomUUID());
+        try {
         String legacy = JWT.create()
                 .withIssuer(SecurityConstant.DESPORTO_24)
                 .withAudience(SecurityConstant.DESPORTO_24_ADMINISTRATION)
@@ -84,22 +92,34 @@ class RefreshTokenRotationH2IntegrationTest {
                 () -> rotation.rotate(legacy, tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(2, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void unregisteredModernCookieIsRejectedEvenWithValidSignature() {
         Profile account = account("unknown-" + UUID.randomUUID());
+        try {
         String forgedAsIssued = tokens.generateRefreshToken(new ProfilePrincipal(account));
         assertThrows(BadCredentialsException.class,
                 () -> rotation.rotate(forgedAsIssued,
                         tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(0, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void mismatchingAccountVersionRevokesAnAlreadyIssuedRefreshCookie() {
         Profile account = account("revoked-" + UUID.randomUUID());
+        try {
         String cookie = tokens.generateRefreshToken(new ProfilePrincipal(account));
         rotation.registerIssued(account.getUsername(), cookie);
         account.setTokenVersion(account.getTokenVersion() + 1);
@@ -109,6 +129,10 @@ class RefreshTokenRotationH2IntegrationTest {
                 () -> rotation.rotate(cookie, tokens.generateRefreshToken(new ProfilePrincipal(account)),
                         account.getUsername()));
         assertEquals(1, sessions.count());
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(account.getId());
+        }
     }
 
     @Test
