@@ -47,6 +47,43 @@ class SessionViewMapperPrivacyTest {
     }
 
     @Test
+    void outsiderCannotRecoverHiddenAddressFromLinkedVenue() {
+        Profile creator = profile(1L, "creator");
+        Profile outsider = profile(2L, "outsider");
+        Session session = session(creator);
+        var venue = mock(com.example.desporto24.model.venue.Venue.class);
+        session.setVenue(venue);
+
+        SessionDetailResponse response = mapper.toDetail(session, outsider);
+
+        assertNull(response.address());
+        assertNull(response.venue(),
+                "A linked venue would expose its address, coordinates and public ID");
+        assertFalse(response.canSeeExactAddress());
+        verifyNoInteractions(venueService);
+    }
+
+    @Test
+    void approvedParticipantStillReceivesLinkedVenueAndAddress() {
+        Profile creator = profile(1L, "creator");
+        Profile participant = profile(2L, "joined");
+        Session session = session(creator);
+        var venue = mock(com.example.desporto24.model.venue.Venue.class);
+        var venueResponse = mock(com.example.desporto24.model.dto.venue.VenueResponse.class);
+        session.setVenue(venue);
+        when(participantRepository.existsBySessionIdAndProfileIdAndState(
+                10L, 2L, ParticipantState.ACTIVE)).thenReturn(true);
+        when(venueService.toResponse(venue)).thenReturn(venueResponse);
+
+        SessionDetailResponse response = mapper.toDetail(session, participant);
+
+        assertEquals("Rua do Campo", response.address());
+        assertSame(venueResponse, response.venue());
+        assertTrue(response.canSeeExactAddress());
+        verify(venueService).toResponse(venue);
+    }
+
+    @Test
     void detailAndSummariesIncludeConfirmedPlayersOutsideTheApp() {
         Session session = session(profile(1L, "creator"));
         session.setExternalConfirmedParticipants(7);
