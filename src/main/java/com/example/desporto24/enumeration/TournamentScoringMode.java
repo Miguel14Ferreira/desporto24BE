@@ -5,5 +5,6 @@ package com.example.desporto24.enumeration;
  * Only supported implementations should be added here.
  */
 public enum TournamentScoringMode {
-    CHESS_HALF_POINTS
+    CHESS_HALF_POINTS,
+    RACE_POINTS
 }
