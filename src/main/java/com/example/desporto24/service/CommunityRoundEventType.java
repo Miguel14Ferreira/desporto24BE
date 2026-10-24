@@ -37,6 +37,7 @@ final class CommunityRoundEventType {
             Map.entry("Musculação", List.of("STRENGTH_TRAINING")),
             Map.entry("Natação", List.of("SWIM_LCM")),
             Map.entry("Natação em Águas Abertas", List.of("OWS_INDIVIDUAL")),
+            Map.entry("Orientação", List.of("FOOT_ORIENTEERING")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",
@@ -105,6 +106,10 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
+        if ("FOOT_ORIENTEERING".equals(type)) {
+            CommunityOrienteeringResults.validate(sport, entries);
+            return;
+        }
         if ("OWS_INDIVIDUAL".equals(type)) {
             CommunityOpenWaterSwimmingResults.validate(sport, entries);
             return;
@@ -323,6 +328,8 @@ final class CommunityRoundEventType {
         if ("Natação".equals(sport)) return eventType == null || "SWIM_LCM".equals(eventType);
         if ("Natação em Águas Abertas".equals(sport))
             return eventType == null || "OWS_INDIVIDUAL".equals(eventType);
+        if ("Orientação".equals(sport))
+            return eventType == null || "FOOT_ORIENTEERING".equals(eventType);
         if ("Snowboard".equals(sport)) return "RACE".equals(eventType);
         if ("Parkour".equals(sport)) return "PARKOUR_SPEED".equals(eventType);
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
@@ -337,6 +344,9 @@ final class CommunityRoundEventType {
         // Separate distances must never share the generic sport-wide points table.
         // Untyped historical race records retain their prior classification behavior.
         if ("Natação em Águas Abertas".equals(sport) && "OWS_INDIVIDUAL".equals(eventType))
+            return false;
+        // Different routes cannot be compared without verified controls.
+        if ("Orientação".equals(sport) && "FOOT_ORIENTEERING".equals(eventType))
             return false;
         if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
         return isRaceEvent(sport, eventType);
