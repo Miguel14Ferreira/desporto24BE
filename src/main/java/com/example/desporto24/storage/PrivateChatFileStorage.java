@@ -90,8 +90,8 @@ public class PrivateChatFileStorage {
         String bucket = settings.getPrivateBucket();
         if (bucket == null || bucket.isBlank() || bucket.equals(s3.getBucket())
                 || s3.getEndpoint() == null || s3.getEndpoint().isBlank()
-                || s3.getAccessKey() == null || s3.getAccessKey().isBlank()
-                || s3.getSecretKey() == null || s3.getSecretKey().isBlank()) return false;
+                || settings.getPrivateAccessKey() == null || settings.getPrivateAccessKey().isBlank()
+                || settings.getPrivateSecretKey() == null || settings.getPrivateSecretKey().isBlank()) return false;
         try {
             URI uri = URI.create(s3.getEndpoint());
             return "https".equalsIgnoreCase(uri.getScheme())
@@ -289,10 +289,9 @@ public class PrivateChatFileStorage {
                             .serviceConfiguration(S3Configuration.builder()
                                     .pathStyleAccessEnabled(true).build());
                 }
-                if (s.getAccessKey() != null && !s.getAccessKey().isBlank()) {
-                    builder.credentialsProvider(StaticCredentialsProvider.create(
-                            AwsBasicCredentials.create(s.getAccessKey(), s.getSecretKey())));
-                }
+                builder.credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(settings.getPrivateAccessKey(),
+                                settings.getPrivateSecretKey())));
                 s3Client = builder.build();
             }
             return s3Client;
