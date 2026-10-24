@@ -60,6 +60,10 @@ public class CommunityTournamentScheduleService {
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw notFound();
         }
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Karting usa corridas das Jornadas, não confrontos individuais");
+        }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "O calendário por equipas precisa de confrontos entre equipas");
@@ -142,6 +146,10 @@ public class CommunityTournamentScheduleService {
                 .orElseThrow(() -> notFound());
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw notFound();
+        }
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Karting usa corridas das Jornadas, não confrontos individuais");
         }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Calendário por equipas ainda não disponível");
