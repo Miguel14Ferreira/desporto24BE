@@ -21,6 +21,12 @@ public class SocialStoryController {
         return stories.feed(auth.getName());
     }
 
+    // Only the signed-in author can inspect their own still-active publications.
+    @GetMapping("/mine")
+    public List<StoryResponse> mine(Authentication auth) {
+        return stories.mine(auth.getName());
+    }
+
     @GetMapping("/{id}")
     public StoryResponse view(@PathVariable Long id, Authentication auth) {
         return stories.view(id, auth.getName());

@@ -110,6 +110,14 @@ class SocialStoryServiceTest {
     }
 
     @Test
+    void myStoriesQueryIsScopedToAuthenticatedAuthorAndActiveWindow() {
+        when(stories.findTop20ByAuthorIdAndExpiresAtAfterOrderByCreatedAtDesc(eq(19L), any(Instant.class)))
+                .thenReturn(java.util.List.of());
+        assertTrue(service.mine("joao").isEmpty());
+        verify(stories).findTop20ByAuthorIdAndExpiresAtAfterOrderByCreatedAtDesc(eq(19L), any(Instant.class));
+    }
+
+    @Test
     void refusesAccessToExpiredStory() {
         SocialStory story = SocialStory.builder().id(4L).author(actor)
                 .createdAt(Instant.now().minus(25, ChronoUnit.HOURS))
