@@ -45,6 +45,17 @@ public class CommunityTimelineEntry {
     @Column(name = "video_storage_key", length = 800)
     private String videoStorageKey;
 
+    // CHAT-only content is stored in the dedicated PRIVATE R2 bucket.
+    // Never expose the storage key or reuse the public POST media fields.
+    @Column(name = "attachment_key", length = 240)
+    private String attachmentKey;
+    @Column(name = "attachment_name", length = 160)
+    private String attachmentName;
+    @Column(name = "attachment_mime_type", length = 60)
+    private String attachmentMimeType;
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
