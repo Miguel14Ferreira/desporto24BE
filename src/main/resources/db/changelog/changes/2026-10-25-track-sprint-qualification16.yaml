@@ -1,0 +1,52 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-track-sprint-qualifying16
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_bracket
+            columns:
+              - column:
+                  name: format
+                  type: VARCHAR(30)
+                  defaultValue: EIGHT_RIDER_FINALS
+                  constraints: { nullable: false }
+              - column:
+                  name: qualifying_round_id
+                  type: BIGINT
+        - addForeignKeyConstraint:
+            baseTableName: community_track_sprint_bracket
+            baseColumnNames: qualifying_round_id
+            referencedTableName: community_round
+            referencedColumnNames: id
+            constraintName: fk_track_sprint_qualification_round
+        - createTable:
+            tableName: community_track_sprint_qualified_rider
+            columns:
+              - column:
+                  name: bracket_id
+                  type: BIGINT
+                  constraints: { nullable: false }
+              - column:
+                  name: qualifying_seed
+                  type: INT
+                  constraints: { nullable: false }
+              - column:
+                  name: username
+                  type: VARCHAR(100)
+                  constraints: { nullable: false }
+        - addPrimaryKey:
+            tableName: community_track_sprint_qualified_rider
+            columnNames: bracket_id,qualifying_seed
+            constraintName: pk_track_sprint_qualified_rider
+        - addUniqueConstraint:
+            tableName: community_track_sprint_qualified_rider
+            columnNames: bracket_id,username
+            constraintName: uq_track_sprint_qualified_rider_username
+        - addForeignKeyConstraint:
+            baseTableName: community_track_sprint_qualified_rider
+            baseColumnNames: bracket_id
+            referencedTableName: community_track_sprint_bracket
+            referencedColumnNames: id
+            constraintName: fk_track_sprint_qualified_bracket
+            onDelete: CASCADE
