@@ -44,5 +44,7 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     @Query("SELECT c FROM Community c LEFT JOIN FETCH c.sports WHERE c.id = :id")
     java.util.Optional<Community> findWithSportsById(@Param("id") Long id);
 
+
+    java.util.List<Community> findByOwnerId(Long ownerId);
     boolean existsByOwnerId(Long ownerId);
 }
