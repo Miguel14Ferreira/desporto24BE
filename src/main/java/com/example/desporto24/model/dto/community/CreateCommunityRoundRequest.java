@@ -16,7 +16,7 @@ public record CreateCommunityRoundRequest(
         @Size(max = 100) String sport,
         String matchFormat,
         List<@Valid CommunitySetScore> setScores,
-        @Size(max = 20) String eventType,
+        @Size(max = 48) String eventType,
         @Size(max = 32) String eventDiscipline,
         List<@Valid CommunityGroupRoutineScore> groupScores,
         @Valid CommunityBasketballScore basketballScore,
