@@ -64,6 +64,32 @@ public class JWTokenProvider {
                 && !isTokenExpired(verifier, token);
     }
 
+    /**
+     * Bind a freshly generated access token to the browser login family.
+     * All original authorities, token version and expiry remain signed.
+     * Older unbound access tokens continue working only until normal expiry.
+     */
+    public String bindAccessTokenToFamily(String token, String family) {
+        var verified = getJWTVerifier().verify(token);
+        if (!ACCESS_TOKEN_TYPE.equals(verified.getClaim(TOKEN_TYPE).asString())
+                || family == null || family.isBlank()) {
+            throw new JWTVerificationException("Invalid access token family");
+        }
+        return JWT.create().withIssuer(DESPORTO_24).withAudience(DESPORTO_24_ADMINISTRATION)
+                .withIssuedAt(verified.getIssuedAt())
+                .withSubject(verified.getSubject())
+                .withArrayClaim(AUTHORITIES, verified.getClaim(AUTHORITIES).asArray(String.class))
+                .withClaim(TOKEN_VERSION, verified.getClaim(TOKEN_VERSION).asLong())
+                .withClaim(TOKEN_TYPE, ACCESS_TOKEN_TYPE)
+                .withClaim("session_family", family)
+                .withExpiresAt(verified.getExpiresAt())
+                .sign(HMAC512(secret.getBytes()));
+    }
+
+    public String getAccessTokenFamilyId(String token) {
+        return getJWTVerifier().verify(token).getClaim("session_family").asString();
+    }
+
     public String getRefreshTokenId(String token) {
         return getJWTVerifier().verify(token).getId();
     }

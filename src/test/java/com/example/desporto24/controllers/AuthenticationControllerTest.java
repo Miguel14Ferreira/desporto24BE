@@ -11,6 +11,9 @@ import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.security.RefreshOriginValidator;
 import com.example.desporto24.security.RefreshTokenRotationService;
+import com.example.desporto24.utility.JWTokenProvider;
+import com.example.desporto24.model.dto.auth.DeviceSessionResponse;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -48,6 +51,7 @@ class AuthenticationControllerTest {
     private RefreshOriginValidator refreshOriginValidator;
 
     @Mock private RefreshTokenRotationService refreshTokenRotationService;
+    @Mock private JWTokenProvider jwtTokens;
 
     @InjectMocks
     private AuthenticationController controller;
@@ -193,6 +197,56 @@ class AuthenticationControllerTest {
         assertEquals(OK, response.getStatusCode());
         org.mockito.Mockito.verify(authenticationService)
                 .resetPasswordStepTwo("new-password-123", "reset-token");
+    }
+
+    @Test
+    void deviceListingUsesOnlyAuthenticatedIdentityAndBoundJwt() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(jwtTokens.getAccessTokenFamilyId("access")).thenReturn("family-123");
+        var sessions = List.of(new DeviceSessionResponse(
+                "family-123", "Windows · Chrome", Instant.now(), Instant.now().plusSeconds(300), true));
+        when(refreshTokenRotationService.activeSessions("miguel", "family-123"))
+                .thenReturn(sessions);
+
+        assertEquals(sessions,
+                controller.listDeviceSessions(authentication, "Bearer access"));
+    }
+
+    @Test
+    void deviceRevocationChecksOriginAndDoesNotRequireAllDeviceLogout() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(authentication.isAuthenticated()).thenReturn(true);
+        var result = controller.revokeDeviceSession(
+                "other-family", authentication, "https://d24sports.com", "Bearer access");
+
+        assertEquals(204, result.getStatusCode().value());
+        assertNull(result.getHeaders().getFirst(HttpHeaders.SET_COOKIE));
+        verify(refreshOriginValidator).requireAllowedOrigin("https://d24sports.com");
+        verify(refreshTokenRotationService).revokeDevice("miguel", "other-family");
+    }
+
+    @Test
+    void currentDeviceRevocationClearsRefreshCookie() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(jwtTokens.getAccessTokenFamilyId("access")).thenReturn("current-family");
+
+        var response = controller.revokeDeviceSession("current-family", authentication,
+                "https://d24sports.com", "Bearer access");
+
+        assertEquals(204, response.getStatusCode().value());
+        assertTrue(response.getHeaders().getFirst(HttpHeaders.SET_COOKIE).contains("Max-Age=0"));
+    }
+
+    @Test
+    void unauthenticatedCallerCannotListOrRevokeSessions() {
+        assertThrows(ResponseStatusException.class,
+                () -> controller.listDeviceSessions(null, null));
+        assertThrows(ResponseStatusException.class,
+                () -> controller.revokeDeviceSession(
+                        "any", null, "https://d24sports.com", "Bearer token"));
+        verifyNoInteractions(refreshTokenRotationService);
     }
 
     @Test
