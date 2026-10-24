@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-karting-championship-final-snapshot
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: race_final_snapshot_json
+                  type: TEXT
