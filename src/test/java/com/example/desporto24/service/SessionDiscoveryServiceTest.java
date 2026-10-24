@@ -255,6 +255,50 @@ class SessionDiscoveryServiceTest {
     }
 
     @Test
+    void multipleOriginAndRadiusProbesCannotPinpointPrivateSessionWithinCoarseCell() {
+        Session first = session(50L, "Futebol", "Lisboa", 38.721, -9.280, 0, true, 10, 2);
+        Session second = session(51L, "Futebol", "Lisboa", 38.749, -9.230, 0, true, 10, 2);
+        stubCandidates(first, second);
+        SessionDistanceCalculator realDistance = new SessionDistanceCalculator();
+
+        when(distanceCalculator.kilometres(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenAnswer(inv -> realDistance.kilometres(
+                        inv.getArgument(0), inv.getArgument(1),
+                        inv.getArgument(2), inv.getArgument(3)));
+        when(sessionViewMapper.toSummary(any(Session.class), anyDouble(),
+                anyMap(), anySet(), anySet())).thenAnswer(inv -> {
+                    Session source = inv.getArgument(0);
+                    Double distance = inv.getArgument(1);
+                    return new SessionSummaryResponse(
+                            source.getId(), source.getSport(), source.getCity(),
+                            source.getGameDate().toInstant(), distance, 2, 10,
+                            source.getPriceAmount(), true, source.getStatus());
+                });
+
+        for (double[] origin : new double[][] {
+                {38.70, -9.22}, {38.80, -9.36}, {38.74, -9.25}
+        }) {
+            for (double radius : new double[] {0.1, 1.0, 3.0, 5.0, 10.0, 25.0}) {
+                var found = service.discover(criteria(
+                        null, null, null, null, origin[0], origin[1], radius,
+                        null, true, null, "distance"));
+                // No radius threshold may distinguish these distinct exact
+                // locations: both are represented by the SAME public cell.
+                assertTrue(found.isEmpty() || found.size() == 2,
+                        "No fine-grained radius probe may reveal which exact location is closer");
+                if (found.size() == 2) {
+                    assertEquals(found.get(0).distanceKm(), found.get(1).distanceKm());
+                }
+            }
+        }
+
+        verify(distanceCalculator, never()).kilometres(
+                anyDouble(), anyDouble(), eq(first.getLatitude()), eq(first.getLongitude()));
+        verify(distanceCalculator, never()).kilometres(
+                anyDouble(), anyDouble(), eq(second.getLatitude()), eq(second.getLongitude()));
+    }
+
+    @Test
     void radiusIsNotAppliedWhenCoordinatesAreMissing() {
         Session first = session(1L, "Futebol", "Queluz", 38.75, -9.25, 0, false, 10, 1);
         Session second = session(2L, "Padel", "Sintra", 38.80, -9.40, 10, true, 4, 4);
