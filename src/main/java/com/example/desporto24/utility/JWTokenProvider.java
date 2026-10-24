@@ -80,7 +80,7 @@ public class JWTokenProvider {
     public boolean isTokenValid(String username, String token){
         JWTVerifier verifier = getJWTVerifier();
         String type = verifier.verify(token).getClaim(TOKEN_TYPE).asString();
-        return (type == null || ACCESS_TOKEN_TYPE.equals(type))
+        return ACCESS_TOKEN_TYPE.equals(type)
                 && StringUtils.isNotEmpty(username)
                 && !isTokenExpired(verifier, token);
     }
@@ -107,7 +107,10 @@ public class JWTokenProvider {
         JWTVerifier verifier;
         try{
             Algorithm algorithm = HMAC512(secret);
-            verifier = JWT.require(algorithm).withIssuer(DESPORTO_24).build();
+            verifier = JWT.require(algorithm)
+                    .withIssuer(DESPORTO_24)
+                    .withAudience(DESPORTO_24_ADMINISTRATION)
+                    .build();
         }catch (JWTVerificationException exception){
             throw new JWTVerificationException(TOKEN_CANNOT_BE_VERIFIED);
         }
