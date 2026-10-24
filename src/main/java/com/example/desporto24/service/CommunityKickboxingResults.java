@@ -21,7 +21,7 @@ final class CommunityKickboxingResults {
 
     private CommunityKickboxingResults() {}
 
-    static boolean isKickboxingEvent(String type) { return EVENTS.contains(type); }
+    static boolean isKickboxingEvent(String type) { return type != null && EVENTS.contains(type); }
 
     static boolean isPointFighting(String type) { return "WAKO_POINT_FIGHTING".equals(type); }
 
