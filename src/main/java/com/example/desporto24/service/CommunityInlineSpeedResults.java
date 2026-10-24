@@ -10,13 +10,21 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Organizer-recorded times for the 200 m inline-speed track dual time trial.
+ * Organizer-recorded times for the 200 m inline-speed track dual time trial
+ * and first-round timed 500 m +D track / one-lap road sprint heats.
  * Timed skaters are not automatically certified as completed heats/finals:
  * pairing, qualifying rounds, timing approval, penalties and disqualification
  * are outside the current community round request contract.
  */
 final class CommunityInlineSpeedResults {
     private CommunityInlineSpeedResults() {}
+
+    /** Distinct event codes prevent comparing unrelated distances or circuits. */
+    static boolean isRecordedTimeEvent(String eventType) {
+        return "INLINE_TRACK_200_TT".equals(eventType)
+                || "INLINE_TRACK_500D_FIRST_ROUND".equals(eventType)
+                || "INLINE_ROAD_LAP_FIRST_ROUND".equals(eventType);
+    }
 
     static void validate(String sport, List<CommunityRoundEntryRequest> entries) {
         if (!"Patinagem de Velocidade".equals(sport) || entries == null || entries.isEmpty())

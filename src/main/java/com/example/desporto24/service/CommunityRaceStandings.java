@@ -68,7 +68,7 @@ final class CommunityRaceStandings {
                     || "Orientação".equals(round.sport())
                     && "FOOT_ORIENTEERING".equals(round.eventType())
                     || "Patinagem de Velocidade".equals(round.sport())
-                    && "INLINE_TRACK_200_TT".equals(round.eventType()))) continue;
+                    && CommunityInlineSpeedResults.isRecordedTimeEvent(round.eventType()))) continue;
             if (round == null || !CommunityRoundEventType.isRaceEvent(round.sport(), round.eventType())
                     || round.entries() == null) continue;
             String sport = round.sport().trim().toLowerCase(Locale.ROOT);
