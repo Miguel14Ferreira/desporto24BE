@@ -226,6 +226,39 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void ciclocrosseUsesOnlyItsOwnRoundsAndCommunityPositionPoints() {
+        verifiesCyclingRaceChampionship("Ciclocrosse");
+    }
+
+    @Test
+    void ciclocrosseRejectsOtherCyclingDisciplinesAndUnsupportedEventTypes() {
+        tournament.setSport("Ciclocrosse");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Mountain Bike").eventType(null).build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        recorded.setSport("Ciclismo de Estrada");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        recorded.setSport("Ciclocrosse");
+        recorded.setEventType("TIME_TRIAL");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        recorded.setEventType(null);
+        recorded.setCommunity(Community.builder().id(8L).build());
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        verifyNoInteractions(competition);
+        verify(links, never()).save(any());
+    }
+
+    @Test
     void cyclingCannotImportMtbOrRoadSubdisciplineRoundsAndRejectsNonRaceEvent() {
         tournament.setSport("Ciclismo");
         admin();
