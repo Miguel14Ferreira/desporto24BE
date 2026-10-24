@@ -53,6 +53,17 @@ final class CommunityRaceMetrics {
                         "As métricas de corrida só podem ser usadas numa jornada de prova");
             }
             if (!race) continue;
+            if ("Ciclismo de Estrada".equals(sport) && "TIME_TRIAL".equals(eventType)) {
+                if (entry.lapsCompleted() != null || entry.bestLapSeconds() != null)
+                    throw new IllegalArgumentException(
+                            "Contrarrelógio individual não admite métricas de voltas");
+                if (entry.finishPosition() != null && entry.elapsedSeconds() == null)
+                    throw new IllegalArgumentException(
+                            "Ciclista classificado exige tempo no contrarrelógio");
+                if (entry.finishPosition() == null && entry.elapsedSeconds() != null)
+                    throw new IllegalArgumentException(
+                            "Tempo no contrarrelógio exige posição registada");
+            }
             if ("Parkour".equals(sport) && "PARKOUR_SPEED".equals(eventType)
                     && (entry.lapsCompleted() != null || entry.bestLapSeconds() != null)) {
                 throw new IllegalArgumentException(
