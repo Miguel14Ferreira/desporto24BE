@@ -42,6 +42,14 @@ public class CommunityInlineHeatProgressionService {
         return response(targetId);
     }
 
+    @Transactional(readOnly = true)
+    public List<CommunityInlineHeatProgressionResponse> list(Long communityId, String username) {
+        requireMember(communityId, username, false);
+        var all = progressions.findByCommunityId(communityId);
+        return all.stream().map(x -> x.getTargetRound().getId()).distinct()
+                .map(this::response).toList();
+    }
+
     public CommunityInlineHeatProgressionResponse confirm(Long communityId, Long targetId,
             String username, ConfirmInlineHeatProgressionRequest request) {
         Profile actor = requireMember(communityId, username, true);
