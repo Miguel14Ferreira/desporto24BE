@@ -510,6 +510,102 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void newMfaChallengeCannotBypassTheSameAccountsFiveGuessBudget() {
+        MFAVerification first = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        MFAVerification second = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        second.setChallengeId("another-challenge");
+        Profile profile = activeProfile(true);
+        String secret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(secret, profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(first));
+        when(mfaVerificationService.getByChallengeId("another-challenge"))
+                .thenReturn(Optional.of(second));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(totpService.verify(secret, "wrong")).thenReturn(false);
+
+        AuthenticationServiceImpl instance = service();
+        for (int i = 0; i < 3; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong")));
+        }
+        for (int i = 0; i < 2; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> instance.confirmMfa(new MfaConfirmRequest("another-challenge", "wrong")));
+        }
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.confirmMfa(new MfaConfirmRequest("another-challenge", "wrong")));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verify(totpService, times(5)).verify(secret, "wrong");
+        verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void resendingMfaChallengeConsumesOldChallengeAndCreatesNewOne() {
+        MFAVerification first = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(first));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
+                .thenReturn(true);
+
+        LoginResponse rotated = service().resendMfa(TEST_CHALLENGE_ID);
+
+        assertTrue(rotated.mfaRequired());
+        assertNotNull(rotated.challengeId());
+        assertNotEquals(TEST_CHALLENGE_ID, rotated.challengeId());
+        assertNull(rotated.token());
+        verify(mfaVerificationService).confirmIfPending(eq(TEST_CHALLENGE_ID), any());
+        verify(mfaVerificationService).saveConfirmationMFA(argThat(challenge ->
+                rotated.challengeId().equals(challenge.getChallengeId())));
+    }
+
+    @Test
+    void differentResendChallengeIdDoesNotResetAccountCooldown() {
+        MFAVerification first = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        MFAVerification second = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        second.setChallengeId("another-challenge");
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(first));
+        when(mfaVerificationService.getByChallengeId("another-challenge"))
+                .thenReturn(Optional.of(second));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
+                .thenReturn(true);
+        AuthenticationServiceImpl instance = service();
+
+        instance.resendMfa(TEST_CHALLENGE_ID);
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.resendMfa("another-challenge"));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verify(mfaVerificationService, times(1)).saveConfirmationMFA(any(MFAVerification.class));
+        verify(mfaVerificationService, times(1)).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void alreadyConfirmedMfaChallengeCannotBeResent() {
+        MFAVerification used = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        used.setConfirmedAt(LocalDateTime.now(ZoneOffset.UTC));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(used));
+
+        assertThrows(SMSAlreadyConfirmedException.class, () -> service().resendMfa(TEST_CHALLENGE_ID));
+
+        verifyNoInteractions(profileRepository);
+        verify(mfaVerificationService, never()).saveConfirmationMFA(any(MFAVerification.class));
+    }
+
+    @Test
     void expiredMfaChallengeNeverGeneratesJwt() {
         MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1));
         when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID)).thenReturn(Optional.of(challenge));
