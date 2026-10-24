@@ -16,13 +16,24 @@ class CommunityDiscoveryControllerTest {
     private final CommunityDiscoveryController controller = new CommunityDiscoveryController(repository);
 
     @Test
-    void emptyFiltersBrowseOnlyThePublicProjection() {
-        when(repository.discoverPublicPresentations(PageRequest.of(0, 20)))
-                .thenReturn(new SliceImpl<>(List.of()));
+    void emptyFiltersBrowsePublicAndPrivateProjections() {
+        var publicGroup = new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
+                1L, "Clube público", "Aberto", "Futsal", null,
+                com.example.desporto24.enumeration.CommunityVisibility.PUBLIC);
+        var privateGroup = new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
+                2L, "Clube privado", "Acesso sujeito a aprovação", "Ténis", null,
+                com.example.desporto24.enumeration.CommunityVisibility.PRIVATE);
+        when(repository.searchPresentations("", "", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(publicGroup, privateGroup)));
         var result = controller.search("", "  ", 0);
-        assertTrue(result.communities().isEmpty());
-        verify(repository).discoverPublicPresentations(PageRequest.of(0, 20));
-        verify(repository, never()).searchPresentations(anyString(), anyString(), any());
+        assertEquals(List.of("Clube público", "Clube privado"),
+                result.communities().stream().map(item -> item.name()).toList());
+        assertEquals(List.of(
+                com.example.desporto24.enumeration.CommunityVisibility.PUBLIC,
+                com.example.desporto24.enumeration.CommunityVisibility.PRIVATE),
+                result.communities().stream().map(item -> item.visibility()).toList());
+        verify(repository).searchPresentations("", "", PageRequest.of(0, 20));
+        verify(repository, never()).discoverPublicPresentations(any());
     }
 
     @Test
@@ -43,7 +54,7 @@ class CommunityDiscoveryControllerTest {
         var legacy = new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
                 4L, "Legada", null, "Padel", null,
                 com.example.desporto24.enumeration.CommunityVisibility.PUBLIC);
-        when(repository.discoverPublicPresentations(PageRequest.of(0, 20)))
+        when(repository.searchPresentations("", "", PageRequest.of(0, 20)))
                 .thenReturn(new SliceImpl<>(List.of(multi, legacy)));
         var entity = com.example.desporto24.model.community.Community.builder()
                 .id(2L).sport("Futebol")
