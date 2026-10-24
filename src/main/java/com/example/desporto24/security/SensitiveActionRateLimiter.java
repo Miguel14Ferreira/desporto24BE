@@ -1,6 +1,7 @@
 package com.example.desporto24.security;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -14,10 +15,19 @@ public class SensitiveActionRateLimiter {
 
     private final ConcurrentHashMap<String, Instant> lastAllowed = new ConcurrentHashMap<>();
 
+    @Autowired(required = false)
+    private DistributedAuthRateLimiter distributedAttempts;
+
     public void requireCooldown(String action, String subject, Duration cooldown) {
         String normalizedSubject = subject == null
                 ? ""
                 : subject.trim().toLowerCase(Locale.ROOT);
+        // The common database counter enforces cooldown after process restarts
+        // and across replicas. No untrusted proxy/IP headers are involved.
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("cooldown:" + action,
+                    normalizedSubject, 1, cooldown);
+        }
         String key = action + ":" + normalizedSubject;
         Instant now = Instant.now();
 
