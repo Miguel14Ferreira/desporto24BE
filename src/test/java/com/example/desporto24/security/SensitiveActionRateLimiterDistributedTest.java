@@ -22,9 +22,8 @@ class SensitiveActionRateLimiterDistributedTest {
         apiOne.requireCooldown("password-reset", "USER@example.test", Duration.ofSeconds(60));
         apiTwo.requireCooldown("password-reset", "user@example.test", Duration.ofSeconds(60));
 
-        verify(shared).reserveAttempt("cooldown:password-reset",
-                "user@example.test", 1, Duration.ofSeconds(60));
-        verify(shared).reserveAttempt("cooldown:password-reset",
+        // Both independent JVM-like guards reach the shared store.
+        verify(shared, times(2)).reserveAttempt("cooldown:password-reset",
                 "user@example.test", 1, Duration.ofSeconds(60));
     }
 
