@@ -39,6 +39,7 @@ final class CommunityRoundEventType {
             Map.entry("Natação", List.of("SWIM_LCM")),
             Map.entry("Natação em Águas Abertas", List.of("OWS_INDIVIDUAL")),
             Map.entry("Orientação", List.of("FOOT_ORIENTEERING")),
+            Map.entry("Patinagem de Velocidade", List.of("INLINE_TRACK_200_TT")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",
@@ -107,6 +108,10 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
+        if ("INLINE_TRACK_200_TT".equals(type)) {
+            CommunityInlineSpeedResults.validate(sport, entries);
+            return;
+        }
         if ("FOOT_ORIENTEERING".equals(type)) {
             CommunityOrienteeringResults.validate(sport, entries);
             return;
@@ -331,6 +336,8 @@ final class CommunityRoundEventType {
             return eventType == null || "OWS_INDIVIDUAL".equals(eventType);
         if ("Orientação".equals(sport))
             return eventType == null || "FOOT_ORIENTEERING".equals(eventType);
+        if ("Patinagem de Velocidade".equals(sport))
+            return eventType == null || "INLINE_TRACK_200_TT".equals(eventType);
         if ("Snowboard".equals(sport)) return "RACE".equals(eventType);
         if ("Parkour".equals(sport)) return "PARKOUR_SPEED".equals(eventType);
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
@@ -350,6 +357,9 @@ final class CommunityRoundEventType {
             return false;
         // Different routes cannot be compared without verified controls.
         if ("Orientação".equals(sport) && "FOOT_ORIENTEERING".equals(eventType))
+            return false;
+        // Typed inline timing is not a fully certified pair/heats/final result.
+        if ("Patinagem de Velocidade".equals(sport) && "INLINE_TRACK_200_TT".equals(eventType))
             return false;
         if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
         if ("Ciclismo de Pista".equals(sport)) return "TRACK_SCRATCH".equals(eventType);
