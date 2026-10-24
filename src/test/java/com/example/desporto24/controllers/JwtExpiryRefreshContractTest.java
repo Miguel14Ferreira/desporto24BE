@@ -13,6 +13,7 @@ import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.RefreshTokenSessionRepository;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.security.RefreshOriginValidator;
 import com.example.desporto24.security.RefreshTokenRotationService;
@@ -91,6 +92,7 @@ class JwtExpiryRefreshContractTest {
     @Autowired private JWTokenProvider jwt;
 
     @MockitoBean private ProfileRepository profiles;
+    @MockitoBean private RefreshTokenSessionRepository refreshSessionRepository;
     @MockitoBean private AuthenticationService auth;
     @MockitoBean private SensitiveActionRateLimiter rateLimiter;
     @MockitoBean private RefreshTokenRotationService refreshTokenRotationService;

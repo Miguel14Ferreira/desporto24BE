@@ -7,6 +7,7 @@ import com.example.desporto24.filter.JwtAuthenticationEntryPoint;
 import com.example.desporto24.filter.JwtAuthorizationFilter;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.RefreshTokenSessionRepository;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
@@ -73,6 +74,7 @@ class CommunitySecurityFilterChainTest {
 
     @MockitoBean private JWTokenProvider tokens;
     @MockitoBean private ProfileRepository profiles;
+    @MockitoBean private RefreshTokenSessionRepository refreshSessionRepository;
     @MockitoBean private CommunityManagementService communities;
     @MockitoBean private CommunityCompetitionService competitions;
     @MockitoBean private CommunityHistoricalPlayerLinkService historicalPlayers;

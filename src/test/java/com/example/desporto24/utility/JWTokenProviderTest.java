@@ -13,6 +13,7 @@ import static com.example.desporto24.constant.SecurityConstant.TOKEN_VERSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,6 +88,32 @@ class JWTokenProviderTest {
         assertNotNull(provider.getRefreshTokenId(first));
         assertNotEquals(provider.getRefreshTokenId(first), provider.getRefreshTokenId(second));
         assertTrue(provider.getRefreshTokenExpiry(first).isAfter(java.time.Instant.now()));
+    }
+
+    @Test
+    void deviceBoundJwtPreservesPermissionsAndExpiryWithSignedFamily() {
+        JWTokenProvider provider = provider();
+        ReflectionTestUtils.setField(provider, "expirationTimeMs", 1_800_000L);
+        Profile profile = new Profile();
+        profile.setUsername("fixture");
+        profile.setTokenVersion(12L);
+        profile.setAuthorities(new String[] {"user:read"});
+        String original = provider.generateJwtToken(new ProfilePrincipal(profile));
+        String family = "bb2e9f25-6119-4802-8496-5d1206ae9c0d";
+
+        String bound = provider.bindAccessTokenToFamily(original, family);
+
+        assertEquals(family, provider.getAccessTokenFamilyId(bound));
+        assertTrue(provider.isTokenValid("fixture", bound));
+        assertEquals(JWT.decode(original).getExpiresAt(), JWT.decode(bound).getExpiresAt());
+        assertEquals(JWT.decode(original).getIssuedAt(), JWT.decode(bound).getIssuedAt());
+        assertEquals(provider.getAuthorities(original), provider.getAuthorities(bound));
+        assertEquals(12L, provider.getTokenVersion(bound));
+        assertNull(provider.getAccessTokenFamilyId(original),
+                "Existing pre-rollout access JWTs remain valid until normal expiry");
+        assertThrows(JWTVerificationException.class,
+                () -> provider.bindAccessTokenToFamily(
+                        provider.generateRefreshToken(new ProfilePrincipal(profile)), family));
     }
 
     private JWTokenProvider provider() {
