@@ -134,6 +134,16 @@ class CommunityHistoricalMatchArchiveServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
                 file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
                         "Torneio 2024", "TEAM", true, "Futebol", "GROUP_KNOCKOUT")));
+        // A malformed request must not invent a modality or a default league.
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Modalidade inventada", "LEAGUE")));
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Futebol", null)));
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Futebol", " ")));
         verifyNoInteractions(previewService, archives, rows, tournaments);
     }
 
