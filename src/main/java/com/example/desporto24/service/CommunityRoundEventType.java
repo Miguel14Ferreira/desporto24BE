@@ -42,7 +42,15 @@ final class CommunityRoundEventType {
             Map.entry("Patinagem de Velocidade", List.of(
                     "INLINE_TRACK_200_TT",
                     "INLINE_TRACK_500D_FIRST_ROUND",
-                    "INLINE_ROAD_LAP_FIRST_ROUND")),
+                    "INLINE_ROAD_LAP_FIRST_ROUND",
+                    "INLINE_TRACK_500D_QUARTER_HEAT",
+                    "INLINE_TRACK_500D_SEMI_HEAT",
+                    "INLINE_TRACK_500D_FINAL_A",
+                    "INLINE_TRACK_500D_FINAL_B",
+                    "INLINE_ROAD_LAP_QUARTER_HEAT",
+                    "INLINE_ROAD_LAP_SEMI_HEAT",
+                    "INLINE_ROAD_LAP_FINAL_A",
+                    "INLINE_ROAD_LAP_FINAL_B")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",
@@ -113,6 +121,10 @@ final class CommunityRoundEventType {
             List<CommunityRoundEntryRequest> entries) {
         if ("TRACK_SPRINT_HEAT".equals(type)) {
             validateTrackSprintHeat(sport, entries);
+            return;
+        }
+        if (CommunityInlineSpeedResults.isPlacedHeat(type)) {
+            CommunityInlineSpeedResults.validatePlacedHeat(sport, type, entries);
             return;
         }
         if (CommunityInlineSpeedResults.isRecordedTimeEvent(type)) {
@@ -368,7 +380,7 @@ final class CommunityRoundEventType {
         if ("Orientação".equals(sport))
             return eventType == null || "FOOT_ORIENTEERING".equals(eventType);
         if ("Patinagem de Velocidade".equals(sport))
-            return eventType == null || CommunityInlineSpeedResults.isRecordedTimeEvent(eventType);
+            return eventType == null || CommunityInlineSpeedResults.isInlineEvent(eventType);
         if ("Snowboard".equals(sport)) return "RACE".equals(eventType);
         if ("Parkour".equals(sport)) return "PARKOUR_SPEED".equals(eventType);
         if ("BMX".equals(sport)) return eventType == null || "RACE".equals(eventType);
@@ -392,7 +404,7 @@ final class CommunityRoundEventType {
             return false;
         // Typed inline timing is not a fully certified pair/heats/final result.
         if ("Patinagem de Velocidade".equals(sport)
-                && CommunityInlineSpeedResults.isRecordedTimeEvent(eventType))
+                && CommunityInlineSpeedResults.isInlineEvent(eventType))
             return false;
         if ("Ciclismo de Estrada".equals(sport)) return "ROAD_RACE".equals(eventType);
         if ("Ciclismo de Pista".equals(sport)) return "TRACK_SCRATCH".equals(eventType);
