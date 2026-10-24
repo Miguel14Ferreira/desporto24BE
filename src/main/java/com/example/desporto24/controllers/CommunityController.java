@@ -495,6 +495,12 @@ public class CommunityController {
         );
     }
 
+    @GetMapping("/{id}/inline-progressions")
+    public ResponseEntity<List<CommunityInlineHeatProgressionResponse>> inlineProgressions(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(inlineHeatProgressionService.list(id, authentication.getName()));
+    }
+
     @GetMapping("/{id}/rounds/{roundId}/inline-progression")
     public ResponseEntity<CommunityInlineHeatProgressionResponse> inlineProgression(
             @PathVariable Long id, @PathVariable Long roundId, Authentication authentication) {
