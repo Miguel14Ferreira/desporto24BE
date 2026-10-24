@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentFormat;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -19,8 +20,18 @@ public record CreateCommunityTournamentRequest(
         @Min(1) @Max(2) Integer roundRobinLegs,
         TournamentTeamTieBreakPriority teamTieBreakPriority,
         TournamentFormat format,
-        @Min(2) @Max(4) Integer groupCount
+        @Min(2) @Max(4) Integer groupCount,
+        TournamentScoringMode scoringMode
 ) {
+    // Source compatibility for the previous full canonical request constructor.
+    public CreateCommunityTournamentRequest(String name, Integer winPoints,
+            Integer drawPoints, Integer lossPoints, String sport,
+            TournamentEntryType entryType, Integer playersPerTeam, Integer roundRobinLegs,
+            TournamentTeamTieBreakPriority teamTieBreakPriority, TournamentFormat format,
+            Integer groupCount) {
+        this(name, winPoints, drawPoints, lossPoints, sport, entryType, playersPerTeam,
+                roundRobinLegs, teamTieBreakPriority, format, groupCount, null);
+    }
     // Source compatibility for existing explicit-format callers.
     public CreateCommunityTournamentRequest(String name, Integer winPoints,
             Integer drawPoints, Integer lossPoints, String sport,

@@ -12,6 +12,7 @@ import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
@@ -124,6 +125,20 @@ public class CommunityTournamentService {
                     "Os critérios de desempate são exclusivos de campeonatos por equipas");
         }
 
+        TournamentScoringMode scoringMode = request.scoringMode();
+        if (scoringMode == TournamentScoringMode.CHESS_HALF_POINTS) {
+            // Existing competitions have null mode and retain their historical rules.
+            // Only new individual Xadrez leagues may opt into half-point standings.
+            if (type != TournamentEntryType.INDIVIDUAL
+                    || !"xadrez".equalsIgnoreCase(selectedSport)
+                    || !Integer.valueOf(2).equals(request.winPoints())
+                    || !Integer.valueOf(1).equals(request.drawPoints())
+                    || !Integer.valueOf(0).equals(request.lossPoints())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Xadrez: vitória 1, empate ½, derrota 0 (pontos internos 2/1/0)");
+            }
+        }
+
         TournamentTeamTieBreakPriority tieBreakPriority = request.teamTieBreakPriority() == null
                 ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
                 : request.teamTieBreakPriority();
@@ -132,6 +147,7 @@ public class CommunityTournamentService {
                 .community(community)
                 .name(request.name().trim())
                 .sport(selectedSport)
+                .scoringMode(scoringMode)
                 .entryType(type)
                 .playersPerTeam(request.playersPerTeam())
                 .roundRobinLegs(roundRobinLegs)

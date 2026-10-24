@@ -271,6 +271,41 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void chessHalfPointsAreSnapshottedOnlyForNewIndividualChessLeagues() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var chess = new CreateCommunityTournamentRequest(
+                "Liga de Xadrez", 2, 1, 0, "Xadrez",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        var created = service.create(7L, "owner", chess);
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS,
+                created.scoringMode());
+        assertEquals(2, created.winPoints());
+        assertEquals(1, created.drawPoints());
+
+        var invalid = new CreateCommunityTournamentRequest(
+                "Liga falsa", 2, 1, 0, "Karting",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", invalid)).getStatusCode());
+        var invalidPoints = new CreateCommunityTournamentRequest(
+                "Liga", 3, 1, 0, "Xadrez",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", invalidPoints)).getStatusCode());
+        verify(tournamentRepository, times(1)).save(any(CommunityTournament.class));
+    }
+
+    @Test
     void legacyRequestsRemainIndividual() {
         actingAsOwner(CommunityRole.ADMIN);
         when(tournamentRepository.save(any(CommunityTournament.class)))
