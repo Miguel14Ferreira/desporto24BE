@@ -2,6 +2,9 @@ package com.example.desporto24.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.dto.community.CommunityRoundEntryRequest;
 
@@ -30,6 +33,7 @@ final class CommunityRoundEventType {
             Map.entry("Esgrima", List.of("FENCING_POOL_5", "FENCING_DE_15")),
             Map.entry("Teqball", List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")),
             Map.entry("Xadrez", List.of("CHESS_GAME")),
+            Map.entry("Musculação", List.of("STRENGTH_TRAINING")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",
@@ -98,6 +102,10 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
+        if ("STRENGTH_TRAINING".equals(type)) {
+            validateStrengthTraining(sport, entries);
+            return;
+        }
         if (CommunityGroupRoutineResults.isGroupEvent(type)
                 || CommunityBasketballResults.isBasketballEvent(type)
                 || CommunityVolleyballResults.isVolleyballEvent(type)
@@ -225,6 +233,34 @@ final class CommunityRoundEventType {
                 throw new IllegalArgumentException(
                         "Este tipo de prova ainda só permite registar participantes, sem resultados calculados");
             }
+        }
+    }
+
+    /**
+     * Musculação is a non-competitive training activity. The legacy DRAW enum
+     * is a storage-neutral placeholder, NEVER a drawn contest or league point.
+     * Entry metrics are deliberately absent until a dedicated workout model exists.
+     */
+    private static void validateStrengthTraining(String sport,
+            List<CommunityRoundEntryRequest> entries) {
+        if (!"Musculação".equals(sport) || entries == null || entries.isEmpty())
+            throw new IllegalArgumentException(
+                    "Um treino de musculação exige pelo menos um participante");
+        Set<String> usernames = new HashSet<>();
+        for (CommunityRoundEntryRequest e : entries) {
+            if (e == null || e.username() == null || e.username().isBlank()
+                    || !usernames.add(e.username().trim().toLowerCase(Locale.ROOT))
+                    || e.result() != CommunityMatchResult.DRAW
+                    || e.team() != null && !e.team().isBlank()
+                    || e.goals() != null && e.goals() != 0
+                    || e.assists() != null && e.assists() != 0
+                    || e.mvp() || e.cleanSheet()
+                    || e.finishPosition() != null || e.elapsedSeconds() != null
+                    || e.bestLapSeconds() != null || e.lapsCompleted() != null
+                    || e.performanceValue() != null
+                    || e.waveScore1() != null || e.waveScore2() != null)
+                throw new IllegalArgumentException(
+                        "Musculação regista apenas participantes; sem vencedor, empate, notas ou métricas de outros desportos");
         }
     }
 
