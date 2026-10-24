@@ -243,19 +243,31 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
-    void teamCompetitionsRequireTheirOwnSportAndRosterSize() {
+    void teamCompetitionsAllowOpenRostersButStillRequireSportAndValidFixedSizes() {
         actingAsOwner(CommunityRole.OWNER);
-        var noSize = new CreateCommunityTournamentRequest(
-                "Liga", null, null, null, "Futebol", TournamentEntryType.TEAM, null);
-        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
-                assertThrows(ResponseStatusException.class,
-                        () -> service.create(7L, "owner", noSize)).getStatusCode());
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var open = new CreateCommunityTournamentRequest(
+                "Liga aberta", null, null, null, "Karting", TournamentEntryType.TEAM, null);
+        var created = service.create(7L, "owner", open);
+        assertEquals(TournamentEntryType.TEAM, created.entryType());
+        assertEquals("Karting", created.sport());
+        assertNull(created.playersPerTeam());
+
+        for (int invalid : List.of(0, 31)) {
+            var illegal = new CreateCommunityTournamentRequest(
+                    "Liga", null, null, null, "Futebol", TournamentEntryType.TEAM, invalid);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", illegal)).getStatusCode());
+        }
         var noSport = new CreateCommunityTournamentRequest(
-                "Liga", null, null, null, null, TournamentEntryType.TEAM, 5);
+                "Liga", null, null, null, null, TournamentEntryType.TEAM, null);
         assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
                 assertThrows(ResponseStatusException.class,
                         () -> service.create(7L, "owner", noSport)).getStatusCode());
-        verifyNoInteractions(tournamentRepository);
+        verify(tournamentRepository, times(1)).save(any(CommunityTournament.class));
     }
 
     @Test
