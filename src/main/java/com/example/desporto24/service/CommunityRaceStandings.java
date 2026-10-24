@@ -73,6 +73,10 @@ final class CommunityRaceStandings {
                 }
             }
             if (!valid) continue;
+            // A road-cycling time trial is a separately timed discipline and
+            // must never silently count toward a road-race points table.
+            if ("Ciclismo de Estrada".equals(round.sport())
+                    && "TIME_TRIAL".equals(round.eventType())) continue;
             display.putIfAbsent(sport, round.sport().trim());
             Map<Long, Tally> players = totals.computeIfAbsent(sport, unused -> new HashMap<>());
             for (CommunityRoundEntryResponse entry : round.entries()) {
