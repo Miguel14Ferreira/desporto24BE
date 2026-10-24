@@ -70,4 +70,45 @@ class CommunityInlineSpeedResultsTest {
                 () -> CommunityRoundEventType.validateEntries(
                         "Patinagem", "INLINE_TRACK_200_TT", List.of(timed("ana", "18.43"))));
     }
+
+    @Test void firstRoundHeatsOnTrackAndRoadKeepSeparateTimedContracts() {
+        var entered = List.of(timed("ana", "45.37"), timed("bruno", "45.98"),
+                timed("sem-tempo", null));
+        for (String type : List.of("INLINE_TRACK_500D_FIRST_ROUND",
+                "INLINE_ROAD_LAP_FIRST_ROUND")) {
+            assertTrue(CommunityInlineSpeedResults.isRecordedTimeEvent(type));
+            assertEquals(type, CommunityRoundEventType.validate(
+                    "Patinagem de Velocidade", type));
+            assertTrue(CommunityRoundEventType.isRaceEvent("Patinagem de Velocidade", type));
+            assertFalse(CommunityRoundEventType.isNeutralEvent("Patinagem de Velocidade", type));
+            assertFalse(CommunityRoundEventType.isChampionshipRaceEvent(
+                    "Patinagem de Velocidade", type));
+            assertDoesNotThrow(() -> CommunityRaceMetrics.validate(
+                    "Patinagem de Velocidade", type, entered));
+            assertDoesNotThrow(() -> CommunityRoundEventType.validateEntries(
+                    "Patinagem de Velocidade", type, entered));
+            assertThrows(IllegalArgumentException.class,
+                    () -> CommunityRoundEventType.validateEntries(
+                            "Patinagem de Velocidade", type,
+                            List.of(skater("ana", "45.37", CommunityMatchResult.DRAW, 1, null, 0))));
+            assertThrows(IllegalArgumentException.class,
+                    () -> CommunityRoundEventType.validateEntries(
+                            "Patinagem de Velocidade", type,
+                            List.of(timed("ana", "45.374"))));
+            assertThrows(IllegalArgumentException.class,
+                    () -> CommunityRoundEventType.validateEntries(
+                            "Patinagem de Velocidade", type,
+                            List.of(timed("ana", "45.37"), timed(" ANA ", "47.00"))));
+            assertThrows(IllegalArgumentException.class,
+                    () -> CommunityRoundEventType.validate("Patinagem Artística", type));
+        }
+        assertFalse(CommunityInlineSpeedResults.isRecordedTimeEvent("INLINE_TRACK_POINTS"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validate(
+                        "Patinagem de Velocidade", "INLINE_TRACK_500D_FINAL"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validate(
+                        "Patinagem de Velocidade", "INLINE_ROAD_LAP_FINAL"));
+        assertTrue(CommunityInlineSpeedResults.isRecordedTimeEvent("INLINE_TRACK_200_TT"));
+    }
 }
