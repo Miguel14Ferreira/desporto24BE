@@ -54,6 +54,35 @@ class CommunityPublicDiscoveryTest {
 
 
     @Test
+    void emptySearchIncludesPublicAndPrivateCommunitiesInStablePagedOrder() {
+        Profile owner = new Profile();
+        owner.setUsername("both-visibility-discovery-fixture");
+        entityManager.persist(owner);
+
+        persist(owner, "A - aberta", CommunityVisibility.PUBLIC);
+        persist(owner, "B - privada", CommunityVisibility.PRIVATE);
+        persist(owner, "C - aberta", CommunityVisibility.PUBLIC);
+        entityManager.flush();
+        entityManager.clear();
+
+        var first = repository.searchPresentations("", "", PageRequest.of(0, 2));
+        assertEquals(java.util.List.of("A - aberta", "B - privada"),
+                first.getContent().stream().map(x -> x.name()).toList());
+        assertEquals(java.util.List.of(CommunityVisibility.PUBLIC, CommunityVisibility.PRIVATE),
+                first.getContent().stream().map(x -> x.visibility()).toList());
+        assertTrue(first.hasNext());
+
+        var second = repository.searchPresentations("", "", PageRequest.of(1, 2));
+        assertEquals(java.util.List.of("C - aberta"),
+                second.getContent().stream().map(x -> x.name()).toList());
+        assertFalse(second.hasNext());
+
+        var privateFiltered = repository.searchPresentations("privada", "", PageRequest.of(0, 20));
+        assertEquals(1, privateFiltered.getContent().size());
+        assertEquals(CommunityVisibility.PRIVATE, privateFiltered.getContent().get(0).visibility());
+    }
+
+    @Test
     void filteredSearchMatchesLegacyAndAnySelectedSportWithoutDuplicates() {
         Profile owner = new Profile();
         owner.setUsername("multi-sport-discovery-fixture");
