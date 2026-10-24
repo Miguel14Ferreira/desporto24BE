@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Date;
+import java.time.Instant;
+import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -49,6 +51,7 @@ public class JWTokenProvider {
                 .withIssuedAt(new Date()).withSubject(profilePrincipal.getUsername())
                 .withClaim(TOKEN_VERSION, profilePrincipal.getProfile().getTokenVersion())
                 .withClaim(TOKEN_TYPE, REFRESH_TOKEN_TYPE)
+                .withJWTId(UUID.randomUUID().toString())
                 .withExpiresAt(new Date(System.currentTimeMillis() + refreshExpirationTimeMs))
                 .sign(HMAC512(secret.getBytes()));
     }
@@ -59,6 +62,14 @@ public class JWTokenProvider {
         return REFRESH_TOKEN_TYPE.equals(type)
                 && StringUtils.isNotEmpty(username)
                 && !isTokenExpired(verifier, token);
+    }
+
+    public String getRefreshTokenId(String token) {
+        return getJWTVerifier().verify(token).getId();
+    }
+
+    public Instant getRefreshTokenExpiry(String token) {
+        return getJWTVerifier().verify(token).getExpiresAt().toInstant();
     }
 
     public List<GrantedAuthority> getAuthorities(String token){
