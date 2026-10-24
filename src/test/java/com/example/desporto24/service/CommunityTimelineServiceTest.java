@@ -323,6 +323,160 @@ class CommunityTimelineServiceTest {
         order.verify(media).delete("community-posts/7/previous.png");
     }
 
+    private com.example.desporto24.storage.PrivateChatFileStorage stubPrivateChatStorage() {
+        var storage = mock(com.example.desporto24.storage.PrivateChatFileStorage.class);
+        ReflectionTestUtils.setField(service, "privateChatStorage", storage);
+        return storage;
+    }
+
+    @Test
+    void communityPrivateAttachmentsAreMemberOnlyAndFailClosedIfBucketIsUnavailable() {
+        setup(outsider, false);
+        var storage = stubPrivateChatStorage();
+        assertThrows(AccessDeniedException.class,
+                () -> service.chatAttachmentsAvailable(7L, "outsider"));
+        assertThrows(AccessDeniedException.class,
+                () -> service.postChatAttachment(7L,
+                        new MockMultipartFile("file", "x.pdf", "application/pdf", new byte[] {1}),
+                        "", "outsider", null));
+        assertThrows(AccessDeniedException.class,
+                () -> service.downloadChatAttachment(7L, 123L, "outsider"));
+        verifyNoInteractions(storage, timelines);
+    }
+
+    @Test
+    void communityMemberOnlySeesPrivateAvailabilityAfterHeadBucketSucceeds() {
+        setup(member, true);
+        var storage = stubPrivateChatStorage();
+        when(storage.isConfigured()).thenReturn(false, true);
+        assertFalse(service.chatAttachmentsAvailable(7L, "member"));
+        assertTrue(service.chatAttachmentsAvailable(7L, "member"));
+        verify(storage, times(2)).isConfigured();
+        verifyNoInteractions(timelines);
+    }
+
+    @Test
+    void memberCanSendPrivateChatFileWithVerifiedReplyAndAfterCommitAudience() {
+        setup(member, true);
+        var storage = stubPrivateChatStorage();
+        MockMultipartFile pdf = new MockMultipartFile("file", "treino.pdf",
+                "application/pdf", new byte[] {1, 2, 3});
+        String key = "private-chat/12345678-1111-2222-3333-999999999999.pdf";
+        var parent = entry(41L, Kind.CHAT, owner);
+        when(timelines.findById(41L)).thenReturn(Optional.of(parent));
+        when(storage.store(pdf)).thenReturn(
+                new com.example.desporto24.storage.PrivateChatFileStorage.StoredFile(
+                        key, "treino.pdf", "application/pdf", 3L));
+        when(timelines.save(any())).thenAnswer(inv -> {
+            CommunityTimelineEntry sent = inv.getArgument(0);
+            sent.setId(42L);
+            return sent;
+        });
+        when(members.findByCommunityIdOrderByJoinedAtAsc(7L)).thenReturn(List.of(
+                CommunityMember.builder().profile(member).build()));
+        var response = service.postChatAttachment(7L, pdf, " ", "member", 41L);
+        assertEquals(42L, response.id());
+        assertEquals(41L, response.replyToMessageId());
+        assertEquals("Mensagem", response.replyToText());
+        assertEquals("📎 treino.pdf", response.body());
+        assertEquals("treino.pdf", response.attachmentName());
+        assertEquals("application/pdf", response.attachmentMimeType());
+        assertEquals(3L, response.attachmentSize());
+        assertNull(response.imageUrl());
+        assertNull(response.videoUrl());
+        assertFalse(response.toString().contains(key));
+        verify(timelines).save(argThat(e -> key.equals(e.getAttachmentKey())
+                && e.getKind() == Kind.CHAT && e.getImageUrl() == null && e.getVideoUrl() == null));
+        verify(timelines).flush();
+        var events = org.mockito.ArgumentCaptor.forClass(CommunityChatMessageCreatedEvent.class);
+        verify(eventPublisher).publishEvent(events.capture());
+        assertEquals(java.util.Set.of("member", "owner"), events.getValue().recipients());
+        assertEquals(42L, events.getValue().message().id());
+        verify(storage, never()).delete(anyString());
+    }
+
+    @Test
+    void communityPrivateChatRejectsForeignRepliesBeforeStoringAnything() {
+        setup(member, true);
+        var storage = stubPrivateChatStorage();
+        var parent = entry(55L, Kind.CHAT, owner);
+        parent.setCommunity(Community.builder().id(9L).owner(owner).build());
+        when(timelines.findById(55L)).thenReturn(Optional.of(parent));
+        MockMultipartFile pdf = new MockMultipartFile("file", "treino.pdf",
+                "application/pdf", new byte[] {1});
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.postChatAttachment(7L, pdf, "", "member", 55L))
+                .getStatusCode().value());
+        parent.setCommunity(group);
+        parent.setKind(Kind.POST);
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.postChatAttachment(7L, pdf, "", "member", 55L))
+                .getStatusCode().value());
+        verifyNoInteractions(storage);
+        verify(timelines, never()).save(any());
+    }
+
+    @Test
+    void communityChatFilePersistenceFailureDeletesUploadedPrivateObject() {
+        setup(owner, true);
+        var storage = stubPrivateChatStorage();
+        MockMultipartFile pdf = new MockMultipartFile("file", "doc.pdf",
+                "application/pdf", new byte[] {1});
+        String key = "private-chat/12345678-1111-2222-3333-888888888888.pdf";
+        when(storage.store(pdf)).thenReturn(
+                new com.example.desporto24.storage.PrivateChatFileStorage.StoredFile(
+                        key, "doc.pdf", "application/pdf", 1L));
+        when(timelines.save(any())).thenThrow(new IllegalStateException("DB unavailable"));
+        assertThrows(IllegalStateException.class,
+                () -> service.postChatAttachment(7L, pdf, "", "owner", null));
+        verify(storage).delete(key);
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void chatFileDownloadsRequireCurrentMembershipMatchingCommunityAndChatKind() {
+        setup(member, true);
+        var storage = stubPrivateChatStorage();
+        String key = "private-chat/12345678-1111-2222-3333-777777777777.pdf";
+        var chat = entry(73L, Kind.CHAT, owner);
+        chat.setAttachmentKey(key);
+        chat.setAttachmentName("jogo.pdf");
+        chat.setAttachmentMimeType("application/pdf");
+        when(timelines.findById(73L)).thenReturn(Optional.of(chat));
+        when(storage.read(key)).thenReturn(new byte[] {1, 3, 5});
+        var file = service.downloadChatAttachment(7L, 73L, "member");
+        assertArrayEquals(new byte[] {1, 3, 5}, file.content());
+        assertEquals("jogo.pdf", file.filename());
+        verify(storage).read(key);
+
+        chat.setCommunity(Community.builder().id(9L).owner(owner).build());
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.downloadChatAttachment(7L, 73L, "member")).getStatusCode().value());
+        chat.setCommunity(group);
+        chat.setKind(Kind.POST);
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.downloadChatAttachment(7L, 73L, "member")).getStatusCode().value());
+        chat.setKind(Kind.CHAT);
+        chat.setAttachmentKey(null);
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.downloadChatAttachment(7L, 73L, "member")).getStatusCode().value());
+        verify(storage, times(1)).read(anyString());
+    }
+
+    @Test
+    void moderatorDeletingChatAlsoDeletesItsPrivateObject() {
+        setup(owner, true);
+        var storage = stubPrivateChatStorage();
+        var chat = entry(75L, Kind.CHAT, member);
+        chat.setAttachmentKey("private-chat/12345678-1111-2222-3333-666666666666.pdf");
+        when(timelines.findById(75L)).thenReturn(Optional.of(chat));
+        service.delete(7L, Kind.CHAT, 75L, "owner");
+        var order = inOrder(timelines, storage);
+        order.verify(timelines).delete(chat);
+        order.verify(timelines).flush();
+        order.verify(storage).delete(chat.getAttachmentKey());
+    }
+
     private CommunityTimelineEntry entry(Long id, Kind kind, Profile actor) {
         return CommunityTimelineEntry.builder()
                 .id(id).community(group).kind(kind).author(actor)
