@@ -30,6 +30,8 @@ final class CommunityRoundEventType {
             Map.entry("Esgrima", List.of("FENCING_POOL_5", "FENCING_DE_15")),
             Map.entry("Teqball", List.of("TEQBALL_SINGLES", "TEQBALL_DOUBLES")),
             Map.entry("Xadrez", List.of("CHESS_GAME")),
+            Map.entry("Taekwondo", List.of("TKD_KYORUGI_BEST3", "TKD_POOMSAE_RECOGNIZED",
+                    "TKD_POOMSAE_FREESTYLE")),
             Map.entry("Karaté", List.of("KARATE_KUMITE_POINTS", "KARATE_KUMITE_SENSHU",
                     "KARATE_KUMITE_HANTEI", "KARATE_KATA_JUDGES")),
             Map.entry("Judo", List.of("JUDO_IPPON", "JUDO_AWASETE_IPPON",
@@ -96,6 +98,10 @@ final class CommunityRoundEventType {
                 || CommunityTeamFinalResults.isTeamFinalEvent(type)) return;
         if (CommunityGolfStrokeResults.isGolfStrokeEvent(type)) {
             CommunityGolfStrokeResults.validate(sport, type, entries);
+            return;
+        }
+        if (CommunityTaekwondoResults.isTaekwondoEvent(type)) {
+            CommunityTaekwondoResults.validate(sport, type, entries);
             return;
         }
         if (CommunityKarateResults.isKarateEvent(type)) {
