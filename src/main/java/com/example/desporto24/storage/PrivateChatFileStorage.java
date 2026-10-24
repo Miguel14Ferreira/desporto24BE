@@ -91,7 +91,13 @@ public class PrivateChatFileStorage {
         if (bucket == null || bucket.isBlank() || bucket.equals(s3.getBucket())
                 || s3.getEndpoint() == null || s3.getEndpoint().isBlank()
                 || settings.getPrivateAccessKey() == null || settings.getPrivateAccessKey().isBlank()
-                || settings.getPrivateSecretKey() == null || settings.getPrivateSecretKey().isBlank()) return false;
+                || settings.getPrivateSecretKey() == null || settings.getPrivateSecretKey().isBlank()
+                // A copied feed token defeats credential isolation even when bucket names differ.
+                // Fail closed before any R2 request; private media requires its own R2 API token.
+                || (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()
+                    && s3.getAccessKey().equals(settings.getPrivateAccessKey()))
+                || (s3.getSecretKey() != null && !s3.getSecretKey().isBlank()
+                    && s3.getSecretKey().equals(settings.getPrivateSecretKey()))) return false;
         try {
             URI uri = URI.create(s3.getEndpoint());
             return "https".equalsIgnoreCase(uri.getScheme())
