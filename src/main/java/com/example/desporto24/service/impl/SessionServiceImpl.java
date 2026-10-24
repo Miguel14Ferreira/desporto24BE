@@ -300,6 +300,27 @@ public class SessionServiceImpl implements SessionService {
                 session.getGamePhoto());
     }
 
+    private boolean canAccessCommunitySession(Session session, Profile viewer) {
+        // Old sessions may predate SessionAudience. A linked community
+        // without an explicit PUBLIC audience is still members-only.
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() == null) {
+            return false;
+        }
+        if (session.getCommunity() == null
+                || session.getAudience() == SessionAudience.PUBLIC) {
+            return true;
+        }
+        return communityMemberRepository.existsByCommunityIdAndProfileId(
+                session.getCommunity().getId(), viewer.getId());
+    }
+
+    private void requireCommunitySessionAccess(Session session, Profile viewer) {
+        if (!canAccessCommunitySession(session, viewer)) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
+    }
+
     @Override
     @Transactional(readOnly = true)
     public SessionDetailResponse getById(Long sessionId, String username) {
@@ -307,12 +328,7 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile viewer = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
-                && session.getCommunity() != null
-                && !communityMemberRepository.existsByCommunityIdAndProfileId(
-                        session.getCommunity().getId(), viewer.getId())) {
-            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
-        }
+        requireCommunitySessionAccess(session, viewer);
         return sessionViewMapper.toDetail(session, viewer);
     }
 
@@ -324,12 +340,7 @@ public class SessionServiceImpl implements SessionService {
         Profile viewer = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
-                && session.getCommunity() != null
-                && !communityMemberRepository.existsByCommunityIdAndProfileId(
-                        session.getCommunity().getId(), viewer.getId())) {
-            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
-        }
+        requireCommunitySessionAccess(session, viewer);
 
         if (session.getRecurrenceSeriesId() == null || session.getRecurrenceSeriesId().isBlank()) {
             return List.of(sessionViewMapper.toSummary(session, null, viewer));
@@ -351,10 +362,7 @@ public class SessionServiceImpl implements SessionService {
                 .findSessionIdsByProfile(sessionIds, viewer.getId());
 
         return seriesSessions.stream()
-                .filter(item -> item.getAudience() != SessionAudience.COMMUNITY_ONLY
-                        || item.getCommunity() == null
-                        || communityMemberRepository.existsByCommunityIdAndProfileId(
-                                item.getCommunity().getId(), viewer.getId()))
+                .filter(item -> canAccessCommunitySession(item, viewer))
                 .map(item -> sessionViewMapper.toSummary(
                         item, null, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .toList();
@@ -513,12 +521,7 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
-                && session.getCommunity() != null
-                && !communityMemberRepository.existsByCommunityIdAndProfileId(
-                        session.getCommunity().getId(), profile.getId())) {
-            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
-        }
+        requireCommunitySessionAccess(session, profile);
         Instant joinAt = Instant.now();
         reliabilityService.requireJoinAllowed(profile, joinAt);
 
