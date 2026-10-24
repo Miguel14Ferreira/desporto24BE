@@ -161,6 +161,33 @@ public class CommunityCompetitionService {
         return trackSprintBracketResponse(bracket, List.of());
     }
 
+    public void deleteTrackSprintBracket(Long communityId, Long seasonId,
+            Long bracketId, String username) {
+        requireAdmin(communityId, profile(username));
+        CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Época não encontrada"));
+        if (!season.isActive())
+            throw new IllegalStateException("Não podes apagar um quadro de época encerrada");
+        CommunityTrackSprintBracket bracket = trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId, communityId, seasonId)
+                .orElseThrow(() -> new IllegalArgumentException("Quadro não encontrado"));
+        String prefix = "SP" + bracketId + "-";
+        boolean containsHeats = roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId)
+                .stream().anyMatch(r -> r.getSprintSeriesKey() != null
+                        && r.getSprintSeriesKey().startsWith(prefix));
+        if (containsHeats)
+            throw new IllegalStateException("Apaga as mangas do quadro antes de o eliminar");
+        trackSprintBracketRepository.delete(bracket);
+        trackSprintBracketRepository.flush();
+    }
+
+    private void protectSprintQualification(Long communityId, Long roundId) {
+        if (trackSprintBracketRepository.existsByCommunityIdAndQualifyingRoundId(communityId, roundId))
+            throw new IllegalStateException(
+                    "O resultado dos 200 m já suporta um quadro Sprint; elimina primeiro o quadro");
+    }
+
     @Transactional(readOnly = true)
     public List<CommunityTrackSprintBracketDtos.Overview> trackSprintBrackets(
             Long communityId, Long seasonId, String username) {
@@ -307,6 +334,7 @@ public class CommunityCompetitionService {
         if (request.penaltyPoints() > 0 && (request.reason() == null || request.reason().isBlank()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Indica o motivo da penalização");
+        protectSprintQualification(communityId, roundId);
         CommunityRoundEntry entry = entryRepository.findById(entryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Participante não encontrado"));
@@ -342,6 +370,7 @@ public class CommunityCompetitionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Não podes alterar decisões de épocas encerradas");
         }
+        protectSprintQualification(communityId, roundId);
         CommunityRoundEntry entry = entryRepository.findById(entryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Participante não encontrado"));
@@ -729,8 +758,7 @@ public class CommunityCompetitionService {
             if (laterHeatExists)
                 throw new IllegalStateException("Apaga primeiro as mangas seguintes desta série Sprint");
         }
-        if (trackSprintBracketRepository.existsByCommunityIdAndQualifyingRoundId(communityId, roundId))
-            throw new IllegalStateException("Este resultado dos 200 m suporta um quadro Sprint; elimina primeiro o quadro");
+        protectSprintQualification(communityId, roundId);
         preventBracketAncestorRemoval(communityId, round);
         entryRepository.deleteByRoundId(roundId);
         roundRepository.delete(round);
