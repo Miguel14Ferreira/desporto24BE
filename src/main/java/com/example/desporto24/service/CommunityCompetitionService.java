@@ -477,6 +477,26 @@ public class CommunityCompetitionService {
                 .findByCommunityIdAndActiveTrue(communityId)
                 .orElse(null);
 
+        // Grouping is opt-in. Explicit keys are isolated by community and season.
+        // Lock the season to serialize concurrent writes to the same series.
+        List<CommunityRoundResponse> existingSprintHeats = List.of();
+        if (request.sprintSeriesKey() != null && !request.sprintSeriesKey().isBlank()
+                && "TRACK_SPRINT_HEAT".equals(resolvedEventType)) {
+            if (activeSeason == null) {
+                throw new IllegalArgumentException("Cria uma época ativa antes de agrupar mangas de Sprint");
+            }
+            activeSeason = seasonRepository.lockByIdAndCommunityId(activeSeason.getId(), communityId)
+                    .orElseThrow(() -> new IllegalArgumentException("Época indisponível"));
+            AcceptedAliases aliases = acceptedAliasProfiles(communityId);
+            existingSprintHeats = roundRepository
+                    .findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                            communityId, activeSeason.getId(), request.sprintSeriesKey().trim())
+                    .stream().map(item -> roundResponse(item, aliases)).toList();
+        }
+        CommunityTrackSprintSeries.validate(resolvedEventType, resolvedDiscipline,
+                request.sprintSeriesKey(), request.sprintHeatNumber(),
+                existingSprintHeats, request.entries());
+
         CommunityRound round = roundRepository.save(CommunityRound.builder()
                 .community(community)
                 .season(activeSeason)
@@ -484,6 +504,9 @@ public class CommunityCompetitionService {
                 .sport(resolvedSport)
                 .eventType(resolvedEventType)
                 .eventDiscipline(resolvedDiscipline)
+                .sprintSeriesKey(request.sprintSeriesKey() == null || request.sprintSeriesKey().isBlank()
+                        ? null : request.sprintSeriesKey().trim())
+                .sprintHeatNumber(request.sprintHeatNumber())
                 .groupScoresJson(groupScoresJson)
                 .basketballPointsA(basketballScore == null ? null : basketballScore.sideA())
                 .basketballPointsB(basketballScore == null ? null : basketballScore.sideB())
