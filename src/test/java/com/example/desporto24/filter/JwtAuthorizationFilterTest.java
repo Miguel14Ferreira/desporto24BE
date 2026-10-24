@@ -137,6 +137,41 @@ class JwtAuthorizationFilterTest {
         verify(chain).doFilter(request, response);
     }
 
+    @Test
+    void missingEnabledFlagCannotAuthenticateEvenWithValidSignedToken() throws Exception {
+        assertProfileWithoutExplicitActiveFlagsIsDenied(true);
+    }
+
+    @Test
+    void missingNotLockedFlagCannotAuthenticateEvenWithValidSignedToken() throws Exception {
+        assertProfileWithoutExplicitActiveFlagsIsDenied(false);
+    }
+
+    private void assertProfileWithoutExplicitActiveFlagsIsDenied(boolean missingEnabled)
+            throws Exception {
+        JWTokenProvider provider = mock(JWTokenProvider.class);
+        ProfileRepository repository = mock(ProfileRepository.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+        Profile profile = activeProfile(3L);
+        if (missingEnabled) profile.setEnabled(null);
+        else profile.setNotLocked(null);
+
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Authorization")).thenReturn("Bearer token");
+        when(provider.getSubject("token")).thenReturn("miguel");
+        when(provider.getTokenVersion("token")).thenReturn(3L);
+        when(repository.findUserByUsername("miguel")).thenReturn(Optional.of(profile));
+
+        new JwtAuthorizationFilter(provider, repository)
+                .doFilterInternal(request, response, chain);
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(provider, never()).getAuthentication(anyString(), anyList(), any());
+        verify(chain).doFilter(request, response);
+    }
+
     private Profile activeProfile(long version) {
         Profile profile = new Profile();
         profile.setUsername("miguel");

@@ -19,11 +19,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +41,30 @@ class GoogleAuthenticationServiceTest {
     @Mock private MFAVerificationService mfaVerificationService;
     @Mock private NotificationsRepository notificationsRepository;
     @Mock private PilotEventService pilotEventService;
+
+    @Test
+    void verifiedGoogleIdentityCannotSilentlyDisableMisconfiguredMfa() {
+        var identity = new GoogleIdentityService.GoogleIdentity(
+                "google-subject", "fixture@example.test", "Fixture", null);
+        Profile profile = new Profile();
+        profile.setUsername("fixture-user");
+        profile.setGoogleSubject("google-subject");
+        profile.setEnabled(true);
+        profile.setNotLocked(true);
+        profile.setMFA(true);
+        profile.setMfaSecret(null);
+        when(googleIdentityService.verify("google-credential")).thenReturn(identity);
+        when(profileRepository.findByGoogleSubject("google-subject"))
+                .thenReturn(Optional.of(profile));
+
+        var denied = assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service().authenticate("google-credential"));
+
+        assertEquals(org.springframework.http.HttpStatus.FORBIDDEN, denied.getStatusCode());
+        assertTrue(profile.getMFA());
+        verify(profileRepository, never()).save(any(Profile.class));
+        verifyNoInteractions(jwtTokenProvider, mfaVerificationService);
+    }
 
     @Test
     void googleRegistrationPersistsLegalAcceptanceEvidence() {

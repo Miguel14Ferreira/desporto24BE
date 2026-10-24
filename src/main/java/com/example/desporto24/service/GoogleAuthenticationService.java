@@ -23,6 +23,8 @@ import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.utility.JWTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,9 +93,12 @@ public class GoogleAuthenticationService {
             profile.setEnabled(true);
         }
 
+        // A verified Google identity does not authorize silently removing
+        // an already enabled second factor.
         if (Boolean.TRUE.equals(profile.getMFA())
                 && (profile.getMfaSecret() == null || profile.getMfaSecret().isBlank())) {
-            profile.setMFA(false);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "A configuração MFA desta conta necessita de recuperação.");
         }
 
         profileRepository.save(profile);
