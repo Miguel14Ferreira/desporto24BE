@@ -80,10 +80,10 @@ public class CommunityTournamentService {
         TournamentEntryType type = request.entryType() == null
                 ? TournamentEntryType.INDIVIDUAL : request.entryType();
         if (type == TournamentEntryType.TEAM &&
-                (request.playersPerTeam() == null || request.playersPerTeam() < 1
-                        || request.playersPerTeam() > 30 || selectedSport == null)) {
+                (selectedSport == null || (request.playersPerTeam() != null
+                        && (request.playersPerTeam() < 1 || request.playersPerTeam() > 30)))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Escolhe modalidade e tamanho da equipa (1 a 30 jogadores)");
+                    "Escolhe uma modalidade e, se definires um tamanho de equipa, usa 1 a 30 jogadores");
         }
         if (type == TournamentEntryType.INDIVIDUAL && request.playersPerTeam() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
