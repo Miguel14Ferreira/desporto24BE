@@ -34,6 +34,12 @@ public class RefreshTokenSession {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
+    @Column(name = "device_label", length = 80)
+    private String deviceLabel;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
     protected RefreshTokenSession() {}
 
     public RefreshTokenSession(String tokenHash, Long profileId, Instant expiresAt, Instant consumedAt) {
@@ -48,6 +54,11 @@ public class RefreshTokenSession {
         this(tokenHash, profileId, expiresAt, consumedAt);
         this.familyId = familyId;
     }
+
+    public String getDeviceLabel() { return deviceLabel; }
+    public void setDeviceLabel(String deviceLabel) { this.deviceLabel = deviceLabel; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 
     public String getFamilyId() { return familyId; }
     public void setFamilyId(String familyId) { this.familyId = familyId; }

@@ -248,6 +248,51 @@ class RefreshTokenRotationH2IntegrationTest {
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void sessionManagerListsOnlyOwnerAndRevokesOnlySelectedBrowser() {
+        Profile owner = account("owner-" + UUID.randomUUID());
+        Profile stranger = account("stranger-" + UUID.randomUUID());
+        try {
+            String one = tokens.generateRefreshToken(new ProfilePrincipal(owner));
+            String two = tokens.generateRefreshToken(new ProfilePrincipal(owner));
+            String other = tokens.generateRefreshToken(new ProfilePrincipal(stranger));
+            String firstFamily = rotation.registerIssued(owner.getUsername(), one);
+            String secondFamily = rotation.registerIssued(owner.getUsername(), two);
+            String otherFamily = rotation.registerIssued(stranger.getUsername(), other);
+
+            var listed = rotation.activeSessions(owner.getUsername(), firstFamily);
+            assertEquals(2, listed.size());
+            assertEquals(1, listed.stream().filter(t -> t.current()).count());
+            assertTrue(listed.stream().allMatch(t -> t.device() != null));
+            assertTrue(listed.stream().allMatch(t -> t.createdAt() != null));
+            assertTrue(listed.stream().noneMatch(t -> t.id().equals(otherFamily)));
+
+            assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> rotation.revokeDevice(owner.getUsername(), otherFamily));
+            assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> rotation.revokeDevice(owner.getUsername(), "untrusted-id"));
+            rotation.revokeDevice(owner.getUsername(), firstFamily);
+
+            assertFalse(rotation.accessFamilyActive(owner.getId(), firstFamily));
+            assertTrue(rotation.accessFamilyActive(owner.getId(), secondFamily));
+            assertTrue(rotation.accessFamilyActive(stranger.getId(), otherFamily));
+            assertEquals(1, rotation.activeSessions(owner.getUsername(), secondFamily).size());
+
+            assertThrows(BadCredentialsException.class,
+                    () -> rotation.rotate(one,
+                            tokens.generateRefreshToken(new ProfilePrincipal(owner)),
+                            owner.getUsername()));
+            assertDoesNotThrow(() -> rotation.rotate(two,
+                    tokens.generateRefreshToken(new ProfilePrincipal(owner)),
+                    owner.getUsername()));
+        } finally {
+            sessions.deleteAll();
+            profiles.deleteById(owner.getId());
+            profiles.deleteById(stranger.getId());
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void concurrentRefreshOfSameCookieHasExactlyOneWinner() throws Exception {
         Profile account = account("race-" + UUID.randomUUID());
         try {

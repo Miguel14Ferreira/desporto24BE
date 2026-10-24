@@ -180,3 +180,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-24-refresh-family-replay-v1.yaml
   - include:
       file: db/changelog/changes/2026-10-24-track-sprint-series-v1.yaml
+  - include:
+      file: db/changelog/changes/2026-10-24-device-sessions-v1.yaml

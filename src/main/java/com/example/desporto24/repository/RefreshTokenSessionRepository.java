@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 
 @Repository
 public interface RefreshTokenSessionRepository extends JpaRepository<RefreshTokenSession, String> {
@@ -19,4 +20,23 @@ public interface RefreshTokenSessionRepository extends JpaRepository<RefreshToke
     @Query("update RefreshTokenSession t set t.revokedAt = :at " +
             "where t.familyId = :familyId and t.revokedAt is null")
     int revokeFamily(@Param("familyId") String familyId, @Param("at") Instant at);
+
+    /** A family must belong to the authenticated profile to be visible/revocable. */
+    @Query("select t from RefreshTokenSession t " +
+            "where t.profileId = :profileId and t.familyId is not null " +
+            "and t.consumedAt is null and t.revokedAt is null " +
+            "and t.expiresAt > :now order by t.expiresAt desc")
+    List<RefreshTokenSession> activeForProfile(@Param("profileId") Long profileId,
+                                               @Param("now") Instant now);
+
+    boolean existsByProfileIdAndFamilyIdAndConsumedAtIsNullAndRevokedAtIsNullAndExpiresAtAfter(
+            Long profileId, String familyId, Instant now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update RefreshTokenSession t set t.revokedAt = :at " +
+            "where t.profileId = :profileId and t.familyId = :familyId " +
+            "and t.revokedAt is null")
+    int revokeOwnedFamily(@Param("profileId") Long profileId,
+                          @Param("familyId") String familyId,
+                          @Param("at") Instant at);
 }
