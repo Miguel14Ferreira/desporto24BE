@@ -128,6 +128,34 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsBmxRacingChampionshipWithoutAllowingFakeFootballScoring() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var request = new CreateCommunityTournamentRequest(
+                "Liga BMX Racing", null, null, null, "BMX",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+        var result = service.create(7L, "owner", request);
+        assertEquals("BMX", result.sport());
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
+                result.scoringMode());
+        verify(tournamentRepository).save(argThat(t -> "BMX".equals(t.getSport())
+                && "25,18,15,12,10,8,6,4,2,1".equals(t.getRacePointsByPlace())));
+
+        var bad = new CreateCommunityTournamentRequest(
+                "Liga BMX inválida", 3, 1, 0, "BMX",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", bad)).getStatusCode());
+        verify(tournamentRepository, times(1)).save(any(CommunityTournament.class));
+    }
+
+    @Test
     void rejectsRaceModeForFootballOrTeamCompetitions() {
         actingAsOwner(CommunityRole.OWNER);
         for (var sport : List.of("Futebol", "Natação")) {
