@@ -46,7 +46,9 @@ final class CommunityTrackSprintSeries {
         if (seriesKey == null || !seriesKey.matches("[A-Za-z0-9][A-Za-z0-9 _.\\-]{0,39}")
                 || heatNumber == null)
             throw new IllegalArgumentException("Indica uma série (até 40 caracteres) e o número da manga");
-        int maxHeats = "SPRINT_QUARTER_FINAL".equals(phase) ? 1 : 3;
+        // UCI Part III art. 3.2.050 (2026): quarterfinals, semifinals and finals
+        // all require two winning heats; a third is held only when needed.
+        int maxHeats = 3;
         if (heatNumber < 1 || heatNumber > maxHeats)
             throw new IllegalArgumentException("Número de manga incompatível com a fase Sprint");
         if (upcoming.size() != 2)
@@ -65,13 +67,13 @@ final class CommunityTrackSprintSeries {
                 throw new IllegalArgumentException("A série tem fase, ordem ou ciclistas incompatíveis");
             wins.merge(id(old.winner()), 1, Integer::sum);
         }
-        if (wins.values().stream().anyMatch(w -> w >= (maxHeats == 1 ? 1 : 2)))
+        if (wins.values().stream().anyMatch(w -> w >= 2))
             throw new IllegalArgumentException("A série já tem vencedor; não podes acrescentar mangas");
     }
 
     static String seriesWinner(String phase, List<Heat> heats) {
         if (heats.isEmpty()) return null;
-        int required = "SPRINT_QUARTER_FINAL".equals(phase) ? 1 : 2;
+        int required = 2;
         Map<String,Integer> wins = new HashMap<>();
         for (Heat heat : heats) {
             int count = wins.merge(id(heat.winner()), 1, Integer::sum);
