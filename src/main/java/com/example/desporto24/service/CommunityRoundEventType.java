@@ -25,6 +25,8 @@ final class CommunityRoundEventType {
             Map.entry("Flag Football", List.of("FLAGFOOTBALL_SCORE")),
             Map.entry("Curling", List.of("CURLING_REG", "CURLING_EXTRA")),
             Map.entry("Petanca", List.of("PETANQUE_13", "PETANQUE_11")),
+            Map.entry("Bowling", List.of("BOWLING_TENPIN")),
+            Map.entry("Bilhar", List.of("POOL_9_RACKS")),
             Map.entry("Voleibol", List.of("VOLLEYBALL_FINAL")),
             Map.entry("Voleibol de Praia", List.of("BEACH_VOLLEY_FINAL")),
             Map.entry("Futevólei", List.of(

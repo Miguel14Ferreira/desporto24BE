@@ -36,7 +36,9 @@ final class CommunityTeamFinalResults {
                 || "CURLING_REG".equals(type)
                 || "CURLING_EXTRA".equals(type)
                 || "PETANQUE_13".equals(type)
-                || "PETANQUE_11".equals(type);
+                || "PETANQUE_11".equals(type)
+                || "BOWLING_TENPIN".equals(type)
+                || "POOL_9_RACKS".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -65,6 +67,8 @@ final class CommunityTeamFinalResults {
                         "CURLING_REG".equals(eventType) || "CURLING_EXTRA".equals(eventType))
                 || "Petanca".equals(sport) && (
                         "PETANQUE_13".equals(eventType) || "PETANQUE_11".equals(eventType))
+                || "Bowling".equals(sport) && "BOWLING_TENPIN".equals(eventType)
+                || "Bilhar".equals(sport) && "POOL_9_RACKS".equals(eventType)
                 || "Hóquei no Gelo".equals(sport) && (
                         "ICE_HOCKEY_REG".equals(eventType)
                         || "ICE_HOCKEY_OT".equals(eventType)
@@ -90,6 +94,19 @@ final class CommunityTeamFinalResults {
         // at one (several stones can score in an end).
         if ("CURLING_EXTRA".equals(eventType) && score.sideA().equals(score.sideB()))
             throw new IllegalArgumentException("Após extra ends, o Curling exige um vencedor");
+        // IBF tenpin: each individual game's score is in [0, 300].
+        // These totals are organizer-confirmed; no invented ten frames/strikes.
+        if ("BOWLING_TENPIN".equals(eventType)
+                && (score.sideA() > 300 || score.sideB() > 300))
+            throw new IllegalArgumentException(
+                    "Bowling de dez pinos exige dois totais inteiros entre 0 e 300");
+        // WPA 9-ball singles: racks won per side in a *completed* match.
+        // Competition-specific race length is not inferred from the totals.
+        if ("POOL_9_RACKS".equals(eventType)
+                && (score.sideA().equals(score.sideB())
+                || Math.max(score.sideA(), score.sideB()) == 0))
+            throw new IllegalArgumentException(
+                    "Bilhar de nove bolas exige vencedor por racks num jogo concluído");
         // FIPJP: the selected untimed game targets 13, or 11 in permitted
         // league/qualifying formats. Timed/shortened games need a separate type.
         int petanqueTarget = "PETANQUE_13".equals(eventType) ? 13
@@ -117,6 +134,12 @@ final class CommunityTeamFinalResults {
         }
         if (a == 0 || b == 0)
             throw new IllegalArgumentException("Regista participantes nas duas equipas");
+        // This explicitly selected match format is 1v1, rather than
+        // claiming doubles, teams, other bowling styles or billiards games.
+        if (("BOWLING_TENPIN".equals(eventType) || "POOL_9_RACKS".equals(eventType))
+                && (a != 1 || b != 1))
+            throw new IllegalArgumentException(
+                    "Este confronto individual exige exatamente um jogador em cada lado");
         // FIPJP permits singles (1v1), doubles (2v2), or triples (3v3).
         if (petanqueTarget > 0 && (a != b || a > 3))
             throw new IllegalArgumentException(
