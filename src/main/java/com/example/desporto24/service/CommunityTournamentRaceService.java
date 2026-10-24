@@ -24,10 +24,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * An explicit Karting championship reuses existing community rounds and the
- * community race standings algorithm. No duplicate results or made-up duels.
- * This is intentionally limited to Karting until other race event contracts
- * are verified, rather than automatically enabling all 121 disciplines.
+ * Explicit Karting and BMX Racing championships reuse community rounds and the
+ * existing standings algorithm. No duplicate results or invented duels.
+ * BMX Freestyle is excluded; only validated RACE rounds are eligible.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,6 +34,12 @@ import java.util.stream.Collectors;
 public class CommunityTournamentRaceService {
     public static final String DEFAULT_POINTS = "25,18,15,12,10,8,6,4,2,1";
     private static final int MAX_ROUNDS = 100;
+    private static final Set<String> SUPPORTED_SPORTS = Set.of("karting", "bmx");
+
+    /** Explicitly limited to sports with validated race-result contracts. */
+    public static boolean supportsRaceChampionship(String sport) {
+        return sport != null && SUPPORTED_SPORTS.contains(sport.trim().toLowerCase(Locale.ROOT));
+    }
 
     private final ProfileRepository profiles;
     private final CommunityMemberRepository members;
@@ -125,10 +130,10 @@ public class CommunityTournamentRaceService {
         CommunityRound round = rounds.findById(roundId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Corrida não encontrada"));
         if (!round.getCommunity().getId().equals(communityId)
-                || !"karting".equalsIgnoreCase(Objects.toString(round.getSport(), "").trim())
+                || !tournament.getSport().equalsIgnoreCase(Objects.toString(round.getSport(), "").trim())
                 || !CommunityRoundEventType.isRaceEvent(round.getSport(), round.getEventType())) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "Escolhe uma jornada de corrida de Karting desta comunidade");
+                    "Escolhe uma jornada de corrida da modalidade deste campeonato, na mesma comunidade");
         }
         if (links.existsByTournamentIdAndRoundId(tournamentId, roundId)) {
             return calculate(communityId, tournament, username); // idempotent click
@@ -211,7 +216,7 @@ public class CommunityTournamentRaceService {
                 .map(link -> byId.get(link.getRound().getId()))
                 .filter(Objects::nonNull).toList();
         List<CommunityRoundResponse> available = all.stream()
-                .filter(r -> "karting".equalsIgnoreCase(Objects.toString(r.sport(), "").trim()))
+                .filter(r -> tournament.getSport().equalsIgnoreCase(Objects.toString(r.sport(), "").trim()))
                 .filter(r -> CommunityRoundEventType.isRaceEvent(r.sport(), r.eventType()))
                 .filter(r -> !selectedIds.contains(r.id()))
                 .limit(100).toList();
@@ -219,7 +224,7 @@ public class CommunityTournamentRaceService {
                 tournament.getRacePointsByPlace() == null
                         ? DEFAULT_POINTS : tournament.getRacePointsByPlace());
         List<CommunityRaceStandingGroupResponse> grouped = CommunityRaceStandings.calculate(
-                selected, List.of(new CommunityRaceRuleResponse("Karting", points)));
+                selected, List.of(new CommunityRaceRuleResponse(tournament.getSport(), points)));
         List<CommunityRaceStandingResponse> table = grouped.isEmpty()
                 ? List.of() : grouped.get(0).standings();
         return new CommunityTournamentRaceOverviewResponse(
@@ -233,8 +238,9 @@ public class CommunityTournamentRaceService {
         if (!tournament.getCommunity().getId().equals(communityId)
                 || tournament.getScoringMode() != TournamentScoringMode.RACE_POINTS
                 || tournament.getEntryType() != TournamentEntryType.INDIVIDUAL
-                || tournament.getFormat() != TournamentFormat.LEAGUE) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Campeonato de Karting não encontrado");
+                || tournament.getFormat() != TournamentFormat.LEAGUE
+                || !supportsRaceChampionship(tournament.getSport())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Campeonato por corridas não encontrado");
         }
         return tournament;
     }
