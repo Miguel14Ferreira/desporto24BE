@@ -187,4 +187,20 @@ class CommunityRaceStandingsTest {
         assertEquals(1, standings.get(0).standings().size());
         assertEquals(33L, standings.get(0).standings().get(0).playerId());
     }
+
+    @Test void timedInlineTrackSkatingDoesNotProduceCertifiedChampionshipStandings() {
+        var timeTrial = new CommunityRoundResponse(230L, "200m pista",
+                Instant.parse("2026-10-24T10:00:00Z"),
+                List.of(driver(101, 101, "Ana", null, 0)),
+                "Patinagem de Velocidade", null, List.of(), "INLINE_TRACK_200_TT");
+        var historical = race(231, "Patinagem de Velocidade",
+                driver(102, 102, "Histórico", 1, 0));
+        var rule = new CommunityRaceRuleResponse("Patinagem de Velocidade", List.of(25, 18));
+        assertTrue(CommunityRaceStandings.calculate(List.of(timeTrial), List.of(rule)).isEmpty());
+        var groups = CommunityRaceStandings.calculate(List.of(timeTrial, historical), List.of(rule));
+        assertEquals(1, groups.size());
+        assertEquals(1, groups.get(0).standings().size());
+        assertEquals(102L, groups.get(0).standings().get(0).playerId());
+        assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
+    }
 }
