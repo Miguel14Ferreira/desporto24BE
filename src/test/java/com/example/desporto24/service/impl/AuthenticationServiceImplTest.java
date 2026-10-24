@@ -443,6 +443,38 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void passwordLoginWithEnabledMfaButMissingSecretFailsClosed() {
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(null);
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+
+        ResponseStatusException denied = assertThrows(ResponseStatusException.class,
+                () -> service().login(credentials()));
+
+        assertEquals(HttpStatus.FORBIDDEN, denied.getStatusCode());
+        assertTrue(profile.getMFA(), "A missing secret must NEVER disable MFA");
+        verify(profileRepository, never()).save(any(Profile.class));
+        verifyNoInteractions(jwtTokenProvider, mfaVerificationService);
+    }
+
+    @Test
+    void passwordLoginWithEnabledMfaButBlankSecretFailsClosed() {
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret("   ");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+
+        ResponseStatusException denied = assertThrows(ResponseStatusException.class,
+                () -> service().login(credentials()));
+
+        assertEquals(HttpStatus.FORBIDDEN, denied.getStatusCode());
+        assertTrue(profile.getMFA());
+        verify(profileRepository, never()).save(any(Profile.class));
+        verifyNoInteractions(jwtTokenProvider, mfaVerificationService);
+    }
+
+    @Test
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
         Profile profile = activeProfile(true);
         // Configured MFA uses an authenticator secret, not an SMS challenge.
