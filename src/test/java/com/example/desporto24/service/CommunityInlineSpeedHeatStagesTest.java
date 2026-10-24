@@ -39,6 +39,8 @@ class CommunityInlineSpeedHeatStagesTest {
             assertThrows(IllegalArgumentException.class,
                     () -> CommunityRoundEventType.validate("Patinagem Artística", code));
         }
+        assertFalse(CommunityInlineSpeedResults.isPlacedHeat(null));
+        assertFalse(CommunityInlineSpeedResults.isInlineEvent(null));
         assertFalse(CommunityInlineSpeedResults.isPlacedHeat("INLINE_TRACK_200_TT"));
         assertTrue(CommunityInlineSpeedResults.isInlineEvent("INLINE_TRACK_200_TT"));
         assertTrue(CommunityInlineSpeedResults.isInlineEvent("INLINE_TRACK_500D_FIRST_ROUND"));
