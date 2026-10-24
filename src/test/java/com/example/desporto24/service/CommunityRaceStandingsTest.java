@@ -206,4 +206,26 @@ class CommunityRaceStandingsTest {
         assertEquals(102L, groups.get(0).standings().get(0).playerId());
         assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
     }
+
+    @Test void preliminaryInlineSpeedHeatsNeverCreateChampionshipStandings() {
+        var track500 = new CommunityRoundResponse(241L, "500 m +D primeira fase",
+                Instant.parse("2026-10-24T12:00:00Z"),
+                List.of(driver(111, 11, "Ana", null, 0)),
+                "Patinagem de Velocidade", null, List.of(),
+                "INLINE_TRACK_500D_FIRST_ROUND");
+        var roadLap = new CommunityRoundResponse(242L, "Uma volta estrada primeira fase",
+                Instant.parse("2026-10-24T13:00:00Z"),
+                List.of(driver(112, 22, "Bruno", null, 0)),
+                "Patinagem de Velocidade", null, List.of(),
+                "INLINE_ROAD_LAP_FIRST_ROUND");
+        var older = race(243, "Patinagem de Velocidade",
+                driver(113, 33, "Histórico", 1, 0));
+        var rules = List.of(new CommunityRaceRuleResponse(
+                "Patinagem de Velocidade", List.of(25, 18)));
+        assertTrue(CommunityRaceStandings.calculate(List.of(track500, roadLap), rules).isEmpty());
+        var result = CommunityRaceStandings.calculate(List.of(track500, older, roadLap), rules);
+        assertEquals(1, result.size());
+        assertEquals(1, result.get(0).standings().size());
+        assertEquals(33L, result.get(0).standings().get(0).playerId());
+    }
 }
