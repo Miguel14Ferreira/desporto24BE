@@ -152,4 +152,24 @@ class CommunityRaceStandingsTest {
         assertEquals(103L, groups.get(0).standings().get(0).playerId());
         assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
     }
+
+    @Test void typedOrienteeringRoutesNeverJoinGenericChampionshipStandings() {
+        var sprint = new CommunityRoundResponse(201L, "Sprint A",
+                Instant.parse("2026-10-24T10:00:00Z"),
+                List.of(driver(101, 11, "Ana", null, 0)),
+                "Orientação", null, List.of(), "FOOT_ORIENTEERING", "ORIENT_SPRINT");
+        var longCourse = new CommunityRoundResponse(202L, "Percurso longo",
+                Instant.parse("2026-10-24T11:00:00Z"),
+                List.of(driver(102, 22, "Bruno", null, 0)),
+                "Orientação", null, List.of(), "FOOT_ORIENTEERING", "ORIENT_LONG");
+        var historical = race(203, "Orientação", driver(103, 33, "Histórico", 1, 0));
+        var rule = new CommunityRaceRuleResponse("Orientação", List.of(25, 18));
+        assertTrue(CommunityRaceStandings.calculate(List.of(sprint, longCourse), List.of(rule)).isEmpty());
+        var standings = CommunityRaceStandings.calculate(
+                List.of(sprint, historical, longCourse), List.of(rule));
+        assertEquals(1, standings.size());
+        assertEquals("Orientação", standings.get(0).sport());
+        assertEquals(1, standings.get(0).standings().size());
+        assertEquals(33L, standings.get(0).standings().get(0).playerId());
+    }
 }
