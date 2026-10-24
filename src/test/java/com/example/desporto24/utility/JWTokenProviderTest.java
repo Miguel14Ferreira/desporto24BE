@@ -11,6 +11,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static com.example.desporto24.constant.SecurityConstant.TOKEN_VERSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -69,6 +71,22 @@ class JWTokenProviderTest {
                 .withExpiresAt(new Date(System.currentTimeMillis() + 60_000))
                 .sign(Algorithm.HMAC512("test-hmac-signing-secret-which-is-not-used-outside-unit-tests"));
         assertThrows(JWTVerificationException.class, () -> provider.getSubject(foreignAudienceToken));
+    }
+
+    @Test
+    void consecutiveRefreshTokensHaveDistinctSignedJwtIds() {
+        JWTokenProvider provider = provider();
+        ReflectionTestUtils.setField(provider, "refreshExpirationTimeMs", 604_800_000L);
+        Profile profile = new Profile();
+        profile.setUsername("fixture");
+        profile.setTokenVersion(12L);
+        String first = provider.generateRefreshToken(new ProfilePrincipal(profile));
+        String second = provider.generateRefreshToken(new ProfilePrincipal(profile));
+
+        assertNotEquals(first, second);
+        assertNotNull(provider.getRefreshTokenId(first));
+        assertNotEquals(provider.getRefreshTokenId(first), provider.getRefreshTokenId(second));
+        assertTrue(provider.getRefreshTokenExpiry(first).isAfter(java.time.Instant.now()));
     }
 
     private JWTokenProvider provider() {
