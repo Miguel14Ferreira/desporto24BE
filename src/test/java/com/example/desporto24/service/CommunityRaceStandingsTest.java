@@ -110,7 +110,10 @@ class CommunityRaceStandingsTest {
         var timed = new CommunityRoundResponse(101L, "Contrarrelógio", Instant.now(),
                 List.of(driver(3, 11, "Ana", 2, 0), driver(4, 22, "Rui", 1, 0)),
                 "Ciclismo de Pista", null, List.of(), "TRACK_TIME_TRIAL");
-        var group = CommunityRaceStandings.calculate(List.of(scratch, timed),
+        var flying = new CommunityRoundResponse(102L, "200m lançados", Instant.now(),
+                List.of(driver(5, 11, "Ana", 3, 0), driver(6, 22, "Rui", 1, 0)),
+                "Ciclismo de Pista", null, List.of(), "TRACK_FLYING_200");
+        var group = CommunityRaceStandings.calculate(List.of(scratch, timed, flying),
                 List.of(new CommunityRaceRuleResponse("Ciclismo de Pista", List.of(25, 18)))).get(0);
         assertEquals(11L, group.standings().get(0).playerId());
         assertEquals(25, group.standings().get(0).championshipPoints());
