@@ -190,6 +190,64 @@ class CommunityTournamentRaceServiceTest {
                 .map(CommunityRoundResponse::id).toList());
     }
 
+    private void verifiesCyclingRaceChampionship(String sport) {
+        tournament.setSport(sport);
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport(sport).eventType(null).build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        when(competition.overview(7L, "owner", null))
+                .thenReturn(overview(race(50L, sport), race(51L, sport),
+                        race(52L, "BMX"), race(53L, "Ciclismo de Estrada")));
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(
+                List.of(),
+                List.of(CommunityTournamentRaceRound.builder()
+                        .tournament(tournament).round(recorded).build()));
+
+        var standings = service.link(7L, 19L, 50L, "owner");
+
+        assertEquals(1, standings.linkedRaces().size());
+        assertEquals(sport, standings.linkedRaces().get(0).sport());
+        assertEquals(List.of(51L), standings.availableRaces().stream()
+                .map(CommunityRoundResponse::id).toList());
+        assertEquals(25, standings.standings().get(0).championshipPoints());
+        assertEquals(18, standings.standings().get(1).championshipPoints());
+        verify(links).save(argThat(link -> link.getRound().getId().equals(50L)));
+    }
+
+    @Test
+    void cyclingRaceUsesOnlyCyclingRoundsAndPreservesPositions() {
+        verifiesCyclingRaceChampionship("Ciclismo");
+    }
+
+    @Test
+    void mountainBikeRaceUsesOnlyMtbRoundsAndPreservesPositions() {
+        verifiesCyclingRaceChampionship("Mountain Bike");
+    }
+
+    @Test
+    void cyclingCannotImportMtbOrRoadSubdisciplineRoundsAndRejectsNonRaceEvent() {
+        tournament.setSport("Ciclismo");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Mountain Bike").build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        recorded.setSport("Ciclismo de Estrada");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        recorded.setSport("Ciclismo");
+        recorded.setEventType("TIME_TRIAL");
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        verify(links, never()).save(any());
+        verifyNoInteractions(competition);
+    }
+
     @Test
     void completesAndArchivesWinnerAndReadModelInOneTransaction() throws Exception {
         admin();
