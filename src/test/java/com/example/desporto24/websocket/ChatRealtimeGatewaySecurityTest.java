@@ -16,6 +16,7 @@ import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * WebSocket authentication must enforce the same suspension status as the HTTP
@@ -107,7 +108,10 @@ class ChatRealtimeGatewaySecurityTest {
                         Map.of("👍", 1L), "bob", "👍", Set.of("alice")));
 
         verify(socket, times(1)).sendMessage(any(TextMessage.class));
-        verify(socket).close(any(CloseStatus.class));
+        var closed = org.mockito.ArgumentCaptor.forClass(CloseStatus.class);
+        verify(socket).close(closed.capture());
+        // 1003 stops Angular from retrying forever with an invalid token.
+        assertEquals(CloseStatus.NOT_ACCEPTABLE.getCode(), closed.getValue().getCode());
     }
 
     @Test
