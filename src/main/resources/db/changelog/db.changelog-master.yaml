@@ -152,3 +152,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-23-community-team-final-scores.yaml
   - include:
       file: db/changelog/changes/2026-10-24-community-cricket-t20-innings.yaml
+  - include:
+      file: db/changelog/changes/2026-10-24-tournament-scoring-mode.yaml
