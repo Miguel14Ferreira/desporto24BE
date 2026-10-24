@@ -1,6 +1,7 @@
 package com.example.desporto24.websocket;
 
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.service.ChatTypingService;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +24,8 @@ class ChatReactionRealtimePayloadTest {
     @SuppressWarnings("unchecked")
     void doesNotSerializePrivateCommunityRecipientsIntoBrowserWebSocketPayload() throws Exception {
         ChatRealtimeGateway gateway = new ChatRealtimeGateway(
-                mock(JWTokenProvider.class), mock(ProfileRepository.class));
+                mock(JWTokenProvider.class), mock(ProfileRepository.class),
+                mock(ChatTypingService.class));
         WebSocketSession socket = mock(WebSocketSession.class);
         when(socket.isOpen()).thenReturn(true);
         ConcurrentHashMap<String, Set<WebSocketSession>> sessions =
@@ -54,7 +56,8 @@ class ChatReactionRealtimePayloadTest {
     @SuppressWarnings("unchecked")
     void deletionBroadcastsNullEmojiButNotInternalRecipients() throws Exception {
         ChatRealtimeGateway gateway = new ChatRealtimeGateway(
-                mock(JWTokenProvider.class), mock(ProfileRepository.class));
+                mock(JWTokenProvider.class), mock(ProfileRepository.class),
+                mock(ChatTypingService.class));
         WebSocketSession socket = mock(WebSocketSession.class);
         when(socket.isOpen()).thenReturn(true);
         ConcurrentHashMap<String, Set<WebSocketSession>> sessions =
