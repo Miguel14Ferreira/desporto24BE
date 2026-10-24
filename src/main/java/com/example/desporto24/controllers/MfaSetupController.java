@@ -12,6 +12,9 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.register.Notifications.Notifications;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.security.TotpService;
+import com.example.desporto24.security.MfaSettingsAttemptLimiter;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +31,7 @@ public class MfaSetupController {
     private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
     private final TotpService totpService;
+    private final MfaSettingsAttemptLimiter mfaSettingsAttemptLimiter;
     private final EmailService emailService;
     private final NotificationsRepository notificationsRepository;
 
@@ -35,6 +39,13 @@ public class MfaSetupController {
     public ResponseEntity<MfaSetupResponse> setup(Authentication authentication) {
         Profile profile = profileRepository.findUserByUsername(authentication.getName())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+
+        // A valid access JWT alone must NEVER be enough to reset or disable
+        // an active second factor. Users must call DELETE with their current TOTP.
+        if (Boolean.TRUE.equals(profile.getMFA())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Desativa primeiro o MFA com um código do autenticador válido.");
+        }
 
         String secret = totpService.generateSecret();
         profile.setMfaSecret(AES.encryptString(secret, profile.getUserId()));
@@ -60,11 +71,13 @@ public class MfaSetupController {
             throw new IllegalStateException("Configuração MFA não iniciada");
         }
 
+        mfaSettingsAttemptLimiter.reserveAttempt(profile.getUsername());
         String secret = AES.decryptString(profile.getMfaSecret(), profile.getUserId());
         if (!totpService.verify(secret, request.code().trim())) {
             throw new IllegalArgumentException("Código MFA inválido");
         }
 
+        mfaSettingsAttemptLimiter.resetAfterSuccess(profile.getUsername());
         profile.setMFA(true);
         Profile saved = profileRepository.save(profile);
         sendMfaSecurityNotice(saved, true);
@@ -84,11 +97,13 @@ public class MfaSetupController {
             throw new IllegalStateException("MFA não está ativo");
         }
 
+        mfaSettingsAttemptLimiter.reserveAttempt(profile.getUsername());
         String secret = AES.decryptString(profile.getMfaSecret(), profile.getUserId());
         if (!totpService.verify(secret, request.code().trim())) {
             throw new IllegalArgumentException("Código MFA inválido");
         }
 
+        mfaSettingsAttemptLimiter.resetAfterSuccess(profile.getUsername());
         profile.setMFA(false);
         profile.setMfaSecret(null);
         Profile saved = profileRepository.save(profile);
