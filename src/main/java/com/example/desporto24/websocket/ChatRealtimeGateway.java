@@ -67,7 +67,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         // One socket is bound to one account. Re-authentication on the same
         // connection must never leave this socket subscribed to two users.
         if (usernameBySessionId.containsKey(session.getId())) {
-            session.close(CloseStatus.POLICY_VIOLATION.withReason("Reconnect to change account"));
+            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Reconnect to change account"));
             return;
         }
         String token = payload.path("token").asText("");
@@ -347,8 +347,10 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
     }
 
     private void closeRevokedSession(WebSocketSession session) throws IOException {
-        afterConnectionClosed(session, CloseStatus.POLICY_VIOLATION);
-        session.close(CloseStatus.POLICY_VIOLATION.withReason("Session expired"));
+        // The Angular client treats 1003 as a terminal credential failure.
+        // 1008 would cause a reconnect loop with the revoked token.
+        afterConnectionClosed(session, CloseStatus.NOT_ACCEPTABLE);
+        session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Session expired"));
     }
 
     private void send(WebSocketSession session, String payload) throws IOException {
