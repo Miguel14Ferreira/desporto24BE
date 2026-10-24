@@ -63,6 +63,10 @@ public class CommunityTournament {
     @Column(name = "scoring_mode", length = 40)
     private TournamentScoringMode scoringMode;
 
+    // A Karting championship snapshots its own community-defined per-place points.
+    @Column(name = "race_points_by_place", length = 160)
+    private String racePointsByPlace;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     @Builder.Default
