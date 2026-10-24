@@ -5,17 +5,14 @@ import com.example.desporto24.model.dto.community.CreateCommunityRoundRequest;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.Test;
-import java.lang.reflect.RecordComponent;
-import java.util.Arrays;
 import org.junit.jupiter.api.Assertions.*;
 
 class CommunityInlineHeatEventLengthTest {
     @Test void sprintHeatNamesFitDatabaseAndRequestValidation() throws Exception {
         int dbLimit = CommunityRound.class.getDeclaredField("eventType")
                 .getAnnotation(Column.class).length();
-        RecordComponent component = Arrays.stream(CreateCommunityRoundRequest.class.getRecordComponents())
-                .filter(item -> "eventType".equals(item.getName())).findFirst().orElseThrow();
-        int validationLimit = component.getAnnotation(Size.class).max();
+        int validationLimit = CreateCommunityRoundRequest.class
+                .getDeclaredField("eventType").getAnnotation(Size.class).max();
         assertTrue(dbLimit >= 32);
         assertTrue(validationLimit >= dbLimit);
         for (String code : new String[]{
