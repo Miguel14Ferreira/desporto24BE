@@ -67,6 +67,11 @@ public class CommunityTournament {
     @Column(name = "race_points_by_place", length = 160)
     private String racePointsByPlace;
 
+    // Saved upon closing a Karting championship. Preserves races, points
+    // and podiums even if the original community rounds are edited later.
+    @Column(name = "race_final_snapshot_json", columnDefinition = "text")
+    private String raceFinalSnapshotJson;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     @Builder.Default

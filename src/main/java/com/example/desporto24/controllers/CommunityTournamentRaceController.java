@@ -25,6 +25,13 @@ public class CommunityTournamentRaceController {
         return raceService.overview(communityId, tournamentId, authentication.getName());
     }
 
+    @PostMapping("/complete")
+    public com.example.desporto24.model.dto.community.CommunityTournamentResponse complete(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            Authentication authentication) {
+        return raceService.complete(communityId, tournamentId, authentication.getName());
+    }
+
     @PutMapping("/points")
     public CommunityTournamentRaceOverviewResponse updatePoints(
             @PathVariable Long communityId, @PathVariable Long tournamentId,

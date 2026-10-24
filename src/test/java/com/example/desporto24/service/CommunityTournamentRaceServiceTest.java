@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.*;
 
@@ -31,6 +32,7 @@ class CommunityTournamentRaceServiceTest {
     @Mock CommunityRoundRepository rounds;
     @Mock CommunityTournamentRaceRoundRepository links;
     @Mock CommunityCompetitionService competition;
+    @Mock ObjectMapper json;
     @InjectMocks CommunityTournamentRaceService service;
 
     private Community community;
@@ -129,6 +131,109 @@ class CommunityTournamentRaceServiceTest {
                 assertThrows(ResponseStatusException.class,
                         () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
         verify(links, never()).save(any());
+    }
+
+    @Test
+    void completesAndArchivesWinnerAndReadModelInOneTransaction() throws Exception {
+        admin();
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Karting").build();
+        var link = CommunityTournamentRaceRound.builder()
+                .tournament(tournament).round(recorded).build();
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of(link));
+        when(competition.overview(7L, "owner", null))
+                .thenReturn(overview(race(50L, "Karting")));
+        when(json.writeValueAsString(any(CommunityTournamentRaceOverviewResponse.class)))
+                .thenReturn("{\"frozen\":true}");
+        when(tournaments.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var completed = service.complete(7L, 19L, "owner");
+
+        assertEquals(TournamentStatus.COMPLETED, completed.status());
+        assertEquals(20L, completed.championProfileId());
+        assertEquals("Ana", completed.championDisplayName());
+        assertEquals(25L, completed.championPoints());
+        assertFalse(completed.championTied());
+        assertNotNull(completed.completedAt());
+        assertEquals("{\"frozen\":true}", tournament.getRaceFinalSnapshotJson());
+        var saved = org.mockito.ArgumentCaptor.forClass(CommunityTournamentRaceOverviewResponse.class);
+        verify(json).writeValueAsString(saved.capture());
+        assertTrue(saved.getValue().availableRaces().isEmpty());
+        assertEquals(1, saved.getValue().linkedRaces().size());
+        assertEquals(2, saved.getValue().standings().size());
+    }
+
+    @Test
+    void archivedTableSurvivesFutureRoundCorrectionsAndCannotBeEdited() throws Exception {
+        admin();
+        tournament.setStatus(TournamentStatus.COMPLETED);
+        tournament.setRaceFinalSnapshotJson("{\"frozen\":true}");
+        var archived = new CommunityTournamentRaceOverviewResponse(19L, List.of(25, 18),
+                List.of(race(50L, "Karting")), List.of(),
+                List.of(new CommunityRaceStandingResponse(1, 10L, 20L, "ana", "Ana",
+                        null, 1, 1, 1, 1, 25, 0)));
+        when(json.readValue("{\"frozen\":true}", CommunityTournamentRaceOverviewResponse.class))
+                .thenReturn(archived);
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+
+        var got = service.overview(7L, 19L, "owner");
+
+        assertSame(archived, got);
+        verifyNoInteractions(competition, links);
+        assertEquals(HttpStatus.CONFLICT,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.unlink(7L, 19L, 50L, "owner")).getStatusCode());
+        assertEquals(TournamentStatus.COMPLETED,
+                service.complete(7L, 19L, "owner").status());
+        verify(tournaments, never()).save(any());
+    }
+
+    @Test
+    void refusesClosingDraftOrChampionshipWithoutLinkedRaces() {
+        admin();
+        assertEquals(HttpStatus.CONFLICT,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.complete(7L, 19L, "owner")).getStatusCode());
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of());
+        when(competition.overview(7L, "owner", null)).thenReturn(overview());
+        assertEquals(HttpStatus.CONFLICT,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.complete(7L, 19L, "owner")).getStatusCode());
+        verify(tournaments, never()).save(any());
+    }
+
+    @Test
+    void jointlyFirstDriversDoNotReceiveAnInventedSoleChampion() throws Exception {
+        admin();
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        var r1 = CommunityRound.builder().id(50L).community(community).sport("Karting").build();
+        var r2 = CommunityRound.builder().id(51L).community(community).sport("Karting").build();
+        var link1 = CommunityTournamentRaceRound.builder().tournament(tournament).round(r1).build();
+        var link2 = CommunityTournamentRaceRound.builder().tournament(tournament).round(r2).build();
+        when(links.findByTournamentIdOrderByIdAsc(19L)).thenReturn(List.of(link1, link2));
+        var first = race(50L, "Karting");
+        var swapped = new CommunityRoundResponse(51L, "Corrida 51", Instant.now(),
+                List.of(entry(10L, 20L, "Ana", 2, false),
+                        entry(11L, 21L, "Rui", 1, false)), "Karting", null, List.of(), null);
+        when(competition.overview(7L, "owner", null)).thenReturn(overview(first, swapped));
+        when(json.writeValueAsString(any(CommunityTournamentRaceOverviewResponse.class)))
+                .thenReturn("{\"tied\":true}");
+        when(tournaments.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var closed = service.complete(7L, 19L, "owner");
+
+        assertTrue(closed.championTied());
+        assertNull(closed.championProfileId());
+        assertNull(closed.championUsername());
+        assertNull(closed.championPoints());
     }
 
     @Test
