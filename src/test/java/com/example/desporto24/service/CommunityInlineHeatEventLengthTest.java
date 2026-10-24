@@ -5,7 +5,7 @@ import com.example.desporto24.model.dto.community.CreateCommunityRoundRequest;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CommunityInlineHeatEventLengthTest {
     @Test void sprintHeatNamesFitDatabaseAndRequestValidation() throws Exception {
