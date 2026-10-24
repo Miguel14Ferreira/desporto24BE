@@ -17,6 +17,7 @@ import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.GoogleAuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.security.RefreshOriginValidator;
+import com.example.desporto24.security.RefreshTokenRotationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -49,6 +50,7 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
     private final SensitiveActionRateLimiter sensitiveActionRateLimiter;
     private final RefreshOriginValidator refreshOriginValidator;
+    private final RefreshTokenRotationService refreshTokenRotationService;
     private final GoogleAuthenticationService googleAuthenticationService;
 
     @Value("${desporto.app.refreshExpirationMs:604800000}")
@@ -119,7 +121,17 @@ public class AuthenticationController {
         }
 
         LoginResponse result = authenticationService.refresh(refreshToken);
-        return withRefreshCookie(result);
+        String username = result.profile() == null ? null : result.profile().getUsername();
+        if (username == null || username.isBlank()) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+        String rotatedToken = authenticationService.createRefreshToken(username);
+        // Do not return a new access JWT or cookie until the previous refresh
+        // token is consumed atomically in the shared database.
+        refreshTokenRotationService.rotate(refreshToken, rotatedToken, username);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie(rotatedToken).toString())
+                .body(result);
     }
 
     @PostMapping("/mfa/resend")
@@ -220,6 +232,7 @@ public class AuthenticationController {
         }
 
         String refreshToken = authenticationService.createRefreshToken(username);
+        refreshTokenRotationService.registerIssued(username, refreshToken);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(refreshToken).toString())
                 .body(result);
@@ -232,6 +245,7 @@ public class AuthenticationController {
         }
 
         String refreshToken = authenticationService.createRefreshToken(username);
+        refreshTokenRotationService.registerIssued(username, refreshToken);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(refreshToken).toString())
                 .body(result);
