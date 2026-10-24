@@ -1,0 +1,35 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-refresh-token-once-v1
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: refresh_token_session
+            columns:
+              - column:
+                  name: token_hash
+                  type: VARCHAR(64)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints: { nullable: false }
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: { nullable: false }
+              - column:
+                  name: consumed_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - createIndex:
+            tableName: refresh_token_session
+            indexName: idx_refresh_session_expiry
+            columns:
+              - column: { name: expires_at }
+        - addForeignKeyConstraint:
+            baseTableName: refresh_token_session
+            baseColumnNames: profile_id
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_refresh_session_profile
+            onDelete: CASCADE
