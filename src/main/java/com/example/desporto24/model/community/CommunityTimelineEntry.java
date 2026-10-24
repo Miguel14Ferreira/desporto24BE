@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
 
-/** Text-only initial community feed and chat. Always scoped to one community. */
+/** Community-scoped posts with optional media; chat remains text-only. */
 @Entity
 @Table(name = "community_timeline_entry", indexes = {
         @Index(name = "idx_community_timeline_kind_recent",
@@ -32,6 +32,18 @@ public class CommunityTimelineEntry {
 
     @Column(nullable = false, length = 2000)
     private String body;
+
+    @Column(name = "image_url", length = 1200)
+    private String imageUrl;
+
+    @Column(name = "image_storage_key", length = 800)
+    private String imageStorageKey;
+
+    @Column(name = "video_url", length = 1200)
+    private String videoUrl;
+
+    @Column(name = "video_storage_key", length = 800)
+    private String videoStorageKey;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
