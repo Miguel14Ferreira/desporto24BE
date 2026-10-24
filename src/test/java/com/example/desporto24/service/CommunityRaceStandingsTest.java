@@ -228,4 +228,26 @@ class CommunityRaceStandingsTest {
         assertEquals(1, result.get(0).standings().size());
         assertEquals(33L, result.get(0).standings().get(0).playerId());
     }
+
+    @Test void sprintQuarterSemiAndFinalHeatsNeverBecomeGenericChampionshipPoints() {
+        var quarter = new CommunityRoundResponse(301L, "500m quarter",
+                Instant.parse("2026-10-24T11:00:00Z"),
+                List.of(driver(201, 201, "Ana", 1, 0)),
+                "Patinagem de Velocidade", null, List.of(),
+                "INLINE_TRACK_500D_QUARTER_HEAT");
+        var semi = new CommunityRoundResponse(302L, "One lap semi",
+                Instant.parse("2026-10-24T12:00:00Z"),
+                List.of(driver(202, 202, "Bruno", 2, 0)),
+                "Patinagem de Velocidade", null, List.of(),
+                "INLINE_ROAD_LAP_SEMI_HEAT");
+        var finalA = new CommunityRoundResponse(303L, "500m final A",
+                Instant.parse("2026-10-24T13:00:00Z"),
+                List.of(driver(203, 203, "Carla", 1, 0)),
+                "Patinagem de Velocidade", null, List.of(),
+                "INLINE_TRACK_500D_FINAL_A");
+        var rule = new CommunityRaceRuleResponse("Patinagem de Velocidade",
+                List.of(25, 18, 15));
+        assertTrue(CommunityRaceStandings.calculate(
+                List.of(quarter, semi, finalA), List.of(rule)).isEmpty());
+    }
 }
