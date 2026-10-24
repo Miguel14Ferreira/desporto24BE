@@ -129,4 +129,27 @@ class CommunityRaceStandingsTest {
         assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
         assertTrue(CommunityRaceStandings.calculate(List.of(newPool), List.of(rule)).isEmpty());
     }
+
+    @Test void openWaterFiveAndTenKilometresNeverJoinLegacyOrPoolStandings() {
+        var openFive = new CommunityRoundResponse(15L, "5 km",
+                Instant.parse("2026-10-24T10:00:00Z"),
+                List.of(driver(101, 101, "Ana", null, 0)),
+                "Natação em Águas Abertas", null, List.of(), "OWS_INDIVIDUAL", "OWS_5K");
+        var openTen = new CommunityRoundResponse(16L, "10 km",
+                Instant.parse("2026-10-24T12:00:00Z"),
+                List.of(driver(102, 102, "Bruno", null, 0)),
+                "Natação em Águas Abertas", null, List.of(), "OWS_INDIVIDUAL", "OWS_10K");
+        var historic = race(17, "Natação em Águas Abertas",
+                driver(103, 103, "Histórico", 1, 0));
+        var rule = new CommunityRaceRuleResponse(
+                "Natação em Águas Abertas", List.of(25, 18));
+        assertTrue(CommunityRaceStandings.calculate(List.of(openFive, openTen), List.of(rule)).isEmpty());
+        var groups = CommunityRaceStandings.calculate(
+                List.of(openFive, historic, openTen), List.of(rule));
+        assertEquals(1, groups.size());
+        assertEquals("Natação em Águas Abertas", groups.get(0).sport());
+        assertEquals(1, groups.get(0).standings().size());
+        assertEquals(103L, groups.get(0).standings().get(0).playerId());
+        assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
+    }
 }
