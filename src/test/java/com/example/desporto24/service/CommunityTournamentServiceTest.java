@@ -156,6 +156,44 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsCommunityDefinedCyclingAndMountainBikeRaceChampionships() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        for (String sport : List.of("Ciclismo", "Mountain Bike")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Campeonato " + sport, null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+            var created = service.create(7L, "owner", request);
+            assertEquals(sport, created.sport());
+            assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
+                    created.scoringMode());
+        }
+        verify(tournamentRepository, times(2)).save(argThat(t ->
+                "25,18,15,12,10,8,6,4,2,1".equals(t.getRacePointsByPlace())
+                && t.getStatus() == TournamentStatus.DRAFT));
+    }
+
+    @Test
+    void doesNotEnableOtherCyclingSubdisciplinesOrUnofficialDuelRules() {
+        actingAsOwner(CommunityRole.OWNER);
+        for (String sport : List.of("Ciclismo de Estrada", "Ciclismo de Pista",
+                "Ciclocrosse", "Triatlo")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Liga não suportada", null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", request)).getStatusCode());
+        }
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
     void rejectsRaceModeForFootballOrTeamCompetitions() {
         actingAsOwner(CommunityRole.OWNER);
         for (var sport : List.of("Futebol", "Natação")) {
