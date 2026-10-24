@@ -201,8 +201,8 @@ public class CommunityCompetitionService {
         if (!match.matches()) return;
         String slot = match.group(2);
         List<String> next = switch (slot) {
-            case "Q1", "Q2" -> List.of("S1");
-            case "Q3", "Q4" -> List.of("S2");
+            case "Q1", "Q4" -> List.of("S1");
+            case "Q2", "Q3" -> List.of("S2");
             case "S1", "S2" -> List.of("B", "G");
             default -> List.of();
         };
