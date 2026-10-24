@@ -7,7 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Completed volleyball/beach volleyball matches and separately configured footvolley
+ * Completed volleyball/beach volleyball matches, Teqball singles/doubles,
+ * and separately configured footvolley
  * matches (18-point single, 18/18/15 best-of-three, 15-point single).
  * This is not a forfeit/incomplete-team rulebook, and it does
  * not feed the generic football W/D/L standings. Scores belong to sides A/B.
@@ -19,26 +20,30 @@ final class CommunityVolleyballResults {
         return "VOLLEYBALL_FINAL".equals(eventType) || "BEACH_VOLLEY_FINAL".equals(eventType)
                 || "FOOTVOLLEY_SINGLE_18".equals(eventType)
                 || "FOOTVOLLEY_BEST_OF_3".equals(eventType)
-                || "FOOTVOLLEY_SINGLE_15".equals(eventType);
+                || "FOOTVOLLEY_SINGLE_15".equals(eventType)
+                || "TEQBALL_SINGLES".equals(eventType) || "TEQBALL_DOUBLES".equals(eventType);
     }
 
     static String validateAndEncode(String sport, String eventType,
             String matchFormat, List<CommunitySetScore> scores,
             List<CommunityRoundEntryRequest> entries) {
+        boolean teqball = "TEQBALL_SINGLES".equals(eventType)
+                || "TEQBALL_DOUBLES".equals(eventType);
         boolean footvolley = "FOOTVOLLEY_SINGLE_18".equals(eventType)
                 || "FOOTVOLLEY_BEST_OF_3".equals(eventType)
                 || "FOOTVOLLEY_SINGLE_15".equals(eventType);
         if (!("VOLLEYBALL_FINAL".equals(eventType) && "Voleibol".equals(sport)
                 || "BEACH_VOLLEY_FINAL".equals(eventType) && "Voleibol de Praia".equals(sport)
-                || footvolley && "Futevólei".equals(sport)))
+                || footvolley && "Futevólei".equals(sport)
+                || teqball && "Teqball".equals(sport)))
             throw new IllegalArgumentException("Prova de Voleibol incompatível com a modalidade");
         if (matchFormat != null && !matchFormat.isBlank())
             throw new IllegalArgumentException("Voleibol não utiliza o formato singulares/pares de raquete");
         final boolean beach = "BEACH_VOLLEY_FINAL".equals(eventType);
         final boolean footvolleySingle = "FOOTVOLLEY_SINGLE_18".equals(eventType)
                 || "FOOTVOLLEY_SINGLE_15".equals(eventType);
-        final int needed = footvolleySingle ? 1 : beach || footvolley ? 2 : 3;
-        final int maxSets = footvolleySingle ? 1 : beach || footvolley ? 3 : 5;
+        final int needed = footvolleySingle ? 1 : teqball || beach || footvolley ? 2 : 3;
+        final int maxSets = footvolleySingle ? 1 : teqball || beach || footvolley ? 3 : 5;
         if (scores == null || scores.size() < needed || scores.size() > maxSets)
             throw new IllegalArgumentException("O confronto exige os sets completos até à vitória");
 
@@ -46,10 +51,13 @@ final class CommunityVolleyballResults {
         List<String> encoded = new ArrayList<>();
         for (int i = 0; i < scores.size(); i++) {
             CommunitySetScore set = scores.get(i);
+            // Teqball sets 1-2 end at exactly 12 points (12:11 permitted),
+            // final set reaches 12 with a two-point lead, without artificial cap.
+            // Do not apply volleyball 2-point rules to the first two sets.
             // Footvolley competition formats: single 18 or 15; best-of-three 18/18/15.
             // Beach volleyball is 21/21/15; indoor is 25/25/25/25/15.
             // At least a 2-point lead; no artificial deuce cap.
-            int target = "FOOTVOLLEY_SINGLE_15".equals(eventType) ? 15
+            int target = teqball ? 12 : "FOOTVOLLEY_SINGLE_15".equals(eventType) ? 15
                     : footvolley ? i == 2 ? 15 : 18
                     : i == maxSets - 1 ? 15 : beach ? 21 : 25;
             if (set == null || set.sideA() == null || set.sideB() == null
@@ -59,7 +67,8 @@ final class CommunityVolleyballResults {
             int high = Math.max(set.sideA(), set.sideB());
             int low = Math.min(set.sideA(), set.sideB());
             // The winning side must reach the target FIRST (or win by 2 after deuce).
-            if (high < target || high - low < 2
+            if (teqball && i < 2 ? high != 12 || low >= 12
+                    : high < target || high - low < 2
                     || (low < target - 1 && high != target)
                     || (low >= target - 1 && high != low + 2))
                 throw new IllegalArgumentException("Set não cumpre a pontuação e diferença de dois pontos");
@@ -89,9 +98,12 @@ final class CommunityVolleyballResults {
                         "Voleibol guarda apenas participantes e pontos por equipa/set, não estatísticas de futebol");
         }
         // Indoor registration can be partial; footvolley and beach volleyball use pairs.
-        if (beach || footvolley ? a != 2 || b != 2 : a < 1 || b < 1)
-            throw new IllegalArgumentException(footvolley
-                    ? "Futevólei exige dois participantes registados por lado"
+        if (teqball ? "TEQBALL_SINGLES".equals(eventType) ? a != 1 || b != 1
+                    : a != 2 || b != 2
+                : beach || footvolley ? a != 2 || b != 2 : a < 1 || b < 1)
+            throw new IllegalArgumentException(teqball
+                    ? "Teqball exige 1x1 nos singulares ou 2x2 nos pares"
+                    : footvolley ? "Futevólei exige dois participantes registados por lado"
                     : beach ? "Voleibol de Praia exige dois participantes registados por lado"
                     : "Regista pelo menos um participante em cada equipa");
         return String.join(",", encoded); // Existing set_scores VARCHAR(255), no migration.

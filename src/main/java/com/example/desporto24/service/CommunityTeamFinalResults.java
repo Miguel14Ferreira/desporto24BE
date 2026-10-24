@@ -38,7 +38,9 @@ final class CommunityTeamFinalResults {
                 || "PETANQUE_13".equals(type)
                 || "PETANQUE_11".equals(type)
                 || "BOWLING_TENPIN".equals(type)
-                || "POOL_9_RACKS".equals(type);
+                || "POOL_9_RACKS".equals(type)
+                || "FENCING_POOL_5".equals(type)
+                || "FENCING_DE_15".equals(type);
     }
 
     static CommunityTeamFinalScore validate(String sport, String eventType,
@@ -69,6 +71,8 @@ final class CommunityTeamFinalResults {
                         "PETANQUE_13".equals(eventType) || "PETANQUE_11".equals(eventType))
                 || "Bowling".equals(sport) && "BOWLING_TENPIN".equals(eventType)
                 || "Bilhar".equals(sport) && "POOL_9_RACKS".equals(eventType)
+                || "Esgrima".equals(sport) && (
+                        "FENCING_POOL_5".equals(eventType) || "FENCING_DE_15".equals(eventType))
                 || "Hóquei no Gelo".equals(sport) && (
                         "ICE_HOCKEY_REG".equals(eventType)
                         || "ICE_HOCKEY_OT".equals(eventType)
@@ -107,6 +111,16 @@ final class CommunityTeamFinalResults {
                 || Math.max(score.sideA(), score.sideB()) == 0))
             throw new IllegalArgumentException(
                     "Bilhar de nove bolas exige vencedor por racks num jogo concluído");
+        // FIE individual pool and direct elimination: bouts may finish below
+        // 5/15 hits after the time limit. Equal-hit priority decisions cannot
+        // be represented without a separate priority-winner field, so reject
+        // tied totals rather than inventing an official winner.
+        int fencingMax = "FENCING_POOL_5".equals(eventType) ? 5
+                : "FENCING_DE_15".equals(eventType) ? 15 : 0;
+        if (fencingMax > 0 && (score.sideA() > fencingMax
+                || score.sideB() > fencingMax || score.sideA().equals(score.sideB())))
+            throw new IllegalArgumentException(
+                    "Esgrima: regista 1 vencedor por toques, dentro do limite da prova; decisões por prioridade não são suportadas");
         // FIPJP: the selected untimed game targets 13, or 11 in permitted
         // league/qualifying formats. Timed/shortened games need a separate type.
         int petanqueTarget = "PETANQUE_13".equals(eventType) ? 13
@@ -136,7 +150,8 @@ final class CommunityTeamFinalResults {
             throw new IllegalArgumentException("Regista participantes nas duas equipas");
         // This explicitly selected match format is 1v1, rather than
         // claiming doubles, teams, other bowling styles or billiards games.
-        if (("BOWLING_TENPIN".equals(eventType) || "POOL_9_RACKS".equals(eventType))
+        if (("BOWLING_TENPIN".equals(eventType) || "POOL_9_RACKS".equals(eventType)
+                || fencingMax > 0)
                 && (a != 1 || b != 1))
             throw new IllegalArgumentException(
                     "Este confronto individual exige exatamente um jogador em cada lado");
