@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-venue-suggestions
+      author: jynlo
+      changes:
+        - createTable:
+            tableName: venue_suggestion
+            columns:
+              - column: {name: id, type: BIGINT, autoIncrement: true, constraints: {primaryKey: true, primaryKeyName: pk_venue_suggestion, nullable: false}}
+              - column: {name: status, type: VARCHAR(16), defaultValue: PENDING, constraints: {nullable: false}}
+              - column: {name: name, type: VARCHAR(140), constraints: {nullable: false}}
+              - column: {name: city, type: VARCHAR(120), constraints: {nullable: false}}
+              - column: {name: district, type: VARCHAR(120)}
+              - column: {name: address, type: VARCHAR(255)}
+              - column: {name: sports, type: VARCHAR(255)}
+              - column: {name: submitted_by_username, type: VARCHAR(120), constraints: {nullable: false}}
+              - column: {name: submitted_at, type: TIMESTAMP WITH TIME ZONE, constraints: {nullable: false}}
+              - column: {name: request_payload, type: TEXT, constraints: {nullable: false}}
+              - column: {name: reviewed_by_username, type: VARCHAR(120)}
+              - column: {name: reviewed_at, type: TIMESTAMP WITH TIME ZONE}
+              - column: {name: published_venue_id, type: BIGINT}
+        - createIndex:
+            tableName: venue_suggestion
+            indexName: idx_venue_suggestion_review_queue
+            columns:
+              - column: {name: status}
+              - column: {name: submitted_at}
