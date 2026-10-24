@@ -49,15 +49,17 @@ class CommunityTrackSprintBracketPlannerTest {
         rounds.addAll(pair("Q3","e","f","e","e"));
         rounds.addAll(pair("Q4","g","h","h","h"));
         var semi1=match(rounds,"S1");
-        assertEquals("a",semi1.riderA()); assertEquals("d",semi1.riderB());
+        assertEquals("a",semi1.riderA()); assertEquals("h",semi1.riderB());
+        assertEquals("d",match(rounds,"S2").riderA());
+        assertEquals("e",match(rounds,"S2").riderB());
         assertEquals("READY",semi1.status());
         assertThrows(IllegalArgumentException.class,()->
                 CommunityTrackSprintBracketPlanner.validateNewHeat(BRACKET,"SP41-S1",
                         "SPRINT_SEMI_FINAL",rounds,riders("a","c")));
         assertDoesNotThrow(()->
                 CommunityTrackSprintBracketPlanner.validateNewHeat(BRACKET,"SP41-S1",
-                        "SPRINT_SEMI_FINAL",rounds,riders("d","a")));
-        rounds.add(heat("S1",1,"a","d","a"));
+                        "SPRINT_SEMI_FINAL",rounds,riders("h","a")));
+        rounds.add(heat("S1",1,"a","h","a"));
         assertEquals("IN_PROGRESS",match(rounds,"S1").status());
         assertEquals("WAITING_PREVIOUS",match(rounds,"G").status());
     }
@@ -67,13 +69,13 @@ class CommunityTrackSprintBracketPlannerTest {
         rounds.addAll(pair("Q2","c","d","d","d"));
         rounds.addAll(pair("Q3","e","f","f","f"));
         rounds.addAll(pair("Q4","g","h","h","h"));
-        rounds.addAll(pair("S1","a","d","a","a"));
-        rounds.addAll(pair("S2","f","h","h","h"));
-        assertEquals(Set.of("a","h"),Set.of(match(rounds,"G").riderA(), match(rounds,"G").riderB()));
-        assertEquals(Set.of("d","f"),Set.of(match(rounds,"B").riderA(), match(rounds,"B").riderB()));
-        rounds.addAll(pair("G","a","h","h","h"));
+        rounds.addAll(pair("S1","a","h","a","a"));
+        rounds.addAll(pair("S2","d","f","f","f"));
+        assertEquals(Set.of("a","f"),Set.of(match(rounds,"G").riderA(), match(rounds,"G").riderB()));
+        assertEquals(Set.of("h","d"),Set.of(match(rounds,"B").riderA(), match(rounds,"B").riderB()));
+        rounds.addAll(pair("G","a","f","f","f"));
         assertEquals("FINISHED",match(rounds,"G").status());
-        assertEquals("h",match(rounds,"G").winner());
+        assertEquals("f",match(rounds,"G").winner());
         assertNull(match(rounds,"B").winner()); // no invented bronze
     }
     @Test void twoWinsRequiredAndThreeHeatsAllowedOnlyForSplit() {
