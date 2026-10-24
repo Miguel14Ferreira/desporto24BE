@@ -109,15 +109,18 @@ class PrivateChatFileStorageTest {
         settings.getS3().setBucket("jynlo-public-feed");
         settings.getS3().setEndpoint("https://fake-account-id.r2.cloudflarestorage.com");
         settings.getS3().setRegion("auto");
-        settings.getS3().setAccessKey("non-secret-fixture");
-        settings.getS3().setSecretKey("non-secret-fixture");
+        settings.setPrivateAccessKey("private-test-access-key");
+        settings.setPrivateSecretKey("private-test-secret-key");
+        // Deliberately different public credentials to prove isolation.
+        settings.getS3().setAccessKey("public-test-access-key");
+        settings.getS3().setSecretKey("public-test-secret-key");
         return settings;
     }
 
     @Test
     void doesNotEnablePrivateChatForBucketNameAlone() {
         MediaStorageProperties settings = r2Settings();
-        settings.getS3().setSecretKey("");
+        settings.setPrivateSecretKey("");
         var storage = new PrivateChatFileStorage(settings);
         assertFalse(storage.isConfigured());
         var file = new MockMultipartFile("file", "jogo.pdf", "application/pdf",
