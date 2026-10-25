@@ -24,12 +24,13 @@ import static org.mockito.Mockito.*;
 class VenueEditSuggestionServiceTest {
     @Mock VenueEditSuggestionRepository submissions;
     @Mock VenueRepository venues;
+    @Mock VenueEditDecisionNotificationService decisionNotifications;
     private VenueEditSuggestionService service;
     private Venue venue;
 
     @BeforeEach
     void init() {
-        service = new VenueEditSuggestionService(submissions, venues);
+        service = new VenueEditSuggestionService(submissions, venues, decisionNotifications);
         venue = Venue.builder().id(5L).name("Campo Original").city("Lisboa")
                 .sports("Futebol").address("Rua Velha").createdAt(Instant.now()).build();
     }
@@ -77,6 +78,7 @@ class VenueEditSuggestionServiceTest {
         assertEquals("Rua Velha", venue.getAddress());
         assertEquals("Futebol", venue.getSports());
         verify(venues).save(venue);
+        verify(decisionNotifications).decision(44L, 5L, "Campo Corrigido", "player", true, "Verificado no site da autarquia");
     }
 
     @Test
@@ -104,6 +106,7 @@ class VenueEditSuggestionServiceTest {
         assertEquals("Dados não confirmados", rejected.decisionNote());
         assertEquals("Campo Original", venue.getName());
         verify(venues, never()).save(any());
+        verify(decisionNotifications).decision(44L, 5L, "Campo Original", "player", false, "Dados não confirmados");
     }
 
     @Test
