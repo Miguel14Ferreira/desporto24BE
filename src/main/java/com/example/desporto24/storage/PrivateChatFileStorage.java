@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -71,8 +71,8 @@ public class PrivateChatFileStorage {
                 try {
                     // R2 implements S3 HeadBucket. A configured name alone does
                     // not prove that the bucket exists or credentials can access it.
-                    client().headBucket(HeadBucketRequest.builder()
-                            .bucket(privateBucket()).build());
+                    client().listObjectsV2(ListObjectsV2Request.builder()
+                            .bucket(privateBucket()).prefix(PREFIX).maxKeys(1).build());
                     ready = true;
                     reportReadiness("ready", 200);
                 } catch (RuntimeException unavailable) {
