@@ -32,7 +32,8 @@ class CommunityTrackSprintPostgres16Test {
         "db/changelog/changes/2026-10-25-track-sprint-incident-decisions.yaml",
         "db/changelog/changes/2026-10-25-track-sprint-disciplinary-rulings.yaml",
         "db/changelog/changes/2026-10-25-sprint-three-up-rerun-approval.yaml",
-        "db/changelog/changes/2026-10-25-track-sprint-final-interruption.yaml");
+        "db/changelog/changes/2026-10-25-track-sprint-final-interruption.yaml",
+        "db/changelog/changes/2026-10-25-sprint-official-two-up-award.yaml");
 
     @BeforeAll
     void migrateDisposableLocalDatabaseOnly() throws Exception {
@@ -92,7 +93,7 @@ class CommunityTrackSprintPostgres16Test {
 
     @Test
     void migrationsAreIdempotentAndHistoricEightRiderDefaultSurvives() {
-        assertEquals(8, jdbc.queryForObject("select count(*) from databasechangelog " +
+        assertEquals(9, jdbc.queryForObject("select count(*) from databasechangelog " +
             "where id in ('2026-10-24-track-sprint-series-v1'," +
             "'2026-10-25-community-track-sprint-bracket8'," +
             "'2026-10-25-track-sprint-qualifying16'," +
@@ -100,7 +101,8 @@ class CommunityTrackSprintPostgres16Test {
             "'2026-10-25-track-sprint-incident-decisions'," +
             "'2026-10-25-track-sprint-disciplinary-rulings'," +
             "'2026-10-25-sprint-three-up-rerun-approval'," +
-            "'2026-10-25-track-sprint-final-interruption')", Integer.class));
+            "'2026-10-25-track-sprint-final-interruption'," +
+            "'2026-10-25-sprint-official-two-up-award')", Integer.class));
         jdbc.update("insert into community_track_sprint_bracket " +
             "(id,community_id,season_id,name,created_at) " +
             "values (81,7,6,'Existing eight riders',now())");
@@ -222,6 +224,28 @@ class CommunityTrackSprintPostgres16Test {
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update(
             "update community_track_sprint_bracket set interruption_stage = 'FABRICATED_STAGE' where id=41"));
         assertEquals(3,count("community_round"));
+    }
+
+    @Test
+    void officialAwardNullableEvidenceDoesNotAlterHistoricalBracketsOrHeats() {
+        bracket(41,7,4,42L);
+        assertNull(jdbc.queryForObject(
+            "select award_winner from community_track_sprint_incident where id=-1",
+            String.class));
+        jdbc.update("insert into community_track_sprint_incident " +
+            "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at," +
+            "decision_type,sanction_type,sanctioned_username,decision_reference,decision_reason," +
+            "decided_by,decided_at,award_winner,award_reference,award_reason,award_confirmed_by,award_confirmed_at) " +
+            "values (41,'SP41-A1',1,'FALL','Fictional intentional fall'," +
+            "'OFFICIAL_HEAT_AWARDED','organizer',now(),'DISCIPLINARY_RULING','DISQUALIFICATION'," +
+            "'synthetic_second','Fictional commissaires minutes #91','Documented fall'," +
+            "'organizer',now(),'synthetic_first','Result record #92'," +
+            "'Separate documented winner','organizer',now())");
+        assertEquals("synthetic_first",jdbc.queryForObject(
+            "select award_winner from community_track_sprint_incident where bracket_id=41",
+            String.class));
+        assertEquals(3,count("community_round")); // no fictional round inserted
+        assertEquals(1,count("community_track_sprint_incident"));
     }
 
     @Test
