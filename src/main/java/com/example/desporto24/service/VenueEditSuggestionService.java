@@ -77,11 +77,16 @@ public class VenueEditSuggestionService {
             }
         }
         if (after.isEmpty()) throw bad(HttpStatus.BAD_REQUEST, "Nenhuma alteração efetiva");
+        String sourceUrl = validateSourceUrl(request.sourceUrl());
+        if (after.containsKey("contact") && !after.get("contact").isBlank() && sourceUrl == null) {
+            throw bad(HttpStatus.BAD_REQUEST, "Indica a ligação HTTPS da fonte pública do contacto");
+        }
         var suggestion = VenueEditSuggestion.builder()
                 .venue(venue)
                 .beforeJson(json(before))
                 .changesJson(json(after))
                 .reason(request.reason().trim())
+                .sourceUrl(sourceUrl)
                 .submittedByUsername(username)
                 .submittedAt(Instant.now())
                 .status(VenueEditSuggestion.Status.PENDING)
@@ -123,6 +128,11 @@ public class VenueEditSuggestionService {
                         "O recinto mudou entretanto. Reavalia a proposta antes de aprovar");
             }
             validate(field, proposed.get(field));
+        }
+        // Legacy pending proposals without evidence must not bypass human sourcing.
+        if (proposed.containsKey("contact") && !proposed.get("contact").isBlank()
+                && validateSourceUrl(proposal.getSourceUrl()) == null) {
+            throw bad(HttpStatus.BAD_REQUEST, "Contacto sem fonte HTTPS; rejeita e pede nova proposta");
         }
         proposed.forEach((field, value) -> setValue(venue, field, value));
         venues.save(venue);
@@ -195,6 +205,29 @@ public class VenueEditSuggestionService {
         return value;
     }
 
+    /** Validates syntax only; NEVER performs an HTTP request or treats the URL as verified. */
+    private String validateSourceUrl(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String value = raw.trim();
+        if (value.length() > 500) throw bad(HttpStatus.BAD_REQUEST, "Fonte demasiado longa");
+        try {
+            URI uri = URI.create(value);
+            String host = uri.getHost();
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
+                    || host.length() > 253 || !host.contains(".")
+                    || host.endsWith(".") || uri.getRawUserInfo() != null
+                    || (uri.getPort() != -1 && uri.getPort() != 443)
+                    || uri.getRawFragment() != null
+                    || !host.matches("(?i)[a-z0-9-]+(\\\\.[a-z0-9-]+)+")
+                    || host.matches("[0-9.]+")) {
+                throw bad(HttpStatus.BAD_REQUEST, "Fonte deve ser uma página pública HTTPS válida");
+            }
+        } catch (IllegalArgumentException exception) {
+            throw bad(HttpStatus.BAD_REQUEST, "Fonte deve ser uma página pública HTTPS válida");
+        }
+        return value;
+    }
+
     private String value(Venue venue, String field) {
         return switch (field) {
             case "name" -> venue.getName();
@@ -240,7 +273,7 @@ public class VenueEditSuggestionService {
                 proposal.getStatus().name(), decode(proposal.getBeforeJson()),
                 decode(proposal.getChangesJson()), proposal.getReason(), proposal.getSubmittedByUsername(),
                 proposal.getSubmittedAt(), proposal.getReviewedByUsername(), proposal.getReviewedAt(),
-                proposal.getDecisionNote());
+                proposal.getDecisionNote(), proposal.getSourceUrl());
     }
 
     private String cleanNote(String value) {
