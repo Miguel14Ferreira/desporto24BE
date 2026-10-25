@@ -31,8 +31,8 @@ public class EmailService implements EmailSender {
         Map<String, Object> payload = Map.of(
                 "from", from,
                 "to", new String[]{to},
-                "subject", subject,
-                "html", html
+                "subject", currentBrand(subject),
+                "html", currentBrand(html)
         );
 
         try {
@@ -53,6 +53,15 @@ public class EmailService implements EmailSender {
             log.error("Failed to send email through Resend to {}", to, exception);
             throw exception;
         }
+    }
+
+    /**
+     * Last-mile safeguard for legacy transactional templates. Do not rewrite
+     * links or identifiers such as d24sports.com; only the retired display
+     * name is normalized when composing the outgoing email.
+     */
+    static String currentBrand(String value) {
+        return value == null ? "" : value.replaceAll("(?i)desporto\\s*24", "Jynlo");
     }
 
     private record ResendSendResponse(String id) {
