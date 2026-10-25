@@ -134,7 +134,7 @@ final class CommunityRoundEventType {
             return;
         }
         if (CommunityInlineSpeedResults.isRecordedTimeEvent(type)) {
-            CommunityInlineSpeedResults.validate(sport, entries);
+            CommunityInlineSpeedResults.validate(sport, type, entries);
             return;
         }
         if ("FOOT_ORIENTEERING".equals(type)) {
