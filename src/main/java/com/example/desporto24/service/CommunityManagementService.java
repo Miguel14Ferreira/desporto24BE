@@ -53,6 +53,9 @@ import java.util.Optional;
 @Transactional
 public class CommunityManagementService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
@@ -728,7 +731,10 @@ public class CommunityManagementService {
         notification.setRelatedUsername(actor.getUsername());
         notification.setType(NotificationType.COMMUNITY_INVITE);
         notification.setRead(false);
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 
     private void notifyJoinRequestCreated(Community community, Profile requester) {
@@ -779,7 +785,10 @@ public class CommunityManagementService {
         notification.setCommunityId(community.getId());
         notification.setType(type);
         notification.setRead(false);
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 
     private CommunityInviteResponse toInviteResponse(CommunityInvite invite) {
