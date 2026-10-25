@@ -15,7 +15,13 @@ public final class CommunityTrackSprintBracketDtos {
 
     public record Match(String phase, String slot, String seriesKey,
                         String riderA, String riderB, int winsA, int winsB,
-                        String winner, String status) {}
+                        String winner, String status, String riderC) {
+        public Match(String phase, String slot, String seriesKey,
+                     String riderA, String riderB, int winsA, int winsB,
+                     String winner, String status) {
+            this(phase, slot, seriesKey, riderA, riderB, winsA, winsB, winner, status, null);
+        }
+    }
 
     public record Overview(Long id, Long seasonId, String name, String format,
                            List<Match> matches, Long qualifyingRoundId,
