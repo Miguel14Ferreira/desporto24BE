@@ -42,8 +42,19 @@ class VenueSuggestionServiceTest {
 
     private CreateVenueRequest request() throws Exception {
         return mapper.readValue(
-            "{\"name\":\"Pavilhão Novo\",\"city\":\"Sintra\",\"district\":\"Lisboa\",\"address\":\"Rua A\",\"sports\":\"Futsal\"}",
+            "{\"name\":\"Pavilhão Novo\",\"city\":\"Sintra\",\"district\":\"Lisboa\",\"address\":\"Rua A\",\"sports\":\"Futsal\",\"environmentType\":\"OUTDOOR\"}",
             CreateVenueRequest.class);
+    }
+
+    @Test
+    void newSuggestionRequiresAnExplicitEnvironmentBeforeSaving() throws Exception {
+        var missing = mapper.readValue("""
+            {"name":"Recinto","city":"Lisboa","address":"Rua A","sports":"Futsal"}
+            """, CreateVenueRequest.class);
+        var exception = assertThrows(ResponseStatusException.class,
+                () -> service.submit(missing, "tester"));
+        assertEquals(400, exception.getStatusCode().value());
+        verify(repository, never()).save(any());
     }
 
     @Test
