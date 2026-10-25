@@ -32,6 +32,10 @@ public class VenueSuggestionService {
         if (username == null || username.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
+        if (request.environmentType() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Indica o ambiente do recinto");
+        }
         if (repository.existsByStatusAndSubmittedByUsernameIgnoreCaseAndNameIgnoreCaseAndCityIgnoreCase(
                 VenueSuggestion.Status.PENDING, username, request.name().trim(), request.city().trim())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
