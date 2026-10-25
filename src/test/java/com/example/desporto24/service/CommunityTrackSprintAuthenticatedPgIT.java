@@ -836,6 +836,34 @@ class CommunityTrackSprintAuthenticatedPgIT {
                 group,activeSeason,bo3Series).isEmpty(),
                 "Signed rulings must not invent any physical rounds");
         }
+
+        JsonNode q2=null;
+        for(JsonNode b:api("GET",brackets(activeSeason),ownerJwt,null,200))
+            if(b.path("id").asLong()==bo3Id)
+                for(JsonNode m:b.path("matches"))
+                    if("Q2".equals(m.path("slot").asText()))q2=m;
+        assertNotNull(q2);
+        String seriesDq=q2.path("seriesKey").asText();
+        String surviving=q2.path("riderA").asText();
+        JsonNode dq=api("POST",adjudications,ownerJwt,Map.of(
+            "seriesKey",seriesDq,"heatNumber",1,"incidentType","FALL",
+            "details","Fictional intentional fall during sprint"),200);
+        String dqPath=adjudications+"/"+dq.path("id").asLong();
+        api("PUT",dqPath+"/decision",ownerJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING","sanctionType","DISQUALIFICATION",
+            "sanctionedUsername",q2.path("riderB").asText(),
+            "reference","Synthetic documented decision 2026/50",
+            "reason","Jury excludes rider due to fictional intentional fall"),200);
+        var verdict=Map.of("basis","INTENTIONAL_FALL","winnerUsername",surviving,
+            "reference","Separate synthetic official series ruling 2026/51",
+            "reason","Jury expressly declares the other rider the BO3 series winner");
+        api("PUT",dqPath+"/official-series-verdict",memberJwt,verdict,403);
+        assertEquals("OFFICIAL_SERIES_AWARDED",
+            api("PUT",dqPath+"/official-series-verdict",ownerJwt,verdict,200)
+            .path("status").asText());
+        api("PUT",dqPath+"/official-series-verdict",ownerJwt,verdict,409);
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+            group,activeSeason,seriesDq).isEmpty());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }

@@ -382,8 +382,12 @@ public class CommunityCompetitionService {
         Map<String,String> awarded=new HashMap<>();
         for (CommunityTrackSprintIncident incident:
                 trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
-            if ("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
-                    && !incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")) {
+            boolean single="OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
+                    &&!incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)");
+            boolean series="OFFICIAL_SERIES_AWARDED".equals(incident.getStatus())
+                    &&incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")
+                    &&"DISQUALIFICATION".equals(incident.getSanctionType());
+            if (single||series) {
                 if(incident.getAwardWinner()==null
                         ||awarded.putIfAbsent(incident.getSeriesKey(),
                                              incident.getAwardWinner())!=null)
@@ -751,6 +755,71 @@ public class CommunityCompetitionService {
         incident.setAwardConfirmedBy(username);
         incident.setAwardConfirmedAt(Instant.now());
         incident.setStatus("OFFICIAL_HEAT_AWARDED");
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
+
+    /** A second documented UCI 3.2.048(1) decision closes the BO3 series
+     * after competition disqualification, without fictitious heat victories. */
+    public CommunityTrackSprintIncidentDtos.View confirmBo3DisqualificationVerdict(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintIncidentDtos.ConfirmOfficialAward request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não pertence à época"));
+        if(bracket.getInterruptionStage()!=null
+                ||!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Quadro interrompido ou formato incompatível");
+        CommunityTrackSprintIncident incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
+        String key=incident.getSeriesKey();
+        if(!"ADJUDICATION_REQUIRED".equals(incident.getStatus())
+                ||!"DISCIPLINARY_RULING".equals(incident.getDecisionType())
+                ||!"FALL".equals(incident.getIncidentType())
+                ||!"DISQUALIFICATION".equals(incident.getSanctionType())
+                ||!key.matches("SP"+bracketId+"-(Q[1-4]|S[1-2]|B|G)"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Veredito BO3 não suportado para este incidente");
+        if(request==null||!"INTENTIONAL_FALL".equals(request.basis())
+                ||request.winnerUsername()==null||request.winnerUsername().isBlank()
+                ||request.reference()==null||request.reference().trim().length()<12
+                ||request.reference().trim().length()>255
+                ||request.reason()==null||request.reason().trim().length()<12
+                ||request.reason().trim().length()>500)
+            throw new IllegalArgumentException("Confirma vencedor, ata e fundamentação da decisão oficial");
+        AcceptedAliases aliases=acceptedAliasProfiles(communityId);
+        List<CommunityRoundResponse> rounds=roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
+                .stream().filter(r->Set.of("TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE",
+                        "TRACK_SPRINT_5_8").contains(r.getEventType()))
+                .map(r->roundResponse(r,aliases)).toList();
+        var match=trackSprintBracketResponse(bracket,rounds).matches().stream()
+                .filter(m->key.equals(m.seriesKey())).findFirst()
+                .orElseThrow(()->new IllegalArgumentException("Série desconhecida"));
+        String winner=request.winnerUsername().trim().toLowerCase(Locale.ROOT);
+        String sanctioned=incident.getSanctionedUsername();
+        if(!Set.of("READY","IN_PROGRESS").contains(match.status())
+                ||match.riderA()==null||match.riderB()==null||match.riderC()!=null
+                ||match.riderD()!=null||sanctioned==null
+                ||!Set.of(match.riderA(),match.riderB()).contains(sanctioned)
+                ||!Set.of(match.riderA(),match.riderB()).contains(winner)
+                ||winner.equals(sanctioned))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Veredito incompatível com a série e sanção");
+        String slot=key.substring(key.lastIndexOf('-')+1);
+        for(String next:CommunityTrackSprintOlympic24.nextSlots(slot))
+            if(!roundRepository.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                    communityId,seasonId,"SP"+bracketId+"-"+next).isEmpty())
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"Já existem resultados seguintes");
+        incident.setAwardWinner(winner);
+        incident.setAwardReference(request.reference().trim());
+        incident.setAwardReason(request.reason().trim());
+        incident.setAwardConfirmedBy(username);
+        incident.setAwardConfirmedAt(Instant.now());
+        incident.setStatus("OFFICIAL_SERIES_AWARDED");
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
