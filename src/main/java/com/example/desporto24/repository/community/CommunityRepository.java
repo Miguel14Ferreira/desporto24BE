@@ -3,6 +3,8 @@ package com.example.desporto24.repository.community;
 import com.example.desporto24.model.community.Community;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -45,20 +47,9 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     java.util.Optional<Community> findWithSportsById(@Param("id") Long id);
 
 
-    // Protect the community's history: never cascade-delete existing activity.
-    @Query(value = """
-            SELECT CASE WHEN EXISTS (
-                SELECT 1 FROM community_timeline_entry WHERE community_id = :id
-                UNION ALL SELECT 1 FROM community_season WHERE community_id = :id
-                UNION ALL SELECT 1 FROM community_round WHERE community_id = :id
-                UNION ALL SELECT 1 FROM community_tournament WHERE community_id = :id
-                UNION ALL SELECT 1 FROM community_standings_archive WHERE community_id = :id
-                UNION ALL SELECT 1 FROM community_match_archive WHERE community_id = :id
-                UNION ALL SELECT 1 FROM session WHERE community_id = :id
-                UNION ALL SELECT 1 FROM social_story WHERE community_id = :id
-            ) THEN TRUE ELSE FALSE END
-            """, nativeQuery = true)
-    boolean hasActivityPreventingDeletion(@Param("id") Long id);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Community c WHERE c.id = :id")
+    java.util.Optional<Community> lockForDeletion(@Param("id") Long id);
 
     java.util.List<Community> findByOwnerId(Long ownerId);
     boolean existsByOwnerId(Long ownerId);
