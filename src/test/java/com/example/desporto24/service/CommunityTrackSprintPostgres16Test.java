@@ -112,7 +112,9 @@ class CommunityTrackSprintPostgres16Test {
             "select tie_decisions_recorded_by from community_track_sprint_bracket where id=81",
             String.class));
         bracket(41,7,4,42L);
-        String evidence = "[{\\"method\\":\\"DRAW_LOTS\\",\\"reference\\":\\"Fictional official drawing 41\\"}]";
+        String evidence = """
+                [{"method":"DRAW_LOTS","reference":"Fictional official drawing 41"}]
+                """;
         jdbc.update("update community_track_sprint_bracket " +
             "set tie_decisions_json=?, tie_decisions_recorded_by=? where id=41",
             evidence, "fixture_sprint_owner");
