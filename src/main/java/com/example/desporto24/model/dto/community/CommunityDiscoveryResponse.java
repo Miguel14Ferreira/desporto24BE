@@ -7,7 +7,23 @@ import java.util.List;
 public record CommunityDiscoveryResponse(
         Long id, String name, String description, String sport,
         String photoUrl, CommunityVisibility visibility, List<String> sports,
-        Double photoZoom, Double photoFocusX, Double photoFocusY) {
+        Double photoZoom, Double photoFocusX, Double photoFocusY,
+        String photoFitMode) {
+
+    public CommunityDiscoveryResponse(Long id, String name, String description,
+                                      String sport, String photoUrl, CommunityVisibility visibility,
+                                      List<String> sports, Double photoZoom,
+                                      Double photoFocusX, Double photoFocusY) {
+        this(id, name, description, sport, photoUrl, visibility, sports,
+                photoZoom, photoFocusX, photoFocusY, null);
+    }
+
+    public CommunityDiscoveryResponse(Long id, String name, String description,
+                                      String sport, String photoUrl, CommunityVisibility visibility,
+                                      Double photoZoom, Double photoFocusX, Double photoFocusY, String photoFitMode) {
+        this(id, name, description, sport, photoUrl, visibility, null,
+                photoZoom, photoFocusX, photoFocusY, photoFitMode);
+    }
 
     public CommunityDiscoveryResponse(Long id, String name, String description,
                                       String sport, String photoUrl, CommunityVisibility visibility,
@@ -19,7 +35,7 @@ public record CommunityDiscoveryResponse(
                                       String sport, String photoUrl, CommunityVisibility visibility,
                                       Double photoZoom, Double photoFocusX, Double photoFocusY) {
         this(id, name, description, sport, photoUrl, visibility, null,
-                photoZoom, photoFocusX, photoFocusY);
+                photoZoom, photoFocusX, photoFocusY, photoFitMode);
     }
 
     // Keep existing JPQL constructor projections and older callers intact.
