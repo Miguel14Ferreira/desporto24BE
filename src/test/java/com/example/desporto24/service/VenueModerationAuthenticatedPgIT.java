@@ -93,6 +93,7 @@ class VenueModerationAuthenticatedPgIT {
     private String adminToken;
     private String memberToken;
     private String secondMemberToken;
+    private String secondAdminToken;
     private long venueA, venueB;
 
     @BeforeAll
@@ -100,6 +101,7 @@ class VenueModerationAuthenticatedPgIT {
         adminToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_moderator", "ROLE_ADMIN")));
         memberToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_member", "ROLE_USER")));
         secondMemberToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_other", "ROLE_USER")));
+        secondAdminToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_moderator2", "ROLE_ADMIN")));
         venueA = venue("Recinto QA Alfa").getId();
         venueB = venue("Recinto QA Beta").getId();
     }
@@ -209,6 +211,96 @@ class VenueModerationAuthenticatedPgIT {
                 .count();
         assertEquals(2L, rows);
         assertNull(venues.findById(fixture).orElseThrow().getContact());
+    }
+
+
+    /**
+     * Competing authenticated moderator decisions must serialize on the
+     * proposal row. Exactly one decision and one notification may persist.
+     */
+    @Test
+    void concurrentApproveAndRejectNeverPublishConflictingDecisions() throws Exception {
+        long fixture = venue("Recinto QA Dupla Moderação").getId();
+        long id = api("POST", "/api/venues/" + fixture + "/edit-suggestions",
+                memberToken, Map.of(
+                        "changes", Map.of("contact", "220000777"),
+                        "reason", "Fonte fictícia da proposta de concorrência administrativa",
+                        "sourceUrl", SOURCE), 202).path("id").asLong();
+        assertTrue(id > 0);
+        var executor = Executors.newFixedThreadPool(2);
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        clearInvocations(suppressedNotifications);
+        try {
+            List<Future<Integer>> futures = new ArrayList<>();
+            for (String action : List.of("approve", "reject")) {
+                final String token = "approve".equals(action) ? adminToken : secondAdminToken;
+                final Map<String, ?> payload = "approve".equals(action)
+                        ? Map.of("sourceReviewed", true, "note", "Fonte QA revista pelo moderador")
+                        : Map.of("note", "Fonte QA rejeitada pelo segundo moderador");
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(12, TimeUnit.SECONDS))
+                        throw new IllegalStateException("Moderation race did not start");
+                    HttpRequest req = HttpRequest.newBuilder(URI.create(
+                            "http://127.0.0.1:" + port + BASE + "/" + id + "/" + action))
+                            .timeout(Duration.ofSeconds(25))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    mapper.writeValueAsString(payload))).build();
+                    return http.send(req, HttpResponse.BodyHandlers.ofString()).statusCode();
+                }));
+            }
+            assertTrue(ready.await(12, TimeUnit.SECONDS));
+            start.countDown();
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> future : futures)
+                statuses.add(future.get(40, TimeUnit.SECONDS));
+            statuses.sort(Integer::compareTo);
+            assertEquals(List.of(200, 409), statuses);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+
+        var stored = submissions.findById(id).orElseThrow();
+        assertNotEquals(VenueEditSuggestion.Status.PENDING, stored.getStatus());
+        assertNotNull(stored.getReviewedAt());
+        assertEquals(SOURCE, stored.getSourceUrl());
+        assertEquals(1L, submissions.findAll().stream()
+                .filter(p -> p.getId().equals(id)).count());
+
+        String liveContact = venues.findById(fixture).orElseThrow().getContact();
+        if (stored.getStatus() == VenueEditSuggestion.Status.APPROVED) {
+            assertEquals("220000777", liveContact);
+            assertEquals("venueqa_moderator", stored.getReviewedByUsername());
+            assertEquals(stored.getReviewedAt(), stored.getSourceReviewConfirmedAt());
+            verify(suppressedNotifications, times(1)).decision(
+                    eq(id), eq(fixture), anyString(), eq("venueqa_member"),
+                    eq(true), anyString());
+        } else {
+            assertEquals(VenueEditSuggestion.Status.REJECTED, stored.getStatus());
+            assertNull(liveContact);
+            assertEquals("venueqa_moderator2", stored.getReviewedByUsername());
+            assertNull(stored.getSourceReviewConfirmedAt());
+            verify(suppressedNotifications, times(1)).decision(
+                    eq(id), eq(fixture), anyString(), eq("venueqa_member"),
+                    eq(false), anyString());
+        }
+
+        for (JsonNode item : api("GET", BASE + "?page=0", adminToken, null, 200)
+                .path("suggestions"))
+            assertNotEquals(id, item.path("id").asLong());
+        boolean inHistory = false;
+        for (JsonNode item : api("GET", BASE + "/history?page=0", adminToken, null, 200)
+                .path("suggestions")) {
+            if (item.path("id").asLong() == id) {
+                inHistory = true;
+                assertEquals(stored.getStatus().name(), item.path("status").asText());
+            }
+        }
+        assertTrue(inHistory);
     }
 
     @Test
