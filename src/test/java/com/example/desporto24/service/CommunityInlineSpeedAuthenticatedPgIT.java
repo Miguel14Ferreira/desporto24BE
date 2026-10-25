@@ -431,11 +431,31 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         assertEquals("qa_owner_speed", resolved.path("tieBreaks").get(0).path("confirmedBy").asText());
         assertEquals(0, resolved.path("decisions").size(),
                 "Tie-break must never ratify the qualification automatically");
+        assertEquals(1, resolved.path("tieBreaks").get(0).path("revisions").size());
+
+        // A correction before qualification must preserve the original decision.
+        List<Long> correction = new ArrayList<>(sixteenChosen);
+        correction.set(15, ordered.get(16).path("playerId").asLong());
+        String correctedReason = "A segunda revisão oficial escolheu outra atleta empatada";
+        JsonNode amended = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
+                ownerToken, Map.of("playerIds", correction,
+                        "reason", correctedReason), 200);
+        assertEquals(2, amended.path("tieBreaks").get(0).path("revisions").size());
+        assertEquals(reason, amended.path("tieBreaks").get(0).path("revisions").get(0).path("reason").asText());
+        assertEquals(correctedReason, amended.path("tieBreaks").get(0).path("revisions").get(1).path("reason").asText());
+        assertEquals(0, amended.path("decisions").size());
+
+        JsonNode restored = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason), 200);
+        assertEquals(3, restored.path("tieBreaks").get(0).path("revisions").size());
+        assertEquals("qa_owner_speed", restored.path("tieBreaks").get(0)
+                .path("revisions").get(2).path("confirmedBy").asText());
         JsonNode ratified = request("PUT", speed(tieId) + "/qualifications/FIRST",
                 ownerToken, Map.of("playerIds", sixteenChosen,
                         "reason", "O juiz confirma os 16 apurados depois do desempate oficial"), 200);
         assertEquals(1, ratified.path("decisions").size());
         assertEquals(1, ratified.path("tieBreaks").size());
+        assertEquals(3, ratified.path("tieBreaks").get(0).path("revisions").size());
 
         // Real PostgreSQL/JPA source edit: after the jury has ratified a
         // tie-break, changing even a non-cutoff time must invalidate both

@@ -35,6 +35,7 @@ public class CommunityInlineSpeedProgressionService {
     private final CommunityInlineSpeedHeatRepository links;
     private final CommunityInlineSpeedDecisionRepository decisions;
     private final CommunityInlineSpeedTieBreakRepository tieBreaks;
+    private final CommunityInlineSpeedTieBreakRevisionRepository tieBreakRevisions;
 
     public record SkaterView(long playerId, String name, Integer position,
                              BigDecimal seconds, boolean disqualified) {}
@@ -50,9 +51,12 @@ public class CommunityInlineSpeedProgressionService {
                            List<DecisionView> decisions,
                            List<TieBreakView> tieBreaks) {}
     public record ConfirmRequest(List<Long> playerIds, String reason) {}
+    public record TieBreakRevisionView(int revision, List<Long> selectedPlayerIds,
+                                       String reason, String confirmedBy, Instant confirmedAt,
+                                       boolean stale) {}
     public record TieBreakView(String sourceStage, List<Long> selectedPlayerIds,
                                String reason, String confirmedBy, Instant confirmedAt,
-                               boolean stale) {}
+                               boolean stale, List<TieBreakRevisionView> revisions) {}
 
     @Transactional(readOnly = true)
     public Overview overview(Long communityId, Long tournamentId, String username) {
@@ -292,6 +296,17 @@ public class CommunityInlineSpeedProgressionService {
         CommunityInlineSpeedTieBreak ruling = tieBreaks
                 .findByTournamentIdAndSourceStage(tournamentId, "FIRST")
                 .orElseGet(CommunityInlineSpeedTieBreak::new);
+        // Legacy rulings have no revision rows yet. Keep the previous state
+        // before overwriting the latest ruling. Tournament locking serializes edits.
+        List<CommunityInlineSpeedTieBreakRevision> history = ruling.getId() == null
+                ? List.of()
+                : tieBreakRevisions.findByTieBreakIdOrderByRevisionNumberAsc(ruling.getId());
+        int nextRevision = history.isEmpty() ? 1
+                : history.get(history.size() - 1).getRevisionNumber() + 1;
+        if (ruling.getId() != null && history.isEmpty()) {
+            tieBreakRevisions.save(revisionSnapshot(ruling, 1));
+            nextRevision = 2;
+        }
         ruling.setTournament(tournament);
         ruling.setSourceStage("FIRST");
         ruling.setSelectedPlayerIds(selected.stream().map(String::valueOf)
@@ -300,8 +315,20 @@ public class CommunityInlineSpeedProgressionService {
         ruling.setJudgeReason(reason);
         ruling.setConfirmedBy(username);
         ruling.setConfirmedAt(Instant.now());
-        tieBreaks.save(ruling);
+        ruling = tieBreaks.saveAndFlush(ruling);
+        tieBreakRevisions.save(revisionSnapshot(ruling, nextRevision));
         return snapshot(communityId, tournament, true);
+    }
+
+    private static CommunityInlineSpeedTieBreakRevision revisionSnapshot(
+            CommunityInlineSpeedTieBreak ruling, int version) {
+        return CommunityInlineSpeedTieBreakRevision.builder()
+                .tieBreak(ruling).revisionNumber(version)
+                .selectedPlayerIds(ruling.getSelectedPlayerIds())
+                .sourceFingerprint(ruling.getSourceFingerprint())
+                .judgeReason(ruling.getJudgeReason())
+                .confirmedBy(ruling.getConfirmedBy())
+                .confirmedAt(ruling.getConfirmedAt()).build();
     }
 
     /** A saved ruling is effective only while its source heats have the same fingerprint. */
@@ -356,11 +383,27 @@ public class CommunityInlineSpeedProgressionService {
         }
         List<TieBreakView> resolutions = tieBreaks
                 .findByTournamentIdOrderByIdAsc(tournament.getId()).stream()
-                .map(d -> new TieBreakView(d.getSourceStage(),
-                        readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
-                        d.getConfirmedBy(), d.getConfirmedAt(),
-                        !d.getSourceFingerprint().equals(CommunityInlineSpeed2026.fingerprint(
-                                raw(linked, d.getSourceStage()))))).toList();
+                .map(d -> {
+                    String fingerprint = CommunityInlineSpeed2026.fingerprint(
+                            raw(linked, d.getSourceStage()));
+                    List<TieBreakRevisionView> revisions = tieBreakRevisions
+                            .findByTieBreakIdOrderByRevisionNumberAsc(d.getId()).stream()
+                            .map(v -> new TieBreakRevisionView(v.getRevisionNumber(),
+                                    readIds(v.getSelectedPlayerIds()), v.getJudgeReason(),
+                                    v.getConfirmedBy(), v.getConfirmedAt(),
+                                    !v.getSourceFingerprint().equals(fingerprint))).toList();
+                    if (revisions.isEmpty()) {
+                        // An existing ruling is still visible before its first edit.
+                        revisions = List.of(new TieBreakRevisionView(1,
+                                readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
+                                d.getConfirmedBy(), d.getConfirmedAt(),
+                                !d.getSourceFingerprint().equals(fingerprint)));
+                    }
+                    return new TieBreakView(d.getSourceStage(),
+                            readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
+                            d.getConfirmedBy(), d.getConfirmedAt(),
+                            !d.getSourceFingerprint().equals(fingerprint), revisions);
+                }).toList();
         return new Overview(tournament.getId(), discipline, visible, available,
                 List.copyOf(proposals), approved, resolutions);
     }
