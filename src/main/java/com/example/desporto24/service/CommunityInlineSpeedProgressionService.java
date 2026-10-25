@@ -315,7 +315,7 @@ public class CommunityInlineSpeedProgressionService {
         ruling.setJudgeReason(reason);
         ruling.setConfirmedBy(username);
         ruling.setConfirmedAt(Instant.now());
-        ruling = tieBreaks.saveAndFlush(ruling);
+        ruling = tieBreaks.save(ruling);
         tieBreakRevisions.save(revisionSnapshot(ruling, nextRevision));
         return snapshot(communityId, tournament, true);
     }
