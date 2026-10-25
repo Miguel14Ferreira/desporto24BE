@@ -16,6 +16,7 @@ DECLARE
     round_number integer := 0;
     leaf oid;
     deleted_count integer;
+    cross_boundary_reference boolean;
 BEGIN
     -- An exclusive row lock serializes deletion with ownership changes and
     -- FK inserts that refer directly to the community.
@@ -84,6 +85,40 @@ BEGIN
             pass_total := pass_total + newly_found;
         END LOOP;
         EXIT WHEN pass_total = 0;
+    END LOOP;
+
+    -- Protect unrelated communities even if pre-existing bad data points
+    -- across tenant boundaries. A selected child must not have a parent in
+    -- the selected community graph that belongs to another group.
+    FOR fk IN
+        SELECT f.* FROM pg_constraint f
+        WHERE f.contype = 'f'
+          AND EXISTS (SELECT 1 FROM pg_temp._jynlo_delete_community_rows r
+                      WHERE r.relation_id = f.conrelid)
+          AND EXISTS (SELECT 1 FROM pg_temp._jynlo_delete_community_rows r
+                      WHERE r.relation_id = f.confrelid)
+    LOOP
+        SELECT string_agg(format('child.%I = parent.%I',
+                                child_column.attname, parent_column.attname), ' AND ')
+        INTO child_fields
+        FROM unnest(fk.conkey, fk.confkey) columns(child_attnum, parent_attnum)
+        JOIN pg_attribute child_column ON child_column.attrelid = fk.conrelid
+                                      AND child_column.attnum = columns.child_attnum
+        JOIN pg_attribute parent_column ON parent_column.attrelid = fk.confrelid
+                                       AND parent_column.attnum = columns.parent_attnum;
+        EXECUTE format(
+            'SELECT EXISTS (
+                SELECT 1 FROM %s child JOIN %s parent ON %s
+                WHERE EXISTS(SELECT 1 FROM pg_temp._jynlo_delete_community_rows marked
+                             WHERE marked.relation_id = %s::oid AND marked.row_id = child.ctid)
+                  AND NOT EXISTS(SELECT 1 FROM pg_temp._jynlo_delete_community_rows marked
+                                 WHERE marked.relation_id = %s::oid AND marked.row_id = parent.ctid)
+             )', fk.conrelid::regclass, fk.confrelid::regclass,
+             child_fields, fk.conrelid, fk.confrelid)
+          INTO STRICT cross_boundary_reference;
+        IF cross_boundary_reference THEN
+            RAISE EXCEPTION 'Cross-community dependency % prevents safe deletion', fk.conname;
+        END IF;
     END LOOP;
 
     -- Delete leaves before their parents. Fail closed on cyclic cross-table
