@@ -88,9 +88,21 @@ final class CommunityInlineSpeedResults {
     }
 
     static void validate(String sport, List<CommunityRoundEntryRequest> entries) {
+        validate(sport, null, entries);
+    }
+
+    static void validate(String sport, String eventType,
+                         List<CommunityRoundEntryRequest> entries) {
         if (!"Patinagem de Velocidade".equals(sport) || entries == null || entries.isEmpty())
             throw new IllegalArgumentException(
                     "Patinagem de Velocidade exige participantes");
+        // World Skate 2026: no more than six skaters in a qualifying heat.
+        // The 200 m individual time trial is independent of this sprint limit.
+        if (("INLINE_TRACK_500D_FIRST_ROUND".equals(eventType)
+                || "INLINE_ROAD_LAP_FIRST_ROUND".equals(eventType))
+                && entries.size() > 6)
+            throw new IllegalArgumentException(
+                    "Primeira fase: no máximo seis patinadores por manga");
         Set<String> skaters = new HashSet<>();
         for (CommunityRoundEntryRequest entry : entries) {
             if (entry == null || entry.username() == null
