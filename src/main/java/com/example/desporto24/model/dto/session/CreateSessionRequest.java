@@ -37,8 +37,27 @@ public record CreateSessionRequest(
         // Excludes the organiser, who is automatically registered in Jynlo.
         @Min(0) @Max(99) Integer externalConfirmedParticipants,
         com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
-        Instant registrationOpensAt
+        Instant registrationOpensAt,
+        // First week's additional kickoffs. The first kickoff remains gameDate.
+        @Size(max = 6) java.util.List<@NotNull Instant> additionalWeeklyGameDates,
+        // IANA zone keeps the same local weekday/time across DST transitions.
+        @Size(max = 64) String recurrenceTimeZone
 ) {
+    // Keep all existing 17-field callers source-compatible.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId, venueId,
+                recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, null, null);
+    }
+
     // Preserve legacy service/controller/test callers (15-argument constructor).
     public CreateSessionRequest(
             String sport, Instant gameDate, String city, String address,
