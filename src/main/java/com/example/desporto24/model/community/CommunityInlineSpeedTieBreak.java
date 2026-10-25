@@ -27,6 +27,10 @@ public class CommunityInlineSpeedTieBreak {
     private String sourceFingerprint;
     @Column(name = "judge_reason", nullable = false, length = 500)
     private String judgeReason;
+    @Column(name = "evidence_type", length = 32)
+    private String evidenceType;
+    @Column(name = "evidence_reference", length = 500)
+    private String evidenceReference;
     @Column(name = "confirmed_by", nullable = false, length = 100)
     private String confirmedBy;
     @Column(name = "confirmed_at", nullable = false)
