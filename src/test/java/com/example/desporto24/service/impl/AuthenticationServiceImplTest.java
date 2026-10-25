@@ -217,6 +217,175 @@ class AuthenticationServiceImplTest {
                 .handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
     }
 
+
+    @Test
+    void passwordLoginAcceptsCaseInsensitiveEmailAndUsesCanonicalUsernameForRateLimits() {
+        Profile profile = activeProfile(false);
+        profile.setEmail("fixture@example.test");
+        ProfileDTO input = credentials();
+        input.setUsername("FiXtUrE@ExAmPlE.TeSt");
+        when(profileRepository.findTop2ByEmailIgnoreCase("FiXtUrE@ExAmPlE.TeSt"))
+                .thenReturn(java.util.List.of(profile));
+        when(profileRepository.save(profile)).thenReturn(profile);
+        when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("token-email");
+        when(profileMapper.toDto(profile)).thenReturn(safeProfile());
+
+        LoginResponse result = service().login(input);
+
+        assertEquals("token-email", result.token());
+        verify(loginAttemptService).requireAttemptAllowed("FiXtUrE@ExAmPlE.TeSt");
+        verify(loginAttemptService).handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+        verify(profileRepository, never()).findAll(any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    void phoneLoginAcceptsNationalAndInternationalFormattingOfEncryptedNumber() {
+        for (String phone : new String[]{"912345678", "912 345 678", "+351 912 345 678",
+                "00351 912 345 678"}) {
+            reset(profileRepository, jwtTokenProvider, profileMapper, loginAttemptService);
+            Profile profile = activeProfile(false);
+            ProfileDTO input = credentials();
+            input.setUsername(phone);
+            when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(profile)));
+            when(profileRepository.save(profile)).thenReturn(profile);
+            when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("token-phone");
+            when(profileMapper.toDto(profile)).thenReturn(safeProfile());
+
+            LoginResponse result = service().login(input);
+
+            assertEquals("token-phone", result.token(), phone);
+            verify(loginAttemptService).requireAttemptAllowed(phone);
+            verify(loginAttemptService).handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+        }
+    }
+
+    @Test
+    void ambiguousPhoneAcrossCountryCodesCannotSelectAnAccount() {
+        Profile portugal = activeProfile(false);
+        portugal.setId(1L);
+        Profile abroad = activeProfile(false);
+        abroad.setId(2L);
+        abroad.setUsername("different-user");
+        abroad.setIndicativePhone("44");
+        ProfileDTO input = credentials();
+        input.setUsername("912345678");
+        when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        java.util.List.of(portugal, abroad)));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
+    }
+
+    @Test
+    void phoneLikeUsernameCannotSilentlyAuthenticateAnotherAccountsPhone() {
+        Profile usernameOwner = activeProfile(false);
+        usernameOwner.setId(1L);
+        usernameOwner.setUsername("912345678");
+        usernameOwner.setPhone(null);
+        Profile phoneOwner = activeProfile(false);
+        phoneOwner.setId(2L);
+        ProfileDTO input = credentials();
+        input.setUsername("912345678");
+        when(profileRepository.findUserByUsernameIgnoreCase("912345678"))
+                .thenReturn(Optional.of(usernameOwner));
+        when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        java.util.List.of(phoneOwner)));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
+    }
+
+    @Test
+    void emailLikeUsernameCollisionFailsClosedWithoutIssuingJwt() {
+        Profile usernameOwner = activeProfile(false);
+        usernameOwner.setId(1L);
+        Profile emailOwner = activeProfile(false);
+        emailOwner.setId(2L);
+        ProfileDTO input = credentials();
+        input.setUsername("someone@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase("someone@example.test"))
+                .thenReturn(Optional.of(usernameOwner));
+        when(profileRepository.findTop2ByEmailIgnoreCase("someone@example.test"))
+                .thenReturn(java.util.List.of(emailOwner));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void legacyCaseFoldedDuplicateEmailNeverAuthenticatesArbitrarily() {
+        Profile first = activeProfile(false);
+        first.setId(1L);
+        Profile second = activeProfile(false);
+        second.setId(2L);
+        second.setUsername("second-account");
+        ProfileDTO input = credentials();
+        input.setUsername("fixture@example.test");
+        when(profileRepository.findTop2ByEmailIgnoreCase("fixture@example.test"))
+                .thenReturn(java.util.List.of(first, second));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
+    }
+
+    @Test
+    void unknownEmailAndUnknownPhoneCountAgainstLoginAttemptLimiter() {
+        for (String unknown : new String[]{"nobody@example.test", "+447700900999"}) {
+            reset(profileRepository, loginAttemptService);
+            ProfileDTO input = credentials();
+            input.setUsername(unknown);
+            if (unknown.startsWith("+")) {
+                when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                        .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of()));
+            }
+            assertThrows(BadCredentialsException.class, () -> service().login(input));
+            verify(loginAttemptService).requireAttemptAllowed(unknown);
+            verify(loginAttemptService).recordMissingAccountAttempt(unknown);
+            verifyNoInteractions(jwtTokenProvider);
+        }
+    }
+
+    @Test
+    void emailLoginPreservesExistingMfaChallengeWithoutIssuingJwt() {
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        ProfileDTO input = credentials();
+        input.setUsername("fixture@example.test");
+        when(profileRepository.findTop2ByEmailIgnoreCase("fixture@example.test"))
+                .thenReturn(java.util.List.of(profile));
+
+        LoginResponse result = service().login(input);
+
+        assertTrue(result.mfaRequired());
+        assertNull(result.token());
+        verify(mfaVerificationService).saveConfirmationMFA(any(MFAVerification.class));
+        verify(loginAttemptService).handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void incorrectCountryCodeCannotMatchUnrelatedEncryptedPhone() {
+        ProfileDTO input = credentials();
+        input.setUsername("+44912345678");
+        when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        java.util.List.of(activeProfile(false))));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+        verify(loginAttemptService).recordMissingAccountAttempt("+44912345678");
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
     @Test
     void registrationInitializesSecureAccountDefaults() {
         RegistrationRequest request = new RegistrationRequest(
