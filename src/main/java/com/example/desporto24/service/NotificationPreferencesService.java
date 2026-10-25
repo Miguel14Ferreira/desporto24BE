@@ -90,7 +90,7 @@ public class NotificationPreferencesService {
     }
 
     public boolean allowsOptionalEmailAddress(String email, NotificationType type) {
-        return profiles.findUserByEmail(email)
+        return profiles.findUserByEmailIgnoreCase(email)
                 .map(profile -> allowsOptionalEmail(profile.getUsername(), type))
                 .orElse(true); // External invitees have no account preferences yet.
     }
