@@ -328,7 +328,8 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         largeOverview.path("proposals").get(0).path("playerIds")
             .forEach(id -> sixteen.add(id.asLong()));
 
-        // Never silently approve 15 or 17 unless the 16th/17th tie was recorded.
+        // Never approve 15; an exceptional 17th without a time tie
+        // requires the jury's separate detailed attestation.
         request("PUT", speed(largeId) + "/qualifications/FIRST",
             ownerToken, Map.of("playerIds", sixteen.subList(0, 15),
                 "reason", "Juri presente e manga completa"), 422);
@@ -344,7 +345,7 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         seventeen.add(extraId);
         request("PUT", speed(largeId) + "/qualifications/FIRST",
             ownerToken, Map.of("playerIds", seventeen,
-                "reason", "Juri presente e manga completa"), 422);
+                "reason", "Sem provas"), 422);
 
         request("PUT", speed(largeId) + "/qualifications/FIRST", ownerToken,
             Map.of("playerIds", sixteen,
