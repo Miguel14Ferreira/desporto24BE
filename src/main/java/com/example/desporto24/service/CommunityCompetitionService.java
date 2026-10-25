@@ -3,6 +3,8 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
+import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
@@ -21,6 +23,7 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityTrackSprintBracketRepository;
+import com.example.desporto24.repository.community.CommunityTournamentRepository;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
 import com.example.desporto24.model.community.CommunityRaceRule;
@@ -49,6 +52,7 @@ public class CommunityCompetitionService {
     private final CommunityPlayerRepository playerRepository;
     private final CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     private final CommunityRoundRepository roundRepository;
+    private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTrackSprintBracketRepository trackSprintBracketRepository;
     private final CommunityRacketRuleRepository racketRuleRepository;
     private final CommunityRaceRuleRepository raceRuleRepository;
@@ -651,7 +655,19 @@ public class CommunityCompetitionService {
         requireAdmin(communityId, actor);
         Community community = community(communityId);
 
-        String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
+        // A tournament may use a different catalog sport from the community profile.
+        // Allow that difference ONLY for existing, non-historical individual skating
+        // tournaments when generic standings are disabled.
+        boolean registeredSpeedTournament = !community.isRankingsEnabled()
+                && request.sport() != null
+                && "Patinagem de Velocidade".equalsIgnoreCase(request.sport().trim())
+                && tournamentRepository
+                        .existsByCommunityIdAndSportIgnoreCaseAndEntryTypeAndHistoricalArchiveIdIsNullAndStatusNot(
+                                communityId, "Patinagem de Velocidade",
+                                TournamentEntryType.INDIVIDUAL, TournamentStatus.COMPLETED);
+        String resolvedSport = registeredSpeedTournament
+                ? "Patinagem de Velocidade"
+                : CommunityRoundSport.resolve(community, request.sport());
         String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
         // Competition heat results are independent of the optional W/D/L standings.
         // Keep all other rounds disabled when the community rankings module is off.
