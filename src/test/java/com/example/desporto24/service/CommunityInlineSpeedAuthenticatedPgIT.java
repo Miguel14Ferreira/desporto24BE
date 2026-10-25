@@ -177,6 +177,8 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("username", handles.get(index));
         row.put("result", "DRAW");
+        row.put("mvp", false);
+        row.put("cleanSheet", false);
         if (place != null) row.put("finishPosition", place);
         if (seconds != null) row.put("elapsedSeconds", seconds);
         return row;
