@@ -3,6 +3,7 @@ package com.example.desporto24.domain;
 import org.springframework.http.HttpStatus;
 import java.util.Map;
 import java.util.Locale;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /** Backwards-compatible HTTP error shape with additive import diagnostic metadata. */
 public final class CommunityImportHttpResponse extends HttpResponse {
@@ -16,5 +17,6 @@ public final class CommunityImportHttpResponse extends HttpResponse {
     }
 
     public String getCode() { return code; }
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public Map<String, String> getParams() { return params; }
 }
