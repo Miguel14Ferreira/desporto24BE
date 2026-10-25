@@ -132,7 +132,9 @@ class PortoOfficialSourcesPilotTest(unittest.TestCase):
         row = result["results"][0]
         self.assertEqual("SEM_NOME_EXATO_NA_JYNLO", row["status"])
         self.assertIsNone(row["jynlo_venue_id"])
-        self.assertEqual([{"id": 404, "name": candidate["name"]}], row["manual_name_hints"])
+        self.assertEqual([{"id": 404, "name": candidate["name"],
+                           "street_review": "MORADA_COMPATIVEL_REVER",
+                           "has_existing_contact": False}], row["manual_name_hints"])
         self.assertNotIn("225073300", json.dumps(result))
 
     def test_name_hints_reject_wrong_city_and_too_many_ambiguous_matches(self):
@@ -143,7 +145,9 @@ class PortoOfficialSourcesPilotTest(unittest.TestCase):
         foreign = venue(200, name="Clube Armando Pimentel",
                         city="Vila Nova de Gaia", district="Porto")
         row = pilot([same, foreign], m)["results"][0]
-        self.assertEqual([{"id": 100, "name": same["name"]}], row["manual_name_hints"])
+        self.assertEqual([{"id": 100, "name": same["name"],
+                           "street_review": "MORADA_NAO_CONFIRMADA",
+                           "has_existing_contact": False}], row["manual_name_hints"])
         too_many = [venue(500 + i, name="Piscina Armando Pimentel " + str(i))
                     for i in range(4)]
         row = pilot(too_many, m)["results"][0]
@@ -153,6 +157,36 @@ class PortoOfficialSourcesPilotTest(unittest.TestCase):
     def test_generic_names_never_produce_name_hints(self):
         row = pilot([venue(999, name="Piscina Municipal do Porto")], manifest())["results"][0]
         self.assertEqual([], row["manual_name_hints"])
+
+    def test_name_hints_never_expose_existing_contact_values(self):
+        m = manifest()
+        m["facilities"][0].update({
+            "name": "Piscina Eng.º Armando Pimentel",
+            "aliases": [], "street_hint": "Diogo Botelho",
+        })
+        candidate = venue(2655, name="Piscinas Engenheiro Armando Pimentel",
+                          address="Rua de Diogo Botelho, 4150-262 Porto",
+                          contact="226179598")
+        result = pilot([candidate], m)
+        row = result["results"][0]
+        self.assertIsNone(row["jynlo_venue_id"])
+        self.assertEqual("SEM_NOME_EXATO_NA_JYNLO", row["status"])
+        self.assertEqual("MORADA_COMPATIVEL_REVER",
+                         row["manual_name_hints"][0]["street_review"])
+        self.assertTrue(row["manual_name_hints"][0]["has_existing_contact"])
+        self.assertNotIn("226179598", json.dumps(result))
+        self.assertEqual("226179598", candidate["contact"])  # source unchanged
+
+    def test_name_hints_leave_location_unverified_with_gps_placeholder(self):
+        m = manifest()
+        m["facilities"][0].update({"name": "Piscina Armando Pimentel",
+                                    "aliases": [], "street_hint": "Diogo Botelho"})
+        candidate = venue(2655, name="Piscinas Engenheiro Armando Pimentel",
+                          address="Localização no mapa: 41.2,-8.7")
+        row = pilot([candidate], m)["results"][0]
+        self.assertIsNone(row["jynlo_venue_id"])
+        self.assertEqual("MORADA_NAO_CONFIRMADA",
+                         row["manual_name_hints"][0]["street_review"])
 
 
 if __name__ == "__main__":

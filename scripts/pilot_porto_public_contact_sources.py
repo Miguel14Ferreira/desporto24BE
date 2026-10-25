@@ -103,7 +103,13 @@ def possible_name_hints(catalogue, item):
             continue
         observed = set(normalized_name(venue.get("name")).split())
         if tokens.issubset(observed):
-            possible.append({"id": venue["id"], "name": venue.get("name") or ""})
+            possible.append({
+                "id": venue["id"],
+                "name": venue.get("name") or "",
+                "street_review": check_street(venue.get("address"), item["street_hint"]),
+                # Only a boolean: never export the public catalogue's phone/email.
+                "has_existing_contact": contact_kind(venue.get("contact")) != "without_contact",
+            })
             if len(possible) > MAX_REVIEW_HINTS:
                 # An ambiguous set must not be truncated to an arbitrary top 3.
                 return []
