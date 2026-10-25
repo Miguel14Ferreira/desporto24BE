@@ -10,24 +10,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 
 /** Creation limits count ownership, not group membership or admin membership. */
 @Service
 @RequiredArgsConstructor
 public class CommunityCreationQuotaService {
     public static final int DEFAULT_ACTIVE_LIMIT = 5;
-    public static final int MAX_DAILY_CREATIONS = 2;
-    private static final ZoneId DAY_ZONE = ZoneId.of("Europe/Lisbon");
 
     private final ProfileRepository profiles;
     private final CommunityRepository communities;
     private final JdbcTemplate jdbc;
 
-    public record Quota(long owned, int limit, long createdToday,
-                        int dailyLimit, boolean canCreate) {}
+    public record Quota(long owned, int limit, boolean canCreate) {}
 
     @Transactional(readOnly = true)
     public Quota quota(Profile actor) {
@@ -37,7 +31,7 @@ public class CommunityCreationQuotaService {
     /**
      * Locks the profile row in the caller's transaction. Two simultaneous
      * creations or transfers for the same owner cannot both claim the last
-     * available slot. The event insert rolls back if the creation fails.
+     * available slot. Only the number of currently owned groups matters.
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public void reserveCreate(Profile owner) {
@@ -48,14 +42,6 @@ public class CommunityCreationQuotaService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Atingiste o limite de " + current.limit() + " comunidades próprias. Contacta o suporte para pedir um aumento.");
         }
-        if (current.createdToday() >= current.dailyLimit()) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Já criaste 2 comunidades hoje. Podes voltar a criar amanhã.");
-        }
-        jdbc.update("""
-                INSERT INTO desporto24.community_creation_event (creator_profile_id, created_at)
-                VALUES (?, ?)
-                """, owner.getId(), java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC));
     }
 
     /** A transfer must not bypass the five-owned-community threshold. */
@@ -100,17 +86,6 @@ public class CommunityCreationQuotaService {
         int effective = owner.getCommunityCreationLimit() == null
                 ? DEFAULT_ACTIVE_LIMIT : owner.getCommunityCreationLimit();
         long active = communities.countByOwnerId(owner.getId());
-        LocalDate today = LocalDate.now(DAY_ZONE);
-        Instant start = today.atStartOfDay(DAY_ZONE).toInstant();
-        Instant end = today.plusDays(1).atStartOfDay(DAY_ZONE).toInstant();
-        Long created = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM desporto24.community_creation_event
-                WHERE creator_profile_id = ? AND created_at >= ? AND created_at < ?
-                """, Long.class, owner.getId(),
-                java.time.OffsetDateTime.ofInstant(start, java.time.ZoneOffset.UTC),
-                java.time.OffsetDateTime.ofInstant(end, java.time.ZoneOffset.UTC));
-        long count = created == null ? 0 : created;
-        return new Quota(active, effective, count, MAX_DAILY_CREATIONS,
-                active < effective && count < MAX_DAILY_CREATIONS);
+        return new Quota(active, effective, active < effective);
     }
 }
