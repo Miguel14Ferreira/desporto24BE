@@ -34,7 +34,7 @@ public class CommunityRound {
     private String sport;
 
     // NULL for historical rounds; differentiates race and freestyle/field events.
-    @Column(name = "event_type", length = 20)
+    @Column(name = "event_type", length = 64)
     private String eventType;
 
     // NULL for historical rounds. Explicitly identifies the athletics field discipline.
