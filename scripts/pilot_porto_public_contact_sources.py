@@ -20,6 +20,12 @@ from audit_venue_public_contacts import (
 
 OFFICIAL_HOSTS = frozenset(("www.agoraporto.pt",))
 MAX_FACILITIES = 10
+MAX_REVIEW_HINTS = 3
+# Generic words do not identify a particular swimming pool or sports centre.
+GENERIC_TOKENS = frozenset((
+    "piscina", "piscinas", "municipal", "municipais", "engenheiro",
+    "eng", "campo", "desportivo", "desportiva", "complexo", "porto",
+))
 
 
 def normalized_name(value):
@@ -79,6 +85,31 @@ def check_street(address, hint):
     return "MORADA_COMPATIVEL_REVER"
 
 
+
+def possible_name_hints(catalogue, item):
+    """Hints only: two distinctive whole tokens + Porto; never assign IDs.
+
+    This is deliberately less permissive than fuzzy text similarity and cannot
+    promote candidates to an exact/approved match.
+    """
+    tokens = {token for token in normalized_name(item["name"]).split()
+              if len(token) >= 5 and token not in GENERIC_TOKENS}
+    if len(tokens) < 2:
+        return []
+    possible = []
+    for venue in catalogue:
+        if fold(venue.get("city")) != fold(item["city"]) or \
+                fold(venue.get("district")) != fold(item["district"]):
+            continue
+        observed = set(normalized_name(venue.get("name")).split())
+        if tokens.issubset(observed):
+            possible.append({"id": venue["id"], "name": venue.get("name") or ""})
+            if len(possible) > MAX_REVIEW_HINTS:
+                # An ambiguous set must not be truncated to an arbitrary top 3.
+                return []
+    return sorted(possible, key=lambda entry: entry["id"])
+
+
 def pilot(catalogue, manifest):
     check_catalogue(catalogue)
     sources = verify_manifest(manifest)
@@ -111,11 +142,14 @@ def pilot(catalogue, manifest):
                     status = address_status
                 else:
                     status = "POSSIVEL_MATCH_REVISAO_HUMANA"
+        hints = (possible_name_hints(catalogue, item)
+                 if status == "SEM_NOME_EXATO_NA_JYNLO" else [])
         rows.append({
             "official_name": item["name"],
             "jynlo_venue_id": venue_id,
             "status": status,
             "address_status": address_status,
+            "manual_name_hints": hints,
             "official_source": item["source_url"],
             "reviewed_on": manifest["reviewed_on"],
         })
