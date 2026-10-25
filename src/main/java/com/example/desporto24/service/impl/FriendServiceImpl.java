@@ -19,6 +19,7 @@ import com.example.desporto24.service.interfaces.FriendService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -35,6 +36,7 @@ import static com.example.desporto24.constant.UserImplConstant.FRIEND_REQUEST_SE
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FriendServiceImpl implements FriendService {
 
     private final ProfileService profileService;
@@ -85,12 +87,20 @@ public class FriendServiceImpl implements FriendService {
         FriendRequest newFriendRequest = new FriendRequest(token, formattedDate, profile1.getUsername(), profile2.getUsername());
         friendRequestService.saveFriendRequest(newFriendRequest);
 
+        // The request and its in-app action must not depend on optional email delivery.
+        saveNotification(profile2.getUsername(), formattedDate, profile1.getUsername(), token);
+
         if (preferenceService == null || preferenceService.allowsOptionalEmailCategory(
                 profile2.getUsername(), com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST)) {
-            emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Jynlo",
-                    buildNewFriendRequestEmail(profile1.getUsername()));
+            try {
+                emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Jynlo",
+                        buildNewFriendRequestEmail(profile1.getUsername()));
+            } catch (RuntimeException emailFailure) {
+                // The persisted request remains actionable even if Resend is unavailable.
+                log.warn("Optional friend request email failed; the friendship request remains pending",
+                        emailFailure);
+            }
         }
-        saveNotification(profile2.getUsername(), formattedDate, profile1.getUsername(), token);
     }
 
     private boolean areAlreadyFriends(ProfileDTO profile1, ProfileDTO profile2) {
