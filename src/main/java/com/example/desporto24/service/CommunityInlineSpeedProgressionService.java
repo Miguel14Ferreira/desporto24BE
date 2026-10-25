@@ -240,6 +240,86 @@ public class CommunityInlineSpeedProgressionService {
         return snapshot(communityId, tournament, true);
     }
 
+    /**
+     * Explicit jury ruling on the 16th-place multiway tie. This is not a new
+     * race time; the original heats and times remain unchanged.
+     */
+    public Overview resolveTieBreak(Long communityId, Long tournamentId,
+                                    String sourceStage, ConfirmRequest request, String username) {
+        requireAdmin(communityId, username);
+        CommunityTournament tournament = tournament(communityId, tournamentId, true);
+        requireEditable(tournament);
+        if (!"FIRST".equals(sourceStage) || request == null || request.playerIds() == null)
+            throw problem(HttpStatus.BAD_REQUEST, "Desempate de fase inválida");
+        List<CommunityInlineSpeedHeatLink> linked = links.findByTournamentIdOrderByIdAsc(tournamentId);
+        List<CommunityInlineSpeed2026.Heat> source = raw(linked, "FIRST");
+        if (source.isEmpty()) throw problem(HttpStatus.CONFLICT, "Sem mangas da primeira fase");
+        CommunityInlineSpeed2026.Proposal base =
+                CommunityInlineSpeed2026.propose(source, "FIRST", discipline(linked));
+        if (base.ready() || !"QUARTER".equals(base.targetStage())
+                || !base.warning().contains("Empate múltiplo"))
+            throw problem(HttpStatus.CONFLICT, "Não há empate múltiplo pendente");
+        if (decisions.findByTournamentIdAndSourceStage(tournamentId, "FIRST").isPresent()
+                || linked.stream().anyMatch(l -> !"FIRST".equals(l.getStage())))
+            throw problem(HttpStatus.CONFLICT, "Já existe apuramento ou fase posterior");
+
+        List<Long> selected = request.playerIds();
+        if (selected.size() != 16 || selected.stream().anyMatch(v -> v == null || v <= 0)
+                || new HashSet<>(selected).size() != 16)
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "O desempate exige exatamente 16 patinadores distintos");
+        List<CommunityInlineSpeed2026.Skater> ordered = source.stream()
+                .flatMap(h -> h.skaters().stream()).filter(s -> !s.disqualified())
+                .sorted(Comparator.comparing(CommunityInlineSpeed2026.Skater::seconds)
+                        .thenComparingLong(CommunityInlineSpeed2026.Skater::playerId)).toList();
+        if (ordered.size() < 18)
+            throw problem(HttpStatus.CONFLICT, "Faltam resultados para desempate");
+        BigDecimal cutoff = ordered.get(15).seconds();
+        Set<Long> guaranteed = ordered.stream().filter(s -> s.seconds().compareTo(cutoff) < 0)
+                .map(CommunityInlineSpeed2026.Skater::playerId).collect(Collectors.toSet());
+        Set<Long> tied = ordered.stream().filter(s -> s.seconds().compareTo(cutoff) == 0)
+                .map(CommunityInlineSpeed2026.Skater::playerId).collect(Collectors.toSet());
+        Set<Long> chosen = Set.copyOf(selected);
+        if (!chosen.containsAll(guaranteed)
+                || chosen.stream().anyMatch(id -> !guaranteed.contains(id) && !tied.contains(id))
+                || chosen.stream().filter(tied::contains).count() != 16 - guaranteed.size())
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "O júri só pode desempatar participantes efetivamente empatados no limite");
+        String reason = request.reason() == null ? "" : request.reason().trim();
+        if (reason.length() < 20 || reason.length() > 500)
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "O desempate exige uma fundamentação oficial de 20 a 500 caracteres");
+        CommunityInlineSpeedTieBreak ruling = tieBreaks
+                .findByTournamentIdAndSourceStage(tournamentId, "FIRST")
+                .orElseGet(CommunityInlineSpeedTieBreak::new);
+        ruling.setTournament(tournament);
+        ruling.setSourceStage("FIRST");
+        ruling.setSelectedPlayerIds(selected.stream().map(String::valueOf)
+                .collect(Collectors.joining(",")));
+        ruling.setSourceFingerprint(CommunityInlineSpeed2026.fingerprint(source));
+        ruling.setJudgeReason(reason);
+        ruling.setConfirmedBy(username);
+        ruling.setConfirmedAt(Instant.now());
+        tieBreaks.save(ruling);
+        return snapshot(communityId, tournament, true);
+    }
+
+    /** A saved ruling is effective only while its source heats have the same fingerprint. */
+    private CommunityInlineSpeed2026.Proposal resolvedProposal(
+            Long tournamentId, List<CommunityInlineSpeed2026.Heat> source,
+            String stage, String discipline) {
+        CommunityInlineSpeed2026.Proposal base =
+                CommunityInlineSpeed2026.propose(source, stage, discipline);
+        if (!"FIRST".equals(stage) || base.ready() || !base.warning().contains("Empate múltiplo"))
+            return base;
+        return tieBreaks.findByTournamentIdAndSourceStage(tournamentId, "FIRST")
+                .filter(t -> t.getSourceFingerprint().equals(CommunityInlineSpeed2026.fingerprint(source)))
+                .map(t -> new CommunityInlineSpeed2026.Proposal("QUARTER",
+                        readIds(t.getSelectedPlayerIds()), 16, true,
+                        "Desempate múltiplo resolvido por decisão registada do júri"))
+                .orElse(base);
+    }
+
     private Overview snapshot(Long communityId, CommunityTournament tournament, boolean includeAvailable) {
         List<CommunityInlineSpeedHeatLink> linked = links.findByTournamentIdOrderByIdAsc(tournament.getId());
         String discipline = discipline(linked);
