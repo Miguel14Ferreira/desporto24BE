@@ -30,6 +30,10 @@ class CommunityInlineSpeedPostgres16Test {
     private JdbcTemplate jdbc;
     private static final String MIGRATION =
             "db/changelog/changes/2026-10-25-inline-speed-progression-v1.yaml";
+    private static final String TIEBREAK_MIGRATION =
+            "db/changelog/changes/2026-10-25-inline-speed-jury-tiebreak-v1.yaml";
+    private static final String REVISIONS_MIGRATION =
+            "db/changelog/changes/2026-10-25-inline-speed-jury-tiebreak-revisions-v1.yaml";
 
     @BeforeAll
     void setUpDisposableDatabase() throws Exception {
@@ -52,13 +56,18 @@ class CommunityInlineSpeedPostgres16Test {
                 "id bigint primary key, name varchar(120) not null, " +
                 "event_type varchar(64), elapsed_seconds numeric(11,3))");
 
-        try (var connection = source.getConnection()) {
-            var database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(
-                    new JdbcConnection(connection));
-            try (var migration = new Liquibase(MIGRATION, new ClassLoaderResourceAccessor(), database)) {
-                migration.update(new Contexts(), new LabelExpression());
-                // A repeat deploy must not run the same DDL twice.
-                migration.update(new Contexts(), new LabelExpression());
+        for (String migrationPath : new String[]{
+                MIGRATION, TIEBREAK_MIGRATION, REVISIONS_MIGRATION}) {
+            // Liquibase.close() also closes its JDBC connection. Each migration
+            // must use a fresh connection, as it would in a real deployment.
+            try (var connection = source.getConnection()) {
+                var database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(
+                        new JdbcConnection(connection));
+                try (var migration = new Liquibase(migrationPath,
+                        new ClassLoaderResourceAccessor(), database)) {
+                    migration.update(new Contexts(), new LabelExpression());
+                    migration.update(new Contexts(), new LabelExpression());
+                }
             }
         }
     }
@@ -132,6 +141,40 @@ class CommunityInlineSpeedPostgres16Test {
                         java.math.BigDecimal.class)));
         assertFalse(Boolean.TRUE.equals(jdbc.queryForObject(
                 "select rankings_enabled from community_tournament where id=9", Boolean.class)));
+    }
+
+    @Test
+    void juryTieBreakRevisionsEnforceUniqueSequenceAndPreserveOriginalTimes() {
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from databasechangelog where " +
+                "id='2026-10-25-inline-speed-jury-tiebreak-revisions-v1'", Integer.class));
+        jdbc.update("insert into community_inline_speed_tiebreak " +
+                "(tournament_id,source_stage,selected_player_ids,source_fingerprint," +
+                "judge_reason,confirmed_by,confirmed_at) values " +
+                "(9,'FIRST','1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16',repeat('a',64)," +
+                "'Registo inicial de evidência oficial','qa_owner',now())");
+        long rulingId = jdbc.queryForObject(
+                "select id from community_inline_speed_tiebreak where tournament_id=9",
+                Long.class);
+        String insert = "insert into community_inline_speed_tiebreak_revision " +
+                "(tiebreak_id,revision_number,selected_player_ids,source_fingerprint," +
+                "judge_reason,confirmed_by,confirmed_at) values " +
+                "(?,?,'1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16',repeat('a',64)," +
+                "'Evidência de desempate documentada','qa_owner',now())";
+        jdbc.update(insert, rulingId, 1);
+        assertThrows(DataIntegrityViolationException.class,
+                () -> jdbc.update(insert, rulingId, 1));
+        jdbc.update(insert, rulingId, 2);
+        assertThrows(DataIntegrityViolationException.class,
+                () -> jdbc.update(insert, 999999L, 3));
+        assertEquals(2, count("community_inline_speed_tiebreak_revision"));
+        assertEquals(0, new java.math.BigDecimal("30.010").compareTo(
+                jdbc.queryForObject("select elapsed_seconds from community_round where id=100",
+                        java.math.BigDecimal.class)));
+        jdbc.update("delete from community_tournament where id=9");
+        assertEquals(0, count("community_inline_speed_tiebreak_revision"));
+        assertEquals(0, count("community_inline_speed_tiebreak"));
+        assertEquals(3, count("community_round"));
     }
 
     @Test
