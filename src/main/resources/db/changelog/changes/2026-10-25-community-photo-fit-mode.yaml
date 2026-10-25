@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-community-photo-fit-mode-v1
+      author: desporto24
+      comment: "Optional non-destructive COVER or SHOW_ALL mode for community images and animated GIFs"
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community
+            columns:
+              - column:
+                  name: photo_fit_mode
+                  type: varchar(16)
+        - sql:
+            dbms: postgresql
+            sql: |
+              ALTER TABLE desporto24.community
+                ADD CONSTRAINT ck_community_photo_fit_mode
+                CHECK (photo_fit_mode IS NULL OR photo_fit_mode IN ('COVER','SHOW_ALL'));
