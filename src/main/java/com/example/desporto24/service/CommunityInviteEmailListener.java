@@ -13,6 +13,8 @@ import com.example.desporto24.email.TransactionalEmailTemplate;
 public class CommunityInviteEmailListener {
 
     private final EmailSender emailSender;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private NotificationPreferencesService preferenceService;
     private final String uiAppUrl;
 
     public CommunityInviteEmailListener(
@@ -24,6 +26,12 @@ public class CommunityInviteEmailListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCommunityInviteCreated(CommunityInviteCreatedEvent event) {
+        if (preferenceService != null
+                && event.recipientEmail() != null
+                && !preferenceService.allowsOptionalEmailAddress(event.recipientEmail(),
+                        com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE)) {
+            return;
+        }
         if (event.recipientEmail() == null || event.recipientEmail().isBlank()) {
             return;
         }
