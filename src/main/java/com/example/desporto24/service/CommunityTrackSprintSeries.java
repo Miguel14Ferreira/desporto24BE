@@ -39,6 +39,11 @@ final class CommunityTrackSprintSeries {
 
     static void validate(String eventType, String phase, String seriesKey, Integer heatNumber,
             List<Heat> previous, List<CommunityRoundEntryRequest> upcoming) {
+        validate(eventType,phase,seriesKey,heatNumber,previous,upcoming,false);
+    }
+    static void validate(String eventType, String phase, String seriesKey, Integer heatNumber,
+            List<Heat> previous, List<CommunityRoundEntryRequest> upcoming,
+            boolean officialReducedRerun) {
         if ("TRACK_SPRINT_5_8".equals(eventType)) {
             if (!"SPRINT_PLACES_5_8".equals(phase) || seriesKey == null
                     || !seriesKey.matches("SP[1-9][0-9]*-F58")
@@ -68,6 +73,11 @@ final class CommunityTrackSprintSeries {
             throw new IllegalArgumentException("Número de manga incompatível com a fase Sprint");
         if (repechage) {
             int expected = "SPRINT_REPECHAGE_1_16".equals(phase) ? 2 : 3;
+            if (officialReducedRerun) {
+                if (expected != 3 || !seriesKey.matches("SP[1-9][0-9]*-[UW][1-4]"))
+                    throw new IllegalArgumentException("Reinício reduzido sem autorização válida");
+                expected = 2;
+            }
             if (!Set.of("SPRINT_REPECHAGE_1_32","SPRINT_REPECHAGE_1_16",
                     "SPRINT_REPECHAGE_1_8").contains(phase) || upcoming.size()!=expected
                     || !previous.isEmpty() || heatNumber!=1)

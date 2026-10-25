@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-sprint-three-up-rerun-approval
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column: { name: rerun_riders_json, type: TEXT }
+              - column: { name: rerun_reference, type: VARCHAR(255) }
+              - column: { name: rerun_reason, type: VARCHAR(500) }
+              - column: { name: rerun_authorized_by, type: VARCHAR(100) }
+              - column: { name: rerun_authorized_at, type: TIMESTAMP WITH TIME ZONE }
+        - dropIndex:
+            tableName: community_track_sprint_incident
+            indexName: uq_track_sprint_one_pending_incident
+        - sql:
+            dbms: postgresql
+            sql: >
+              CREATE UNIQUE INDEX uq_track_sprint_one_pending_incident
+              ON community_track_sprint_incident (bracket_id, series_key)
+              WHERE status IN ('PENDING', 'ADJUDICATION_REQUIRED', 'RESTART_AUTHORIZED')

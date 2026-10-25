@@ -12,6 +12,7 @@ on:
       - 'src/main/resources/db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml'
       - 'src/main/resources/db/changelog/changes/2026-10-25-track-sprint-incident-decisions.yaml'
       - 'src/main/resources/db/changelog/changes/2026-10-25-track-sprint-disciplinary-rulings.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-sprint-three-up-rerun-approval.yaml'
       - '.github/workflows/track-sprint-postgres16-qa.yml'
   workflow_dispatch:
 permissions:

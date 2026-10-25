@@ -24,12 +24,25 @@ public final class CommunityTrackSprintIncidentDtos {
         }
     }
 
+
+    /**
+     * A separate signed authorization for a three-up rerun. Must explicitly
+     * name and order exactly the two surviving riders; no winner is selected.
+     */
+    public record AuthorizeRerun(
+            @NotNull @Size(min=2,max=2) java.util.List<String> orderedRiders,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
     public record View(Long id, String seriesKey, int heatNumber,
                        String incidentType, String details, String status,
                        String reportedBy, Instant reportedAt, String decisionType,
                        String decisionReference, String decisionReason,
                        String decidedBy, Instant decidedAt,
-                       String sanctionType, String sanctionedUsername) {
+                       String sanctionType, String sanctionedUsername,
+                       java.util.List<String> rerunRiders, String rerunReference,
+                       String rerunReason, String rerunAuthorizedBy,
+                       Instant rerunAuthorizedAt) {
         public View(Long id, String seriesKey, int heatNumber,
                 String incidentType, String details, String status,
                 String reportedBy, Instant reportedAt, String decisionType,
@@ -37,7 +50,7 @@ public final class CommunityTrackSprintIncidentDtos {
                 String decidedBy, Instant decidedAt) {
             this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
                  reportedAt,decisionType,decisionReference,decisionReason,decidedBy,
-                 decidedAt,null,null);
+                 decidedAt,null,null,java.util.List.of(),null,null,null,null);
         }
     }
 }

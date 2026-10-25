@@ -30,7 +30,8 @@ class CommunityTrackSprintPostgres16Test {
         "db/changelog/changes/2026-10-25-track-sprint-qualification16.yaml",
         "db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml",
         "db/changelog/changes/2026-10-25-track-sprint-incident-decisions.yaml",
-        "db/changelog/changes/2026-10-25-track-sprint-disciplinary-rulings.yaml");
+        "db/changelog/changes/2026-10-25-track-sprint-disciplinary-rulings.yaml",
+        "db/changelog/changes/2026-10-25-sprint-three-up-rerun-approval.yaml");
 
     @BeforeAll
     void migrateDisposableLocalDatabaseOnly() throws Exception {
@@ -90,13 +91,14 @@ class CommunityTrackSprintPostgres16Test {
 
     @Test
     void migrationsAreIdempotentAndHistoricEightRiderDefaultSurvives() {
-        assertEquals(6, jdbc.queryForObject("select count(*) from databasechangelog " +
+        assertEquals(7, jdbc.queryForObject("select count(*) from databasechangelog " +
             "where id in ('2026-10-24-track-sprint-series-v1'," +
             "'2026-10-25-community-track-sprint-bracket8'," +
             "'2026-10-25-track-sprint-qualifying16'," +
             "'2026-10-25-sprint-official-200m-tie-decisions'," +
             "'2026-10-25-track-sprint-incident-decisions'," +
-            "'2026-10-25-track-sprint-disciplinary-rulings')", Integer.class));
+            "'2026-10-25-track-sprint-disciplinary-rulings'," +
+            "'2026-10-25-sprint-three-up-rerun-approval')", Integer.class));
         jdbc.update("insert into community_track_sprint_bracket " +
             "(id,community_id,season_id,name,created_at) " +
             "values (81,7,6,'Existing eight riders',now())");
@@ -169,6 +171,32 @@ class CommunityTrackSprintPostgres16Test {
             "'Fictional commission decision awaiting modified heat','owner',now())");
         assertEquals("DISQUALIFICATION", jdbc.queryForObject(
             "select sanction_type from community_track_sprint_incident where bracket_id=41",
+            String.class));
+        assertThrows(DataIntegrityViolationException.class,()->jdbc.update(
+            "insert into community_track_sprint_incident " +
+            "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at) " +
+            "values (41,'SP41-U1',1,'PUNCTURE','Fictional duplicate','PENDING','owner',now())"));
+        assertEquals(1,count("community_track_sprint_incident"));
+        assertEquals(3,count("community_round"));
+    }
+
+    @Test
+    void approvedTwoRiderRerunKeepsSignedOrderAndBlocksASecondOpenIncident() {
+        bracket(41,7,4,42L);
+        String order = "[\"qa-rider-1\",\"qa-rider-2\"]";
+        jdbc.update("insert into community_track_sprint_incident " +
+            "(bracket_id,series_key,heat_number,incident_type,details,status," +
+            "reported_by,reported_at,decision_type,sanction_type,sanctioned_username," +
+            "decision_reference,decision_reason,decided_by,decided_at," +
+            "rerun_riders_json,rerun_reference,rerun_reason,rerun_authorized_by,rerun_authorized_at) " +
+            "values (41,'SP41-U1',1,'RULE_INFRINGEMENT','Synthetic contact'," +
+            "'RESTART_AUTHORIZED','owner',now(),'DISCIPLINARY_RULING'," +
+            "'DISQUALIFICATION','qa-rider-3','Initial official minutes #41'," +
+            "'Synthetic ruling on fault','owner',now(),?,?,?,'owner',now())",
+            order,"Separate rerun authorization #42",
+            "Two unchanged starting positions confirmed in new fixture");
+        assertEquals(order,jdbc.queryForObject(
+            "select rerun_riders_json from community_track_sprint_incident where bracket_id=41",
             String.class));
         assertThrows(DataIntegrityViolationException.class,()->jdbc.update(
             "insert into community_track_sprint_incident " +

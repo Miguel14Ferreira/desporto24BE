@@ -510,6 +510,99 @@ class CommunityTrackSprintAuthenticatedPgIT {
             .path("status").asText());
         assertEquals("fixture_sprint_owner",cautionOverview.path("incidents").get(0)
             .path("decidedBy").asText());
+        // Real three-up repêchage: the commissaires explicitly order a
+        // TWO-rider rerun after excluding one, then the organizer records
+        // a genuine heat. No athlete or WIN/LOSS is ever invented by this API.
+        JsonNode reduced=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional three-up UCI rerun","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long reducedId=reduced.path("id").asLong();
+        for(int i=1;i<=12;i++) {
+            JsonNode bracketList=api("GET",brackets(activeSeason),ownerJwt,null,200);
+            JsonNode source=null;
+            for(JsonNode item:bracketList)if(item.path("id").asLong()==reducedId)source=item;
+            assertNotNull(source);
+            JsonNode slot=null;
+            for(JsonNode item:source.path("matches"))
+                if(("A"+i).equals(item.path("slot").asText()))slot=item;
+            assertNotNull(slot);
+            record("Fictional UCI A"+i,"TRACK_SPRINT_HEAT",
+                "SPRINT_THIRTY_SECOND_FINAL","SP"+reducedId+"-A"+i,1,
+                List.of(rider(slot.path("riderA").asText(),"WIN"),
+                        rider(slot.path("riderB").asText(),"LOSS")));
+        }
+        JsonNode full=api("GET",brackets(activeSeason),memberJwt,null,200), candidate=null;
+        for(JsonNode b:full)if(b.path("id").asLong()==reducedId)candidate=b;
+        assertNotNull(candidate);
+        JsonNode trio=null;
+        for(JsonNode m:candidate.path("matches"))
+            if("U1".equals(m.path("slot").asText()))trio=m;
+        assertNotNull(trio);
+        assertEquals("READY",trio.path("status").asText());
+        assertTrue(trio.hasNonNull("riderC"));
+        String riderA=trio.path("riderA").asText(), riderB=trio.path("riderB").asText(),
+            removed=trio.path("riderC").asText();
+        String base=brackets(activeSeason)+"/"+reducedId+"/incidents";
+        JsonNode newReport=api("POST",base,ownerJwt,Map.of(
+            "seriesKey","SP"+reducedId+"-U1","heatNumber",1,
+            "incidentType","RULE_INFRINGEMENT",
+            "details","Synthetic irregular favouring of one athlete in a three-up heat"),200);
+        String rulingUrl=base+"/"+newReport.path("id").asLong()+"/decision";
+        api("PUT",rulingUrl,ownerJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING","sanctionType","RELEGATION",
+            "sanctionedUsername",removed,
+            "reference","Synthetic official commissaires document U1-2026",
+            "reason","Documented fictional interference favouring another racer"),200);
+        String rerunUrl=base+"/"+newReport.path("id").asLong()+"/rerun";
+        Map<String,Object> rerun=Map.of(
+            "orderedRiders",List.of(riderB,riderA),
+            "reference","Separate official restart order U1-2026",
+            "reason","Witnessed two-rider rerun following removal of the relegated rider");
+        api("PUT",rerunUrl,memberJwt,rerun,403);
+        api("PUT",rerunUrl,outsiderJwt,rerun,403);
+        api("PUT",rerunUrl,ownerJwt,Map.of(
+            "orderedRiders",List.of(riderA,removed),
+            "reference","Invalid restart with sanctioned competitor",
+            "reason","This deliberately tries to reinstate a disqualified rider"),400);
+        JsonNode authorized=api("PUT",rerunUrl,ownerJwt,rerun,200);
+        assertEquals("RESTART_AUTHORIZED",authorized.path("status").asText());
+        assertEquals("RELEGATION",authorized.path("sanctionType").asText());
+        assertEquals(List.of(riderB,riderA),List.of(
+            authorized.path("rerunRiders").get(0).asText(),
+            authorized.path("rerunRiders").get(1).asText()));
+        assertEquals("fixture_sprint_owner",authorized.path("rerunAuthorizedBy").asText());
+        api("PUT",rerunUrl,ownerJwt,rerun,409);
+        api("POST",base,ownerJwt,Map.of(
+            "seriesKey","SP"+reducedId+"-U1","heatNumber",1,
+            "incidentType","FALL","details","Duplicate attempt to change this same rerun"),409);
+        JsonNode rerunList=api("GET",brackets(activeSeason),memberJwt,null,200),
+            rerunBracket=null,rerunMatch=null;
+        for(JsonNode b:rerunList)if(b.path("id").asLong()==reducedId)rerunBracket=b;
+        assertNotNull(rerunBracket);
+        for(JsonNode m:rerunBracket.path("matches"))
+            if("U1".equals(m.path("slot").asText()))rerunMatch=m;
+        assertNotNull(rerunMatch);
+        assertEquals("READY",rerunMatch.path("status").asText());
+        assertEquals(riderB,rerunMatch.path("riderA").asText());
+        assertEquals(riderA,rerunMatch.path("riderB").asText());
+        assertTrue(rerunMatch.path("riderC").isNull());
+        assertTrue(rerunMatch.path("winner").isNull());
+        record("Fictional witnessed two-up U1 rerun",
+            "TRACK_SPRINT_REPECHAGE","SPRINT_REPECHAGE_1_32",
+            "SP"+reducedId+"-U1",1,
+            List.of(rider(riderB,"WIN"),rider(riderA,"LOSS")));
+        JsonNode rerunResultList=api("GET",brackets(activeSeason),memberJwt,null,200),
+            resulting=null,finished=null;
+        for(JsonNode b:rerunResultList)if(b.path("id").asLong()==reducedId)resulting=b;
+        assertNotNull(resulting);
+        for(JsonNode m:resulting.path("matches"))
+            if("U1".equals(m.path("slot").asText()))finished=m;
+        assertNotNull(finished);
+        assertEquals("FINISHED",finished.path("status").asText());
+        assertEquals(riderB,finished.path("winner").asText());
+        assertEquals(1,resulting.path("incidents").size());
+        assertEquals("RESTART_AUTHORIZED",resulting.path("incidents").get(0)
+            .path("status").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
