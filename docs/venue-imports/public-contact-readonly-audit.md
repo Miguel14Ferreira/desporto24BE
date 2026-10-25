@@ -72,3 +72,44 @@ Issue: https://github.com/Miguel14Ferreira/desporto24BE/issues/359
 Testes offline:
 
     python3 -m unittest discover -s scripts -p 'test_audit_venue_public_contacts.py' -v
+
+## Piloto Porto — referências oficiais de instalações (25/10/2026)
+
+O catálogo piloto está em
+`docs/venue-imports/porto-municipal-contact-sources-20261025.json`.
+Contém apenas **três URLs de páginas oficiais da Ágora**, nome de cada piscina,
+localidade, indicação de rua e data da consulta. **Não contém números de
+telefone, Jynlo IDs deduzidos, credenciais ou autorização de reutilização**.
+
+O comando abaixo consulta apenas uma API pública da Jynlo e compara os nomes
+da lista com os recintos LIVE, rejeitando duplicados, cidades/distritos
+divergentes, moradas por confirmar e contactos já preenchidos:
+
+    python3 scripts/pilot_porto_public_contact_sources.py \
+      --live-public-api \
+      --sources-json docs/venue-imports/porto-municipal-contact-sources-20261025.json \
+      --output-json /tmp/porto-source-matches.json
+
+O JSON só identifica IDs correspondentes e ligações **às fontes**. As linhas
+com `POSSIVEL_MATCH_REVISAO_HUMANA` **não estão aprovadas**. Nunca
+inserir o telefone na BD ou na API sem verificar, para aquele recinto exato,
+o contacto público, a morada e a licitude da reutilização. Moradas
+`MORADA_DIVERGENTE_REVER` ou `MORADA_NAO_CONFIRMADA` exigem revisão adicional.
+Não generalizar o telefone da entidade gestora para outras instalações.
+
+A execução do GitHub Actions reutiliza o workflow de auditoria já existente,
+sem instalar serviços de pagamento ou aceder à base de dados. O arquivo da CI
+pode conter apenas os três links oficiais e os IDs resultantes; não publica
+o CSV privado de propostas nem números telefónicos individuais.
+
+    python3 -m unittest discover -s scripts -p 'test_pilot_porto_public_contact_sources.py' -v
+
+Páginas oficiais do piloto:
+- https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao
+- https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-de-cartes
+- https://www.agoraporto.pt/desporto/piscina-municipal-eng-o-armando-pimentel
+
+Foi encontrado ainda um dataset municipal de instalações identificado como
+CCZero no portal de dados abertos do Porto, mas o ficheiro de dados não
+estava acessível durante a verificação. **Não assumir que contém telefones**:
+https://opendata.porto.digital/en/dataset/desporto-atlas-desportivo-designacao-da-instalacao-desportiva/resource/bf5a9220-febd-4bd4-925c-afd4d7c10737
