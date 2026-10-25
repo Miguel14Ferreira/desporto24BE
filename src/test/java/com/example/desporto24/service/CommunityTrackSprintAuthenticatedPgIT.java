@@ -428,5 +428,88 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals(1,recorded.path("incidents").size());
         assertEquals("DECIDED",recorded.path("incidents").get(0).path("status").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
+
+        // Official disciplinary documentation must NEVER create a winner.
+        // A warning is auditable and allows manual result entry; DQ/relegation
+        // stays blocked because the entrants/bracket composition can change.
+        JsonNode disciplinary=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional disciplinary fixture","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long disciplinaryBracket=disciplinary.path("id").asLong();
+        String disciplinarySeries="SP"+disciplinaryBracket+"-A1";
+        String disciplinaryIncident=brackets(activeSeason)+"/"+disciplinaryBracket+"/incidents";
+        JsonNode report=api("POST",disciplinaryIncident,ownerJwt,Map.of(
+            "seriesKey",disciplinarySeries,"heatNumber",1,
+            "incidentType","RULE_INFRINGEMENT",
+            "details","Fictional alleged interference reported by the race organiser"),200);
+        String decidePath=disciplinaryIncident+"/"+report.path("id").asLong()+"/decision";
+        Map<String,Object> invalid=Map.of(
+            "decisionType","DISCIPLINARY_RULING",
+            "sanctionType","DISQUALIFICATION",
+            "sanctionedUsername","unrelated_person",
+            "reference","Official fictional commissioners minutes #204",
+            "reason","Disqualification for invented interference as documented in the fictional minutes");
+        api("PUT",decidePath,ownerJwt,invalid,400);
+        Map<String,Object> ruling=new HashMap<>(invalid);
+        ruling.put("sanctionedUsername",riders.get(23));
+        api("PUT",decidePath,memberJwt,ruling,403);
+        JsonNode signedRuling=api("PUT",decidePath,ownerJwt,ruling,200);
+        assertEquals("ADJUDICATION_REQUIRED",signedRuling.path("status").asText());
+        assertEquals("DISQUALIFICATION",signedRuling.path("sanctionType").asText());
+        assertEquals(riders.get(23),signedRuling.path("sanctionedUsername").asText());
+        assertEquals("fixture_sprint_owner",signedRuling.path("decidedBy").asText());
+        api("PUT",decidePath,ownerJwt,ruling,409);
+        api("POST",disciplinaryIncident,ownerJwt,Map.of(
+            "seriesKey",disciplinarySeries,"heatNumber",1,
+            "incidentType","FALL","details","Second duplicate report after a DQ"),409);
+        Map<String,Object> illegalResult=new HashMap<>(deniedHeat);
+        illegalResult.put("sprintSeriesKey",disciplinarySeries);
+        api("POST",community()+"/rounds",ownerJwt,illegalResult,409);
+        JsonNode disciplineOverview=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode found=null;
+        for(JsonNode b:disciplineOverview)
+            if(b.path("id").asLong()==disciplinaryBracket)found=b;
+        assertNotNull(found);
+        assertEquals(1,found.path("incidents").size());
+        assertEquals("ADJUDICATION_REQUIRED",found.path("incidents").get(0).path("status").asText());
+        assertEquals("READY",found.path("matches").get(0).path("status").asText());
+        // A warning has no automatic sporting effect and leaves room to
+        // record an ordinary official result explicitly afterwards.
+        JsonNode caution=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional caution fixture","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long warningBracket=caution.path("id").asLong();
+        String warningSeries="SP"+warningBracket+"-A1";
+        String warningIncidents=brackets(activeSeason)+"/"+warningBracket+"/incidents";
+        JsonNode warningReport=api("POST",warningIncidents,ownerJwt,Map.of(
+            "seriesKey",warningSeries,"heatNumber",1,
+            "incidentType","RULE_INFRINGEMENT",
+            "details","Synthetic warning for reported irregular rider movement"),200);
+        String warningDecision=warningIncidents+"/"+warningReport.path("id").asLong()+"/decision";
+        JsonNode warning=api("PUT",warningDecision,ownerJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING","sanctionType","WARNING",
+            "sanctionedUsername",riders.get(0),
+            "reference","Synthetic commissaires protocol warning #2026/42",
+            "reason","Documented fictional yellow-flag warning with no change to starters"),200);
+        assertEquals("DECIDED",warning.path("status").asText());
+        assertEquals("WARNING",warning.path("sanctionType").asText());
+        Map<String,Object> recordedWarningHeat=new HashMap<>(deniedHeat);
+        recordedWarningHeat.put("sprintSeriesKey",warningSeries);
+        JsonNode actualHeat=api("POST",community()+"/rounds",ownerJwt,
+            recordedWarningHeat,200);
+        assertTrue(actualHeat.path("id").asLong()>0);
+        JsonNode warningVisible=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode cautionOverview=null;
+        for(JsonNode b:warningVisible)
+            if(b.path("id").asLong()==warningBracket)cautionOverview=b;
+        assertNotNull(cautionOverview);
+        assertEquals("FINISHED",cautionOverview.path("matches").get(0).path("status").asText());
+        assertEquals("WARNING",cautionOverview.path("incidents").get(0)
+            .path("sanctionType").asText());
+        assertEquals("DECIDED",cautionOverview.path("incidents").get(0)
+            .path("status").asText());
+        assertEquals("fixture_sprint_owner",cautionOverview.path("incidents").get(0)
+            .path("decidedBy").asText());
+        assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
