@@ -155,7 +155,11 @@ public class SessionViewMapper {
                 session.getCommunity() == null ? null : session.getCommunity().getId(),
                 canSharePublicly,
                 session.getExternalConfirmedParticipants() == null
-                        ? 0 : session.getExternalConfirmedParticipants()
+                        ? 0 : session.getExternalConfirmedParticipants(),
+                session.getRegistrationOpeningMode() == null
+                        ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
+                        : session.getRegistrationOpeningMode(),
+                session.getRegistrationOpensAt()
         );
     }
 }

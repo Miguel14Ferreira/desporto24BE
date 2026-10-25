@@ -105,6 +105,53 @@ class SessionJoinServiceTest {
     }
 
     @Test
+    void manualCallupBlocksEvenWaitlistingUntilOpened() {
+        Session session = createSession(false, null, 2);
+        session.setRegistrationOpeningMode(
+                com.example.desporto24.enumeration.RegistrationOpeningMode.MANUAL);
+        sessionRepository.saveAndFlush(session);
+        Profile joiner = createProfile("callupJoiner");
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> sessionService.join(
+                        session.getId(), new JoinSessionRequest(null), joiner.getUsername()));
+
+        assertFalse(participantRepository.existsBySessionIdAndProfileIdAndState(
+                session.getId(), joiner.getId(), ParticipantState.ACTIVE));
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), joiner.getId()).isEmpty());
+    }
+
+    @Test
+    void scheduledCallupRejectsEarlyJoinAtServer() {
+        Session session = createSession(false, null, 2);
+        session.setRegistrationOpeningMode(
+                com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED);
+        session.setRegistrationOpensAt(Instant.now().plusSeconds(900));
+        sessionRepository.saveAndFlush(session);
+        Profile joiner = createProfile("earlyJoiner");
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> sessionService.join(
+                        session.getId(), new JoinSessionRequest(null), joiner.getUsername()));
+        assertTrue(waitlistRepository.findBySessionIdAndProfileId(
+                session.getId(), joiner.getId()).isEmpty());
+    }
+
+    @Test
+    void scheduledCallupAcceptsJoinAfterOpening() {
+        Session session = createSession(false, null, 2);
+        session.setRegistrationOpeningMode(
+                com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED);
+        session.setRegistrationOpensAt(Instant.now().minusSeconds(1));
+        sessionRepository.saveAndFlush(session);
+        Profile joiner = createProfile("laterJoiner");
+
+        assertEquals(JoinState.PARTICIPANT, sessionService.join(
+                session.getId(), new JoinSessionRequest(null), joiner.getUsername()).state());
+    }
+
+    @Test
     void publicSessionWithCapacityCreatesParticipant() {
         Session session = createSession(false, null, 2);
         Profile joiner = createProfile("joiner");

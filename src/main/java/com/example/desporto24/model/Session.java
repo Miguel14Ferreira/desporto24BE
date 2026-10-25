@@ -98,6 +98,13 @@ public class Session {
     @JoinColumn(name = "venue_id")
     private Venue venue;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_opening_mode", length = 16)
+    private com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode;
+
+    @Column(name = "registration_opens_at")
+    private Instant registrationOpensAt;
+
     @Column(name = "recurrence_series_id", length = 36)
     private String recurrenceSeriesId;
 

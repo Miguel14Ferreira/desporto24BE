@@ -175,6 +175,20 @@ public class SessionServiceImpl implements SessionService {
             intervalDays = recurrence == SessionRecurrence.WEEKLY ? 7 : 14;
         }
 
+        var openingMode = request.registrationOpeningMode() == null
+                ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
+                : request.registrationOpeningMode();
+        if (openingMode != com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
+                && linkedCommunity == null) {
+            throw new IllegalArgumentException("Só sessões de comunidades podem ter convocatórias");
+        }
+        if (openingMode == com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED
+                && (request.registrationOpensAt() == null
+                    || !request.registrationOpensAt().isAfter(Instant.now())
+                    || !request.registrationOpensAt().isBefore(request.gameDate()))) {
+            throw new IllegalArgumentException("A abertura tem de ser futura e anterior ao jogo");
+        }
+
         String recurrenceSeriesId = recurrence == SessionRecurrence.NONE
                 ? null
                 : UUID.randomUUID().toString();
@@ -193,7 +207,11 @@ public class SessionServiceImpl implements SessionService {
                     linkedVenue,
                     sport,
                     gameDate,
-                    recurrenceSeriesId
+                    recurrenceSeriesId,
+                    openingMode,
+                    openingMode == com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED
+                            ? request.registrationOpensAt().plus(intervalDays * occurrence, ChronoUnit.DAYS)
+                            : null
             );
             if (firstSaved == null) {
                 firstSaved = saved;
@@ -211,7 +229,9 @@ public class SessionServiceImpl implements SessionService {
             Venue linkedVenue,
             String sport,
             Instant gameDate,
-            String recurrenceSeriesId) {
+            String recurrenceSeriesId,
+            com.example.desporto24.enumeration.RegistrationOpeningMode openingMode,
+            Instant registrationOpensAt) {
         Instant now = Instant.now();
         Session session = new Session();
         session.setProfile(creator);
@@ -245,6 +265,8 @@ public class SessionServiceImpl implements SessionService {
         session.setAudience(linkedCommunity == null ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
         session.setRecurrenceSeriesId(recurrenceSeriesId);
+        session.setRegistrationOpeningMode(openingMode);
+        session.setRegistrationOpensAt(registrationOpensAt);
 
         Session saved = sessionRepository.save(session);
 
@@ -530,6 +552,11 @@ public class SessionServiceImpl implements SessionService {
 
         assertJoinable(session);
         requireCommunitySessionAccess(session, profile);
+        if (!com.example.desporto24.service.SessionRegistrationOpening.isOpen(session, Instant.now())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "A convocatória ainda não abriu");
+        }
         Instant joinAt = Instant.now();
         reliabilityService.requireJoinAllowed(profile, joinAt);
 
@@ -601,6 +628,29 @@ public class SessionServiceImpl implements SessionService {
                 JoinState.WAITLISTED,
                 waitlistPosition(sessionId, waitlistEntry.getId())
         );
+    }
+
+    @Override
+    @Transactional
+    public SessionDetailResponse openRegistration(Long sessionId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireCreator(session, actor);
+        if (session.getCommunity() == null
+                || session.getRegistrationOpeningMode()
+                    != com.example.desporto24.enumeration.RegistrationOpeningMode.MANUAL) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT, "Esta convocatória não está pendente");
+        }
+        assertJoinable(session);
+        session.setRegistrationOpeningMode(
+                com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE);
+        session.setRegistrationOpensAt(null);
+        session.setUpdatedAt(Instant.now());
+        sessionRepository.save(session);
+        return sessionViewMapper.toDetail(session, actor);
     }
 
     private void assertJoinable(Session session) {

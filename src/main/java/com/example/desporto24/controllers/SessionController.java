@@ -117,6 +117,12 @@ public class SessionController {
         return sessionTeamSuggestionService.confirm(id, authentication.getName());
     }
 
+    @PostMapping("/{id}/registration/open")
+    public SessionDetailResponse openRegistration(
+            @PathVariable Long id, Authentication authentication) {
+        return sessionService.openRegistration(id, authentication.getName());
+    }
+
     @PostMapping("/{id}/join")
     public JoinSessionResponse join(
             @PathVariable Long id,
