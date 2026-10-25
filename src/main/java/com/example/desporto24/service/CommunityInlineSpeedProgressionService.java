@@ -56,11 +56,15 @@ public class CommunityInlineSpeedProgressionService {
     public record ConfirmRequest(List<Long> playerIds, String reason) {}
     public record TieBreakRequest(List<Long> playerIds, String reason,
                                   String evidenceType, String evidenceReference,
-                                  List<Long> trialIds) {
-        /** Previous internal integrations did not attach the structured trials. */
+                                  List<Long> trialIds, String trialOrderExceptionReason) {
+        /** Preserve previous application integration signatures. */
         public TieBreakRequest(List<Long> playerIds, String reason, String evidenceType,
                                String evidenceReference) {
-            this(playerIds, reason, evidenceType, evidenceReference, null);
+            this(playerIds, reason, evidenceType, evidenceReference, null, null);
+        }
+        public TieBreakRequest(List<Long> playerIds, String reason, String evidenceType,
+                               String evidenceReference, List<Long> trialIds) {
+            this(playerIds, reason, evidenceType, evidenceReference, trialIds, null);
         }
     }
     public record TrialSkaterRequest(Long playerId, Integer place, BigDecimal seconds) {}
@@ -75,12 +79,14 @@ public class CommunityInlineSpeedProgressionService {
     public record TieBreakRevisionView(int revision, List<Long> selectedPlayerIds,
                                        String reason, String confirmedBy, Instant confirmedAt,
                                        boolean stale, String evidenceType, String evidenceReference,
-                                       List<Long> trialIds) {}
+                                       List<Long> trialIds,
+                                       String trialOrderExceptionReason) {}
     public record TieBreakView(String sourceStage, List<Long> selectedPlayerIds,
                                String reason, String confirmedBy, Instant confirmedAt,
                                boolean stale, List<TieBreakRevisionView> revisions,
                                String evidenceType, String evidenceReference,
-                               List<Long> trialIds) {}
+                               List<Long> trialIds,
+                               String trialOrderExceptionReason) {}
 
     @Transactional(readOnly = true)
     public Overview overview(Long communityId, Long tournamentId, String username) {
@@ -234,6 +240,20 @@ public class CommunityInlineSpeedProgressionService {
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Número de apurados inválido para a fase: esperado " + minimum
                     + (maximum == minimum ? "" : " a " + maximum));
+        // A ratification cannot silently replace an already audited jury decision.
+        // An expressly reasoned exceptional 17th skater remains possible.
+        if ("FIRST".equals(sourceStage)) {
+            tieBreaks.findByTournamentIdAndSourceStage(tournamentId, "FIRST")
+                    .filter(r -> r.getSourceFingerprint()
+                            .equals(CommunityInlineSpeed2026.fingerprint(sourceHeats)))
+                    .ifPresent(r -> {
+                        List<Long> judged = readIds(r.getSelectedPlayerIds());
+                        if (!Set.copyOf(selected).equals(Set.copyOf(judged))
+                                && !(exceptionalSeventeenth && selected.containsAll(judged)))
+                            throw problem(HttpStatus.CONFLICT,
+                                    "Corrige primeiro a decisão do júri: a ratificação diverge dos apurados registados");
+                    });
+        }
         boolean correction = !selected.equals(proposal.candidatePlayerIds());
         String reason = request.reason() == null ? "" : request.reason().trim();
         if (exceptionalSeventeenth && reason.length() < 20)
@@ -368,6 +388,23 @@ public class CommunityInlineSpeedProgressionService {
                         "A prova associada está desatualizada face às mangas originais");
             usedTrials.add(used);
         }
+        // Compare only actual trial participants. An outcome conflicting with
+        // the recorded placing remains a human decision, but must be auditable.
+        boolean orderConflict = usedTrials.stream().anyMatch(trial -> {
+            List<CommunityInlineSpeedTieTrialResult> places =
+                    trialResults.findByTrialIdOrderByPlaceAsc(trial.getId());
+            return places.stream().anyMatch(a -> chosen.contains(a.getPlayerId())
+                    && places.stream().anyMatch(b -> !chosen.contains(b.getPlayerId())
+                            && b.getPlace() < a.getPlace()));
+        });
+        String trialException = request.trialOrderExceptionReason() == null
+                ? "" : request.trialOrderExceptionReason().trim();
+        if (trialException.length() > 500 || (orderConflict && trialException.length() < 20))
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "A escolha diverge da ordem da prova adicional: fundamenta a exceção em 20 a 500 caracteres");
+        if (!orderConflict && !trialException.isEmpty())
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Não existe divergência de lugares que justifique esta exceção");
 
         CommunityInlineSpeedTieBreak ruling = tieBreaks
                 .findByTournamentIdAndSourceStage(tournamentId, "FIRST")
@@ -391,6 +428,7 @@ public class CommunityInlineSpeedProgressionService {
         ruling.setJudgeReason(reason);
         ruling.setEvidenceType(evidenceType);
         ruling.setEvidenceReference(evidenceReference);
+        ruling.setTrialOrderExceptionReason(trialException.isBlank() ? null : trialException);
         ruling.setConfirmedBy(username);
         ruling.setConfirmedAt(Instant.now());
         ruling = tieBreaks.save(ruling);
@@ -414,6 +452,7 @@ public class CommunityInlineSpeedProgressionService {
                 .judgeReason(ruling.getJudgeReason())
                 .evidenceType(ruling.getEvidenceType())
                 .evidenceReference(ruling.getEvidenceReference())
+                .trialOrderExceptionReason(ruling.getTrialOrderExceptionReason())
                 .confirmedBy(ruling.getConfirmedBy())
                 .confirmedAt(ruling.getConfirmedAt()).build();
     }
@@ -553,21 +592,24 @@ public class CommunityInlineSpeedProgressionService {
                                     !v.getSourceFingerprint().equals(fingerprint),
                                     v.getEvidenceType(), v.getEvidenceReference(),
                                     trialUsages.findByRevisionIdOrderByIdAsc(v.getId()).stream()
-                                            .map(use -> use.getTrial().getId()).toList())).toList();
+                                            .map(use -> use.getTrial().getId()).toList(),
+                                    v.getTrialOrderExceptionReason())).toList();
                     if (revisions.isEmpty()) {
                         // An existing ruling is still visible before its first edit.
                         revisions = List.of(new TieBreakRevisionView(1,
                                 readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
                                 d.getConfirmedBy(), d.getConfirmedAt(),
                                 !d.getSourceFingerprint().equals(fingerprint),
-                                d.getEvidenceType(), d.getEvidenceReference(), List.of()));
+                                d.getEvidenceType(), d.getEvidenceReference(), List.of(),
+                                d.getTrialOrderExceptionReason()));
                     }
                     return new TieBreakView(d.getSourceStage(),
                             readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
                             d.getConfirmedBy(), d.getConfirmedAt(),
                             !d.getSourceFingerprint().equals(fingerprint), revisions,
                             d.getEvidenceType(), d.getEvidenceReference(),
-                            revisions.get(revisions.size() - 1).trialIds());
+                            revisions.get(revisions.size() - 1).trialIds(),
+                            d.getTrialOrderExceptionReason());
                 }).toList();
         List<TieTrialView> recordedTrials = tieTrials
                 .findByTournamentIdOrderByIdAsc(tournament.getId()).stream()
