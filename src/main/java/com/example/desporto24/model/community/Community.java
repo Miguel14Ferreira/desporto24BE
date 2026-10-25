@@ -43,6 +43,14 @@ public class Community {
     @Column(name = "photo_url", length = 1000)
     private String photoUrl;
 
+    // Null = legacy presentation (animated GIFs remain letterboxed by default).
+    @Column(name = "photo_zoom")
+    private Double photoZoom;
+    @Column(name = "photo_focus_x")
+    private Double photoFocusX;
+    @Column(name = "photo_focus_y")
+    private Double photoFocusY;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommunityVisibility visibility;
