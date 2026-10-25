@@ -6,7 +6,21 @@ import java.util.List;
 /** Presentation only: never contains members, sessions or competition data. */
 public record CommunityDiscoveryResponse(
         Long id, String name, String description, String sport,
-        String photoUrl, CommunityVisibility visibility, List<String> sports) {
+        String photoUrl, CommunityVisibility visibility, List<String> sports,
+        Double photoZoom, Double photoFocusX, Double photoFocusY) {
+
+    public CommunityDiscoveryResponse(Long id, String name, String description,
+                                      String sport, String photoUrl, CommunityVisibility visibility,
+                                      List<String> sports) {
+        this(id, name, description, sport, photoUrl, visibility, sports, null, null, null);
+    }
+
+    public CommunityDiscoveryResponse(Long id, String name, String description,
+                                      String sport, String photoUrl, CommunityVisibility visibility,
+                                      Double photoZoom, Double photoFocusX, Double photoFocusY) {
+        this(id, name, description, sport, photoUrl, visibility, null,
+                photoZoom, photoFocusX, photoFocusY);
+    }
 
     // Keep existing JPQL constructor projections and older callers intact.
     public CommunityDiscoveryResponse(Long id, String name, String description, String sport,
@@ -23,6 +37,7 @@ public record CommunityDiscoveryResponse(
 
     public CommunityDiscoveryResponse withSports(List<String> selectedSports) {
         return new CommunityDiscoveryResponse(
-                id, name, description, sport, photoUrl, visibility, selectedSports);
+                id, name, description, sport, photoUrl, visibility, selectedSports,
+                photoZoom, photoFocusX, photoFocusY);
     }
 }
