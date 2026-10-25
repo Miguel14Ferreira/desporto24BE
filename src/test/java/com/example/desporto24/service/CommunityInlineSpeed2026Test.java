@@ -1,6 +1,8 @@
 package com.example.desporto24.service;
 
 import org.junit.jupiter.api.Test;
+import com.example.desporto24.enumeration.CommunityMatchResult;
+import com.example.desporto24.model.dto.community.CommunityRoundEntryRequest;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +78,27 @@ class CommunityInlineSpeed2026Test {
         assertFalse(CommunityInlineSpeed2026.propose(same, "SEMI", "TRACK_500D").ready());
         assertFalse(CommunityInlineSpeed2026.propose(same.subList(0, 1), "SEMI", "TRACK_500D").ready());
     }
+    @Test void firstRoundNeverAllowsMoreThanSixSkatersPerHeat() {
+        var seven = new ArrayList<CommunityRoundEntryRequest>();
+        for (int i = 1; i <= 7; i++) {
+            seven.add(new CommunityRoundEntryRequest("skater" + i, null,
+                    CommunityMatchResult.DRAW, null, null, false, false,
+                    null, BigDecimal.valueOf(30 + i, 1), null, null));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityInlineSpeedResults.validate("Patinagem de Velocidade",
+                        "INLINE_TRACK_500D_FIRST_ROUND", seven));
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityInlineSpeedResults.validate("Patinagem de Velocidade",
+                        "INLINE_ROAD_LAP_FIRST_ROUND", seven));
+        assertDoesNotThrow(() -> CommunityInlineSpeedResults.validate(
+                "Patinagem de Velocidade", "INLINE_TRACK_500D_FIRST_ROUND",
+                seven.subList(0, 6)));
+        // The 200m individual time trial does not have the sprint heat limit.
+        assertDoesNotThrow(() -> CommunityInlineSpeedResults.validate(
+                "Patinagem de Velocidade", "INLINE_TRACK_200_TT", seven));
+    }
+
     @Test void historicalFinalBHasNoOfficial2026Stage() {
         assertNull(CommunityInlineSpeed2026.stage("INLINE_TRACK_500D_FINAL_B"));
         assertNull(CommunityInlineSpeed2026.stage("INLINE_ROAD_LAP_FINAL_B"));
