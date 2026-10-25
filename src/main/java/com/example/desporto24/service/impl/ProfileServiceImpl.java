@@ -310,7 +310,7 @@ public class ProfileServiceImpl implements ProfileService {
 
     private void createNotification(String username, String subject, String message, boolean security) {
         String greeting = "Cumprimentos,";
-        String signature = "DESPORTO24 MANAGEMENT TEAM";
+        String signature = "JYNLO MANAGEMENT TEAM";
         String displayDate = java.time.Instant.now().toString();
 
         Notifications notification = new Notifications(
@@ -332,7 +332,7 @@ public class ProfileServiceImpl implements ProfileService {
     private void sendEmailChangedEmail(String oldEmail, String currentEmail, String username) {
         String resetLink = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
         String emailBody = buildEmailChangedEmail(username, resetLink);
-        String subject = "Alteração de email | Email address changed — Desporto24";
+        String subject = "Alteração de email | Email address changed — Jynlo";
 
         if (oldEmail != null && !oldEmail.isBlank()) {
             emailService.send(oldEmail, subject, emailBody);
@@ -621,16 +621,16 @@ public class ProfileServiceImpl implements ProfileService {
             return;
         }
         String link = uiAppUrl.replaceAll("/+$", "") + "/login/resetPassword";
-        emailService.send(profile.getEmail(), "Palavra-passe alterada | Password changed — Desporto24",
+        emailService.send(profile.getEmail(), "Palavra-passe alterada | Password changed — Jynlo",
                 buildPasswordChangedEmail(profile.getUsername(), link));
     }
 
     private String buildPasswordChangedEmail(String name, String link) {
         return TransactionalEmailTemplate.render(
                 "Palavra-passe alterada",
-                "Olá " + name + ", a palavra-passe da tua conta Desporto24 foi alterada.",
+                "Olá " + name + ", a palavra-passe da tua conta Jynlo foi alterada.",
                 "Password changed",
-                "Hi " + name + ", the password for your Desporto24 account has been changed.",
+                "Hi " + name + ", the password for your Jynlo account has been changed.",
                 "Redefinir palavra-passe / Reset password",
                 link,
                 "Se foste tu, não precisas de fazer nada. Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe.",
@@ -641,9 +641,9 @@ public class ProfileServiceImpl implements ProfileService {
     private String buildEmailChangedEmail(String name, String link) {
         return TransactionalEmailTemplate.render(
                 "Alteração de email",
-                "Olá " + name + ", o endereço de email associado à tua conta Desporto24 foi alterado.",
+                "Olá " + name + ", o endereço de email associado à tua conta Jynlo foi alterado.",
                 "Email address changed",
-                "Hi " + name + ", the email address associated with your Desporto24 account has been changed.",
+                "Hi " + name + ", the email address associated with your Jynlo account has been changed.",
                 "Redefinir palavra-passe / Reset password",
                 link,
                 "Se foste tu, não precisas de fazer nada. Se não reconheces esta alteração, redefine imediatamente a tua palavra-passe.",
