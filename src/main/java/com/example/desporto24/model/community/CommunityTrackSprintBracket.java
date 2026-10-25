@@ -49,6 +49,22 @@ public class CommunityTrackSprintBracket {
     @Column(name = "tie_decisions_recorded_by", length = 100)
     private String tieDecisionsRecordedBy;
 
+    // Official, immutable end-of-event report. Separate from sporting rounds.
+    @Column(name = "interruption_stage", length = 36)
+    private String interruptionStage;
+
+    @Column(name = "interruption_reference", length = 255)
+    private String interruptionReference;
+
+    @Column(name = "interruption_reason", length = 500)
+    private String interruptionReason;
+
+    @Column(name = "interruption_recorded_by", length = 100)
+    private String interruptionRecordedBy;
+
+    @Column(name = "interruption_recorded_at")
+    private Instant interruptionRecordedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }
