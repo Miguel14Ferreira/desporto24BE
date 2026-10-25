@@ -798,11 +798,11 @@ class CommunityTrackSprintAuthenticatedPgIT {
         String officialB=bo3Q.path("riderB").asText();
         String adjudications=brackets(activeSeason)+"/"+bo3Id+"/incidents";
         for(int heatNumber=1;heatNumber<=2;heatNumber++) {
-            JsonNode reported=api("POST",adjudications,ownerJwt,Map.of(
+            JsonNode bo3HeatReport=api("POST",adjudications,ownerJwt,Map.of(
                 "seriesKey",bo3Series,"heatNumber",heatNumber,
                 "incidentType","FALL",
                 "details","Synthetic intentional fall for numbered BO3 heat"),200);
-            long recordedId=reported.path("id").asLong();
+            long recordedId=bo3HeatReport.path("id").asLong();
             api("PUT",adjudications+"/"+recordedId+"/decision",ownerJwt,Map.of(
                 "decisionType","DISCIPLINARY_RULING",
                 "sanctionType","RELEGATION",
