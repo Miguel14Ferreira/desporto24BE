@@ -591,9 +591,9 @@ class CommunityTrackSprintAuthenticatedPgIT {
             "TRACK_SPRINT_REPECHAGE","SPRINT_REPECHAGE_1_32",
             "SP"+reducedId+"-U1",1,
             List.of(rider(riderB,"WIN"),rider(riderA,"LOSS")));
-        JsonNode recorded=api("GET",brackets(activeSeason),memberJwt,null,200),
+        JsonNode rerunResultList=api("GET",brackets(activeSeason),memberJwt,null,200),
             resulting=null,finished=null;
-        for(JsonNode b:recorded)if(b.path("id").asLong()==reducedId)resulting=b;
+        for(JsonNode b:rerunResultList)if(b.path("id").asLong()==reducedId)resulting=b;
         assertNotNull(resulting);
         for(JsonNode m:resulting.path("matches"))
             if("U1".equals(m.path("slot").asText()))finished=m;
