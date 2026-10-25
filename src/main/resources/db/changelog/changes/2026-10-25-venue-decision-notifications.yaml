@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-venue-decision-notifications-v1
+      author: jynlo
+      comment: "Link approved/rejected venue edits to in-app notifications"
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: notifications
+            columns:
+              - column: {name: venue_id, type: BIGINT}
+              - column: {name: venue_edit_suggestion_id, type: BIGINT}
+        - createIndex:
+            schemaName: desporto24
+            tableName: notifications
+            indexName: idx_notification_venue_edit_suggestion
+            unique: true
+            columns:
+              - column: {name: venue_edit_suggestion_id}
+        - sql:
+            dbms: postgresql
+            sql: |
+              ALTER TABLE desporto24.notifications
+                DROP CONSTRAINT IF EXISTS notifications_type_check;
+              ALTER TABLE desporto24.notifications
+                ADD CONSTRAINT notifications_type_check
+                  CHECK (type IS NULL OR type IN (
+                    'WAITLIST_PROMOTED', 'SESSION_REMOVED', 'SESSION_CANCELLED',
+                    'SESSION_POST_GAME_REVIEW', 'ATTENDANCE_DISPUTE_ACCEPTED',
+                    'ATTENDANCE_DISPUTE_REJECTED', 'COMMUNITY_INVITE',
+                    'COMMUNITY_JOIN_REQUEST', 'COMMUNITY_JOIN_ACCEPTED',
+                    'COMMUNITY_JOIN_REJECTED', 'SESSION_INVITE',
+                    'CHAT_MESSAGE', 'VENUE_EDIT_DECISION'
+                  ));
