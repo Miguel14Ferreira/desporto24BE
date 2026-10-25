@@ -35,6 +35,10 @@ class CommunityImportDiagnosticTest {
                 "O ficheiro não pode ultrapassar 10 MB").code());
         assertEquals("IMPORT_FILE_REQUIRED", CommunityImportDiagnostic.fromLegacy(
                 "Seleciona um ficheiro Excel").code());
+        assertEquals("IMPORT_FILE_READ_FAILED", CommunityImportDiagnostic.fromLegacy(
+                "O ficheiro CSV/TSV deve estar codificado em UTF-8").code());
+        assertEquals("IMPORT_FILE_READ_FAILED", CommunityImportDiagnostic.fromLegacy(
+                "O ficheiro contém caracteres binários inválidos").code());
         assertEquals("IMPORT_FILE_FORMAT_UNSUPPORTED", CommunityImportDiagnostic.fromLegacy(
                 "Formatos suportados: .xlsx, .xls, .csv e .tsv").code());
         assertEquals(new CommunityImportDiagnostic("IMPORT_ROW_SCORE_INVALID", Map.of("row", "12")),
