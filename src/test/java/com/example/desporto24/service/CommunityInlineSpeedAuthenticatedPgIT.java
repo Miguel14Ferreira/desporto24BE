@@ -101,7 +101,9 @@ class CommunityInlineSpeedAuthenticatedPgIT {
     @Autowired private CommunityInlineSpeedDecisionRepository decisions;
     @Autowired private CommunityInlineSpeedHeatRepository links;
     @Autowired private JWTokenProvider jwt;
-    @Autowired private ObjectMapper mapper;
+    // Spring Boot 4 uses Jackson 3 for MVC; Jackson 2 is used locally to read
+    // standard JSON in this client, without depending on an application bean.
+    private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
     private final List<String> handles = new ArrayList<>();
     private Long communityId;
