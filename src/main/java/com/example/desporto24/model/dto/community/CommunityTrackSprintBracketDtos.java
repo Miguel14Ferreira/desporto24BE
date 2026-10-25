@@ -52,8 +52,11 @@ public final class CommunityTrackSprintBracketDtos {
     public record EndEvent(@NotBlank @Size(min=12,max=255) String reference,
                            @NotBlank @Size(min=12,max=500) String reason) {}
 
+    public record InterruptionPlacement(String username, int position) {}
     public record Interruption(String stage, String reference, String reason,
-                               String recordedBy, java.time.Instant recordedAt) {}
+                               String recordedBy, java.time.Instant recordedAt,
+                               boolean noFinalClassification,
+                               List<InterruptionPlacement> regulatoryPlacings) {}
 
     public record Overview(Long id, Long seasonId, String name, String format,
                            List<Match> matches, Long qualifyingRoundId,
