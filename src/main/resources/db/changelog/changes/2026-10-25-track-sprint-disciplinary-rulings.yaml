@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-track-sprint-disciplinary-rulings
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column:
+                  name: sanction_type
+                  type: VARCHAR(24)
+              - column:
+                  name: sanctioned_username
+                  type: VARCHAR(100)
+        # Previously only PENDING blocked concurrent reports. A formal DQ
+        # or relegation must stay blocked too, without modifying old rows.
+        - sql:
+            dbms: postgresql
+            sql: >
+              DROP INDEX IF EXISTS desporto24.uq_track_sprint_one_pending_incident;
+              CREATE UNIQUE INDEX uq_track_sprint_one_pending_incident
+              ON desporto24.community_track_sprint_incident (bracket_id, series_key)
+              WHERE status IN ('PENDING', 'ADJUDICATION_REQUIRED');
