@@ -45,6 +45,9 @@ public class FriendServiceImpl implements FriendService {
     private final ProfileRepository profileRepository;
     private final UserBlockService userBlockService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     @Value("${ui.app.url}")
     private String uiAppUrl;
 
@@ -82,8 +85,11 @@ public class FriendServiceImpl implements FriendService {
         FriendRequest newFriendRequest = new FriendRequest(token, formattedDate, profile1.getUsername(), profile2.getUsername());
         friendRequestService.saveFriendRequest(newFriendRequest);
 
-        emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Desporto24",
-                buildNewFriendRequestEmail(profile1.getUsername()));
+        if (preferenceService == null || preferenceService.allowsOptionalEmailCategory(
+                profile2.getUsername(), com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST)) {
+            emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Jynlo",
+                    buildNewFriendRequestEmail(profile1.getUsername()));
+        }
         saveNotification(profile2.getUsername(), formattedDate, profile1.getUsername(), token);
     }
 
@@ -107,7 +113,7 @@ public class FriendServiceImpl implements FriendService {
             String friendRequestToken) {
         String subject = "Tu tens um novo pedido de amizade!";
         String message = "Olá, tu recebeste um novo pedido de amizade vindo de " + senderUsername + ". Tu podes aceitar ou rejeitar este pedido.";
-        String signature = "Cumprimentos, DESPORTO24";
+        String signature = "Cumprimentos, Jynlo";
 
         Notifications notification = new Notifications(
                 subject,
