@@ -167,6 +167,15 @@ public class CommunityInlineSpeedProgressionService {
                 .map(CommunityInlineSpeed2026.Skater::playerId).collect(Collectors.toSet());
         if (!observed.containsAll(selected))
             throw problem(HttpStatus.CONFLICT, "Não podes apurar atletas sem resultado de origem");
+        // A judge may substitute candidates and, for a recorded 16th/17th tie,
+        // accept 16 or 17 skaters. The judge cannot silently certify an
+        // undersized stage or add extra skaters with no boundary tie.
+        int minimum = proposal.expectedCount();
+        int maximum = Math.max(minimum, proposal.candidatePlayerIds().size());
+        if (selected.size() < minimum || selected.size() > maximum)
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Número de apurados inválido para a fase: esperado " + minimum
+                    + (maximum == minimum ? "" : " a " + maximum));
         boolean correction = !selected.equals(proposal.candidatePlayerIds());
         String reason = request.reason() == null ? "" : request.reason().trim();
         // Organizer explicitly attests that the first round is complete; without that
