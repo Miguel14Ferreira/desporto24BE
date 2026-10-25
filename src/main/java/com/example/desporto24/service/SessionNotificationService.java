@@ -20,6 +20,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SessionNotificationService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final NotificationsRepository notificationsRepository;
     private final SessionParticipantRepository participantRepository;
     private final SessionWaitlistRepository waitlistRepository;
@@ -91,6 +94,9 @@ public class SessionNotificationService {
         notification.setSessionId(session.getId());
         notification.setRead(false);
 
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 }
