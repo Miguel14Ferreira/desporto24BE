@@ -165,6 +165,8 @@ class CommunityHistoricalMatchXlsxPreviewTest {
         authorize(CommunityRole.MEMBER);
         assertThrows(AccessDeniedException.class, () ->
                 service.preview(7L, "organizer", workbookWithKnockoutMatches(), combined()));
+        verify(profiles).findUserByUsernameIgnoreCase("organizer");
+        verify(members).findByCommunityIdAndProfileId(7L, 8L);
         verifyNoMoreInteractions(profiles, members);
     }
 
