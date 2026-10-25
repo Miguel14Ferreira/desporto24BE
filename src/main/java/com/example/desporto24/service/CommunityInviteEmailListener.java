@@ -26,22 +26,23 @@ public class CommunityInviteEmailListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onCommunityInviteCreated(CommunityInviteCreatedEvent event) {
-        if (preferenceService != null
-                && event.recipientEmail() != null
-                && !preferenceService.allowsOptionalEmailAddress(event.recipientEmail(),
-                        com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE)) {
-            return;
-        }
         if (event.recipientEmail() == null || event.recipientEmail().isBlank()) {
             return;
         }
 
         try {
+            // A failed opt-out check must not send optional mail or turn the
+            // already-committed invitation into an apparent request failure.
+            if (preferenceService != null
+                    && !preferenceService.allowsOptionalEmailAddress(event.recipientEmail(),
+                            com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE)) {
+                return;
+            }
             emailSender.send(event.recipientEmail(), "Convite para uma comunidade | Community invitation — Jynlo",
                     buildEmail(event));
         } catch (RuntimeException exception) {
-            // The invitation and in-app notification have already been committed.
-            log.warn("Could not send email for community invitation {}", event.inviteId(), exception);
+            // No email was sent on a preference lookup error; invitation remains committed.
+            log.warn("Optional community invitation email skipped for invitation {}", event.inviteId(), exception);
         }
     }
 

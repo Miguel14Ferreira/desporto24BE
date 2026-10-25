@@ -90,16 +90,19 @@ public class FriendServiceImpl implements FriendService {
         // The request and its in-app action must not depend on optional email delivery.
         saveNotification(profile2.getUsername(), formattedDate, profile1.getUsername(), token);
 
-        if (preferenceService == null || preferenceService.allowsOptionalEmailCategory(
-                profile2.getUsername(), com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST)) {
-            try {
+        try {
+            // A transient preferences lookup error must not fail an already persisted
+            // friendship request or accidentally opt a recipient into optional mail.
+            if (preferenceService == null || preferenceService.allowsOptionalEmailCategory(
+                    profile2.getUsername(), com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST)) {
                 emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Jynlo",
                         buildNewFriendRequestEmail(profile1.getUsername()));
-            } catch (RuntimeException emailFailure) {
-                // The persisted request remains actionable even if Resend is unavailable.
-                log.warn("Optional friend request email failed; the friendship request remains pending",
-                        emailFailure);
             }
+        } catch (RuntimeException optionalEmailFailure) {
+            // The request and in-app action remain available after either a preferences
+            // lookup error or a mail provider outage. Never bypass a failed opt-out check.
+            log.warn("Optional friend request email skipped; the friendship request remains pending",
+                    optionalEmailFailure);
         }
     }
 
