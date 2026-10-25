@@ -226,8 +226,17 @@ class VenueModerationAuthenticatedPgIT {
         assertEquals("PENDING", proposed.path("status").asText());
         assertTrue(proposed.path("sourceReviewConfirmedAt").isNull());
         assertNull(venues.findById(venueA).orElseThrow().getContact());
-        assertEquals(1, api("GET", BASE + "?page=0", adminToken, null, 200)
-                .path("suggestions").size());
+        // Each concurrent fixture owns its own pending row; inspect this
+        // proposal specifically instead of asserting a global queue size.
+        boolean visiblePending = false;
+        for (JsonNode item : api("GET", BASE + "?page=0", adminToken, null, 200)
+                .path("suggestions")) {
+            if (item.path("id").asLong() == id) {
+                visiblePending = true;
+                assertEquals("PENDING", item.path("status").asText());
+            }
+        }
+        assertTrue(visiblePending);
         // The other test may already have created a REJECTED legacy fixture:
         // history must exclude THIS still-pending record, not be globally empty.
         for (JsonNode item : api("GET", BASE + "/history?page=0", adminToken, null, 200)
@@ -255,8 +264,11 @@ class VenueModerationAuthenticatedPgIT {
         assertEquals("220000001", venues.findById(venueA).orElseThrow().getContact());
         assertEquals(id, api("GET", BASE + "/history?page=0", adminToken, null, 200)
                 .path("suggestions").get(0).path("id").asLong());
-        assertTrue(api("GET", BASE + "?page=0", adminToken, null, 200)
-                .path("suggestions").isEmpty());
+        for (JsonNode item : api("GET", BASE + "?page=0", adminToken, null, 200)
+                .path("suggestions")) {
+            assertNotEquals(id, item.path("id").asLong(),
+                    "Approved record must leave the pending queue");
+        }
         api("POST", approve, adminToken, Map.of("sourceReviewed", true), 409);
         api("GET", BASE + "/history?page=-1", adminToken, null, 400);
         api("GET", BASE + "/history?page=1001", adminToken, null, 400);
