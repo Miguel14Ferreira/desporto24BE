@@ -9,5 +9,7 @@ public interface CommunityTrackSprintIncidentRepository
     List<CommunityTrackSprintIncident> findByBracketIdOrderByIdAsc(Long bracketId);
     boolean existsByBracketId(Long bracketId);
     boolean existsByBracketIdAndSeriesKeyAndStatus(Long bracketId,String seriesKey,String status);
+    boolean existsByBracketIdAndSeriesKeyAndStatusIn(
+            Long bracketId, String seriesKey, java.util.Collection<String> statuses);
     void deleteByBracketId(Long bracketId);
 }
