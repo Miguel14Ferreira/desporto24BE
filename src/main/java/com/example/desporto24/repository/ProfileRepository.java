@@ -31,6 +31,7 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      long countRecentLoginsSince(@Param("since") java.util.Date since);
 
      Optional<Profile> findUserByEmail(String email);
+     Optional<Profile> findUserByEmailIgnoreCase(String email);
      Optional<Profile> findUserByUsername(String username);
      Optional<Profile> findUserByUsernameIgnoreCase(String username);
      Optional<Profile> findUserByPhone(String phone);
