@@ -263,10 +263,10 @@ public class GoogleAuthenticationService {
 
     private void createWelcomeNotification(Profile profile) {
         Notifications notification = new Notifications(
-                "Bem-vindo ao DESPORTO24, " + profile.getUsername() + "!",
+                "Bem-vindo ao JYNLO, " + profile.getUsername() + "!",
                 "A tua conta foi criada através da Google. Completa o teu perfil e começa a explorar a comunidade.",
                 "Bons jogos,",
-                "DESPORTO24 MANAGEMENT TEAM",
+                "JYNLO MANAGEMENT TEAM",
                 java.time.Instant.now().toString(),
                 false,
                 false,
