@@ -374,5 +374,59 @@ class CommunityTrackSprintAuthenticatedPgIT {
         }
         assertTrue(discovered,"Witnessed decision and seeds must survive PostgreSQL roundtrip");
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
+
+        // Separate third bracket: real authenticated incident/decision history.
+        // The existing completed Sprint and 200 m documents remain unchanged.
+        JsonNode fresh=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional incident QA","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long br=fresh.path("id").asLong();
+        String key="SP"+br+"-A1";
+        Map<String,Object> incident=Map.of(
+            "seriesKey",key,"heatNumber",1,"incidentType","PUNCTURE",
+            "details","Synthetic flat tyre, stopped before an official result");
+        String incidentPath=brackets(activeSeason)+"/"+br+"/incidents";
+        api("POST",incidentPath,memberJwt,incident,403);
+        api("POST",incidentPath,outsiderJwt,incident,403);
+        JsonNode pending=api("POST",incidentPath,ownerJwt,incident,200);
+        long incidentId=pending.path("id").asLong();
+        assertTrue(incidentId>0);
+        assertEquals("PENDING",pending.path("status").asText());
+        api("POST",incidentPath,ownerJwt,incident,409); // one pending incident
+        JsonNode list=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode reported=null;
+        for(JsonNode b:list)if(b.path("id").asLong()==br)reported=b;
+        assertNotNull(reported);
+        assertEquals(1,reported.path("incidents").size());
+        assertEquals("PENDING",reported.path("incidents").get(0).path("status").asText());
+        assertEquals("READY",reported.path("matches").get(0).path("status").asText());
+        // Incident alone never changes a sporting result.
+        var deniedHeat=Map.of(
+            "name","Blocked A1","playedAt",Instant.now().toString(),
+            "sport",sport,"eventType","TRACK_SPRINT_HEAT",
+            "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+            "sprintSeriesKey",key,"sprintHeatNumber",1,
+            "entries",List.of(rider(riders.get(0),"WIN"),rider(riders.get(23),"LOSS")));
+        api("POST",community()+"/rounds",ownerJwt,deniedHeat,409);
+        String decisionPath=incidentPath+"/"+incidentId+"/decision";
+        var decision=Map.of(
+            "decisionType","RESTART_REQUIRED",
+            "reference","Fixture commissaires document #2026/41",
+            "reason","Synthetic recognized tyre puncture; commissioners authorised a rerun");
+        api("PUT",decisionPath,memberJwt,decision,403);
+        JsonNode signed=api("PUT",decisionPath,ownerJwt,decision,200);
+        assertEquals("DECIDED",signed.path("status").asText());
+        assertEquals("RESTART_REQUIRED",signed.path("decisionType").asText());
+        assertEquals("fixture_sprint_owner",signed.path("decidedBy").asText());
+        api("PUT",decisionPath,ownerJwt,decision,409); // immutable audit
+        api("POST",community()+"/rounds",ownerJwt,deniedHeat,200);
+        JsonNode updated=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode recorded=null;
+        for(JsonNode b:updated)if(b.path("id").asLong()==br)recorded=b;
+        assertNotNull(recorded);
+        assertEquals("FINISHED",recorded.path("matches").get(0).path("status").asText());
+        assertEquals(1,recorded.path("incidents").size());
+        assertEquals("DECIDED",recorded.path("incidents").get(0).path("status").asText());
+        assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
