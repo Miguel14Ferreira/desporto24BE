@@ -72,7 +72,7 @@ class CommunityInlineSpeedAuthenticatedPgIT {
     /** Resolve an unrelated admin importer executor ambiguity only in this QA context. */
     @TestConfiguration
     static class IsolatedExecutorConfiguration {
-        @Bean
+        @Bean(name = "applicationTaskExecutor")
         @Primary
         TaskExecutor isolatedFixtureExecutor() {
             return new SyncTaskExecutor();
