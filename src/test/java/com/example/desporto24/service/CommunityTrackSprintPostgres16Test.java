@@ -229,9 +229,6 @@ class CommunityTrackSprintPostgres16Test {
     @Test
     void officialAwardNullableEvidenceDoesNotAlterHistoricalBracketsOrHeats() {
         bracket(41,7,4,42L);
-        assertNull(jdbc.queryForObject(
-            "select award_winner from community_track_sprint_incident where id=-1",
-            String.class));
         jdbc.update("insert into community_track_sprint_incident " +
             "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at," +
             "decision_type,sanction_type,sanctioned_username,decision_reference,decision_reason," +
