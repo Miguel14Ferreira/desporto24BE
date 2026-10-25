@@ -254,7 +254,8 @@ public class CommunityCompetitionService {
             CommunityTrackSprintBracket bracket,List<CommunityRoundResponse> rounds) {
         if(bracket.getInterruptionStage()==null) return null;
         var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
-                bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders());
+                bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders(),
+                sprintOfficialReruns(bracket.getId()));
         Map<String,CommunityTrackSprintBracketDtos.Match> slots=matches.stream()
                 .collect(java.util.stream.Collectors.toMap(
                         CommunityTrackSprintBracketDtos.Match::slot, m->m));
@@ -483,9 +484,12 @@ public class CommunityCompetitionService {
         CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
                 .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
         if(!season.isActive())throw new IllegalStateException("Época encerrada");
-        trackSprintBracketRepository.findByIdAndCommunityIdAndSeasonId(
-                bracketId,communityId,seasonId)
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
                 .orElseThrow(()->new IllegalArgumentException("Quadro não encontrado"));
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Competição interrompida oficialmente");
         CommunityTrackSprintIncident incident=trackSprintIncidentRepository.findById(incidentId)
                 .filter(i->i.getBracket().getId().equals(bracketId))
                 .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
