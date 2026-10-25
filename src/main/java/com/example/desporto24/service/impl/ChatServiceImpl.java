@@ -116,6 +116,49 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @Transactional
+    public Chat editMessage(String actor, String peer, Long messageId, String text) {
+        Chat message = ownedMessage(actor, peer, messageId);
+        String normalized = com.example.desporto24.service.ChatMessageMutationPolicy.editText(
+                text, message.getDate() == null ? null : message.getDate().toInstant(),
+                Instant.now(), message.getDeletedAt(), message.getAttachmentKey() != null);
+        message.setText(normalized);
+        message.setEditedAt(Instant.now());
+        chatRepository.saveAndFlush(message);
+        eventPublisher.publishEvent(new ChatMessageCreatedEvent(message));
+        return message;
+    }
+
+    @Override
+    @Transactional
+    public Chat deleteMessage(String actor, String peer, Long messageId) {
+        Chat message = ownedMessage(actor, peer, messageId);
+        com.example.desporto24.service.ChatMessageMutationPolicy.requireNotDeleted(message.getDeletedAt());
+        message.setText("");
+        message.setDeletedAt(Instant.now());
+        chatRepository.saveAndFlush(message);
+        // Historical reply snapshots may quote this text. Redact them too.
+        chatRepository.redactRepliesToDeleted(message.getId(), "[message deleted]");
+        eventPublisher.publishEvent(new ChatMessageCreatedEvent(message));
+        return message;
+    }
+
+    private Chat ownedMessage(String actor, String peer, Long messageId) {
+        Friend friend = requireFriendship(actor, peer);
+        if (friend.isChatBlocked()) throw new ChatBlockedException(CHAT_BLOCKED);
+        if (messageId == null || messageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        Chat message = chatRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+        if (!actor.equalsIgnoreCase(message.getUsername1())
+                || !peer.equalsIgnoreCase(message.getUsername2())) {
+            throw new AccessDeniedException("Only the message author may change this message");
+        }
+        return message;
+    }
+
+    @Override
     public List<Chat> findChatMessages(String sender, String recipient) {
         requireFriendship(sender, recipient);
 
