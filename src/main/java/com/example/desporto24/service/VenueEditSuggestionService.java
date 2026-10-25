@@ -111,7 +111,16 @@ public class VenueEditSuggestionService {
                 slice.getContent().stream().map(this::response).toList(), page, slice.hasNext());
     }
 
+    /**
+     * Backward-compatible Java entry point. No implicit contact-source review.
+     * Existing approvals of non-contact fields continue to work.
+     */
     public VenueEditSuggestionResponse approve(long id, String note, String moderator) {
+        return approve(id, note, moderator, false);
+    }
+
+    public VenueEditSuggestionResponse approve(long id, String note, String moderator,
+            boolean sourceReviewed) {
         var proposal = pendingForReview(id);
         // A row lock prevents two parallel approvals from overwriting each other.
         var venue = venues.findForEditReview(proposal.getVenue().getId())
@@ -129,10 +138,16 @@ public class VenueEditSuggestionService {
             }
             validate(field, proposed.get(field));
         }
-        // Legacy pending proposals without evidence must not bypass human sourcing.
-        if (proposed.containsKey("contact") && !proposed.get("contact").isBlank()
-                && validateSourceUrl(proposal.getSourceUrl()) == null) {
-            throw bad(HttpStatus.BAD_REQUEST, "Contacto sem fonte HTTPS; rejeita e pede nova proposta");
+        // Every contact publication needs BOTH an evidence link and an explicit
+        // server-side attestation by the authenticated ADMIN/SUPER_ADMIN.
+        // A browser checkbox alone is bypassable by a direct API call.
+        if (proposed.containsKey("contact") && !proposed.get("contact").isBlank()) {
+            if (validateSourceUrl(proposal.getSourceUrl()) == null) {
+                throw bad(HttpStatus.BAD_REQUEST, "Contacto sem fonte HTTPS; rejeita e pede nova proposta");
+            }
+            if (!sourceReviewed) {
+                throw bad(HttpStatus.BAD_REQUEST, "Confirma a verificação da fonte antes de aprovar o contacto");
+            }
         }
         proposed.forEach((field, value) -> setValue(venue, field, value));
         venues.save(venue);
