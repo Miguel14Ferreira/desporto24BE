@@ -186,7 +186,13 @@ def write_csv(path, rows, columns):
     with path.open("w", newline="", encoding="utf-8-sig") as file:
         writer = csv.DictWriter(file, fieldnames=columns, delimiter=";")
         writer.writeheader()
-        writer.writerows(rows)
+        # A source name or URL may be untrusted. Neutralise spreadsheet formulas,
+        # including +351 phone strings. Review CSV is private, never published.
+        for row in rows:
+            writer.writerow({key: ("'" + value if isinstance(value, str)
+                                   and value.lstrip().startswith(("=", "+", "-", "@", "\t", "\r"))
+                                   else value)
+                             for key, value in row.items()})
 
 
 def main():
