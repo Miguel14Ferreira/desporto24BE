@@ -179,8 +179,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         Optional<Profile> byUsername = profileRepository.findUserByUsernameIgnoreCase(identifier);
 
         if (identifier.indexOf('@') >= 0) {
+            // Legacy databases might hold emails differing only by case.
+            // Never pick an arbitrary account, and never leak that ambiguity.
+            java.util.List<Profile> emailMatches = profileRepository.findTop2ByEmailIgnoreCase(identifier);
+            if (emailMatches.size() > 1) {
+                throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+            }
             return uniqueIdentity(byUsername,
-                    profileRepository.findUserByEmailIgnoreCase(identifier));
+                    emailMatches.stream().findFirst());
         }
 
         String phone = canonicalInputPhone(identifier);
