@@ -138,3 +138,20 @@ seja conhecido.
 O script continua read-only, limitado ao endpoint público e sem emitir
 contactos pessoais ou números individuais; o mesmo workflow CI verifica
 os cenários de nomes/aliases, distrito/cidade, duplicados e ambiguidades.
+
+## Auditoria adicional: testemunhos da morada para nomes semelhantes
+
+Para pistas `manual_name_hints`, o relatório passa também a publicar
+`street_review` (compatível / divergente / por confirmar) e
+`has_existing_contact` (booleano). São atributos de uma ficha **já pública**;
+o algoritmo não exporta nenhum telefone, email ou contacto individual, não
+escolhe o ID automaticamente e não altera a ficha.
+
+A comparação de ruas considera apenas cadeias explícitas. Mesmo se um
+candidato tem duas palavras distintivas e rua compatível, permanece
+`SEM_NOME_EXATO_NA_JYNLO` e requer confirmação manual de identidade.
+
+Fontes oficiais Ágora pertinentes para distinguir moradas:
+- Constituição: Rua Almirante Leote do Rêgo
+- Cartes: Alameda de Cartes; discrepância de código postal nas duas fichas
+- Armando Pimentel: Rua de Diogo Botelho (4150-262 Porto)
