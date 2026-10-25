@@ -323,5 +323,56 @@ class CommunityTrackSprintAuthenticatedPgIT {
             assertEquals(0, child.exitValue(),
                 "Real Angular Chromium must display genuine JWT/PG16 Sprint in PT and EN");
         }
+
+        // Official dead-heat path: a distinct 200 m round in the same
+        // disposable database, after the read-only Chromium checks above.
+        // The existing completed Olympic fixture and historical season
+        // MUST remain untouched by this additional bracket.
+        List<Map<String,Object>> tied200=new ArrayList<>();
+        for(int i=0;i<24;i++) {
+            Map<String,Object> row=new LinkedHashMap<>(rider(riders.get(i),"DRAW"));
+            row.put("finishPosition",i+1);
+            row.put("elapsedSeconds",BigDecimal.valueOf(i==1?10001L:10001L+i,3));
+            tied200.add(row);
+        }
+        long tiedRound=record("Fictional 200m dead heat", "TRACK_FLYING_200",
+            null,null,null,tied200);
+        Map<String,Object> withoutDecision=Map.of(
+            "name","Tied QA rejected", "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+            "qualifyingRoundId",tiedRound);
+        api("POST",brackets(activeSeason),ownerJwt,withoutDecision,400);
+        var recordedDecision=Map.of(
+            "method","LAST_100",
+            "orderedUsernames",List.of(riders.get(1),riders.get(0)),
+            "last100Seconds",Map.of(riders.get(0),5.111,riders.get(1),5.101),
+            "reference","Signed fictitious commissaires sheet #41/2026");
+        Map<String,Object> withDecision=Map.of(
+            "name","Official 200m tie QA",
+            "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+            "qualifyingRoundId",tiedRound,
+            "officialTieDecisions",List.of(recordedDecision));
+        api("POST",brackets(activeSeason),memberJwt,withDecision,403);
+        JsonNode official=api("POST",brackets(activeSeason),ownerJwt,withDecision,200);
+        long officialId=official.path("id").asLong();
+        assertTrue(officialId>0);
+        assertEquals(riders.get(1),official.path("qualifyingSeeds").get(0).asText());
+        assertEquals(riders.get(0),official.path("qualifyingSeeds").get(1).asText());
+        assertEquals(1,official.path("officialTieDecisions").size());
+        assertEquals("LAST_100",official.path("officialTieDecisions").get(0)
+            .path("method").asText());
+        assertEquals("fixture_sprint_owner",
+            official.path("tieDecisionRecordedBy").asText());
+        assertNotNull(brackets.findById(officialId).orElseThrow().getTieDecisionsJson());
+        JsonNode saved=api("GET",brackets(activeSeason),memberJwt,null,200);
+        boolean discovered=false;
+        for(JsonNode b:saved) {
+            if(b.path("id").asLong()==officialId) {
+                discovered=true;
+                assertEquals(1,b.path("officialTieDecisions").size());
+                assertEquals(24,b.path("qualifyingSeeds").size());
+            }
+        }
+        assertTrue(discovered,"Witnessed decision and seeds must survive PostgreSQL roundtrip");
+        assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
