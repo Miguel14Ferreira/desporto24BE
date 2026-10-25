@@ -46,8 +46,8 @@ public class NotificationPreferencesService {
     public NotificationPreferencesRequest update(String username, NotificationPreferencesRequest request) {
         if (request == null || request.disabledEmailTypes() == null
                 || request.disabledInAppTypes() == null
-                || !TYPES.containsAll(request.disabledEmailTypes())
-                || !TYPES.containsAll(request.disabledInAppTypes())) {
+                || request.disabledEmailTypes().stream().anyMatch(type -> type == null || !TYPES.contains(type))
+                || request.disabledInAppTypes().stream().anyMatch(type -> type == null || !TYPES.contains(type))) {
             throw new IllegalArgumentException("Tipos de notificação inválidos");
         }
         // Only the currently authenticated account is ever writable.
