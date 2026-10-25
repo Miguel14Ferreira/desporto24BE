@@ -159,6 +159,13 @@ class CommunityInlineSpeedFictionalJourneyTest {
                 "FIRST", new CommunityInlineSpeedProgressionService.ConfirmRequest(
                         all(1, 8), ""), "qa_owner"));
 
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> service.confirm(7L, 9L,
+                "FIRST", new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 7), "Justificação para lista curta"), "qa_owner"));
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> service.confirm(7L, 9L,
+                "FIRST", new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 9), "Justificação para lista longa"), "qa_owner"));
+
         var firstDecision = service.confirm(7L, 9L, "FIRST",
                 new CommunityInlineSpeedProgressionService.ConfirmRequest(all(1, 8),
                         "O júri atesta que todas as mangas da primeira fase foram registadas"),
