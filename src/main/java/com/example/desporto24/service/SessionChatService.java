@@ -125,6 +125,62 @@ public class SessionChatService {
         return response;
     }
 
+    @Transactional
+    public SessionMessageResponse editMessage(Long sessionId, Long messageId, String body, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session chat is closed");
+        }
+        SessionMessage message = ownedMessage(session, messageId, actor);
+        message.setBody(ChatMessageMutationPolicy.editText(body, message.getCreatedAt(),
+                Instant.now(), message.getDeletedAt(), message.getAttachmentKey() != null));
+        message.setEditedAt(Instant.now());
+        messageRepository.saveAndFlush(message);
+        SessionMessageResponse response = toResponse(message);
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(response, realtimeRecipients(session)));
+        return response;
+    }
+
+    @Transactional
+    public SessionMessageResponse deleteMessage(Long sessionId, Long messageId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session chat is closed");
+        }
+        SessionMessage message = ownedMessage(session, messageId, actor);
+        ChatMessageMutationPolicy.requireNotDeleted(message.getDeletedAt());
+        message.setBody("");
+        message.setDeletedAt(Instant.now());
+        messageRepository.saveAndFlush(message);
+        messageRepository.redactRepliesToDeleted(sessionId, messageId, "[message deleted]");
+        SessionMessageResponse response = toResponse(message);
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(response, realtimeRecipients(session)));
+        return response;
+    }
+
+    private SessionMessage ownedMessage(Session session, Long messageId, Profile actor) {
+        if (messageId == null || messageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        SessionMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+        if (!session.getId().equals(message.getSession().getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        if (!actor.getId().equals(message.getSenderProfile().getId())) {
+            throw new AccessDeniedException("Only the message author may change this message");
+        }
+        return message;
+    }
+
     /**
      * Session attachments are available only while the session is OPEN,
      * and only to its organizer and active participants.
@@ -217,7 +273,7 @@ public class SessionChatService {
         SessionMessage message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Chat attachment not found"));
-        if (!sessionId.equals(message.getSession().getId()) || message.getAttachmentKey() == null) {
+        if (!sessionId.equals(message.getSession().getId()) || message.getAttachmentKey() == null || message.getDeletedAt() != null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
         }
         if (privateChatStorage == null) {
@@ -283,7 +339,9 @@ public class SessionChatService {
                 message.getReplyToText(),
                 message.getAttachmentName(),
                 message.getAttachmentMimeType(),
-                message.getAttachmentSize()
+                message.getAttachmentSize(),
+                message.getEditedAt(),
+                message.getDeletedAt()
         );
     }
 }
