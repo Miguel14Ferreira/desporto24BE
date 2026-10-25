@@ -636,6 +636,57 @@ class CommunityTrackSprintAuthenticatedPgIT {
             "sprintSeriesKey","SP"+interruptedId+"-A1","sprintHeatNumber",1,
             "entries",List.of(rider(riders.get(0),"WIN"),
                 rider(riders.get(23),"LOSS"))),409);
+        // Guardrail for unresolved original TWO-rider sanctions: the U/W
+        // three-up restart endpoint MUST NOT be usable to invent a winner,
+        // remove a rider or bypass the held official decision.
+        JsonNode originalTwo=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional two-rider disciplinary guard",
+                "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+                "qualifyingRoundId",qual),200);
+        long twoId=originalTwo.path("id").asLong();
+        String twoSeries="SP"+twoId+"-A1";
+        String twoIncidentPath=brackets(activeSeason)+"/"+twoId+"/incidents";
+        JsonNode twoReport=api("POST",twoIncidentPath,ownerJwt,Map.of(
+            "seriesKey",twoSeries,"heatNumber",1,
+            "incidentType","RULE_INFRINGEMENT",
+            "details","Fictitious original two-rider sprint incident requiring review"),200);
+        String twoDecisionPath=twoIncidentPath+"/"+twoReport.path("id").asLong()+"/decision";
+        api("PUT",twoDecisionPath,memberJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING","sanctionType","DISQUALIFICATION",
+            "sanctionedUsername",riders.get(0),
+            "reference","Fictional panel decision two-rider #81",
+            "reason","Synthetic incident awaiting commissioner result"),403);
+        JsonNode twoDecision=api("PUT",twoDecisionPath,ownerJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING","sanctionType","DISQUALIFICATION",
+            "sanctionedUsername",riders.get(0),
+            "reference","Fictional panel decision two-rider #81",
+            "reason","Synthetic incident awaiting commissioner result"),200);
+        assertEquals("ADJUDICATION_REQUIRED",twoDecision.path("status").asText());
+        assertEquals("DISQUALIFICATION",twoDecision.path("sanctionType").asText());
+        api("PUT",twoIncidentPath+"/"+twoReport.path("id").asLong()+"/rerun",
+            ownerJwt,Map.of("orderedRiders",List.of(riders.get(23),riders.get(0)),
+                "reference","Invalid two-rider restart #81",
+                "reason","Cannot reuse the special three-up restart for an A1 match"),400);
+        api("POST",twoIncidentPath,ownerJwt,Map.of(
+            "seriesKey",twoSeries,"heatNumber",1,
+            "incidentType","OTHER",
+            "details","Second report incorrectly attempts to release blocked slot"),409);
+        api("POST",community()+"/rounds",ownerJwt,Map.of(
+            "name","Attempted winner without adjudication",
+            "playedAt",Instant.now().toString(),"sport",sport,
+            "eventType","TRACK_SPRINT_HEAT",
+            "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+            "sprintSeriesKey",twoSeries,"sprintHeatNumber",1,
+            "entries",List.of(rider(riders.get(23),"WIN"),
+                rider(riders.get(0),"LOSS"))),409);
+        JsonNode twoOverview=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode guarded=null;
+        for(JsonNode b:twoOverview)if(b.path("id").asLong()==twoId)guarded=b;
+        assertNotNull(guarded);
+        assertTrue(guarded.path("matches").get(0).path("winner").isNull());
+        assertEquals("READY",guarded.path("matches").get(0).path("status").asText());
+        assertEquals("ADJUDICATION_REQUIRED",guarded.path("incidents").get(0)
+            .path("status").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
