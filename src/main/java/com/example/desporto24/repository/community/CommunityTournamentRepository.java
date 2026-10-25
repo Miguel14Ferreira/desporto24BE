@@ -18,6 +18,13 @@ public interface CommunityTournamentRepository extends JpaRepository<CommunityTo
 
     List<CommunityTournament> findByCommunityIdOrderByCreatedAtDescIdDesc(Long communityId);
 
+    /** Only living, individual, non-historical competitions qualify for standalone heat recording. */
+    boolean existsByCommunityIdAndSportIgnoreCaseAndEntryTypeAndHistoricalArchiveIdIsNullAndStatusNot(
+            Long communityId, String sport,
+            com.example.desporto24.enumeration.TournamentEntryType entryType,
+            com.example.desporto24.enumeration.TournamentStatus status);
+
+
     Slice<CommunityTournament> findByCommunityId(Long communityId, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
