@@ -50,4 +50,9 @@ public interface SessionMessageRepository extends JpaRepository<SessionMessage, 
             Long sessionId, Long targetId, Pageable limit);
 
     long deleteBySenderProfileId(Long senderProfileId);
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update SessionMessage m set m.replyToText = :replacement where m.session.id = :sessionId and m.replyToMessageId = :messageId")
+    int redactRepliesToDeleted(@Param("sessionId") Long sessionId,
+                               @Param("messageId") Long messageId,
+                               @Param("replacement") String replacement);
 }
