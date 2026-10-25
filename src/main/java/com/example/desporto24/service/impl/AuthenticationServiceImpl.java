@@ -130,7 +130,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         // Throttle before looking up a user: unknown usernames must not bypass
         // failed-login limits or reveal whether an account exists.
         loginAttemptService.requireAttemptAllowed(suppliedUsername);
-        Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
+        Profile profile = resolvePasswordLoginIdentity(suppliedUsername)
                 .orElseThrow(() -> {
                     loginAttemptService.recordMissingAccountAttempt(suppliedUsername);
                     return new BadCredentialsException(INCORRECT_CREDENTIALS);
@@ -162,6 +162,109 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         return completedLogin(profile);
+    }
+
+    /**
+     * Resolve only an unambiguous account. The existing login body continues
+     * using "username" for backwards compatibility; it can now contain a
+     * username, email or phone. Password/MFA/JWT checks use the canonical
+     * Profile.username exactly as before.
+     *
+     * Phone numbers are encrypted with a per-profile AES key and cannot be
+     * queried by plaintext. Use paginated reads only for phone-shaped inputs,
+     * and fail closed on shared national numbers or identifier collisions.
+     * A keyed, indexed lookup is preferable if this account base grows large.
+     */
+    private Optional<Profile> resolvePasswordLoginIdentity(String identifier) {
+        Optional<Profile> byUsername = profileRepository.findUserByUsernameIgnoreCase(identifier);
+
+        if (identifier.indexOf('@') >= 0) {
+            return uniqueIdentity(byUsername,
+                    profileRepository.findUserByEmailIgnoreCase(identifier));
+        }
+
+        String phone = canonicalInputPhone(identifier);
+        if (phone == null) return byUsername;
+
+        Profile match = byUsername.orElse(null);
+        boolean hasPhoneMatch = false;
+        boolean ambiguous = false;
+        int pageNumber = 0;
+        org.springframework.data.domain.Page<Profile> page;
+        do {
+            page = profileRepository.findAll(
+                    org.springframework.data.domain.PageRequest.of(pageNumber++, 200));
+            for (Profile candidate : page.getContent()) {
+                if (!matchesStoredPhone(candidate, phone)) continue;
+                if (hasPhoneMatch && !sameIdentity(match, candidate)) {
+                    ambiguous = true;
+                    break;
+                }
+                if (match != null && !sameIdentity(match, candidate)) {
+                    ambiguous = true;
+                    break;
+                }
+                match = candidate;
+                hasPhoneMatch = true;
+            }
+            if (ambiguous) break;
+        } while (page.hasNext());
+
+        // A numeric username is still supported. But an identifier pointing
+        // at a different phone owner must not silently select either account.
+        if (ambiguous) throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        return Optional.ofNullable(match);
+    }
+
+    private Optional<Profile> uniqueIdentity(Optional<Profile> first, Optional<Profile> second) {
+        if (first.isPresent() && second.isPresent()
+                && !sameIdentity(first.get(), second.get())) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+        return first.isPresent() ? first : second;
+    }
+
+    private boolean sameIdentity(Profile one, Profile two) {
+        return one == two
+                || (one != null && two != null && one.getId() != null
+                        && one.getId().equals(two.getId()));
+    }
+
+    /** Canonical phone: national digits or +country-code-and-digits. */
+    private String canonicalInputPhone(String input) {
+        if (input == null || input.length() > 40
+                || !input.matches("[+0-9() .-]+")) {
+            return null;
+        }
+        String compact = input.replaceAll("[() .-]", "");
+        if (compact.startsWith("00")) compact = "+" + compact.substring(2);
+        if (!compact.matches("\\+?[0-9]{7,15}")) return null;
+        return compact;
+    }
+
+    private boolean matchesStoredPhone(Profile profile, String canonicalInput) {
+        if (profile.getPhone() == null || profile.getPhone().isBlank()
+                || profile.getUserId() == null || profile.getUserId().isBlank()) return false;
+        final String stored;
+        try {
+            stored = decryptString(profile.getPhone(), profile.getUserId());
+        } catch (RuntimeException invalidLegacyValue) {
+            // Historical or damaged ciphertext is never interpreted as an ID.
+            return false;
+        }
+        if (stored == null) return false;
+        String local = stored.replaceAll("[() +.-]", "");
+        if (!local.matches("[0-9]{4,15}")) return false;
+
+        String prefix = profile.getIndicativePhone() == null
+                ? "" : profile.getIndicativePhone().replaceAll("[() +.-]", "");
+        if (prefix.startsWith("00")) prefix = prefix.substring(2);
+        if (!prefix.isEmpty() && !prefix.matches("[0-9]{1,4}")) return false;
+
+        String international = prefix.isBlank() ? local : prefix + local;
+        return canonicalInput.startsWith("+")
+                ? !prefix.isBlank() && canonicalInput.substring(1).equals(international)
+                : canonicalInput.equals(local) || canonicalInput.equals(international);
     }
 
     @Override
