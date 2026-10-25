@@ -151,6 +151,42 @@ class CommunityTrackSprintOlympic24Test {
                 .filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
         assertEquals("CONFLICT",gap.status());
     }
+
+    @Test void signedBo3DisqualificationVerdictKeepsRealWinsAndBlocksF58() {
+        List<CommunityRoundResponse> raced=new ArrayList<>();
+        for(int i=1;i<=12;i++){var m=match(raced,"A"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){var m=match(raced,"U"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=8;i++){var m=match(raced,"C"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){var m=match(raced,"V"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=6;i++){var m=match(raced,"E"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=2;i++){var m=match(raced,"W"+i);raced.add(record(m,m.riderA()));}
+        var quarter=match(raced,"Q1");
+        var winner=quarter.riderA();
+        var sanctioned=quarter.riderB();
+        var award=Map.of(quarter.seriesKey(),winner);
+        var current=CommunityTrackSprintOlympic24.project(
+                BRACKET,raced,seeds(),Map.of(),award,Set.of(sanctioned),Map.of());
+        var q1=current.stream().filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
+        assertEquals("FINISHED",q1.status());
+        assertEquals(winner,q1.winner());
+        assertEquals(0,q1.winsA()); // No imaginary 2-0 score.
+        assertEquals(0,q1.winsB());
+        var placement=current.stream().filter(x->"F58".equals(x.slot())).findFirst().orElseThrow();
+        assertEquals("WAITING_PREVIOUS",placement.status());
+        assertNull(placement.riderA());
+        var partiallyRaced=Map.of(quarter.seriesKey(),Map.of(1,sanctioned));
+        var partial=CommunityTrackSprintOlympic24.project(BRACKET,raced,seeds(),
+                Map.of(),award,Set.of(sanctioned),partiallyRaced).stream()
+                .filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
+        assertEquals("FINISHED",partial.status());
+        assertEquals(0,partial.winsA());
+        assertEquals(1,partial.winsB());
+        assertEquals(winner,partial.winner());
+        assertTrue(raced.stream().noneMatch(x->quarter.seriesKey().equals(x.sprintSeriesKey())));
+        assertThrows(IllegalStateException.class,()->CommunityTrackSprintOlympic24.project(
+                BRACKET,raced,seeds(),Map.of(),
+                Map.of(quarter.seriesKey(),"fictitious-unrelated"),Set.of(),Map.of()));
+    }
     @Test void firstRepechageHasExactlyThreeLosersAndWinnerFeedsOneSixteenth() {
         List<CommunityRoundResponse> rounds=new ArrayList<>();
         for(int i=1;i<=12;i++){

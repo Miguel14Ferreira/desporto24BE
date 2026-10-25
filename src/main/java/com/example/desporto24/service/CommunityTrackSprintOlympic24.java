@@ -92,7 +92,7 @@ final class CommunityTrackSprintOlympic24 {
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q2",won(m,"E2"),won(m,"W1"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q3",won(m,"E3"),won(m,"E6"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q4",won(m,"E4"),won(m,"E5"),null);
-        addPlaces(m,bracketId,rounds);
+        addPlaces(m,bracketId,rounds,excludedRiders);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"S1",won(m,"Q1"),won(m,"Q4"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"S2",won(m,"Q2"),won(m,"Q3"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"B",lost(m,"S1",excludedRiders),lost(m,"S2",excludedRiders),null);
@@ -104,10 +104,10 @@ final class CommunityTrackSprintOlympic24 {
      * No position is awarded using qualifying rank or losing heat time.
      */
     private static void addPlaces(Map<String,Match> matches, long bracketId,
-            List<CommunityRoundResponse> rounds) {
+            List<CommunityRoundResponse> rounds,Set<String> excludedRiders) {
         String slot="F58", key=key(bracketId,slot), phase=phase(slot);
-        String a=lost(matches,"Q1"), b=lost(matches,"Q2");
-        String c=lost(matches,"Q3"), d=lost(matches,"Q4");
+        String a=lost(matches,"Q1",excludedRiders), b=lost(matches,"Q2",excludedRiders);
+        String c=lost(matches,"Q3",excludedRiders), d=lost(matches,"Q4",excludedRiders);
         List<CommunityRoundResponse> result=rounds.stream()
                 .filter(r->key.equals(r.sprintSeriesKey())).toList();
         boolean ready=a!=null&&b!=null&&c!=null&&d!=null
@@ -189,6 +189,24 @@ final class CommunityTrackSprintOlympic24 {
                 ||slot.equals("B")||slot.equals("G");
         boolean ready=a!=null&&b!=null&&(!three||c!=null||twoRiderRerun);
         Map<Integer,String> decided=decidedHeats.getOrDefault(key,Map.of());
+        String officialSeriesWinner=awardedWinners.get(key);
+        if(officialSeriesWinner!=null && bestThree) {
+            if(!ready||c!=null||twoRiderRerun
+                    ||!slot.matches("Q[1-4]|S[1-2]|B|G")
+                    ||!Set.of(a,b).contains(officialSeriesWinner))
+                throw new IllegalStateException("Veredito oficial BO3 incompatível com confronto");
+            // Evaluate only the genuine previously recorded heat wins.
+            Map<String,Match> before=new HashMap<>();
+            if(heats.isEmpty()&&decided.isEmpty())
+                before.put(slot,new Match(phase,slot,key,a,b,0,0,null,"READY",null));
+            else addBestThreeWithDecisions(before,slot,phase,key,a,b,heats,decided);
+            Match original=before.get(slot);
+            if(!Set.of("READY","IN_PROGRESS").contains(original.status()))
+                throw new IllegalStateException("Não é possível substituir uma série BO3 concluída");
+            m.put(slot,new Match(phase,slot,key,a,b,original.winsA(),original.winsB(),
+                    officialSeriesWinner,"FINISHED",null));
+            return;
+        }
         if (!decided.isEmpty()) {
             if(!bestThree||!ready||c!=null||twoRiderRerun)
                 throw new IllegalStateException("Decisão de manga fora de uma série BO3 válida");
