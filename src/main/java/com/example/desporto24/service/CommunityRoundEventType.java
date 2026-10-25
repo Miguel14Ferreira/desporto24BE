@@ -19,7 +19,7 @@ final class CommunityRoundEventType {
     private static final Map<String, List<String>> TYPES = Map.ofEntries(
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
             Map.entry("Ciclismo de Estrada", List.of("ROAD_RACE", "TIME_TRIAL")),
-            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL", "TRACK_FLYING_200", "TRACK_SPRINT_HEAT", "TRACK_SPRINT_REPECHAGE")),
+            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL", "TRACK_FLYING_200", "TRACK_SPRINT_HEAT", "TRACK_SPRINT_REPECHAGE", "TRACK_SPRINT_5_8")),
             Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Basebol", List.of("BASEBALL_RUNS")),
@@ -119,6 +119,12 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
+        if ("TRACK_SPRINT_5_8".equals(type)) {
+            if(!"Ciclismo de Pista".equals(sport))
+                throw new IllegalArgumentException("A prova é exclusiva do Ciclismo de Pista");
+            CommunityTrackSprintOlympic24.validatePlacings(entries);
+            return;
+        }
         if ("TRACK_SPRINT_HEAT".equals(type) || "TRACK_SPRINT_REPECHAGE".equals(type)) {
             validateTrackSprintHeat(sport, entries, "TRACK_SPRINT_REPECHAGE".equals(type));
             return;
@@ -389,7 +395,8 @@ final class CommunityRoundEventType {
             return eventType == null || "ROAD_RACE".equals(eventType) || "TIME_TRIAL".equals(eventType);
         if ("Ciclismo de Pista".equals(sport))
             return eventType == null || "TRACK_SCRATCH".equals(eventType)
-                    || "TRACK_TIME_TRIAL".equals(eventType) || "TRACK_FLYING_200".equals(eventType);
+                    || "TRACK_TIME_TRIAL".equals(eventType) || "TRACK_FLYING_200".equals(eventType)
+                    || "TRACK_SPRINT_5_8".equals(eventType);
         return CommunityRaceMetrics.isRaceSport(sport) && eventType == null;
     }
 
