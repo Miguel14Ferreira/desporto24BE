@@ -273,7 +273,11 @@ public class CommunityCompetitionService {
     private static final Set<String> SPRINT_INCIDENT_TYPES =
             Set.of("FALL","PUNCTURE","BICYCLE_DEFECT","RULE_INFRINGEMENT","OTHER");
     private static final Set<String> SPRINT_INCIDENT_DECISIONS =
-            Set.of("RESTART_REQUIRED","OFFICIAL_RESULT_TO_RECORD");
+            Set.of("RESTART_REQUIRED","OFFICIAL_RESULT_TO_RECORD","DISCIPLINARY_RULING");
+    private static final Set<String> SPRINT_DISCIPLINARY_SANCTIONS =
+            Set.of("WARNING","RELEGATION","DISQUALIFICATION");
+    private static final Set<String> SPRINT_UNRESOLVED_INCIDENT_STATUSES =
+            Set.of("PENDING","ADJUDICATION_REQUIRED");
 
     private static CommunityTrackSprintIncidentDtos.View sprintIncidentResponse(
             CommunityTrackSprintIncident i) {
@@ -281,7 +285,8 @@ public class CommunityCompetitionService {
                 i.getId(),i.getSeriesKey(),i.getHeatNumber(),i.getIncidentType(),
                 i.getDetails(),i.getStatus(),i.getReportedBy(),i.getReportedAt(),
                 i.getDecisionType(),i.getDecisionReference(),i.getDecisionReason(),
-                i.getDecidedBy(),i.getDecidedAt());
+                i.getDecidedBy(),i.getDecidedAt(),
+                i.getSanctionType(),i.getSanctionedUsername());
     }
 
     /**
@@ -309,8 +314,8 @@ public class CommunityCompetitionService {
         if(!series.startsWith("SP"+bracketId+"-") || series.length()>40 ||
                 request.heatNumber()<1 || request.heatNumber()>3)
             throw new IllegalArgumentException("Série ou número de manga inválido");
-        if(trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatus(
-                bracketId,series,"PENDING"))
+        if(trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatusIn(
+                bracketId,series,SPRINT_UNRESOLVED_INCIDENT_STATUSES))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este confronto já tem um incidente por resolver");
         AcceptedAliases aliases=acceptedAliasProfiles(communityId);
@@ -365,7 +370,53 @@ public class CommunityCompetitionService {
                 ||request.reason()==null||request.reason().trim().length()<12
                 ||request.reason().trim().length()>500)
             throw new IllegalArgumentException("É necessária uma decisão e referência oficial válidas");
-        incident.setStatus("DECIDED");
+        String sanctioned = request.sanctionedUsername() == null ? null
+                : request.sanctionedUsername().trim().toLowerCase(Locale.ROOT);
+        boolean disciplinary = "DISCIPLINARY_RULING".equals(request.decisionType());
+        if (disciplinary) {
+            if (!Set.of("RULE_INFRINGEMENT","FALL").contains(incident.getIncidentType()))
+                throw new IllegalArgumentException(
+                    "Uma sanção disciplinar exige infração ou queda registada");
+            if (!SPRINT_DISCIPLINARY_SANCTIONS.contains(request.sanctionType())
+                    || sanctioned == null || sanctioned.isBlank())
+                throw new IllegalArgumentException(
+                    "Identifica o ciclista e a sanção do colégio de comissários");
+            CommunityTrackSprintBracket bracket = incident.getBracket();
+            AcceptedAliases aliases = acceptedAliasProfiles(communityId);
+            var heats = roundRepository
+                    .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
+                    .stream().filter(r -> "TRACK_SPRINT_HEAT".equals(r.getEventType())
+                            || "TRACK_SPRINT_REPECHAGE".equals(r.getEventType())
+                            || "TRACK_SPRINT_5_8".equals(r.getEventType()))
+                    .map(r -> roundResponse(r,aliases)).toList();
+            CommunityTrackSprintBracketDtos.Match match =
+                    trackSprintBracketResponse(bracket,heats).matches().stream()
+                    .filter(m -> incident.getSeriesKey().equals(m.seriesKey()))
+                    .findFirst().orElseThrow(() -> new IllegalArgumentException(
+                            "O confronto já não pertence ao quadro"));
+            Set<String> competitors = new HashSet<>();
+            for (String rider : List.of(match.riderA(),match.riderB())) {
+                if (rider != null) competitors.add(rider.trim().toLowerCase(Locale.ROOT));
+            }
+            if (match.riderC() != null)
+                competitors.add(match.riderC().trim().toLowerCase(Locale.ROOT));
+            if (match.riderD() != null)
+                competitors.add(match.riderD().trim().toLowerCase(Locale.ROOT));
+            if (!competitors.contains(sanctioned))
+                throw new IllegalArgumentException(
+                    "O ciclista sancionado não participa neste confronto");
+            incident.setSanctionType(request.sanctionType());
+            incident.setSanctionedUsername(sanctioned);
+            // DQ / relegation in multi-rider heats change the starting field.
+            // Remain blocked until an explicit, format-aware adjudication flow.
+            incident.setStatus("WARNING".equals(request.sanctionType())
+                    ? "DECIDED" : "ADJUDICATION_REQUIRED");
+        } else {
+            if (request.sanctionType() != null || request.sanctionedUsername() != null)
+                throw new IllegalArgumentException(
+                    "Uma decisão sem sanção não pode identificar um ciclista sancionado");
+            incident.setStatus("DECIDED");
+        }
         incident.setDecisionType(request.decisionType());
         incident.setDecisionReason(request.reason().trim());
         incident.setDecisionReference(request.reference().trim());
@@ -394,8 +445,8 @@ public class CommunityCompetitionService {
                 .findByIdAndCommunityIdAndSeasonId(bracketId, communityId, season.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Quadro Sprint não pertence à época"));
         // A reported incident never becomes an official result by itself.
-        if (trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatus(
-                bracketId, seriesKey.trim(), "PENDING"))
+        if (trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatusIn(
+                bracketId, seriesKey.trim(), SPRINT_UNRESOLVED_INCIDENT_STATUSES))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Manga suspensa até ser registada a decisão oficial dos comissários");
         AcceptedAliases aliases = acceptedAliasProfiles(communityId);
