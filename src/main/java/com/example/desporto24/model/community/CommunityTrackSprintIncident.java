@@ -58,6 +58,23 @@ public class CommunityTrackSprintIncident {
     @Column(name="sanctioned_username",length=100)
     private String sanctionedUsername;
 
+
+    // Explicit subsequent restart order: never change the original ruling.
+    @Column(name="rerun_riders_json",columnDefinition="TEXT")
+    private String rerunRidersJson;
+
+    @Column(name="rerun_reference",length=255)
+    private String rerunReference;
+
+    @Column(name="rerun_reason",length=500)
+    private String rerunReason;
+
+    @Column(name="rerun_authorized_by",length=100)
+    private String rerunAuthorizedBy;
+
+    @Column(name="rerun_authorized_at")
+    private Instant rerunAuthorizedAt;
+
     @Column(name="decided_by",length=100)
     private String decidedBy;
 
