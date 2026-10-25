@@ -140,13 +140,15 @@ class ProfileServiceImplSecurityTest {
 
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("miguel@example.com"),
-                eq("Alteração de email | Email address changed — Desporto24"), html.capture());
+                eq("Alteração de email | Email address changed — Jynlo"), html.capture());
         verify(emailService).send(eq("new@example.test"),
-                eq("Alteração de email | Email address changed — Desporto24"), eq(html.getValue()));
+                eq("Alteração de email | Email address changed — Jynlo"), eq(html.getValue()));
         verifyNoMoreInteractions(emailService);
         assertEquals("miguel@example.com", mapped.getOldEmail());
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Alteração de email"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Email address changed"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Jynlo"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.getValue().contains("Desporto24"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Redefinir palavra-passe / Reset password"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/login/resetPassword\""));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("If you made this change"));
@@ -210,7 +212,7 @@ class ProfileServiceImplSecurityTest {
         verify(repository).save(profile);
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"),
-                eq("Palavra-passe alterada | Password changed — Desporto24"), html.capture());
+                eq("Palavra-passe alterada | Password changed — Jynlo"), html.capture());
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Password changed"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Redefinir palavra-passe / Reset password"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/login/resetPassword\""));
