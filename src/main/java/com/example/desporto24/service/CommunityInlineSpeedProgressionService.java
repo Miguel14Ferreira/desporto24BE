@@ -51,12 +51,15 @@ public class CommunityInlineSpeedProgressionService {
                            List<DecisionView> decisions,
                            List<TieBreakView> tieBreaks) {}
     public record ConfirmRequest(List<Long> playerIds, String reason) {}
+    public record TieBreakRequest(List<Long> playerIds, String reason,
+                                  String evidenceType, String evidenceReference) {}
     public record TieBreakRevisionView(int revision, List<Long> selectedPlayerIds,
                                        String reason, String confirmedBy, Instant confirmedAt,
-                                       boolean stale) {}
+                                       boolean stale, String evidenceType, String evidenceReference) {}
     public record TieBreakView(String sourceStage, List<Long> selectedPlayerIds,
                                String reason, String confirmedBy, Instant confirmedAt,
-                               boolean stale, List<TieBreakRevisionView> revisions) {}
+                               boolean stale, List<TieBreakRevisionView> revisions,
+                               String evidenceType, String evidenceReference) {}
 
     @Transactional(readOnly = true)
     public Overview overview(Long communityId, Long tournamentId, String username) {
@@ -250,6 +253,14 @@ public class CommunityInlineSpeedProgressionService {
      */
     public Overview resolveTieBreak(Long communityId, Long tournamentId,
                                     String sourceStage, ConfirmRequest request, String username) {
+        // Preserve compatibility with existing internal callers and historical decisions.
+        return resolveTieBreak(communityId, tournamentId, sourceStage,
+                request == null ? null : new TieBreakRequest(request.playerIds(), request.reason(),
+                        null, null), username);
+    }
+
+    public Overview resolveTieBreak(Long communityId, Long tournamentId,
+                                    String sourceStage, TieBreakRequest request, String username) {
         requireAdmin(communityId, username);
         CommunityTournament tournament = tournament(communityId, tournamentId, true);
         requireEditable(tournament);
@@ -293,6 +304,20 @@ public class CommunityInlineSpeedProgressionService {
         if (reason.length() < 20 || reason.length() > 500)
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
                     "O desempate exige uma fundamentação oficial de 20 a 500 caracteres");
+        // Evidence is declared by the jury; never inferred from recorded times.
+        // Null/null is retained for older API clients and historical rulings.
+        String evidenceType = request.evidenceType() == null ? null : request.evidenceType().trim();
+        String evidenceReference = request.evidenceReference() == null
+                ? null : request.evidenceReference().trim();
+        if (evidenceType != null && evidenceType.isBlank()) evidenceType = null;
+        if (evidenceReference != null && evidenceReference.isBlank()) evidenceReference = null;
+        if ((evidenceType == null) != (evidenceReference == null)
+                || (evidenceType != null && (!Set.of("PHOTO_FINISH", "VIDEO_REVIEW",
+                        "OFFICIAL_MINUTES", "TIEBREAK_TRIAL", "OTHER").contains(evidenceType)
+                        || evidenceReference.length() < 8 || evidenceReference.length() > 500)))
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "A evidência exige tipo válido e referência oficial de 8 a 500 caracteres");
+
         CommunityInlineSpeedTieBreak ruling = tieBreaks
                 .findByTournamentIdAndSourceStage(tournamentId, "FIRST")
                 .orElseGet(CommunityInlineSpeedTieBreak::new);
@@ -313,6 +338,8 @@ public class CommunityInlineSpeedProgressionService {
                 .collect(Collectors.joining(",")));
         ruling.setSourceFingerprint(CommunityInlineSpeed2026.fingerprint(source));
         ruling.setJudgeReason(reason);
+        ruling.setEvidenceType(evidenceType);
+        ruling.setEvidenceReference(evidenceReference);
         ruling.setConfirmedBy(username);
         ruling.setConfirmedAt(Instant.now());
         ruling = tieBreaks.save(ruling);
@@ -327,6 +354,8 @@ public class CommunityInlineSpeedProgressionService {
                 .selectedPlayerIds(ruling.getSelectedPlayerIds())
                 .sourceFingerprint(ruling.getSourceFingerprint())
                 .judgeReason(ruling.getJudgeReason())
+                .evidenceType(ruling.getEvidenceType())
+                .evidenceReference(ruling.getEvidenceReference())
                 .confirmedBy(ruling.getConfirmedBy())
                 .confirmedAt(ruling.getConfirmedAt()).build();
     }
@@ -391,18 +420,21 @@ public class CommunityInlineSpeedProgressionService {
                             .map(v -> new TieBreakRevisionView(v.getRevisionNumber(),
                                     readIds(v.getSelectedPlayerIds()), v.getJudgeReason(),
                                     v.getConfirmedBy(), v.getConfirmedAt(),
-                                    !v.getSourceFingerprint().equals(fingerprint))).toList();
+                                    !v.getSourceFingerprint().equals(fingerprint),
+                                    v.getEvidenceType(), v.getEvidenceReference())).toList();
                     if (revisions.isEmpty()) {
                         // An existing ruling is still visible before its first edit.
                         revisions = List.of(new TieBreakRevisionView(1,
                                 readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
                                 d.getConfirmedBy(), d.getConfirmedAt(),
-                                !d.getSourceFingerprint().equals(fingerprint)));
+                                !d.getSourceFingerprint().equals(fingerprint),
+                                d.getEvidenceType(), d.getEvidenceReference()));
                     }
                     return new TieBreakView(d.getSourceStage(),
                             readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
                             d.getConfirmedBy(), d.getConfirmedAt(),
-                            !d.getSourceFingerprint().equals(fingerprint), revisions);
+                            !d.getSourceFingerprint().equals(fingerprint), revisions,
+                            d.getEvidenceType(), d.getEvidenceReference());
                 }).toList();
         return new Overview(tournament.getId(), discipline, visible, available,
                 List.copyOf(proposals), approved, resolutions);
