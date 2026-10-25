@@ -23,7 +23,7 @@ public class AdminVenueEditSuggestionController {
     @PostMapping("/{id}/approve")
     public VenueEditSuggestionResponse approve(@PathVariable long id,
             @Valid @RequestBody VenueEditReviewRequest request, Authentication auth) {
-        return suggestions.approve(id, request.note(), auth.getName());
+        return suggestions.approve(id, request.note(), auth.getName(), Boolean.TRUE.equals(request.sourceReviewed()));
     }
 
     @PostMapping("/{id}/reject")
