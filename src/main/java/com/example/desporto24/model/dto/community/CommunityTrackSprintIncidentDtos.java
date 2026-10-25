@@ -17,11 +17,27 @@ public final class CommunityTrackSprintIncidentDtos {
     public record Decide(
             @NotBlank String decisionType,
             @NotBlank @Size(min=12,max=255) String reference,
-            @NotBlank @Size(min=12,max=500) String reason) {}
+            @NotBlank @Size(min=12,max=500) String reason,
+            String sanctionType, String sanctionedUsername) {
+        public Decide(String decisionType, String reference, String reason) {
+            this(decisionType,reference,reason,null,null);
+        }
+    }
 
     public record View(Long id, String seriesKey, int heatNumber,
                        String incidentType, String details, String status,
                        String reportedBy, Instant reportedAt, String decisionType,
                        String decisionReference, String decisionReason,
-                       String decidedBy, Instant decidedAt) {}
+                       String decidedBy, Instant decidedAt,
+                       String sanctionType, String sanctionedUsername) {
+        public View(Long id, String seriesKey, int heatNumber,
+                String incidentType, String details, String status,
+                String reportedBy, Instant reportedAt, String decisionType,
+                String decisionReference, String decisionReason,
+                String decidedBy, Instant decidedAt) {
+            this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
+                 reportedAt,decisionType,decisionReference,decisionReason,decidedBy,
+                 decidedAt,null,null);
+        }
+    }
 }
