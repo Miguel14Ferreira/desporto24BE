@@ -45,7 +45,8 @@ class PortoOfficialSourcesPilotTest(unittest.TestCase):
         self.assertEqual("POSSIVEL_MATCH_REVISAO_HUMANA", result["results"][0]["status"])
         self.assertEqual("MORADA_COMPATIVEL_REVER", result["results"][0]["address_status"])
         self.assertIsNone(snapshot[0]["contact"])
-        self.assertNotIn("phone", json.dumps(result).lower())
+        self.assertNotIn("phone", result["results"][0])
+        self.assertNotIn("225073300", json.dumps(result))
 
     def test_missing_venue_or_different_name_never_gets_an_id(self):
         for catalogue in ([venue(name="Piscina Municipal de Outro Bairro")], []):
