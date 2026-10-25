@@ -101,8 +101,19 @@ public class CommunityInlineSpeedProgressionService {
                             "Esta manga inclui um atleta que não está oficialmente apurado");
             }
         }
-        if (entries.findByRoundIdOrderByIdAsc(roundId).isEmpty())
+        List<CommunityRoundEntry> entrants = entries.findByRoundIdOrderByIdAsc(roundId);
+        if (entrants.isEmpty())
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY, "Manga sem resultados");
+        Set<Long> currentPlayers = entrants.stream()
+                .map(e -> e.getCommunityPlayer().getId()).collect(Collectors.toSet());
+        for (CommunityInlineSpeedHeatLink prior : existing) {
+            if (!prior.getStage().equals(phase)) continue;
+            for (CommunityRoundEntry entry : entries.findByRoundIdOrderByIdAsc(prior.getRound().getId())) {
+                if (currentPlayers.contains(entry.getCommunityPlayer().getId()))
+                    throw problem(HttpStatus.CONFLICT,
+                            "Um patinador não pode disputar duas mangas na mesma fase");
+            }
+        }
         links.save(CommunityInlineSpeedHeatLink.builder().tournament(tournament)
                 .round(round).stage(phase).heatNumber(heatNumber).build());
         if (tournament.getStatus() == TournamentStatus.DRAFT) {
@@ -158,8 +169,9 @@ public class CommunityInlineSpeedProgressionService {
             throw problem(HttpStatus.CONFLICT, "Não podes apurar atletas sem resultado de origem");
         boolean correction = !selected.equals(proposal.candidatePlayerIds());
         String reason = request.reason() == null ? "" : request.reason().trim();
-        if ((correction || ("ROAD_LAP".equals(discipline) && "FIRST".equals(sourceStage)))
-                && reason.length() < 8)
+        // Organizer explicitly attests that the first round is complete; without that
+        // declaration, an incomplete collection of timed heats could falsely advance.
+        if ((correction || "FIRST".equals(sourceStage)) && reason.length() < 8)
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Regista a decisão fundamentada do júri para este apuramento");
         if (reason.length() > 500)
