@@ -82,5 +82,10 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     List<Chat> findConversationContextAfter(@Param("actor") String actor,
             @Param("other") String other, @Param("targetId") Long targetId, Pageable limit);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update Chat c set c.replyToText = :replacement where c.replyToMessageId = :messageId")
+    int redactRepliesToDeleted(@Param("messageId") Long messageId,
+                               @Param("replacement") String replacement);
+
     long deleteByUsername1OrUsername2(String username1, String username2);
 }

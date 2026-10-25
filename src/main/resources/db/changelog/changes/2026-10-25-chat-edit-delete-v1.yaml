@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-chat-edit-delete-v1
+      author: desporto24
+      comment: "Persist edit/delete markers for all three authenticated chat streams without changing message IDs or history order."
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: chat
+            columns:
+              - column: { name: edited_at, type: timestamp }
+              - column: { name: deleted_at, type: timestamp }
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_timeline_entry
+            columns:
+              - column: { name: edited_at, type: timestamp }
+              - column: { name: deleted_at, type: timestamp }
+        - addColumn:
+            schemaName: desporto24
+            tableName: session_message
+            columns:
+              - column: { name: edited_at, type: timestamp }
+              - column: { name: deleted_at, type: timestamp }

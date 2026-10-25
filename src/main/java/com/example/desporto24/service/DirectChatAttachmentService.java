@@ -72,7 +72,7 @@ public class DirectChatAttachmentService {
                 && msg.getUsername2().equalsIgnoreCase(peer))
                 || (msg.getUsername1().equalsIgnoreCase(peer)
                 && msg.getUsername2().equalsIgnoreCase(actor));
-        if (!direct || msg.getAttachmentKey() == null) {
+        if (!direct || msg.getAttachmentKey() == null || msg.getDeletedAt() != null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment not found");
         }
         return new AttachmentContent(files.read(msg.getAttachmentKey()),

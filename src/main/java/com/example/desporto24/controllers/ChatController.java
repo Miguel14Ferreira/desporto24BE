@@ -66,6 +66,20 @@ public class ChatController {
         return new ResponseEntity<>(chatService.sendMessage(chat), OK);
     }
 
+    @PutMapping("/me/{username}/messages/{messageId}")
+    public Chat editMyChatMessage(@PathVariable String username,
+            @PathVariable Long messageId,
+            @RequestBody @Valid com.example.desporto24.model.dto.chat.ChatMessageMutationRequest request,
+            Authentication authentication) {
+        return chatService.editMessage(authentication.getName(), username, messageId, request.text());
+    }
+
+    @DeleteMapping("/me/{username}/messages/{messageId}")
+    public Chat deleteMyChatMessage(@PathVariable String username,
+            @PathVariable Long messageId, Authentication authentication) {
+        return chatService.deleteMessage(authentication.getName(), username, messageId);
+    }
+
     @GetMapping("/me/{username}/info")
     public ResponseEntity<ChatInfoResponse> getMyChatInfo(
             @PathVariable String username,

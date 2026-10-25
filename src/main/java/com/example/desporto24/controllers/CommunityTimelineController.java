@@ -71,6 +71,20 @@ public class CommunityTimelineController {
         return service.post(communityId, Kind.CHAT, request.body(), authentication.getName(), request.replyToMessageId());
     }
 
+    @PutMapping("/messages/{entryId}")
+    public CommunityTimelineEntryResponse editChatMessage(@PathVariable Long communityId,
+            @PathVariable Long entryId,
+            @RequestBody @Valid com.example.desporto24.model.dto.chat.ChatMessageMutationRequest request,
+            Authentication authentication) {
+        return service.editChatMessage(communityId, entryId, request.text(), authentication.getName());
+    }
+
+    @DeleteMapping("/messages/{entryId}/for-everyone")
+    public CommunityTimelineEntryResponse deleteChatForEveryone(@PathVariable Long communityId,
+            @PathVariable Long entryId, Authentication authentication) {
+        return service.deleteChatForEveryone(communityId, entryId, authentication.getName());
+    }
+
     @DeleteMapping("/messages/{entryId}")
     public ResponseEntity<Void> deleteMessage(
             @PathVariable Long communityId, @PathVariable Long entryId, Authentication authentication) {
