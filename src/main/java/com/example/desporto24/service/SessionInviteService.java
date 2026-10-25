@@ -30,6 +30,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SessionInviteService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final SessionRepository sessions;
     private final ProfileRepository profiles;
     private final SessionInviteRepository invites;
@@ -92,7 +95,10 @@ public class SessionInviteService {
         notification.setSessionId(sessionId);
         notification.setType(NotificationType.SESSION_INVITE);
         notification.setRead(false);
-        notifications.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notifications.save(notification);
+        }
         return inviteId;
     }
     @Transactional(readOnly = true)
