@@ -31,37 +31,46 @@ class CommunityCreationQuotaServiceTest {
         when(profiles.lockForCommunityQuota(7L)).thenReturn(Optional.of(actor));
     }
 
-    private void counts(long active, long daily) {
-        when(communities.countByOwnerId(7L)).thenReturn(active);
-        when(jdbc.queryForObject(anyString(), eq(Long.class), eq(7L),
-                any(OffsetDateTime.class), any(OffsetDateTime.class)))
-                .thenReturn(daily);
+    private void owned(long current) {
+        when(communities.countByOwnerId(7L)).thenReturn(current);
     }
 
     @Test
-    void defaultQuotaAllowsCreationUntilFiveOwned() {
-        counts(4, 0);
-        var q = quotas.quota(actor);
-        assertEquals(5, q.limit());
-        assertEquals(4, q.owned());
-        assertTrue(q.canCreate());
+    void creationAllowedAsLongAsFewerThanFiveAreOwned() {
+        owned(4);
+        var quota = quotas.quota(actor);
+        assertEquals(5, quota.limit());
+        assertEquals(4, quota.owned());
+        assertTrue(quota.canCreate());
+        assertDoesNotThrow(() -> quotas.reserveCreate(actor));
+        verify(profiles).lockForCommunityQuota(7L);
+        // Creation counts no longer have a daily threshold or insert events.
+        verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void fourthAndFifthCreationOnSameDayAreNotThrottled() {
+        owned(3);
         quotas.reserveCreate(actor);
-        verify(jdbc).update(contains("community_creation_event"),
-                eq(7L), any(OffsetDateTime.class));
+        owned(4);
+        quotas.reserveCreate(actor);
+        verify(profiles, times(2)).lockForCommunityQuota(7L);
+        verifyNoInteractions(jdbc);
     }
 
     @Test
-    void fullOwnerQuotaRejectsWithoutRecordingAnotherCreation() {
-        counts(5, 0);
+    void fullOwnerQuotaRejectsWithoutPersistingOrRecordingCreation() {
+        owned(5);
         var error = assertThrows(ResponseStatusException.class,
                 () -> quotas.reserveCreate(actor));
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
-        verify(jdbc, never()).update(anyString(), any(), any());
+        assertFalse(quotas.quota(actor).canCreate());
+        verifyNoInteractions(jdbc);
     }
 
     @Test
-    void existingOwnersAboveFiveRetainCommunitiesButCannotCreateMore() {
-        counts(8, 0);
+    void legacyOwnersAboveFiveKeepTheirGroupsButCannotCreateMore() {
+        owned(8);
         assertEquals(8, quotas.quota(actor).owned());
         assertFalse(quotas.quota(actor).canCreate());
         assertThrows(ResponseStatusException.class, () -> quotas.reserveCreate(actor));
@@ -69,39 +78,29 @@ class CommunityCreationQuotaServiceTest {
     }
 
     @Test
-    void twoNewGroupsPerDayCannotBeCircumventedByDeletion() {
-        counts(0, 2);
-        var error = assertThrows(ResponseStatusException.class,
-                () -> quotas.reserveCreate(actor));
-        assertEquals(HttpStatus.TOO_MANY_REQUESTS, error.getStatusCode());
-        verify(jdbc, never()).update(anyString(), any(), any());
-    }
-
-    @Test
-    void increasingLimitAllowsOwnerWithFiveToCreate() {
+    void adminOverrideCanRaiseOwnerQuotaAndAllowsImmediateCreation() {
         actor.setCommunityCreationLimit(10);
-        counts(5, 1);
+        owned(5);
         assertEquals(10, quotas.quota(actor).limit());
-        quotas.reserveCreate(actor);
-        verify(jdbc).update(contains("community_creation_event"),
-                eq(7L), any(OffsetDateTime.class));
+        assertDoesNotThrow(() -> quotas.reserveCreate(actor));
+        verifyNoInteractions(jdbc);
     }
 
     @Test
-    void transferChecksNewOwnerCapacityButDoesNotConsumeDailyAllowance() {
-        counts(5, 0);
+    void transferChecksOnlyTargetOwnerCapacity() {
+        owned(5);
         assertEquals(HttpStatus.CONFLICT,
                 assertThrows(ResponseStatusException.class,
                         () -> quotas.requireTransferCapacity(actor)).getStatusCode());
-        reset(jdbc, communities);
-        counts(4, 2);
+        reset(communities);
+        owned(4);
         assertDoesNotThrow(() -> quotas.requireTransferCapacity(actor));
-        verify(jdbc, never()).update(anyString(), any(), any());
+        verifyNoInteractions(jdbc);
     }
 
     @Test
     void superAdminOverrideIsPersistedAndAuditedWithReason() {
-        counts(5, 0);
+        owned(5);
         when(profiles.save(actor)).thenReturn(actor);
         var quota = quotas.updateOverride(7L, 19L, 8, "Clube com várias equipas");
         assertEquals(8, quota.limit());
@@ -113,7 +112,7 @@ class CommunityCreationQuotaServiceTest {
 
     @Test
     void resetToDefaultRequiresReasonAndWritesAudit() {
-        counts(5, 0);
+        owned(5);
         actor.setCommunityCreationLimit(8);
         quotas.updateOverride(7L, 19L, null, "Reposição do limite padrão");
         assertNull(actor.getCommunityCreationLimit());
@@ -131,5 +130,6 @@ class CommunityCreationQuotaServiceTest {
                 assertThrows(ResponseStatusException.class,
                         () -> quotas.updateOverride(7L, 19L, 8, " ")).getStatusCode());
         verify(profiles, never()).save(any());
+        verifyNoInteractions(jdbc);
     }
 }

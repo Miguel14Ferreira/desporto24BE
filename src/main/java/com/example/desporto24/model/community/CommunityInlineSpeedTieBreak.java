@@ -31,6 +31,8 @@ public class CommunityInlineSpeedTieBreak {
     private String evidenceType;
     @Column(name = "evidence_reference", length = 500)
     private String evidenceReference;
+    @Column(name = "trial_order_exception_reason", length = 500)
+    private String trialOrderExceptionReason;
     @Column(name = "confirmed_by", nullable = false, length = 100)
     private String confirmedBy;
     @Column(name = "confirmed_at", nullable = false)
