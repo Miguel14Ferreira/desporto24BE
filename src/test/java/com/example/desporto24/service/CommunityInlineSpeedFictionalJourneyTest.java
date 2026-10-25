@@ -55,6 +55,7 @@ class CommunityInlineSpeedFictionalJourneyTest {
     @Mock CommunityInlineSpeedTieBreakRevisionRepository tieBreakRevisions;
     @Mock CommunityInlineSpeedTieTrialRepository tieTrials;
     @Mock CommunityInlineSpeedTieTrialResultRepository trialResults;
+    @Mock CommunityInlineSpeedTrialUsageRepository trialUsages;
     @InjectMocks CommunityInlineSpeedProgressionService service;
 
     private Community community;
