@@ -119,6 +119,41 @@ class PortoOfficialSourcesPilotTest(unittest.TestCase):
             output.write_text(json.dumps(pilot([venue()], manifest()), ensure_ascii=False))
             self.assertNotIn("225073300", output.read_text())
 
+    def test_distinctive_name_hints_are_read_only_and_not_assigned(self):
+        m = manifest()
+        m["facilities"][0].update({
+            "name": "Piscina Municipal Eng.º Armando Pimentel",
+            "aliases": ["Piscina Municipal Engenheiro Armando Pimentel"],
+            "street_hint": "Diogo Botelho",
+        })
+        candidate = venue(404, name="Centro de Natação Armando Pimentel",
+                          address="Rua Diogo Botelho, Porto")
+        result = pilot([candidate], m)
+        row = result["results"][0]
+        self.assertEqual("SEM_NOME_EXATO_NA_JYNLO", row["status"])
+        self.assertIsNone(row["jynlo_venue_id"])
+        self.assertEqual([{"id": 404, "name": candidate["name"]}], row["manual_name_hints"])
+        self.assertNotIn("225073300", json.dumps(result))
+
+    def test_name_hints_reject_wrong_city_and_too_many_ambiguous_matches(self):
+        m = manifest()
+        m["facilities"][0].update({"name": "Piscina Eng.º Armando Pimentel",
+                                   "aliases": []})
+        same = venue(100, name="Clube Armando Pimentel", address=None)
+        foreign = venue(200, name="Clube Armando Pimentel",
+                        city="Vila Nova de Gaia", district="Porto")
+        row = pilot([same, foreign], m)["results"][0]
+        self.assertEqual([{"id": 100, "name": same["name"]}], row["manual_name_hints"])
+        too_many = [venue(500 + i, name="Piscina Armando Pimentel " + str(i))
+                    for i in range(4)]
+        row = pilot(too_many, m)["results"][0]
+        self.assertEqual([], row["manual_name_hints"])
+        self.assertIsNone(row["jynlo_venue_id"])
+
+    def test_generic_names_never_produce_name_hints(self):
+        row = pilot([venue(999, name="Piscina Municipal do Porto")], manifest())["results"][0]
+        self.assertEqual([], row["manual_name_hints"])
+
 
 if __name__ == "__main__":
     unittest.main()
