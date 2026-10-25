@@ -2,6 +2,8 @@ package com.example.desporto24.repository.venue;
 
 import com.example.desporto24.model.venue.Venue;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +14,10 @@ import java.util.Optional;
 
 public interface VenueRepository extends JpaRepository<Venue, Long> {
     List<Venue> findAllByOrderByNameAsc();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM Venue v WHERE v.id = :id")
+    Optional<Venue> findForEditReview(@Param("id") Long id);
 
     /**
      * Filter and paginate in the database; never fetch the national catalog in memory.
