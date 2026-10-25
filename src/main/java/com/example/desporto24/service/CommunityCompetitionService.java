@@ -240,7 +240,7 @@ public class CommunityCompetitionService {
                 bracket.getFormat() == null ? "EIGHT_RIDER_FINALS" : bracket.getFormat(),
                 CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds,
                         bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders(),
-                        sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()),sprintOfficialDisqualified(bracket.getId())),
+                        sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()),sprintOfficialDisqualified(bracket.getId()),sprintBo3OfficialHeats(bracket.getId())),
                 bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
                 bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()),
                 decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
@@ -255,7 +255,7 @@ public class CommunityCompetitionService {
         if(bracket.getInterruptionStage()==null) return null;
         var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
                 bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders(),
-                sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()),sprintOfficialDisqualified(bracket.getId()));
+                sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()),sprintOfficialDisqualified(bracket.getId()),sprintBo3OfficialHeats(bracket.getId()));
         List<CommunityTrackSprintBracketDtos.InterruptionPlacement> placements=
                 CommunityTrackSprintInterruption.placements(
                         bracket.getInterruptionStage(),matches);
@@ -301,7 +301,7 @@ public class CommunityCompetitionService {
                         "TRACK_SPRINT_REPECHAGE","TRACK_SPRINT_5_8").contains(r.getEventType()))
                 .map(r->roundResponse(r,aliases)).toList();
         var matches=CommunityTrackSprintBracketPlanner.project(bracketId,rounds,
-                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId),sprintOfficialDisqualified(bracketId));
+                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId),sprintOfficialDisqualified(bracketId),sprintBo3OfficialHeats(bracketId));
         String stage;
         try { stage=CommunityTrackSprintInterruption.stage(matches); }
         catch(IllegalStateException invalid) {
@@ -382,7 +382,8 @@ public class CommunityCompetitionService {
         Map<String,String> awarded=new HashMap<>();
         for (CommunityTrackSprintIncident incident:
                 trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
-            if ("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())) {
+            if ("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
+                    && !incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")) {
                 if(incident.getAwardWinner()==null
                         ||awarded.putIfAbsent(incident.getSeriesKey(),
                                              incident.getAwardWinner())!=null)
@@ -390,6 +391,24 @@ public class CommunityCompetitionService {
             }
         }
         return Map.copyOf(awarded);
+    }
+
+    /** Per-heat awards are not physical rounds and never infer a BO3 match winner. */
+    private Map<String,Map<Integer,String>> sprintBo3OfficialHeats(Long bracketId) {
+        Map<String,Map<Integer,String>> awardMap=new HashMap<>();
+        for(var i:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
+            if(!"OFFICIAL_HEAT_AWARDED".equals(i.getStatus())
+                    ||!i.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)"))continue;
+            if(!"RELEGATION".equals(i.getSanctionType())||i.getAwardWinner()==null
+                    ||i.getHeatNumber()<1||i.getHeatNumber()>3)
+                throw new IllegalStateException("Decisão BO3 sem evidência regulamentar");
+            var values=awardMap.computeIfAbsent(i.getSeriesKey(),ignored->new HashMap<>());
+            if(values.putIfAbsent(i.getHeatNumber(),i.getAwardWinner())!=null)
+                throw new IllegalStateException("Decisão BO3 duplicada na mesma manga");
+        }
+        Map<String,Map<Integer,String>> stable=new HashMap<>();
+        awardMap.forEach((k,v)->stable.put(k,Map.copyOf(v)));
+        return Map.copyOf(stable);
     }
 
     private Set<String> sprintOfficialDisqualified(Long bracketId) {
@@ -463,7 +482,8 @@ public class CommunityCompetitionService {
         if(!Set.of("READY","IN_PROGRESS").contains(match.status()) ||
                 "SPRINT_PLACES_5_8".equals(match.phase()))
             throw new IllegalArgumentException("Não é possível reportar esta manga");
-        int nextHeat=1+(int)related.stream()
+        int previousAwards=sprintBo3OfficialHeats(bracketId).getOrDefault(series,Map.of()).size();
+        int nextHeat=1+previousAwards+(int)related.stream()
                 .filter(r->series.equals(r.sprintSeriesKey())).count();
         if(nextHeat!=request.heatNumber())
             throw new IllegalArgumentException("O incidente tem de referir a próxima manga ainda não registada");
@@ -674,13 +694,17 @@ public class CommunityCompetitionService {
                 ||!"DISCIPLINARY_RULING".equals(incident.getDecisionType())
                 ||!"FALL".equals(incident.getIncidentType())
                 ||!Set.of("RELEGATION","DISQUALIFICATION").contains(incident.getSanctionType())
-                ||incident.getHeatNumber()!=1)
+                )
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta decisão disciplinar não permite atribuição direta do confronto");
         String key=incident.getSeriesKey();
-        if(!key.matches("SP"+bracketId+"-(A(?:[1-9]|1[0-2])|C[1-8]|E[1-6]|V[1-4])"))
+        boolean single=incident.getHeatNumber()==1
+                &&key.matches("SP"+bracketId+"-(A(?:[1-9]|1[0-2])|C[1-8]|E[1-6]|V[1-4])");
+        boolean bo3=key.matches("SP"+bracketId+"-(Q[1-4]|S[1-2]|B|G)")
+                &&"RELEGATION".equals(incident.getSanctionType());
+        if(!single&&!bo3)
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Confronto à melhor de três ou com repescagem de três exige procedimento próprio");
+                    "DQ BO3 e repescagens exigem procedimento especial; não existe vitória automática");
         if(request==null || !"INTENTIONAL_FALL".equals(request.basis())
                 ||request.winnerUsername()==null||request.winnerUsername().isBlank()
                 ||request.reference()==null||request.reference().trim().length()<12
@@ -694,13 +718,23 @@ public class CommunityCompetitionService {
             .stream().filter(r->Set.of("TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE",
                     "TRACK_SPRINT_5_8").contains(r.getEventType()))
             .map(r->roundResponse(r,aliases)).toList();
-        if(rounds.stream().anyMatch(r->key.equals(r.sprintSeriesKey())))
+        long raced=rounds.stream().filter(r->key.equals(r.sprintSeriesKey())).count();
+        if((single && raced>0)||rounds.stream().anyMatch(r->key.equals(r.sprintSeriesKey())
+                &&Integer.valueOf(incident.getHeatNumber()).equals(r.sprintHeatNumber())))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Confronto com resultado disputado não admite atribuição administrativa");
+                    "Número da manga já registado como corrida disputada");
+        if(bo3) {
+            var earlier=sprintBo3OfficialHeats(bracketId).getOrDefault(key,Map.of());
+            if(incident.getHeatNumber()!=raced+earlier.size()+1
+                    ||earlier.containsKey(incident.getHeatNumber()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Decisão fora de sequência ou já registada");
+        }
         CommunityTrackSprintBracketDtos.Match match=trackSprintBracketResponse(bracket,rounds)
                 .matches().stream().filter(m->key.equals(m.seriesKey()))
                 .findFirst().orElseThrow(()->new IllegalArgumentException("Confronto inválido"));
-        if(!"READY".equals(match.status()) ||match.riderC()!=null||match.riderD()!=null
+        if(!(bo3?Set.of("READY","IN_PROGRESS").contains(match.status())
+                :"READY".equals(match.status())) ||match.riderC()!=null||match.riderD()!=null
                 ||match.riderA()==null||match.riderB()==null)
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "É necessária uma eliminatória preparada entre exatamente dois ciclistas");
@@ -760,7 +794,7 @@ public class CommunityCompetitionService {
             try {
                 CommunityTrackSprintOlympic24.validateNewHeat(
                         bracketId, seriesKey, phase, eventType, rounds, entrants, seeds,
-                        sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId),sprintOfficialDisqualified(bracketId));
+                        sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId),sprintOfficialDisqualified(bracketId),sprintBo3OfficialHeats(bracketId));
             } catch (IllegalArgumentException invalidHeat) {
                 // A finished or suspended bracket is a user validation error,
                 // not an unhandled 500. Race entries remain unchanged.
@@ -1262,6 +1296,29 @@ public class CommunityCompetitionService {
                     .existsByBracketIdAndSeriesKeyAndStatus(
                         Long.parseLong(linked.group(1)),
                         request.sprintSeriesKey().trim(),"RESTART_AUTHORIZED");
+            }
+        }
+        // Include previously signed BO3 heats ONLY for sequence validation.
+        // Do not persist manufactured CommunityRounds.
+        if("TRACK_SPRINT_HEAT".equals(resolvedEventType)
+                &&request.sprintSeriesKey()!=null
+                &&request.sprintSeriesKey().matches("SP[1-9][0-9]*-(Q[1-4]|S[1-2]|B|G)")
+                &&request.entries()!=null&&request.entries().size()==2) {
+            var linked=SPRINT_BRACKET_SERIES.matcher(request.sprintSeriesKey().trim());
+            if(linked.matches()) {
+                long linkedId=Long.parseLong(linked.group(1));
+                if(trackSprintBracketRepository.findByIdAndCommunityIdAndSeasonId(
+                        linkedId,communityId,activeSeason.getId()).isPresent()) {
+                    var all=new ArrayList<>(existingSprintHeats);
+                    var awards=sprintBo3OfficialHeats(linkedId)
+                            .getOrDefault(request.sprintSeriesKey().trim(),Map.of());
+                    for(var award:awards.entrySet())
+                        all.add(new CommunityTrackSprintSeries.Heat(resolvedDiscipline,
+                                award.getKey(),request.entries().get(0).username(),
+                                request.entries().get(1).username(),award.getValue()));
+                    all.sort(Comparator.comparingInt(CommunityTrackSprintSeries.Heat::number));
+                    existingSprintHeats=List.copyOf(all);
+                }
             }
         }
         CommunityTrackSprintSeries.validate(resolvedEventType, resolvedDiscipline,
