@@ -1,7 +1,8 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.*;
-import com.example.desporto24.model.*;
+import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.model.community.*;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.*;
@@ -11,7 +12,8 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.*;
 import org.springframework.test.context.*;
 import java.math.BigDecimal;
