@@ -168,6 +168,31 @@ public class RefreshTokenRotationService {
         }
     }
 
+    /**
+     * Emergency account protection without signing out the verified browser.
+     * The account lock serializes this with refresh and new logins across nodes.
+     */
+    @Transactional
+    public void revokeOtherDevices(String username, String keepFamily) {
+        if (keepFamily == null || keepFamily.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        try {
+            UUID.fromString(keepFamily);
+        } catch (IllegalArgumentException invalid) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        Profile identity = profiles.findUserByUsername(username).orElseThrow(this::denied);
+        Profile profile = profiles.findForRoleChange(identity.getId()).orElseThrow(this::denied);
+        Instant now = Instant.now();
+        // Fail closed on legacy/unbound access tokens and non-owned or dead families.
+        if (!sessions.existsByProfileIdAndFamilyIdAndConsumedAtIsNullAndRevokedAtIsNullAndExpiresAtAfter(
+                profile.getId(), keepFamily, now)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+        sessions.revokeOtherOwnedFamilies(profile.getId(), keepFamily, now);
+    }
+
     @Transactional(readOnly = true)
     public boolean accessFamilyActive(Long profileId, String familyId) {
         if (familyId == null || familyId.isBlank()) return false;

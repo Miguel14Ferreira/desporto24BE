@@ -240,6 +240,43 @@ class AuthenticationControllerTest {
     }
 
     @Test
+    void revokeOtherDevicesKeepsCurrentCookieAndRequiresCurrentFamily() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(jwtTokens.getAccessTokenFamilyId("access")).thenReturn("bound-current");
+
+        var result = controller.revokeOtherDeviceSessions(
+                authentication, "https://d24sports.com", "Bearer access");
+
+        assertEquals(204, result.getStatusCode().value());
+        assertNull(result.getHeaders().getFirst(HttpHeaders.SET_COOKIE));
+        verify(refreshOriginValidator).requireAllowedOrigin("https://d24sports.com");
+        verify(refreshTokenRotationService).revokeOtherDevices("miguel", "bound-current");
+    }
+
+    @Test
+    void unauthenticatedCallerCannotRevokeOtherDevices() {
+        assertThrows(ResponseStatusException.class,
+                () -> controller.revokeOtherDeviceSessions(
+                        null, "https://d24sports.com", "Bearer token"));
+        verifyNoInteractions(refreshTokenRotationService);
+    }
+
+    @Test
+    void revokeOtherDevicesRejectsUntrustedOrigin() {
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("miguel");
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN))
+                .when(refreshOriginValidator).requireAllowedOrigin("https://attacker.invalid");
+
+        assertThrows(ResponseStatusException.class,
+                () -> controller.revokeOtherDeviceSessions(
+                        authentication, "https://attacker.invalid", "Bearer token"));
+        verify(refreshOriginValidator).requireAllowedOrigin("https://attacker.invalid");
+        verifyNoInteractions(refreshTokenRotationService);
+    }
+
+    @Test
     void unauthenticatedCallerCannotListOrRevokeSessions() {
         assertThrows(ResponseStatusException.class,
                 () -> controller.listDeviceSessions(null, null));
