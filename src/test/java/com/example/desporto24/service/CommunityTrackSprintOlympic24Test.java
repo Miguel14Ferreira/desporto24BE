@@ -64,7 +64,7 @@ class CommunityTrackSprintOlympic24Test {
     }
     @Test void olympicFirstRoundAndThreeUpRepechageAreNotInvented() {
         var all=CommunityTrackSprintBracketPlanner.project(BRACKET,List.of(),seeds());
-        assertEquals(44,all.size());
+        assertEquals(45,all.size()); // includes independently recorded 5th–8th race
         assertEquals("r1",match(List.of(),"A1").riderA());
         assertEquals("r24",match(List.of(),"A1").riderB());
         assertEquals("r12",match(List.of(),"A12").riderA());
