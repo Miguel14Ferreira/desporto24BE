@@ -63,6 +63,17 @@ public class CommunityInlineSpeedProgressionController {
                         request.evidenceType(), request.evidenceReference()), auth.getName());
     }
 
+    /** Record the actual results of a trial only after it has happened. */
+    @PostMapping("/tiebreaks/{sourceStage}/trials")
+    public CommunityInlineSpeedProgressionService.Overview recordTrial(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @PathVariable String sourceStage,
+            @RequestBody @Valid CommunityInlineSpeedProgressionService.TrialCreateRequest request,
+            Authentication auth) {
+        return service.recordTieTrial(communityId, tournamentId, sourceStage,
+                request, auth.getName());
+    }
+
     @PutMapping("/qualifications/{sourceStage}")
     public CommunityInlineSpeedProgressionService.Overview confirm(
             @PathVariable Long communityId, @PathVariable Long tournamentId,
