@@ -39,4 +39,16 @@ public interface RefreshTokenSessionRepository extends JpaRepository<RefreshToke
     int revokeOwnedFamily(@Param("profileId") Long profileId,
                           @Param("familyId") String familyId,
                           @Param("at") Instant at);
+    /**
+     * Revoke all refresh rows belonging to other families of this account.
+     * Spent rows are also marked to prevent a replay from resurrecting them.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update RefreshTokenSession t set t.revokedAt = :at " +
+            "where t.profileId = :profileId and t.familyId is not null " +
+            "and t.familyId <> :keepFamily and t.revokedAt is null")
+    int revokeOtherOwnedFamilies(@Param("profileId") Long profileId,
+                                 @Param("keepFamily") String keepFamily,
+                                 @Param("at") Instant at);
+
 }

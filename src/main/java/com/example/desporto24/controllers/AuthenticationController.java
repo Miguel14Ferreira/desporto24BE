@@ -151,6 +151,22 @@ public class AuthenticationController {
                 authentication.getName(), accessFamily(authorization));
     }
 
+    /**
+     * Keep this browser signed in while revoking all other refresh families.
+     * Requires a family-bound bearer JWT and an exact allowed browser Origin.
+     */
+    @DeleteMapping("/sessions/others")
+    public ResponseEntity<Void> revokeOtherDeviceSessions(
+            Authentication authentication,
+            @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        requireSignedIn(authentication);
+        refreshOriginValidator.requireAllowedOrigin(origin);
+        refreshTokenRotationService.revokeOtherDevices(
+                authentication.getName(), accessFamily(authorization));
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/sessions/{familyId}")
     public ResponseEntity<Void> revokeDeviceSession(
             @PathVariable String familyId,
