@@ -48,6 +48,14 @@ public class VenueEditSuggestion {
     @Column(name = "reviewed_at")
     private Instant reviewedAt;
 
+    /**
+     * When non-null, records the authenticated moderator's explicit
+     * source-review attestation for a published non-empty contact.
+     * It does not independently prove the external page was accurate.
+     */
+    @Column(name = "source_review_confirmed_at")
+    private Instant sourceReviewConfirmedAt;
+
     @Column(name = "decision_note", length = 1000)
     private String decisionNote;
 }
