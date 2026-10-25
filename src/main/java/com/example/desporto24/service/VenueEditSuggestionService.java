@@ -218,7 +218,7 @@ public class VenueEditSuggestionService {
                     || host.endsWith(".") || uri.getRawUserInfo() != null
                     || (uri.getPort() != -1 && uri.getPort() != 443)
                     || uri.getRawFragment() != null
-                    || !host.matches("(?i)[a-z0-9-]+(\\\\.[a-z0-9-]+)+")
+                    || !host.matches("(?i)[a-z0-9-]+(\\.[a-z0-9-]+)+")
                     || host.matches("[0-9.]+")) {
                 throw bad(HttpStatus.BAD_REQUEST, "Fonte deve ser uma página pública HTTPS válida");
             }
