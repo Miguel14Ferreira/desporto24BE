@@ -418,7 +418,7 @@ public class CommunityCompetitionService {
     private Set<String> sprintOfficialDisqualified(Long bracketId) {
         Set<String> excluded=new HashSet<>();
         for(var incident:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId))
-            if(Set.of("OFFICIAL_HEAT_AWARDED","OFFICIAL_SERIES_AWARDED").contains(incident.getStatus())
+            if("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
                     &&"DISQUALIFICATION".equals(incident.getSanctionType())) {
                 if(incident.getSanctionedUsername()==null)
                     throw new IllegalStateException("Desclassificação sem ciclista identificado");

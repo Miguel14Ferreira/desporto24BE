@@ -92,10 +92,11 @@ final class CommunityTrackSprintOlympic24 {
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q2",won(m,"E2"),won(m,"W1"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q3",won(m,"E3"),won(m,"E6"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q4",won(m,"E4"),won(m,"E5"),null);
-        addPlaces(m,bracketId,rounds,excludedRiders);
+        addPlaces(m,bracketId,rounds,excludedRiders,awardedWinners);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"S1",won(m,"Q1"),won(m,"Q4"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"S2",won(m,"Q2"),won(m,"Q3"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"B",lost(m,"S1",excludedRiders),lost(m,"S2",excludedRiders),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"B",lostAfterVerdict(m,"S1",excludedRiders,awardedWinners),
+                lostAfterVerdict(m,"S2",excludedRiders,awardedWinners),null);
         add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"G",won(m,"S1"),won(m,"S2"),null);
         return List.copyOf(m.values());
     }
@@ -104,10 +105,13 @@ final class CommunityTrackSprintOlympic24 {
      * No position is awarded using qualifying rank or losing heat time.
      */
     private static void addPlaces(Map<String,Match> matches, long bracketId,
-            List<CommunityRoundResponse> rounds,Set<String> excludedRiders) {
+            List<CommunityRoundResponse> rounds,Set<String> excludedRiders,
+            Map<String,String> officialAwards) {
         String slot="F58", key=key(bracketId,slot), phase=phase(slot);
-        String a=lost(matches,"Q1",excludedRiders), b=lost(matches,"Q2",excludedRiders);
-        String c=lost(matches,"Q3",excludedRiders), d=lost(matches,"Q4",excludedRiders);
+        String a=lostAfterVerdict(matches,"Q1",excludedRiders,officialAwards);
+        String b=lostAfterVerdict(matches,"Q2",excludedRiders,officialAwards);
+        String c=lostAfterVerdict(matches,"Q3",excludedRiders,officialAwards);
+        String d=lostAfterVerdict(matches,"Q4",excludedRiders,officialAwards);
         List<CommunityRoundResponse> result=rounds.stream()
                 .filter(r->key.equals(r.sprintSeriesKey())).toList();
         boolean ready=a!=null&&b!=null&&c!=null&&d!=null
@@ -163,6 +167,14 @@ final class CommunityTrackSprintOlympic24 {
         // A rider disqualified from competition cannot re-enter any repechage.
         return excludedRiders.contains(loser)?null:loser;
     }
+    private static String lostAfterVerdict(Map<String,Match> matches,String slot,
+            Set<String> excludedRiders,Map<String,String> officialAwards) {
+        Match prior=matches.get(slot);
+        // A DQ in this BO3 affects future placings, never earlier repechages.
+        if(prior!=null && officialAwards.containsKey(prior.seriesKey()))return null;
+        return lost(matches,slot,excludedRiders);
+    }
+
     private static void add(Map<String,Match> m,long id,List<CommunityRoundResponse> rounds,
             Map<String,List<String>> reruns, Map<String,String> awardedWinners,
             Map<String,Map<Integer,String>> decidedHeats,

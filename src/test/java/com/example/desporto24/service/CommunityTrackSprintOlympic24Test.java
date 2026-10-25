@@ -165,7 +165,7 @@ class CommunityTrackSprintOlympic24Test {
         var sanctioned=quarter.riderB();
         var award=Map.of(quarter.seriesKey(),winner);
         var current=CommunityTrackSprintOlympic24.project(
-                BRACKET,raced,seeds(),Map.of(),award,Set.of(sanctioned),Map.of());
+                BRACKET,raced,seeds(),Map.of(),award,Set.of(),Map.of());
         var q1=current.stream().filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
         assertEquals("FINISHED",q1.status());
         assertEquals(winner,q1.winner());
@@ -176,7 +176,7 @@ class CommunityTrackSprintOlympic24Test {
         assertNull(placement.riderA());
         var partiallyRaced=Map.of(quarter.seriesKey(),Map.of(1,sanctioned));
         var partial=CommunityTrackSprintOlympic24.project(BRACKET,raced,seeds(),
-                Map.of(),award,Set.of(sanctioned),partiallyRaced).stream()
+                Map.of(),award,Set.of(),partiallyRaced).stream()
                 .filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
         assertEquals("FINISHED",partial.status());
         assertEquals(0,partial.winsA());
