@@ -111,6 +111,17 @@ public class VenueEditSuggestionService {
                 slice.getContent().stream().map(this::response).toList(), page, slice.hasNext());
     }
 
+    /** Paginated immutable decision history for authenticated venue moderators. */
+    @Transactional(readOnly = true)
+    public VenueEditSuggestionPageResponse history(int page) {
+        if (page < 0 || page > 1000) throw bad(HttpStatus.BAD_REQUEST, "Página inválida");
+        var slice = repository.findByStatusInOrderByReviewedAtDescIdDesc(
+                Set.of(VenueEditSuggestion.Status.APPROVED, VenueEditSuggestion.Status.REJECTED),
+                PageRequest.of(page, 20));
+        return new VenueEditSuggestionPageResponse(
+                slice.getContent().stream().map(this::response).toList(), page, slice.hasNext());
+    }
+
     /**
      * Backward-compatible Java entry point. No implicit contact-source review.
      * Existing approvals of non-contact fields continue to work.
