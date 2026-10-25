@@ -655,6 +655,99 @@ class CommunityCompetitionServiceTest {
         verify(racketRuleRepository, never()).save(any());
     }
 
+    /**
+     * Sprint contract checks use ephemeral Mockito fixtures. These do NOT
+     * impersonate actual users or write to the live Jynlo database.
+     */
+    @Test
+    void sprintPrivateCommunityRejectsOutsiderBeforeReadingSeason() {
+        Profile outsider=profile(22L,"outsider","Outsider");
+        Profile owner=profile(1L,"owner","Owner");
+        Community community=Community.builder().id(7L).owner(owner)
+                .visibility(CommunityVisibility.PRIVATE)
+                .sport("Ciclismo de Pista").rankingsEnabled(true).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("outsider"))
+                .thenReturn(Optional.of(outsider));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L,22L)).thenReturn(false);
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                ()->service.trackSprintBrackets(7L,44L,"outsider"));
+        verify(seasonRepository,never()).findById(any());
+        verify(trackSprintBracketRepository,never())
+                .findByCommunityIdAndSeasonIdOrderByIdAsc(7L,44L);
+    }
+
+    @Test
+    void sprintReaderRejectsSeasonBelongingToAnotherCommunity() {
+        Profile member=profile(2L,"member","Member");
+        Profile owner=profile(1L,"owner","Owner");
+        Community community=Community.builder().id(7L).owner(owner)
+                .visibility(CommunityVisibility.PRIVATE).build();
+        Community elsewhere=Community.builder().id(8L).owner(owner).build();
+        CommunitySeason otherSeason=CommunitySeason.builder().id(44L)
+                .community(elsewhere).active(true).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("member"))
+                .thenReturn(Optional.of(member));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L,2L)).thenReturn(true);
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(otherSeason));
+        assertThrows(IllegalArgumentException.class,
+                ()->service.trackSprintBrackets(7L,44L,"member"));
+        verify(trackSprintBracketRepository,never())
+                .findByCommunityIdAndSeasonIdOrderByIdAsc(7L,44L);
+    }
+
+    @Test
+    void sprintMemberCanReadEmptyBracketButCannotCreateOrDelete() {
+        Profile member=profile(2L,"member","Member");
+        Profile owner=profile(1L,"owner","Owner");
+        Community community=Community.builder().id(7L).owner(owner)
+                .visibility(CommunityVisibility.PRIVATE)
+                .sport("Ciclismo de Pista").rankingsEnabled(true).build();
+        CommunitySeason season=CommunitySeason.builder().id(44L)
+                .community(community).active(true).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("member"))
+                .thenReturn(Optional.of(member));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L,2L)).thenReturn(true);
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(memberRepository.findByCommunityIdAndProfileId(7L,2L))
+                .thenReturn(Optional.of(membership(community,member,CommunityRole.MEMBER)));
+        assertTrue(service.trackSprintBrackets(7L,44L,"member").isEmpty());
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                ()->service.createTrackSprintBracket(7L,44L,"member",
+                        new com.example.desporto24.model.dto.community.CommunityTrackSprintBracketDtos.Create(
+                                "Sprint QA","OLYMPIC_TWENTY_FOUR_REPECHAGE",55L)));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                ()->service.deleteTrackSprintBracket(7L,44L,1L,"member"));
+        verify(trackSprintBracketRepository,never()).save(any());
+        verify(trackSprintBracketRepository,never()).delete(any());
+    }
+
+    @Test
+    void sprintOwnerCannotCreateOrDeleteBracketInClosedSeason() {
+        Profile owner=profile(1L,"owner","Owner");
+        Community community=Community.builder().id(7L).owner(owner)
+                .visibility(CommunityVisibility.PRIVATE)
+                .sport("Ciclismo de Pista").rankingsEnabled(true).build();
+        CommunitySeason closed=CommunitySeason.builder().id(44L)
+                .community(community).active(false).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L,1L))
+                .thenReturn(Optional.of(membership(community,owner,CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.lockByIdAndCommunityId(44L,7L))
+                .thenReturn(Optional.of(closed));
+        assertThrows(IllegalStateException.class,()->service.createTrackSprintBracket(
+                7L,44L,"owner",new com.example.desporto24.model.dto.community.CommunityTrackSprintBracketDtos.Create(
+                    "Olympic Sprint","OLYMPIC_TWENTY_FOUR_REPECHAGE",55L)));
+        assertThrows(IllegalStateException.class,
+                ()->service.deleteTrackSprintBracket(7L,44L,1L,"owner"));
+        verify(trackSprintBracketRepository,never()).save(any());
+        verify(trackSprintBracketRepository,never()).delete(any());
+    }
+
     private Profile profile(Long id, String username, String fullName) {
         Profile profile = new Profile();
         profile.setId(id);
