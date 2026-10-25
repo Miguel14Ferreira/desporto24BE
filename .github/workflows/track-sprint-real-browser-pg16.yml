@@ -53,7 +53,7 @@ jobs:
       POSTGRES_USERNAME: qa
       POSTGRES_PASSWORD: local_only
       POSTGRES_SCHEMA: desporto24
-      JYNLO_PLAYWRIGHT_QA_ROOT: ${{ runner.temp }}/jynlo-sprint-browser
+      JYNLO_PLAYWRIGHT_QA_ROOT: /tmp/jynlo-sprint-browser
     steps:
       - uses: actions/checkout@v4
       - name: Checkout audited public Angular frontend at pinned SHA
