@@ -115,6 +115,37 @@ class FriendServiceImplTest {
     }
 
     @Test
+    void optionalEmailOutageDoesNotFailPersistedFriendRequestOrSkipInAppNotification() {
+        ProfileDTO senderDto = profileDto("owner", "owner@example.test");
+        ProfileDTO recipientDto = profileDto("recipient", "recipient@example.test");
+        Profile sender = profile(1L, "owner");
+        Profile recipient = profile(2L, "recipient");
+        when(profileService.findUserByUsername("owner")).thenReturn(senderDto);
+        when(profileService.findUserByUsername("recipient")).thenReturn(recipientDto);
+        when(profileRepository.findUserByUsername("owner")).thenReturn(Optional.of(sender));
+        when(profileRepository.findUserByUsername("recipient")).thenReturn(Optional.of(recipient));
+        when(friendRepository.findByProfile1OrProfile2(sender, sender)).thenReturn(List.of());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "uiAppUrl", "https://example.test");
+        org.mockito.Mockito.doThrow(new IllegalStateException("Mail provider unavailable"))
+                .when(emailService).send(
+                        org.mockito.ArgumentMatchers.eq("recipient@example.test"),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString());
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+                () -> service.sendFriendRequest(request("owner", "recipient")));
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(
+                friendRequestService, notificationService, emailService);
+        order.verify(friendRequestService).saveFriendRequest(any());
+        order.verify(notificationService).save(any());
+        order.verify(emailService).send(
+                org.mockito.ArgumentMatchers.eq("recipient@example.test"),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     void relationshipStatusMatchesFriendListForEitherConnectionDirection() {
         Profile miguel = profile(1L, "miguel");
         Profile diogo = profile(2L, "Diogo");
