@@ -62,7 +62,11 @@ public class NotificationServiceImpl implements NotificationService {
         postGameReminderService.createDueReminders(username);
         List<Notifications> records = notificationsRepository.findByUsername(username);
         if (preferenceService == null) return records;
-        return records.stream().filter(n -> preferenceService.allowsInApp(username, n)).toList();
+        var prefs = preferenceService.get(username);
+        if (!prefs.inAppEnabled()) return List.of();
+        if (prefs.disabledInAppTypes().isEmpty()) return records;
+        return records.stream().filter(n -> !prefs.disabledInAppTypes()
+                .contains(com.example.desporto24.service.NotificationPreferencesService.category(n))).toList();
     }
 
     @Override
@@ -75,7 +79,9 @@ public class NotificationServiceImpl implements NotificationService {
         }
         if (!prefs.inAppEnabled()) return 0;
         return notificationsRepository.findByUsername(username).stream()
-                .filter(n -> !n.isRead() && preferenceService.allowsInApp(username, n)).count();
+                .filter(n -> !n.isRead() && !prefs.disabledInAppTypes()
+                        .contains(com.example.desporto24.service.NotificationPreferencesService.category(n)))
+                .count();
     }
 
     @Override
