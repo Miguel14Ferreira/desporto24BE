@@ -34,6 +34,9 @@ import static com.example.desporto24.constant.UserImplConstant.CHAT_BLOCKED;
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final FriendRepository friendRepository;
     private final ChatRepository chatRepository;
     private final ProfileRepository profileRepository;
@@ -106,7 +109,10 @@ public class ChatServiceImpl implements ChatService {
         notification.setType(NotificationType.CHAT_MESSAGE);
         notification.setSessionId(null);
         notification.setRead(false);
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 
     @Override
