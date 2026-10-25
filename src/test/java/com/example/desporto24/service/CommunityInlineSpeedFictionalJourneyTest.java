@@ -39,7 +39,9 @@ class CommunityInlineSpeedFictionalJourneyTest {
     private static final String[] NAMES = {
         "Ana Exemplo", "Bruno Exemplo", "Carla Exemplo", "Diogo Exemplo",
         "Eva Exemplo", "Filipe Exemplo", "Gabriela Exemplo", "Hugo Exemplo",
-        "Inês Exemplo", "João Exemplo", "Lara Exemplo", "Marco Exemplo"
+        "Inês Exemplo", "João Exemplo", "Lara Exemplo", "Marco Exemplo",
+        "Nuno Exemplo", "Olga Exemplo", "Paulo Exemplo", "Rita Exemplo",
+        "Sara Exemplo", "Tiago Exemplo", "Vera Exemplo", "Zeca Exemplo"
     };
 
     @Mock ProfileRepository profiles;
@@ -208,6 +210,78 @@ class CommunityInlineSpeedFictionalJourneyTest {
         assertTrue(community.isRankingsEnabled() == false, "community W/D/L remains off");
         verify(rounds, never()).save(any());
         verify(entries, never()).save(any());
+    }
+
+    @Test
+    void disqualificationNeverBecomesAnApprovedManualQualifier() {
+        record(100, FIRST, "Manga fictícia com desclassificação",
+                LongStream.rangeClosed(1, 12).toArray(), false);
+        resultsByRound.get(100L).get(7).setRaceDisqualified(true);
+        var first = service.link(7L, 9L, 100, 1, "qa_owner");
+        assertEquals(8, first.proposals().get(0).playerIds().size());
+        assertFalse(first.proposals().get(0).playerIds().contains(8L));
+        hasStatus(HttpStatus.CONFLICT, () -> service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L),
+                        "O juiz tenta incluir um patinador desclassificado"),
+                "qa_owner"));
+        assertTrue(approved.isEmpty());
+        // Officials must update the original result before reconsidering the entry.
+        resultsByRound.get(100L).get(7).setRaceDisqualified(false);
+        var corrected = service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(all(1, 8),
+                        "O juiz reviu a desclassificação na manga de origem"), "qa_owner");
+        assertEquals(all(1, 8), corrected.decisions().get(0).playerIds());
+    }
+
+    @Test
+    void additionalSeventeenthRequiresDetailedJudgeDecisionAndFiveInQuarterOne() {
+        record(100, FIRST, "Vinte patinadores e circunstância injusta",
+                LongStream.rangeClosed(1, 20).toArray(), false);
+        var overview = service.link(7L, 9L, 100, 1, "qa_owner");
+        var proposal = overview.proposals().get(0);
+        assertEquals("QUARTER", proposal.targetStage());
+        assertEquals(16, proposal.playerIds().size());
+        List<Long> approvedSeventeen = new ArrayList<>(all(1, 17));
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        approvedSeventeen, "Júri decide"), "qa_owner"));
+        var ratified = service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        approvedSeventeen,
+                        "Júri inclui adicionalmente o atleta 17 por uma circunstância injusta"),
+                "qa_owner");
+        assertEquals(17, ratified.decisions().get(0).playerIds().size());
+        record(201, "INLINE_TRACK_500D_QUARTER_HEAT", "Quarto 1 incompleto",
+                ids(1, 2, 3, 4), true);
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY,
+                () -> service.link(7L, 9L, 201, 1, "qa_owner"));
+        record(202, "INLINE_TRACK_500D_QUARTER_HEAT", "Quarto 1 com cinco",
+                ids(1, 2, 3, 4, 17), true);
+        var valid = service.link(7L, 9L, 202, 1, "qa_owner");
+        assertEquals(2, valid.linkedHeats().size());
+        record(203, "INLINE_TRACK_500D_QUARTER_HEAT", "Quarto 2 grande",
+                ids(5, 6, 7, 8, 9), true);
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY,
+                () -> service.link(7L, 9L, 203, 2, "qa_owner"));
+    }
+
+    @Test
+    void tieBetweenSixteenthAndSeventeenthAllowsSeventeenButNotEighteen() {
+        record(100, FIRST, "20 tempos, empate no corte",
+                LongStream.rangeClosed(1, 20).toArray(), false);
+        resultsByRound.get(100L).get(16).setElapsedSeconds(new BigDecimal("30.16"));
+        var proposal = service.link(7L, 9L, 100, 1, "qa_owner").proposals().get(0);
+        assertTrue(proposal.ready());
+        assertEquals(17, proposal.playerIds().size());
+        assertEquals(16, proposal.expectedCount());
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> service.confirm(7L, 9L,
+                "FIRST", new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 18), "O juiz confirma o empate existente"), "qa_owner"));
+        var decision = service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 17), "O juiz confirma o empate entre 16.º e 17.º"), "qa_owner");
+        assertEquals(17, decision.decisions().get(0).playerIds().size());
     }
 
     @Test

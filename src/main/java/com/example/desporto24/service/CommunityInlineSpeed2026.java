@@ -85,6 +85,13 @@ public final class CommunityInlineSpeed2026 {
             List<Long> chosen = new ArrayList<>();
             for (int i = 0; i < wanted; i++) chosen.add(ordered.get(i).playerId());
             String warning = "Confirmação dos juízes obrigatória";
+            if (wanted == 16 && ordered.size() > 17
+                    && ordered.get(15).seconds().compareTo(ordered.get(17).seconds()) == 0) {
+                // More than two skaters at the 16th-place boundary: promoting
+                // just the 17th by player ID would be an arbitrary sporting result.
+                return new Proposal(next, List.of(), wanted, false,
+                        "Empate múltiplo no limite do 16.º: decisão de desempate do júri necessária");
+            }
             if (wanted == 16 && ordered.size() > 16
                     && ordered.get(15).seconds().compareTo(ordered.get(16).seconds()) == 0) {
                 chosen.add(ordered.get(16).playerId());

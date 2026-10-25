@@ -46,6 +46,39 @@ class CommunityInlineSpeed2026Test {
                 List.of(first(3, "INLINE_TRACK_500D_FIRST_ROUND", skaters)), "FIRST", "TRACK_500D");
         assertEquals(17, result.candidatePlayerIds().size());
     }
+    @Test void threeWayCutoffTieNeverChoosesAnArbitrarySeventeenth() {
+        var skaters = new ArrayList<CommunityInlineSpeed2026.Skater>();
+        for (int id = 1; id <= 20; id++) {
+            // Three skaters share the 16th-place time: a race judge must
+            // resolve the placement rather than an artificial player-ID sort.
+            BigDecimal time = id >= 16 && id <= 18
+                    ? new BigDecimal("30.16")
+                    : new BigDecimal("30.00").add(new BigDecimal(id).movePointLeft(2));
+            skaters.add(new CommunityInlineSpeed2026.Skater(id, time, null, false));
+        }
+        var proposal = CommunityInlineSpeed2026.propose(
+                List.of(first(100, "INLINE_TRACK_500D_FIRST_ROUND", skaters)),
+                "FIRST", "TRACK_500D");
+        assertFalse(proposal.ready());
+        assertTrue(proposal.candidatePlayerIds().isEmpty());
+        assertTrue(proposal.warning().contains("Empate múltiplo"));
+    }
+
+    @Test void qualifyingDisqualificationDoesNotAppearInCandidateList() {
+        var entrants = new ArrayList<CommunityInlineSpeed2026.Skater>();
+        for (int id = 1; id <= 12; id++)
+            entrants.add(new CommunityInlineSpeed2026.Skater(id,
+                    new BigDecimal("30.00").add(new BigDecimal(id).movePointLeft(2)),
+                    null, id == 3));
+        var p = CommunityInlineSpeed2026.propose(
+                List.of(first(100, "INLINE_TRACK_500D_FIRST_ROUND", entrants)),
+                "FIRST", "TRACK_500D");
+        assertTrue(p.ready());
+        assertFalse(p.candidatePlayerIds().contains(3L));
+        assertEquals(8, p.candidatePlayerIds().size());
+        assertTrue(p.candidatePlayerIds().contains(9L));
+    }
+
     @Test void allFourQuartersPromoteExactlyTopTwoFromEach() {
         var heats = new ArrayList<CommunityInlineSpeed2026.Heat>();
         for (int i = 1; i <= 4; i++) heats.add(new CommunityInlineSpeed2026.Heat(i,
