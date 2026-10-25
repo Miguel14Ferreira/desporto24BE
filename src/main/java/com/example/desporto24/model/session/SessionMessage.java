@@ -41,4 +41,13 @@ public class SessionMessage {
     private String replyToSender;
     @Column(name = "reply_to_text", length = 2000)
     private String replyToText;
+
+    @Column(name = "attachment_key", length = 240)
+    private String attachmentKey;
+    @Column(name = "attachment_name", length = 160)
+    private String attachmentName;
+    @Column(name = "attachment_mime_type", length = 60)
+    private String attachmentMimeType;
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
 }
