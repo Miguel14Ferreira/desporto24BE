@@ -29,7 +29,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import com.example.desporto24.storage.PrivateChatFileStorage;
 import java.util.LinkedHashSet;
@@ -542,7 +542,7 @@ public class CommunityManagementService {
             if (removed == null || removed != 1) {
                 throw new IllegalStateException("A eliminação não foi concluída");
             }
-        } catch (DataIntegrityViolationException exception) {
+        } catch (DataAccessException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Uma referência inesperada impediu a eliminação. Nenhum dado foi apagado", exception);
         }
