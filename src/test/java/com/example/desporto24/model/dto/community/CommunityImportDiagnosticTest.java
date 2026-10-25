@@ -30,6 +30,21 @@ class CommunityImportDiagnosticTest {
     }
 
     @Test
+    void importHttpValidationCodesPreserveOnlyExplicitSourceValues() {
+        assertEquals("IMPORT_FILE_TOO_LARGE", CommunityImportDiagnostic.fromLegacy(
+                "O ficheiro não pode ultrapassar 10 MB").code());
+        assertEquals("IMPORT_FILE_REQUIRED", CommunityImportDiagnostic.fromLegacy(
+                "Seleciona um ficheiro Excel").code());
+        assertEquals("IMPORT_FILE_FORMAT_UNSUPPORTED", CommunityImportDiagnostic.fromLegacy(
+                "Formatos suportados: .xlsx, .xls, .csv e .tsv").code());
+        assertEquals(new CommunityImportDiagnostic("IMPORT_ROW_SCORE_INVALID", Map.of("row", "12")),
+                CommunityImportDiagnostic.fromLegacy(
+                        "Linha 12: resultado inválido (exemplo: 2-1 ou 2:1)"));
+        assertEquals(new CommunityImportDiagnostic("IMPORT_SOURCE_DATE_INVALID", Map.of("date", "14/02/2020")),
+                CommunityImportDiagnostic.fromLegacy("Não foi possível resolver a data: 14/02/2020"));
+    }
+
+    @Test
     void unrecognisedMessagesNeverGetFalseCodesOrLeakArbitraryDetail() {
         assertEquals(new CommunityImportDiagnostic("IMPORT_UNRECOGNIZED", Map.of("row", "9")),
                 CommunityImportDiagnostic.fromLegacy("Linha 9: um erro novo do backend"));
