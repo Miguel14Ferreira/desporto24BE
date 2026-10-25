@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-inline-speed-trial-revision-links-v1
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: community_inline_speed_trial_usage
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: {primaryKey: true, nullable: false}
+              - column:
+                  name: revision_id
+                  type: BIGINT
+                  constraints: {nullable: false}
+              - column:
+                  name: trial_id
+                  type: BIGINT
+                  constraints: {nullable: false}
+        - addForeignKeyConstraint:
+            baseTableName: community_inline_speed_trial_usage
+            baseColumnNames: revision_id
+            referencedTableName: community_inline_speed_tiebreak_revision
+            referencedColumnNames: id
+            constraintName: fk_inline_speed_trial_usage_revision
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: community_inline_speed_trial_usage
+            baseColumnNames: trial_id
+            referencedTableName: community_inline_speed_tie_trial
+            referencedColumnNames: id
+            constraintName: fk_inline_speed_trial_usage_trial
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: community_inline_speed_trial_usage
+            columnNames: revision_id, trial_id
+            constraintName: uk_inline_speed_trial_revision_usage
+        - createIndex:
+            tableName: community_inline_speed_trial_usage
+            indexName: ix_inline_speed_trial_usage_trial
+            columns:
+              - column: {name: trial_id}
