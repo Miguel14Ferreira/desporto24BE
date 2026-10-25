@@ -16,6 +16,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -41,8 +46,8 @@ import static org.junit.jupiter.api.Assertions.*;
       "spring.liquibase.enabled=false",
       "spring.jpa.hibernate.ddl-auto=create-drop",
       "spring.jpa.open-in-view=true",
-      "spring.datasource.hikari.schema=public",
-      "spring.jpa.properties.hibernate.default_schema=public",
+      "spring.datasource.hikari.schema=desporto24",
+      "spring.jpa.properties.hibernate.default_schema=desporto24",
       "springdoc.api-docs.enabled=false",
       "desporto.app.jwtSecret=isolated_authentication_key_only_for_test_2026_speed",
       "desporto.cors.allowed-origins=http://127.0.0.1:4200",
@@ -50,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.*;
       "VERIFY_EMAIL_HOST=http://127.0.0.1:8080",
       "AES_ENCRYPTION_KEY=ciKey1",
       "desporto.media.provider=local",
-      "POSTGRES_SCHEMA=public"
+      "POSTGRES_SCHEMA=desporto24"
     })
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CommunityInlineSpeedAuthenticatedPgIT {
@@ -63,6 +68,16 @@ class CommunityInlineSpeedAuthenticatedPgIT {
       "Eva Exemplo", "Filipe Exemplo", "Gabriela Exemplo", "Hugo Exemplo",
       "Ines Exemplo", "Joao Exemplo", "Lara Exemplo", "Marco Exemplo"
     };
+
+    /** Resolve an unrelated admin importer executor ambiguity only in this QA context. */
+    @TestConfiguration
+    static class IsolatedExecutorConfiguration {
+        @Bean
+        @Primary
+        TaskExecutor isolatedFixtureExecutor() {
+            return new SyncTaskExecutor();
+        }
+    }
 
     @DynamicPropertySource
     static void fixtureProperties(DynamicPropertyRegistry registry) {
