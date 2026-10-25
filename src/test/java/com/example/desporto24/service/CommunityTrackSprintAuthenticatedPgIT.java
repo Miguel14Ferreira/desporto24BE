@@ -610,18 +610,18 @@ class CommunityTrackSprintAuthenticatedPgIT {
                 "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
         long interruptedId=interrupted.path("id").asLong();
         String interruptionPath=brackets(activeSeason)+"/"+interruptedId+"/interruption";
-        var decision=Map.of("reference","Fictional commissioners minutes #2026/79",
+        var permanentClosureDecision=Map.of("reference","Fictional commissioners minutes #2026/79",
             "reason","Venue evacuation forced a permanent termination before quarterfinals");
-        api("PUT",interruptionPath,memberJwt,decision,403);
-        api("PUT",interruptionPath,outsiderJwt,decision,403);
-        JsonNode stopped=api("PUT",interruptionPath,ownerJwt,decision,200);
+        api("PUT",interruptionPath,memberJwt,permanentClosureDecision,403);
+        api("PUT",interruptionPath,outsiderJwt,permanentClosureDecision,403);
+        JsonNode stopped=api("PUT",interruptionPath,ownerJwt,permanentClosureDecision,200);
         assertEquals("BEFORE_QUARTERS",stopped.path("interruption").path("stage").asText());
         assertTrue(stopped.path("interruption").path("noFinalClassification").asBoolean());
         assertEquals(0,stopped.path("interruption").path("regulatoryPlacings").size());
         assertEquals("fixture_sprint_owner",
             stopped.path("interruption").path("recordedBy").asText());
         assertTrue(stopped.path("matches").get(0).path("winner").isNull());
-        api("PUT",interruptionPath,ownerJwt,decision,409);
+        api("PUT",interruptionPath,ownerJwt,permanentClosureDecision,409);
         JsonNode closedRead=api("GET",brackets(activeSeason),memberJwt,null,200);
         JsonNode closedBracket=null;
         for(JsonNode b:closedRead)if(b.path("id").asLong()==interruptedId)closedBracket=b;
