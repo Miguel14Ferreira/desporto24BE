@@ -73,6 +73,30 @@ class CommunityTrackSprintOlympic24Test {
         assertEquals("WAITING_PREVIOUS",match(List.of(),"C1").status());
         assertNull(match(List.of(),"U1").winner());
     }
+    @Test void signedSingleTwoUpOfficialAwardProjectsResultWithoutInventingHeats() {
+        var award=Map.of("SP53-A1","r1");
+        List<CommunityRoundResponse> physicallyRaced=List.of();
+        var matches=CommunityTrackSprintOlympic24.project(
+            BRACKET,physicallyRaced,seeds(),Map.of(),award);
+        var awarded=matches.stream().filter(m->"A1".equals(m.slot())).findFirst().orElseThrow();
+        assertEquals("FINISHED",awarded.status());
+        assertEquals("r1",awarded.winner());
+        assertEquals(1,awarded.winsA());
+        assertEquals(0,awarded.winsB());
+        assertTrue(physicallyRaced.isEmpty()); // administrative award is not a raced heat
+        var entry=new CommunityRoundEntryRequest("r1",null,
+            CommunityMatchResult.WIN,0,0,false,false);
+        var loser=new CommunityRoundEntryRequest("r24",null,
+            CommunityMatchResult.LOSS,0,0,false,false);
+        assertThrows(IllegalArgumentException.class,()->CommunityTrackSprintOlympic24
+            .validateNewHeat(BRACKET,"SP53-A1","SPRINT_THIRTY_SECOND_FINAL",
+                "TRACK_SPRINT_HEAT",physicallyRaced,List.of(entry,loser),
+                seeds(),Map.of(),award));
+        assertThrows(IllegalStateException.class,()->CommunityTrackSprintOlympic24.project(
+            BRACKET,List.of(),seeds(),Map.of(),Map.of("SP53-A1","r24-unrelated")));
+        assertEquals("READY",match(List.of(),"A1").status()); // older projection unchanged
+    }
+
     @Test void firstRepechageHasExactlyThreeLosersAndWinnerFeedsOneSixteenth() {
         List<CommunityRoundResponse> rounds=new ArrayList<>();
         for(int i=1;i<=12;i++){
