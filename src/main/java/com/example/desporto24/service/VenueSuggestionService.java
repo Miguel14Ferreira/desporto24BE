@@ -22,7 +22,11 @@ import java.time.Instant;
 public class VenueSuggestionService {
     private final VenueSuggestionRepository repository;
     private final VenueService venueService;
-    private final ObjectMapper objectMapper;
+
+    // Spring Boot 4 configures Jackson 3 for HTTP. The persisted suggestion
+    // payload still uses Jackson 2; it is a local codec, not an HTTP bean.
+    // Do not make every /api/venues endpoint depend on a missing Jackson 2 bean.
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public VenueSuggestionResponse submit(CreateVenueRequest request, String username) {
         if (username == null || username.isBlank()) {
