@@ -8,6 +8,8 @@ import java.util.List;
 
 public interface ChatService {
     Chat sendMessage(Chat chat);
+    Chat editMessage(String actor, String peer, Long messageId, String text);
+    Chat deleteMessage(String actor, String peer, Long messageId);
     List<Chat> findChatMessages(String sender, String recipient);
     Page<Chat> findChatMessagesPage(String sender, String recipient, int page, int size);
     Friend getChatInfo(String sender, String recipient);
