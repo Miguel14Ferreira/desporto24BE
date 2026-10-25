@@ -36,6 +36,8 @@ public class CommunityInlineSpeedProgressionService {
     private final CommunityInlineSpeedDecisionRepository decisions;
     private final CommunityInlineSpeedTieBreakRepository tieBreaks;
     private final CommunityInlineSpeedTieBreakRevisionRepository tieBreakRevisions;
+    private final CommunityInlineSpeedTieTrialRepository tieTrials;
+    private final CommunityInlineSpeedTieTrialResultRepository trialResults;
 
     public record SkaterView(long playerId, String name, Integer position,
                              BigDecimal seconds, boolean disqualified) {}
@@ -49,10 +51,19 @@ public class CommunityInlineSpeedProgressionService {
     public record Overview(Long tournamentId, String discipline, List<HeatView> linkedHeats,
                            List<HeatView> availableHeats, List<ProposalView> proposals,
                            List<DecisionView> decisions,
-                           List<TieBreakView> tieBreaks) {}
+                           List<TieBreakView> tieBreaks, List<TieTrialView> trials) {}
     public record ConfirmRequest(List<Long> playerIds, String reason) {}
     public record TieBreakRequest(List<Long> playerIds, String reason,
                                   String evidenceType, String evidenceReference) {}
+    public record TrialSkaterRequest(Long playerId, Integer place, BigDecimal seconds) {}
+    public record TrialCreateRequest(boolean actuallyHeld, Instant heldAt,
+                                     String officialReference, String reason,
+                                     List<TrialSkaterRequest> results) {}
+    public record TrialSkaterView(long playerId, int place, BigDecimal seconds) {}
+    public record TieTrialView(long id, String sourceStage, Instant heldAt,
+                               String officialReference, String reason,
+                               String recordedBy, Instant recordedAt, boolean stale,
+                               List<TrialSkaterView> results) {}
     public record TieBreakRevisionView(int revision, List<Long> selectedPlayerIds,
                                        String reason, String confirmedBy, Instant confirmedAt,
                                        boolean stale, String evidenceType, String evidenceReference) {}
@@ -360,6 +371,78 @@ public class CommunityInlineSpeedProgressionService {
                 .confirmedAt(ruling.getConfirmedAt()).build();
     }
 
+    /** Append-only official record of a separately held trial: NEVER alters source heat timings.
+     *  The recorded placing does not promote anyone automatically.
+     */
+    public Overview recordTieTrial(Long communityId, Long tournamentId, String sourceStage,
+                                   TrialCreateRequest request, String username) {
+        requireAdmin(communityId, username);
+        CommunityTournament tournament = tournament(communityId, tournamentId, true);
+        requireEditable(tournament);
+        if (!"FIRST".equals(sourceStage) || request == null || !request.actuallyHeld())
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Confirma explicitamente que a prova adicional ocorreu");
+        List<CommunityInlineSpeedHeatLink> linked = links.findByTournamentIdOrderByIdAsc(tournamentId);
+        List<CommunityInlineSpeed2026.Heat> source = raw(linked, "FIRST");
+        if (source.isEmpty()) throw problem(HttpStatus.CONFLICT, "Sem mangas de origem");
+        CommunityInlineSpeed2026.Proposal base =
+                CommunityInlineSpeed2026.propose(source, "FIRST", discipline(linked));
+        if (base.ready() || !"QUARTER".equals(base.targetStage())
+                || !base.warning().contains("Empate múltiplo")
+                || decisions.findByTournamentIdAndSourceStage(tournamentId, "FIRST").isPresent()
+                || linked.stream().anyMatch(l -> !"FIRST".equals(l.getStage())))
+            throw problem(HttpStatus.CONFLICT,
+                    "A prova adicional só pode ser registada enquanto o desempate estiver pendente");
+        List<CommunityInlineSpeed2026.Skater> ordered = source.stream()
+                .flatMap(h -> h.skaters().stream()).filter(s -> !s.disqualified())
+                .sorted(Comparator.comparing(CommunityInlineSpeed2026.Skater::seconds)
+                        .thenComparingLong(CommunityInlineSpeed2026.Skater::playerId)).toList();
+        if (ordered.size() < 18) throw problem(HttpStatus.CONFLICT, "Sem empate elegível");
+        BigDecimal cutoff = ordered.get(15).seconds();
+        Set<Long> tied = ordered.stream().filter(s -> s.seconds().compareTo(cutoff) == 0)
+                .map(CommunityInlineSpeed2026.Skater::playerId).collect(Collectors.toSet());
+        List<TrialSkaterRequest> results = request.results();
+        if (results == null || results.size() < 2 || results.size() > 6
+                || results.stream().anyMatch(r -> r == null || r.playerId() == null
+                        || !tied.contains(r.playerId())
+                        || r.place() == null || r.place() < 1 || r.place() > results.size()
+                        || r.seconds() != null && (r.seconds().signum() <= 0
+                            || r.seconds().scale() > 3 || r.seconds().precision() > 9))
+                || results.stream().map(TrialSkaterRequest::playerId).distinct().count() != results.size()
+                || results.stream().map(TrialSkaterRequest::place).distinct().count() != results.size())
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Regista 2 a 6 patinadores realmente empatados, com posições distintas de 1 a N");
+        // A jury may use photo finish for equal rounded times. Never infer places from time.
+        List<TrialSkaterRequest> byPlace = results.stream()
+                .sorted(Comparator.comparingInt(TrialSkaterRequest::place)).toList();
+        BigDecimal lastSeconds = null;
+        for (TrialSkaterRequest result : byPlace) {
+            if (result.seconds() != null && lastSeconds != null
+                    && result.seconds().compareTo(lastSeconds) < 0)
+                throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Tempos adicionais contradizem a ordem de chegada registada");
+            if (result.seconds() != null) lastSeconds = result.seconds();
+        }
+        String reference = request.officialReference() == null ? "" : request.officialReference().trim();
+        String reason = request.reason() == null ? "" : request.reason().trim();
+        if (reference.length() < 8 || reference.length() > 500
+                || reason.length() < 20 || reason.length() > 500
+                || request.heldAt() == null || request.heldAt().isAfter(Instant.now()))
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Indica a data real da prova, referência (8–500) e fundamentação (20–500)");
+        CommunityInlineSpeedTieTrial trial = tieTrials.saveAndFlush(
+                CommunityInlineSpeedTieTrial.builder().tournament(tournament)
+                        .sourceStage("FIRST")
+                        .sourceFingerprint(CommunityInlineSpeed2026.fingerprint(source))
+                        .officialReference(reference).judgeReason(reason)
+                        .heldAt(request.heldAt()).recordedBy(username)
+                        .recordedAt(Instant.now()).build());
+        trialResults.saveAll(byPlace.stream().map(r ->
+                CommunityInlineSpeedTieTrialResult.builder().trial(trial)
+                        .playerId(r.playerId()).place(r.place()).seconds(r.seconds()).build()).toList());
+        return snapshot(communityId, tournament, true);
+    }
+
     /** A saved ruling is effective only while its source heats have the same fingerprint. */
     private CommunityInlineSpeed2026.Proposal resolvedProposal(
             Long tournamentId, List<CommunityInlineSpeed2026.Heat> source,
@@ -436,8 +519,18 @@ public class CommunityInlineSpeedProgressionService {
                             !d.getSourceFingerprint().equals(fingerprint), revisions,
                             d.getEvidenceType(), d.getEvidenceReference());
                 }).toList();
+        List<TieTrialView> recordedTrials = tieTrials
+                .findByTournamentIdOrderByIdAsc(tournament.getId()).stream()
+                .map(trial -> new TieTrialView(trial.getId(), trial.getSourceStage(),
+                        trial.getHeldAt(), trial.getOfficialReference(), trial.getJudgeReason(),
+                        trial.getRecordedBy(), trial.getRecordedAt(),
+                        !trial.getSourceFingerprint().equals(CommunityInlineSpeed2026.fingerprint(
+                                raw(linked, trial.getSourceStage()))),
+                        trialResults.findByTrialIdOrderByPlaceAsc(trial.getId()).stream()
+                                .map(r -> new TrialSkaterView(r.getPlayerId(), r.getPlace(), r.getSeconds()))
+                                .toList())).toList();
         return new Overview(tournament.getId(), discipline, visible, available,
-                List.copyOf(proposals), approved, resolutions);
+                List.copyOf(proposals), approved, resolutions, recordedTrials);
     }
 
     private boolean hasValidDecision(Long tournamentId, String source, String target,
