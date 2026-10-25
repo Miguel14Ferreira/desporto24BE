@@ -149,4 +149,93 @@ class CommunityTrackSprintOlympic24Test {
         assertEquals(List.of("Q1"),CommunityTrackSprintOlympic24.nextSlots("W2"));
         assertEquals(List.of("B","G"),CommunityTrackSprintOlympic24.nextSlots("S1"));
     }
+
+    static CommunityRoundResponse numberedHeat(CommunityTrackSprintBracketDtos.Match m,
+            String winner,int heat) {
+        var original=record(m,winner);
+        return new CommunityRoundResponse(original.id(), original.name(),
+                original.playedAt(), original.entries(), original.sport(),
+                original.matchFormat(),original.setScores(),original.eventType(),
+                original.eventDiscipline(),original.groupScores(),
+                original.basketballScore(),original.teamScore(),original.cricketDetails(),
+                original.sprintSeriesKey(),heat);
+    }
+    static List<CommunityRoundResponse> throughQuarters() {
+        List<CommunityRoundResponse> rounds=new ArrayList<>();
+        for(int i=1;i<=12;i++){var m=match(rounds,"A"+i);rounds.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){var m=match(rounds,"U"+i);rounds.add(record(m,m.riderA()));}
+        for(int i=1;i<=8;i++){var m=match(rounds,"C"+i);rounds.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){var m=match(rounds,"V"+i);rounds.add(record(m,m.riderA()));}
+        for(int i=1;i<=6;i++){var m=match(rounds,"E"+i);rounds.add(record(m,m.riderA()));}
+        for(int i=1;i<=2;i++){var m=match(rounds,"W"+i);rounds.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){
+            var m=match(rounds,"Q"+i);
+            assertEquals("READY",m.status());
+            rounds.add(numberedHeat(m,m.riderA(),1));
+            rounds.add(numberedHeat(m,m.riderA(),2));
+        }
+        return rounds;
+    }
+    static CommunityRoundResponse placement(CommunityTrackSprintBracketDtos.Match m) {
+        List<CommunityRoundEntryResponse> entries=new ArrayList<>();
+        for(int pos=5;pos<=8;pos++) {
+            String rider=switch(pos) {
+                case 5->m.riderC();case 6->m.riderD();
+                case 7->m.riderB();default->m.riderA();
+            };
+            entries.add(new CommunityRoundEntryResponse(null,rider,rider,null,null,
+                    CommunityMatchResult.DRAW,0,0,false,false,pos,null,null,null));
+        }
+        return new CommunityRoundResponse(942L,"Prova lugares 5–8",Instant.now(),
+                entries,"Ciclismo de Pista",null,List.of(),"TRACK_SPRINT_5_8",
+                "SPRINT_PLACES_5_8",List.of(),null,null,null,m.seriesKey(),1);
+    }
+    @Test void fourLosersHaveIndependentFifthToEighthRaceAndNoGuessedPlaces() {
+        List<CommunityRoundResponse> rounds=throughQuarters();
+        var m=match(rounds,"F58");
+        assertEquals("READY",m.status());
+        assertEquals(Set.of("r1","r2","r3","r4").size(),
+                Set.of(m.riderA(),m.riderB(),m.riderC(),m.riderD()).size());
+        assertTrue(m.rankings().isEmpty());
+        assertEquals("WAITING_PREVIOUS",match(List.of(),"F58").status());
+        assertEquals("READY",match(rounds,"S1").status());
+        var race=placement(m);
+        List<CommunityRoundEntryRequest> proposed=new ArrayList<>();
+        for(var e:race.entries()) proposed.add(new CommunityRoundEntryRequest(
+                e.username(),null,CommunityMatchResult.DRAW,0,0,false,false,
+                e.finishPosition(),null,null,null));
+        assertDoesNotThrow(()->CommunityTrackSprintOlympic24.validateNewHeat(
+                BRACKET,m.seriesKey(),m.phase(),"TRACK_SPRINT_5_8",rounds,proposed,seeds()));
+        rounds.add(race);
+        var completed=match(rounds,"F58");
+        assertEquals("FINISHED",completed.status());
+        assertNull(completed.winner());
+        assertEquals(List.of(5,6,7,8),completed.rankings().stream()
+                .map(CommunityTrackSprintBracketDtos.RankedRider::position).toList());
+        assertEquals(4,completed.rankings().size());
+        assertThrows(IllegalArgumentException.class,()->CommunityTrackSprintOlympic24.validateNewHeat(
+                BRACKET,m.seriesKey(),m.phase(),"TRACK_SPRINT_5_8",rounds,proposed,seeds()));
+        assertEquals(List.of("S1","F58"),CommunityTrackSprintOlympic24.nextSlots("Q1"));
+    }
+    @Test void fifthToEighthRejectsWrongRanksAndUnrelatedRiders() {
+        List<CommunityRoundResponse> rounds=throughQuarters();
+        var m=match(rounds,"F58");
+        var first=new CommunityRoundEntryRequest(m.riderA(),null,CommunityMatchResult.DRAW,
+                0,0,false,false,5,null,null,null);
+        var duplicate=new CommunityRoundEntryRequest(m.riderB(),null,CommunityMatchResult.DRAW,
+                0,0,false,false,5,null,null,null);
+        var third=new CommunityRoundEntryRequest(m.riderC(),null,CommunityMatchResult.DRAW,
+                0,0,false,false,7,null,null,null);
+        var fourth=new CommunityRoundEntryRequest(m.riderD(),null,CommunityMatchResult.DRAW,
+                0,0,false,false,8,null,null,null);
+        assertThrows(IllegalArgumentException.class,()->CommunityTrackSprintOlympic24.validatePlacings(
+                List.of(first,duplicate,third,fourth)));
+        assertThrows(IllegalArgumentException.class,()->CommunityTrackSprintOlympic24.validateNewHeat(
+                BRACKET,m.seriesKey(),m.phase(),"TRACK_SPRINT_5_8",rounds,
+                List.of(new CommunityRoundEntryRequest("outsider",null,CommunityMatchResult.DRAW,
+                        0,0,false,false,6,null,null,null),first,third,fourth),seeds()));
+        assertThrows(IllegalArgumentException.class,()->CommunityTrackSprintOlympic24.validateNewHeat(
+                BRACKET,m.seriesKey(),m.phase(),"TRACK_SPRINT_HEAT",rounds,
+                List.of(first,duplicate,third,fourth),seeds()));
+    }
 }
