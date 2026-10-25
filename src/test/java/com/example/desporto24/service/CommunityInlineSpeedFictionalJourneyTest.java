@@ -350,6 +350,8 @@ class CommunityInlineSpeedFictionalJourneyTest {
                 "qa_owner"));
         // Editing a source time invalidates both the ruling and its proposal.
         resultsByRound.get(100L).get(0).setElapsedSeconds(new BigDecimal("30.02"));
+        when(members.existsByCommunityIdAndProfileId(7L, 99L)).thenReturn(true);
+        when(tournaments.findById(9L)).thenReturn(Optional.of(tournament));
         var stale = service.overview(7L, 9L, "qa_owner");
         assertTrue(stale.tieBreaks().get(0).stale());
         assertFalse(stale.proposals().get(0).ready());
