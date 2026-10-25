@@ -3,6 +3,8 @@ package com.example.desporto24.service;
 import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
+import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
@@ -21,6 +23,7 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityTrackSprintBracketRepository;
+import com.example.desporto24.repository.community.CommunityTournamentRepository;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
 import com.example.desporto24.model.community.CommunityRaceRule;
@@ -49,6 +52,7 @@ public class CommunityCompetitionService {
     private final CommunityPlayerRepository playerRepository;
     private final CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     private final CommunityRoundRepository roundRepository;
+    private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTrackSprintBracketRepository trackSprintBracketRepository;
     private final CommunityRacketRuleRepository racketRuleRepository;
     private final CommunityRaceRuleRepository raceRuleRepository;
@@ -632,6 +636,17 @@ public class CommunityCompetitionService {
         return settings(communityRepository.save(community));
     }
 
+    /**
+     * World Skate sprint heats can be recorded for an individual competition without
+     * enabling the unrelated community W/D/L table. Only the catalogue's 2026
+     * track 500m +D and road One Lap bracket stages qualify; legacy Final B and
+     * standalone 200m time trial do not acquire this exception.
+     */
+    static boolean isStandingsIndependentSpeedHeat(String sport, String eventType) {
+        return "Patinagem de Velocidade".equals(sport)
+                && CommunityInlineSpeed2026.stage(eventType) != null;
+    }
+
     public CommunityRoundResponse createRound(
             Long communityId,
             String username,
@@ -640,12 +655,26 @@ public class CommunityCompetitionService {
         requireAdmin(communityId, actor);
         Community community = community(communityId);
 
-        if (!community.isRankingsEnabled()) {
+        // A tournament may use a different catalog sport from the community profile.
+        // Allow that difference ONLY for existing, non-historical individual skating
+        // tournaments when generic standings are disabled.
+        boolean registeredSpeedTournament = !community.isRankingsEnabled()
+                && request.sport() != null
+                && "Patinagem de Velocidade".equalsIgnoreCase(request.sport().trim())
+                && tournamentRepository
+                        .existsByCommunityIdAndSportIgnoreCaseAndEntryTypeAndHistoricalArchiveIdIsNullAndStatusNot(
+                                communityId, "Patinagem de Velocidade",
+                                TournamentEntryType.INDIVIDUAL, TournamentStatus.COMPLETED);
+        String resolvedSport = registeredSpeedTournament
+                ? "Patinagem de Velocidade"
+                : CommunityRoundSport.resolve(community, request.sport());
+        String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
+        // Competition heat results are independent of the optional W/D/L standings.
+        // Keep all other rounds disabled when the community rankings module is off.
+        if (!community.isRankingsEnabled()
+                && !isStandingsIndependentSpeedHeat(resolvedSport, resolvedEventType)) {
             throw new IllegalStateException("Ativa primeiro o módulo de classificação desta comunidade");
         }
-
-        String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
-        String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
         String resolvedDiscipline = CommunityFieldDisciplines.validate(
                 resolvedSport, resolvedEventType, request.eventDiscipline());
         CommunityRaceMetrics.validate(resolvedSport, resolvedEventType, request.entries());
@@ -679,6 +708,10 @@ public class CommunityCompetitionService {
         CommunitySeason activeSeason = seasonRepository
                 .findByCommunityIdAndActiveTrue(communityId)
                 .orElse(null);
+        if (!community.isRankingsEnabled() && activeSeason == null) {
+            throw new IllegalStateException(
+                    "Cria uma época ativa antes de registares mangas de Patinagem de Velocidade");
+        }
 
         // Grouping is opt-in. Explicit keys are isolated by community and season.
         // Lock the season to serialize concurrent writes to the same series.
