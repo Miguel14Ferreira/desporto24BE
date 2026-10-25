@@ -42,6 +42,20 @@ public class CommunityInlineSpeedProgressionController {
         return service.unlink(communityId, tournamentId, roundId, auth.getName());
     }
 
+    /**
+     * Record the jury's tie-break ruling independently of the original heat
+     * results. A later confirmation still must ratify qualified skaters.
+     */
+    @PutMapping("/tiebreaks/{sourceStage}")
+    public CommunityInlineSpeedProgressionService.Overview resolveTieBreak(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @PathVariable String sourceStage, @RequestBody @Valid ApproveRequest request,
+            Authentication auth) {
+        return service.resolveTieBreak(communityId, tournamentId, sourceStage,
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        request.playerIds(), request.reason()), auth.getName());
+    }
+
     @PutMapping("/qualifications/{sourceStage}")
     public CommunityInlineSpeedProgressionService.Overview confirm(
             @PathVariable Long communityId, @PathVariable Long tournamentId,
