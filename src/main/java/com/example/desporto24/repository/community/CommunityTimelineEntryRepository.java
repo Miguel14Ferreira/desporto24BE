@@ -58,7 +58,7 @@ public interface CommunityTimelineEntryRepository extends JpaRepository<Communit
             Long communityId, CommunityTimelineEntry.Kind kind);
     @org.springframework.data.jpa.repository.Modifying
     @Query("update CommunityTimelineEntry e set e.replyToText = :replacement " +
-           "where e.community.id = :communityId and e.kind = com.example.desporto24.model.community.CommunityTimelineEntry.Kind.CHAT and e.replyToMessageId = :messageId")
+           "where e.community.id = :communityId and e.replyToMessageId = :messageId")
     int redactRepliesToDeleted(@Param("communityId") Long communityId,
                                @Param("messageId") Long messageId,
                                @Param("replacement") String replacement);
