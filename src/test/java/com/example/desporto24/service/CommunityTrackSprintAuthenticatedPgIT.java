@@ -299,5 +299,29 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals(0,rounds.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
             group,closedSeason).size());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
+
+        // Opt-in cross-repository browser verification reuses this exact real
+        // PostgreSQL/JWT fixture while the Spring random-port server is alive.
+        // Ordinary Java unit tests and the API-only integration workflow are unchanged.
+        if ("true".equals(System.getenv("JYNLO_SPRINT_BROWSER_QA"))) {
+            var process = new ProcessBuilder(
+                "node", "scripts/qa/track-sprint-browser-real.cjs")
+                .inheritIO();
+            var env = process.environment();
+            env.put("JYNLO_SPRINT_PORT", Integer.toString(port));
+            env.put("JYNLO_SPRINT_COMMUNITY_ID", group.toString());
+            env.put("JYNLO_SPRINT_ACTIVE_SEASON_ID", activeSeason.toString());
+            env.put("JYNLO_SPRINT_CLOSED_SEASON_ID", closedSeason.toString());
+            env.put("JYNLO_SPRINT_BRACKET_ID", Long.toString(id));
+            env.put("JYNLO_SPRINT_OWNER_TOKEN", ownerJwt);
+            env.put("JYNLO_SPRINT_MEMBER_TOKEN", memberJwt);
+            var child = process.start();
+            if (!child.waitFor(160, java.util.concurrent.TimeUnit.SECONDS)) {
+                child.destroyForcibly();
+                fail("Real Angular Chromium Sprint check exceeded its time budget");
+            }
+            assertEquals(0, child.exitValue(),
+                "Real Angular Chromium must display genuine JWT/PG16 Sprint in PT and EN");
+        }
     }
 }
