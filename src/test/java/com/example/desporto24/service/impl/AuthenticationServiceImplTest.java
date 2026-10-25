@@ -98,7 +98,7 @@ class AuthenticationServiceImplTest {
         verify(confirmationTokenService).saveConfirmationToken(token.capture());
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"),
-                eq("Recupera a tua palavra-passe | Reset your password — Desporto24"), html.capture());
+                eq("Recupera a tua palavra-passe | Reset your password — Jynlo"), html.capture());
         assertEquals("<fixture-user>", token.getValue().getProfile());
         assertTrue(html.getValue().contains("https://example.test/login/resetPassword/" + token.getValue().getToken()));
         assertTrue(html.getValue().contains("Definir palavra-passe / Reset password"));
@@ -269,7 +269,7 @@ class AuthenticationServiceImplTest {
         ));
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"),
-                eq("Confirma o teu email | Confirm your email — Desporto24"), html.capture());
+                eq("Confirma o teu email | Confirm your email — Jynlo"), html.capture());
         assertTrue(html.getValue().contains("Confirmar email / Confirm email"));
         assertTrue(html.getValue().contains("15 minutos"));
         assertTrue(html.getValue().contains("15 minutes"));
