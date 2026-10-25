@@ -236,7 +236,8 @@ public class CommunityCompetitionService {
                 bracket.getId(), bracket.getSeason().getId(), bracket.getName(),
                 bracket.getFormat() == null ? "EIGHT_RIDER_FINALS" : bracket.getFormat(),
                 CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds,
-                        bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders()),
+                        bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders(),
+                        sprintOfficialReruns(bracket.getId())),
                 bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
                 bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()),
                 decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
@@ -278,6 +279,32 @@ public class CommunityCompetitionService {
             Set.of("WARNING","RELEGATION","DISQUALIFICATION");
     private static final Set<String> SPRINT_UNRESOLVED_INCIDENT_STATUSES =
             Set.of("PENDING","ADJUDICATION_REQUIRED");
+    private static final Set<String> SPRINT_OPEN_INCIDENT_STATUSES =
+            Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_AUTHORIZED");
+
+    private static List<String> decodeRerunRiders(String json) {
+        if(json==null || json.isBlank()) return List.of();
+        try {
+            return SPRINT_TIE_MAPPER.readValue(json,new com.fasterxml.jackson.core.type.TypeReference<
+                List<String>>() {});
+        } catch(com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("A ordem oficial da repetição está ilegível",e);
+        }
+    }
+
+    /** Only a witnessed, post-sanction rerun order changes a three-up slot. */
+    private Map<String,List<String>> sprintOfficialReruns(Long bracketId) {
+        Map<String,List<String>> orders = new HashMap<>();
+        for (CommunityTrackSprintIncident incident:
+                trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
+            if ("RESTART_AUTHORIZED".equals(incident.getStatus())) {
+                List<String> riders=decodeRerunRiders(incident.getRerunRidersJson());
+                if(orders.putIfAbsent(incident.getSeriesKey(),riders)!=null)
+                    throw new IllegalStateException("Repetições oficiais duplicadas na mesma série");
+            }
+        }
+        return Map.copyOf(orders);
+    }
 
     private static CommunityTrackSprintIncidentDtos.View sprintIncidentResponse(
             CommunityTrackSprintIncident i) {
@@ -286,7 +313,9 @@ public class CommunityCompetitionService {
                 i.getDetails(),i.getStatus(),i.getReportedBy(),i.getReportedAt(),
                 i.getDecisionType(),i.getDecisionReference(),i.getDecisionReason(),
                 i.getDecidedBy(),i.getDecidedAt(),
-                i.getSanctionType(),i.getSanctionedUsername());
+                i.getSanctionType(),i.getSanctionedUsername(),
+                decodeRerunRiders(i.getRerunRidersJson()),i.getRerunReference(),
+                i.getRerunReason(),i.getRerunAuthorizedBy(),i.getRerunAuthorizedAt());
     }
 
     /**
@@ -315,7 +344,7 @@ public class CommunityCompetitionService {
                 request.heatNumber()<1 || request.heatNumber()>3)
             throw new IllegalArgumentException("Série ou número de manga inválido");
         if(trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatusIn(
-                bracketId,series,SPRINT_UNRESOLVED_INCIDENT_STATUSES))
+                bracketId,series,SPRINT_OPEN_INCIDENT_STATUSES))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este confronto já tem um incidente por resolver");
         AcceptedAliases aliases=acceptedAliasProfiles(communityId);
@@ -460,7 +489,8 @@ public class CommunityCompetitionService {
                 ? List.of() : bracket.getQualifiedRiders();
         if (seeds.size()==24) {
             CommunityTrackSprintOlympic24.validateNewHeat(
-                    bracketId, seriesKey, phase, eventType, rounds, entrants, seeds);
+                    bracketId, seriesKey, phase, eventType, rounds, entrants, seeds,
+                    sprintOfficialReruns(bracketId));
         } else {
             if (!"TRACK_SPRINT_HEAT".equals(eventType))
                 throw new IllegalArgumentException("Repescagem não pertence a este formato");
@@ -947,9 +977,20 @@ public class CommunityCompetitionService {
                             roundResponse(item, aliases))).toList();
             }
         }
+        boolean officiallyReduced = false;
+        if ("TRACK_SPRINT_REPECHAGE".equals(resolvedEventType)
+                && request.sprintSeriesKey()!=null) {
+            var linked=SPRINT_BRACKET_SERIES.matcher(request.sprintSeriesKey().trim());
+            if (linked.matches() && linked.group(2).matches("[UW][1-4]")) {
+                officiallyReduced=trackSprintIncidentRepository
+                    .existsByBracketIdAndSeriesKeyAndStatus(
+                        Long.parseLong(linked.group(1)),
+                        request.sprintSeriesKey().trim(),"RESTART_AUTHORIZED");
+            }
+        }
         CommunityTrackSprintSeries.validate(resolvedEventType, resolvedDiscipline,
                 request.sprintSeriesKey(), request.sprintHeatNumber(),
-                existingSprintHeats, request.entries());
+                existingSprintHeats, request.entries(), officiallyReduced);
         validateBracketRound(communityId, activeSeason, request.sprintSeriesKey(),
                 resolvedDiscipline, resolvedEventType, request.entries());
 
