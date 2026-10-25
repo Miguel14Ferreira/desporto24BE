@@ -14,7 +14,7 @@ import java.util.Map;
 public class EmailService implements EmailSender {
 
     private static final String RESEND_EMAILS_URL = "https://api.resend.com/emails";
-    private static final String DEFAULT_SUBJECT = "Desporto24";
+    private static final String DEFAULT_SUBJECT = "Jynlo";
 
     private final RestClient restClient = RestClient.create();
 
