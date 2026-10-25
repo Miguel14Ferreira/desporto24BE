@@ -473,6 +473,39 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals(1,found.path("incidents").size());
         assertEquals("ADJUDICATION_REQUIRED",found.path("incidents").get(0).path("status").asText());
         assertEquals("READY",found.path("matches").get(0).path("status").asText());
+        // A warning has no automatic sporting effect and leaves room to
+        // record an ordinary official result explicitly afterwards.
+        JsonNode caution=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional caution fixture","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long warningBracket=caution.path("id").asLong();
+        String warningSeries="SP"+warningBracket+"-A1";
+        String warningIncidents=brackets(activeSeason)+"/"+warningBracket+"/incidents";
+        JsonNode warningReport=api("POST",warningIncidents,ownerJwt,Map.of(
+            "seriesKey",warningSeries,"heatNumber",1,
+            "incidentType","RULE_INFRINGEMENT",
+            "details","Synthetic warning for reported irregular rider movement"),200);
+        String warningDecision=warningIncidents+"/"+warningReport.path("id").asLong()+"/decision";
+        JsonNode warning=api("PUT",warningDecision,ownerJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING","sanctionType","WARNING",
+            "sanctionedUsername",riders.get(0),
+            "reference","Synthetic commissaires protocol warning #2026/42",
+            "reason","Documented fictional yellow-flag warning with no change to starters"),200);
+        assertEquals("DECIDED",warning.path("status").asText());
+        assertEquals("WARNING",warning.path("sanctionType").asText());
+        Map<String,Object> recordedWarningHeat=new HashMap<>(deniedHeat);
+        recordedWarningHeat.put("sprintSeriesKey",warningSeries);
+        JsonNode actualHeat=api("POST",community()+"/rounds",ownerJwt,
+            recordedWarningHeat,200);
+        assertTrue(actualHeat.path("id").asLong()>0);
+        JsonNode warningVisible=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode cautionOverview=null;
+        for(JsonNode b:warningVisible)
+            if(b.path("id").asLong()==warningBracket)cautionOverview=b;
+        assertNotNull(cautionOverview);
+        assertEquals("FINISHED",cautionOverview.path("matches").get(0).path("status").asText());
+        assertEquals("WARNING",cautionOverview.path("incidents").get(0)
+            .path("sanctionType").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
