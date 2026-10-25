@@ -59,6 +59,35 @@ class CommunityPhotoFramingTest {
     }
 
     @Test
+    void showAllKeepsFullGifAndAllowsZoomOutWithoutChangingStoredUrl() {
+        service.updatePhotoFraming(42L, "owner", 0.6, 50, 50, gifUrl, "SHOW_ALL");
+        assertEquals("SHOW_ALL", community.getPhotoFitMode());
+        assertEquals(0.6, community.getPhotoZoom());
+        assertEquals(gifUrl, community.getPhotoUrl());
+        verify(communities).save(community);
+    }
+
+    @Test
+    void coverDoesNotPermitZoomOutAndInvalidModesAreRejected() {
+        assertEquals(400, assertThrows(ResponseStatusException.class, () ->
+            service.updatePhotoFraming(42L, "owner", 0.6, 50, 50, gifUrl, "COVER")
+        ).getStatusCode().value());
+        assertEquals(400, assertThrows(ResponseStatusException.class, () ->
+            service.updatePhotoFraming(42L, "owner", 1.2, 50, 50, gifUrl, "UNKNOWN")
+        ).getStatusCode().value());
+        verify(communities, never()).save(any());
+    }
+
+    @Test
+    void staleGifCannotBeReframedEvenInShowAllMode() {
+        assertEquals(409, assertThrows(ResponseStatusException.class, () ->
+            service.updatePhotoFraming(42L, "owner", 0.85, 50, 50,
+                "https://cdn.example/communities/42/stale.gif", "SHOW_ALL")
+        ).getStatusCode().value());
+        verify(communities, never()).save(any());
+    }
+
+    @Test
     void refusesInvalidAndNonFiniteGeometry() {
         for (double bad : new double[]{Double.NaN, Double.POSITIVE_INFINITY, 0, 3.01}) {
             assertEquals(400, assertThrows(ResponseStatusException.class, () ->
