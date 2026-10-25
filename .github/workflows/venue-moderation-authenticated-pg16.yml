@@ -1,0 +1,64 @@
+name: Venue moderation authenticated HTTP on isolated PostgreSQL 16
+# Opt-in test of real JWT, Spring Security, controllers, JPA and PG16.
+# Never use production DB, credentials or email delivery.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/test/java/com/example/desporto24/service/VenueModerationAuthenticatedPgIT.java'
+      - '.github/workflows/venue-moderation-authenticated-pg16.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: venue-moderation-pg16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  authenticated-venue-moderation:
+    name: Real JWT/HTTP moderation with fictitious users and disposable PostgreSQL 16
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: venue_moderation_qa
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d venue_moderation_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/venue_moderation_qa
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: local_only
+      UI_APP_URL: http://127.0.0.1:4200
+      VERIFY_EMAIL_HOST: http://127.0.0.1:8080
+      AES_ENCRYPTION_KEY: ciKey1
+      JWT_SECRET: isolated_jynlo_venue_moderation_contract_key_2026
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: '5432'
+      POSTGRES_DATABASE: venue_moderation_qa
+      POSTGRES_USERNAME: qa
+      POSTGRES_PASSWORD: local_only
+      POSTGRES_SCHEMA: desporto24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Create isolated PostgreSQL schema
+        env:
+          PGPASSWORD: local_only
+        run: psql -h 127.0.0.1 -U qa -d venue_moderation_qa -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA desporto24 AUTHORIZATION qa'
+      - name: Validate real signed JWT, moderation, history and source evidence
+        run: bash ./mvnw -B -ntp -Dtest=VenueModerationAuthenticatedPgIT test
