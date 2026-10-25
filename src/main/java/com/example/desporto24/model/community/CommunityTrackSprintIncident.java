@@ -50,6 +50,14 @@ public class CommunityTrackSprintIncident {
     @Column(name="decision_reason",length=500)
     private String decisionReason;
 
+    // An official sanction is evidence, never a generated sporting result.
+    // Relegation / DQ remain on hold until a supported amended bracket flow.
+    @Column(name="sanction_type",length=24)
+    private String sanctionType;
+
+    @Column(name="sanctioned_username",length=100)
+    private String sanctionedUsername;
+
     @Column(name="decided_by",length=100)
     private String decidedBy;
 
