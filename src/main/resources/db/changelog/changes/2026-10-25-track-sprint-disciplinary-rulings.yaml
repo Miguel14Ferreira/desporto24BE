@@ -17,7 +17,7 @@ databaseChangeLog:
         - sql:
             dbms: postgresql
             sql: >
-              DROP INDEX IF EXISTS desporto24.uq_track_sprint_one_pending_incident;
+              DROP INDEX IF EXISTS uq_track_sprint_one_pending_incident;
               CREATE UNIQUE INDEX uq_track_sprint_one_pending_incident
-              ON desporto24.community_track_sprint_incident (bracket_id, series_key)
+              ON community_track_sprint_incident (bracket_id, series_key)
               WHERE status IN ('PENDING', 'ADJUDICATION_REQUIRED');
