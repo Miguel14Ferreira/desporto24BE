@@ -120,6 +120,37 @@ class CommunityTrackSprintOlympic24Test {
                 BRACKET,raced,seeds(),Map.of(),award,Set.of()).stream()
                 .filter(x->x.slot().equals("U1")).findFirst().orElseThrow().status());
     }
+    @Test void officialBestThreeHeatRelegationDoesNotInventARaceOrSeriesVictory() {
+        List<CommunityRoundResponse> raced=new ArrayList<>();
+        for(int i=1;i<=12;i++){var m=match(raced,"A"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){var m=match(raced,"U"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=8;i++){var m=match(raced,"C"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=4;i++){var m=match(raced,"V"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=6;i++){var m=match(raced,"E"+i);raced.add(record(m,m.riderA()));}
+        for(int i=1;i<=2;i++){var m=match(raced,"W"+i);raced.add(record(m,m.riderA()));}
+        var quarter=match(raced,"Q1");
+        var first=Map.of(quarter.seriesKey(),Map.of(1,quarter.riderA()));
+        var projected=CommunityTrackSprintOlympic24.project(BRACKET,raced,seeds(),
+                Map.of(),Map.of(),Set.of(),first);
+        var one=projected.stream().filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
+        assertEquals("IN_PROGRESS",one.status());
+        assertEquals(1,one.winsA());
+        assertNull(one.winner());
+        assertEquals("WAITING_PREVIOUS",projected.stream().filter(x->"S1".equals(x.slot()))
+                .findFirst().orElseThrow().status());
+        var second=Map.of(quarter.seriesKey(),Map.of(1,quarter.riderA(),2,quarter.riderA()));
+        var two=CommunityTrackSprintOlympic24.project(BRACKET,raced,seeds(),
+                Map.of(),Map.of(),Set.of(),second).stream()
+                .filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
+        assertEquals("FINISHED",two.status());
+        assertEquals(quarter.riderA(),two.winner());
+        assertTrue(raced.stream().noneMatch(r->quarter.seriesKey().equals(r.sprintSeriesKey())));
+        var invalid=Map.of(quarter.seriesKey(),Map.of(2,quarter.riderA()));
+        var gap=CommunityTrackSprintOlympic24.project(BRACKET,raced,seeds(),
+                Map.of(),Map.of(),Set.of(),invalid).stream()
+                .filter(x->"Q1".equals(x.slot())).findFirst().orElseThrow();
+        assertEquals("CONFLICT",gap.status());
+    }
     @Test void firstRepechageHasExactlyThreeLosersAndWinnerFeedsOneSixteenth() {
         List<CommunityRoundResponse> rounds=new ArrayList<>();
         for(int i=1;i<=12;i++){

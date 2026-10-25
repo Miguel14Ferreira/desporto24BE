@@ -751,6 +751,91 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals("READY",guarded.path("matches").get(0).path("status").asText());
         assertEquals("ADJUDICATION_REQUIRED",guarded.path("incidents").get(0)
             .path("status").asText());
+
+        // Signed BO3 heat decisions: REAL JWT/HTTP + PostgreSQL16. All riders
+        // and documents below are fictional in this disposable CI database.
+        JsonNode bo3Bracket=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional BO3 adjudication with prior rounds",
+                "format","OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long bo3Id=bo3Bracket.path("id").asLong();
+        for(String phase:new String[]{"A","U","C","V","E","W"}) {
+            int count=switch(phase) {
+                case "A" -> 12; case "U","C" -> phase.equals("C")?8:4;
+                case "V" -> 4; case "E" -> 6; default -> 2;
+            };
+            for(int i=1;i<=count;i++) {
+                String slot=phase+i;
+                JsonNode matchInBracket=null;
+                JsonNode all=api("GET",brackets(activeSeason),ownerJwt,null,200);
+                for(JsonNode b:all)if(b.path("id").asLong()==bo3Id)
+                    for(JsonNode m:b.path("matches"))
+                        if(slot.equals(m.path("slot").asText()))matchInBracket=m;
+                assertNotNull(matchInBracket,"Missing "+slot+" in BO3 fixture");
+                assertEquals("READY",matchInBracket.path("status").asText(),slot);
+                List<Map<String,Object>> lineup=new ArrayList<>();
+                String winner=matchInBracket.path("riderA").asText();
+                for(String field:List.of("riderA","riderB","riderC"))
+                    if(matchInBracket.hasNonNull(field)) {
+                        String name=matchInBracket.path(field).asText();
+                        lineup.add(rider(name,name.equals(winner)?"WIN":"LOSS"));
+                    }
+                record("Actual synthetic "+slot,
+                    phase.equals("U")||phase.equals("V")||phase.equals("W")
+                        ?"TRACK_SPRINT_REPECHAGE":"TRACK_SPRINT_HEAT",
+                    matchInBracket.path("phase").asText(),
+                    matchInBracket.path("seriesKey").asText(),1,lineup);
+            }
+        }
+        JsonNode bo3Q=null;
+        JsonNode allBo3=api("GET",brackets(activeSeason),memberJwt,null,200);
+        for(JsonNode b:allBo3)if(b.path("id").asLong()==bo3Id)
+            for(JsonNode m:b.path("matches"))
+                if("Q1".equals(m.path("slot").asText()))bo3Q=m;
+        assertNotNull(bo3Q);
+        assertEquals("READY",bo3Q.path("status").asText());
+        String bo3Series="SP"+bo3Id+"-Q1";
+        String officialA=bo3Q.path("riderA").asText();
+        String officialB=bo3Q.path("riderB").asText();
+        String adjudications=brackets(activeSeason)+"/"+bo3Id+"/incidents";
+        for(int heatNumber=1;heatNumber<=2;heatNumber++) {
+            JsonNode bo3HeatReport=api("POST",adjudications,ownerJwt,Map.of(
+                "seriesKey",bo3Series,"heatNumber",heatNumber,
+                "incidentType","FALL",
+                "details","Synthetic intentional fall for numbered BO3 heat"),200);
+            long recordedId=bo3HeatReport.path("id").asLong();
+            api("PUT",adjudications+"/"+recordedId+"/decision",ownerJwt,Map.of(
+                "decisionType","DISCIPLINARY_RULING",
+                "sanctionType","RELEGATION",
+                "sanctionedUsername",officialB,
+                "reference","Fictional signed per-heat decision "+heatNumber+"/2026",
+                "reason","Commissioners document an intentional fall and relegate the fictional rider"),200);
+            var allowed=Map.of(
+                "basis","INTENTIONAL_FALL","winnerUsername",officialA,
+                "reference","Fictional second official per-heat record "+heatNumber+"/2026",
+                "reason","Officially declared heat victory after documented intentional fall");
+            String officialUrl=adjudications+"/"+recordedId+"/official-award";
+            api("PUT",officialUrl,memberJwt,allowed,403);
+            JsonNode credited=api("PUT",officialUrl,ownerJwt,allowed,200);
+            assertEquals(heatNumber,credited.path("heatNumber").asInt());
+            assertEquals("OFFICIAL_HEAT_AWARDED",credited.path("status").asText());
+            api("PUT",officialUrl,ownerJwt,allowed,409);
+            JsonNode overviewAfter=null;
+            for(JsonNode b:api("GET",brackets(activeSeason),memberJwt,null,200))
+                if(b.path("id").asLong()==bo3Id)overviewAfter=b;
+            assertNotNull(overviewAfter);
+            JsonNode q1After=null;
+            for(JsonNode m:overviewAfter.path("matches"))
+                if("Q1".equals(m.path("slot").asText()))q1After=m;
+            assertNotNull(q1After);
+            assertEquals(heatNumber, q1After.path("winsA").asInt());
+            assertEquals(heatNumber==1?"IN_PROGRESS":"FINISHED",
+                q1After.path("status").asText());
+            if(heatNumber==1) assertTrue(q1After.path("winner").isNull());
+            else assertEquals(officialA,q1After.path("winner").asText());
+            assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                group,activeSeason,bo3Series).isEmpty(),
+                "Signed rulings must not invent any physical rounds");
+        }
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }

@@ -46,9 +46,16 @@ final class CommunityTrackSprintBracketPlanner {
     static List<Match> project(long bracketId,List<CommunityRoundResponse> rounds,
             List<String> seeds,Map<String,List<String>> reruns,Map<String,String> awards,
             Set<String> excludedRiders) {
+        return project(bracketId,rounds,seeds,reruns,awards,excludedRiders,Map.of());
+    }
+    static List<Match> project(long bracketId,List<CommunityRoundResponse> rounds,
+            List<String> seeds,Map<String,List<String>> reruns,Map<String,String> awards,
+            Set<String> excludedRiders,Map<String,Map<Integer,String>> decidedHeats) {
         if (seeds != null && seeds.size() == 24)
             return CommunityTrackSprintOlympic24.project(
-                    bracketId,rounds,seeds,reruns,awards,excludedRiders);
+                    bracketId,rounds,seeds,reruns,awards,excludedRiders,decidedHeats);
+        if(!decidedHeats.isEmpty())
+            throw new IllegalArgumentException("Decisões BO3 não suportadas neste formato");
         if(!excludedRiders.isEmpty())throw new IllegalArgumentException(
                 "Exclusão disciplinar não suportada neste formato");
         if (!awards.isEmpty()) throw new IllegalArgumentException(

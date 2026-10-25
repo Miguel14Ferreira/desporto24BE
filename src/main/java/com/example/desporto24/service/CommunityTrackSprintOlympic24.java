@@ -53,44 +53,50 @@ final class CommunityTrackSprintOlympic24 {
     static List<Match> project(long bracketId,List<CommunityRoundResponse> rounds,
             List<String> seeds,Map<String,List<String>> reruns,
             Map<String,String> awardedWinners,Set<String> excludedRiders) {
+        return project(bracketId,rounds,seeds,reruns,awardedWinners,excludedRiders,Map.of());
+    }
+    static List<Match> project(long bracketId,List<CommunityRoundResponse> rounds,
+            List<String> seeds,Map<String,List<String>> reruns,
+            Map<String,String> awardedWinners,Set<String> excludedRiders,
+            Map<String,Map<Integer,String>> decidedHeats) {
         if (seeds == null || seeds.size() != 24 || seeds.stream().anyMatch(x->x==null||x.isBlank())
                 || seeds.stream().map(CommunityTrackSprintOlympic24::normalized).distinct().count()!=24)
             throw new IllegalArgumentException("Quadro olímpico exige 24 ciclistas distintos");
         Map<String,Match> m=new LinkedHashMap<>();
         // 1/32: 1 v 24, 2 v 23 ... 12 v 13.
         for (int i=1;i<=12;i++)
-            add(m,bracketId,rounds,reruns,awardedWinners,"A"+i,normalized(seeds.get(i-1)),
+            add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"A"+i,normalized(seeds.get(i-1)),
                     normalized(seeds.get(24-i)),null);
         // 1/32 repechage: four heats of THREE defeated riders, table order.
         int[][] u={{1,8,9},{2,7,10},{3,6,11},{4,5,12}};
         for (int i=0;i<4;i++)
-            add(m,bracketId,rounds,reruns,awardedWinners,"U"+(i+1),lost(m,"A"+u[i][0],excludedRiders),lost(m,"A"+u[i][1],excludedRiders),
+            add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"U"+(i+1),lost(m,"A"+u[i][0],excludedRiders),lost(m,"A"+u[i][1],excludedRiders),
                     lost(m,"A"+u[i][2],excludedRiders));
         // 1/16: 8 two-up matches; first four vs winners of repechages.
         for (int i=1;i<=8;i++) {
             String a=won(m,"A"+i);
             String b=i<=4?won(m,"U"+(5-i)):won(m,"A"+(17-i));
-            add(m,bracketId,rounds,reruns,awardedWinners,"C"+i,a,b,null);
+            add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"C"+i,a,b,null);
         }
         // 1/16 repechage: pair the eight losses (1/8,2/7,3/6,4/5).
         for(int i=1;i<=4;i++)
-            add(m,bracketId,rounds,reruns,awardedWinners,"V"+i,lost(m,"C"+i,excludedRiders),lost(m,"C"+(9-i),excludedRiders),null);
+            add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"V"+i,lost(m,"C"+i,excludedRiders),lost(m,"C"+(9-i),excludedRiders),null);
         // 1/8: first four vs repechage winners, fifth & sixth from original 1/16 winners.
         for(int i=1;i<=6;i++)
-            add(m,bracketId,rounds,reruns,awardedWinners,"E"+i,won(m,"C"+i),
+            add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"E"+i,won(m,"C"+i),
                     i<=4?won(m,"V"+(5-i)):won(m,"C"+(13-i)),null);
         // 1/8 repechage: THREE-up, losers of (1,4,5) and (2,3,6).
-        add(m,bracketId,rounds,reruns,awardedWinners,"W1",lost(m,"E1",excludedRiders),lost(m,"E4",excludedRiders),lost(m,"E5",excludedRiders));
-        add(m,bracketId,rounds,reruns,awardedWinners,"W2",lost(m,"E2",excludedRiders),lost(m,"E3",excludedRiders),lost(m,"E6",excludedRiders));
-        add(m,bracketId,rounds,reruns,awardedWinners,"Q1",won(m,"E1"),won(m,"W2"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"Q2",won(m,"E2"),won(m,"W1"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"Q3",won(m,"E3"),won(m,"E6"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"Q4",won(m,"E4"),won(m,"E5"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"W1",lost(m,"E1",excludedRiders),lost(m,"E4",excludedRiders),lost(m,"E5",excludedRiders));
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"W2",lost(m,"E2",excludedRiders),lost(m,"E3",excludedRiders),lost(m,"E6",excludedRiders));
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q1",won(m,"E1"),won(m,"W2"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q2",won(m,"E2"),won(m,"W1"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q3",won(m,"E3"),won(m,"E6"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"Q4",won(m,"E4"),won(m,"E5"),null);
         addPlaces(m,bracketId,rounds);
-        add(m,bracketId,rounds,reruns,awardedWinners,"S1",won(m,"Q1"),won(m,"Q4"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"S2",won(m,"Q2"),won(m,"Q3"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"B",lost(m,"S1",excludedRiders),lost(m,"S2",excludedRiders),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"G",won(m,"S1"),won(m,"S2"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"S1",won(m,"Q1"),won(m,"Q4"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"S2",won(m,"Q2"),won(m,"Q3"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"B",lost(m,"S1",excludedRiders),lost(m,"S2",excludedRiders),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,decidedHeats,"G",won(m,"S1"),won(m,"S2"),null);
         return List.copyOf(m.values());
     }
     /**
@@ -159,6 +165,7 @@ final class CommunityTrackSprintOlympic24 {
     }
     private static void add(Map<String,Match> m,long id,List<CommunityRoundResponse> rounds,
             Map<String,List<String>> reruns, Map<String,String> awardedWinners,
+            Map<String,Map<Integer,String>> decidedHeats,
             String slot,String a,String b,String c) {
         String key=key(id,slot), phase=phase(slot);
         List<String> restart=reruns.get(key);
@@ -181,6 +188,13 @@ final class CommunityTrackSprintOlympic24 {
         boolean bestThree=slot.startsWith("Q")||slot.startsWith("S")
                 ||slot.equals("B")||slot.equals("G");
         boolean ready=a!=null&&b!=null&&(!three||c!=null||twoRiderRerun);
+        Map<Integer,String> decided=decidedHeats.getOrDefault(key,Map.of());
+        if (!decided.isEmpty()) {
+            if(!bestThree||!ready||c!=null||twoRiderRerun)
+                throw new IllegalStateException("Decisão de manga fora de uma série BO3 válida");
+            addBestThreeWithDecisions(m,slot,phase,key,a,b,heats,decided);
+            return;
+        }
         if (!ready && heats.isEmpty()) {
             m.put(slot,new Match(phase,slot,key,a,b,0,0,null,"WAITING_PREVIOUS",c));
             return;
@@ -239,6 +253,63 @@ final class CommunityTrackSprintOlympic24 {
                 conflict?null:winner,conflict?"CONFLICT":winner==null?"IN_PROGRESS":"FINISHED",c));
     }
 
+
+    /**
+     * A jury-awarded heat is evidence separate from a raced CommunityRound.
+     * Progress only after two valid heat wins, with no gaps or double entries.
+     */
+    private static void addBestThreeWithDecisions(Map<String,Match> matches,
+            String slot,String phase,String key,String a,String b,
+            List<CommunityRoundResponse> raced,Map<Integer,String> official) {
+        Map<Integer,CommunityRoundResponse> racedByNumber=new HashMap<>();
+        boolean conflict=false;
+        for(var heat:raced) {
+            Integer n=heat.sprintHeatNumber();
+            if(n==null||n<1||n>3||racedByNumber.putIfAbsent(n,heat)!=null)
+                conflict=true;
+        }
+        Set<Integer> numbers=new HashSet<>(racedByNumber.keySet());
+        for(var entry:official.entrySet()) {
+            Integer n=entry.getKey();
+            if(n==null||n<1||n>3||!numbers.add(n))
+                conflict=true;
+        }
+        if(numbers.isEmpty()||numbers.size()>3)conflict=true;
+        int winsA=0,winsB=0;
+        for(int n=1;n<=numbers.size()&&!conflict;n++) {
+            if(!numbers.contains(n)||winsA==2||winsB==2){conflict=true;break;}
+            String heatWinner=null;
+            if(official.containsKey(n)) {
+                heatWinner=normalized(official.get(n));
+            } else {
+                var heat=racedByNumber.get(n);
+                if(heat==null||!"TRACK_SPRINT_HEAT".equals(heat.eventType())
+                        ||!phase.equals(heat.eventDiscipline())
+                        ||heat.entries().size()!=2){conflict=true;break;}
+                Set<String> seen=new HashSet<>();
+                int losses=0;
+                for(var entry:heat.entries()) {
+                    String person=normalized(entry.username());
+                    if(person==null||!seen.add(person)){conflict=true;break;}
+                    if(entry.result()==CommunityMatchResult.WIN) {
+                        if(heatWinner!=null)conflict=true;
+                        heatWinner=person;
+                    } else if(entry.result()==CommunityMatchResult.LOSS) losses++;
+                    else conflict=true;
+                }
+                if(!seen.equals(Set.of(a,b))||losses!=1)conflict=true;
+            }
+            if(conflict||heatWinner==null||!Set.of(a,b).contains(heatWinner)){
+                conflict=true;break;
+            }
+            if(heatWinner.equals(a))winsA++;else winsB++;
+        }
+        String winner=winsA==2?a:winsB==2?b:null;
+        matches.put(slot,new Match(phase,slot,key,a,b,winsA,winsB,
+                conflict?null:winner,
+                conflict?"CONFLICT":winner==null?"IN_PROGRESS":"FINISHED",null));
+    }
+
     static void validateNewHeat(long id,String seriesKey,String phase,String eventType,
             List<CommunityRoundResponse> rounds,List<CommunityRoundEntryRequest> entrants,
             List<String> seeds) {
@@ -260,7 +331,15 @@ final class CommunityTrackSprintOlympic24 {
             List<CommunityRoundResponse> rounds,List<CommunityRoundEntryRequest> entrants,
             List<String> seeds,Map<String,List<String>> reruns,
             Map<String,String> awardedWinners,Set<String> excludedRiders) {
-        Match m=project(id,rounds,seeds,reruns,awardedWinners,excludedRiders).stream()
+        validateNewHeat(id,seriesKey,phase,eventType,rounds,entrants,seeds,reruns,
+                awardedWinners,excludedRiders,Map.of());
+    }
+    static void validateNewHeat(long id,String seriesKey,String phase,String eventType,
+            List<CommunityRoundResponse> rounds,List<CommunityRoundEntryRequest> entrants,
+            List<String> seeds,Map<String,List<String>> reruns,
+            Map<String,String> awardedWinners,Set<String> excludedRiders,
+            Map<String,Map<Integer,String>> decidedHeats) {
+        Match m=project(id,rounds,seeds,reruns,awardedWinners,excludedRiders,decidedHeats).stream()
                 .filter(x->x.seriesKey().equals(seriesKey)).findFirst()
                 .orElseThrow(()->new IllegalArgumentException("Confronto fora do quadro olímpico"));
         if(!m.phase().equals(phase) || ("F58".equals(m.slot())
