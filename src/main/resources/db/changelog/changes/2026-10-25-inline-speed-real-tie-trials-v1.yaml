@@ -22,7 +22,7 @@ databaseChangeLog:
               - column: {name: trial_id, type: BIGINT, constraints: {nullable: false}}
               - column: {name: player_id, type: BIGINT, constraints: {nullable: false}}
               - column: {name: place, type: INT, constraints: {nullable: false}}
-              - column: {name: seconds, type: DECIMAL(9,3)}
+              - column: {name: seconds, type: 'DECIMAL(9,3)'}
         - addForeignKeyConstraint:
             baseTableName: community_inline_speed_tie_trial
             baseColumnNames: tournament_id
