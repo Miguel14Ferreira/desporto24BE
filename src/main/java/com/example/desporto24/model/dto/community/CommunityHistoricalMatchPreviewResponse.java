@@ -1,6 +1,7 @@
 package com.example.desporto24.model.dto.community;
 
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Read-only interpretation of a historical fixture/result export.
@@ -24,4 +25,9 @@ public record CommunityHistoricalMatchPreviewResponse(
             String sourceRound,
             boolean potentialDuplicate
     ) {}
+    @JsonProperty("warningDetails")
+    public List<CommunityImportDiagnostic> warningDetails() {
+        return CommunityImportDiagnostic.fromLegacyMessages(warnings);
+    }
+
 }

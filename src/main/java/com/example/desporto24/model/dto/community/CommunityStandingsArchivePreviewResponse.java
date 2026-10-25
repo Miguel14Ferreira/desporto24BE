@@ -1,6 +1,7 @@
 package com.example.desporto24.model.dto.community;
 
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record CommunityStandingsArchivePreviewResponse(
         String sheetName,
@@ -21,4 +22,9 @@ public record CommunityStandingsArchivePreviewResponse(
             Integer goalsFor,
             Integer goalsAgainst
     ) {}
+    @JsonProperty("warningDetails")
+    public List<CommunityImportDiagnostic> warningDetails() {
+        return CommunityImportDiagnostic.fromLegacyMessages(warnings);
+    }
+
 }
