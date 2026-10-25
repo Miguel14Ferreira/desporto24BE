@@ -444,7 +444,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                             ? "&returnCommunityId=" + returnCommunityId
                             : "");
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
+        emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Jynlo",
                 buildRegistrationEmail(profileDTO.getUsername(), link));
 
         createWelcomeNotification(profileDTO, token);
@@ -484,7 +484,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String subject = "Bem-vindo ao nosso site, " + profileDTO.getUsername() + "!";
         String message = "Aqui podes explorar todas as sessões desportivas que estão a decorrer neste momento. Para mais detalhes, basta clicar em qualquer uma delas. Além disso, tens a opção de atualizar o teu perfil ou criar a tua própria sessão desportiva.";
         String greeting = "Bons jogos,";
-        String signature = "DESPORTO24";
+        String signature = "JYNLO";
 
         Notifications notification = new Notifications(
                 subject, message, greeting, signature, formattedDate, false, false, false, true, token, profileDTO.getUsername()
@@ -523,7 +523,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String link = uiAppUrl.replaceAll("/+$", "")
                 + "/login/resetPassword/" + token;
         log.info("Password reset link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Desporto24",
+        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Jynlo",
                 buildResetPasswordEmail(profileDTO.getUsername(), link));
     }
 
@@ -612,9 +612,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String buildResetPasswordEmail(String name, String link) {
         return TransactionalEmailTemplate.render(
                 "Recupera a tua palavra-passe",
-                "Olá " + name + ", recebemos um pedido para definir uma nova palavra-passe para a tua conta Desporto24.",
+                "Olá " + name + ", recebemos um pedido para definir uma nova palavra-passe para a tua conta Jynlo.",
                 "Reset your password",
-                "Hi " + name + ", we received a request to set a new password for your Desporto24 account.",
+                "Hi " + name + ", we received a request to set a new password for your Jynlo account.",
                 "Definir palavra-passe / Reset password",
                 link,
                 "O link expira em 15 minutos. Se não fizeste este pedido, podes ignorar este email. A tua palavra-passe só será alterada quando definires uma nova.",
@@ -625,9 +625,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String buildRegistrationEmail(String name, String link) {
         return TransactionalEmailTemplate.render(
                 "Confirma o teu email",
-                "Olá " + name + ", obrigado por te registares no Desporto24. Confirma o teu email para ativar a conta.",
+                "Olá " + name + ", obrigado por te registares no Jynlo. Confirma o teu email para ativar a conta.",
                 "Confirm your email",
-                "Hi " + name + ", thank you for registering with Desporto24. Confirm your email to activate your account.",
+                "Hi " + name + ", thank you for registering with Jynlo. Confirm your email to activate your account.",
                 "Confirmar email / Confirm email",
                 link,
                 "O link expira em 15 minutos. Se não criaste esta conta, podes ignorar este email.",
