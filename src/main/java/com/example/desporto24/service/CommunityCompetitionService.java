@@ -250,7 +250,7 @@ public class CommunityCompetitionService {
                 sprintInterruptionResponse(bracket,rounds));
     }
 
-    private static CommunityTrackSprintBracketDtos.Interruption sprintInterruptionResponse(
+    private CommunityTrackSprintBracketDtos.Interruption sprintInterruptionResponse(
             CommunityTrackSprintBracket bracket,List<CommunityRoundResponse> rounds) {
         if(bracket.getInterruptionStage()==null) return null;
         var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
@@ -486,7 +486,7 @@ public class CommunityCompetitionService {
                     || sanctioned == null || sanctioned.isBlank())
                 throw new IllegalArgumentException(
                     "Identifica o ciclista e a sanção do colégio de comissários");
-            CommunityTrackSprintBracket bracket = incident.getBracket();
+            // Bracket scope and active season already verified above.
             AcceptedAliases aliases = acceptedAliasProfiles(communityId);
             var heats = roundRepository
                     .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
