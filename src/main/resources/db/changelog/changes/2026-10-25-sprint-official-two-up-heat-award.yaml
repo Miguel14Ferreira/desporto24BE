@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-sprint-official-two-up-heat-award
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column: { name: award_winner_username, type: VARCHAR(100) }
+              - column: { name: award_basis, type: VARCHAR(40) }
+              - column: { name: award_reference, type: VARCHAR(255) }
+              - column: { name: award_reason, type: VARCHAR(500) }
+              - column: { name: award_recorded_by, type: VARCHAR(100) }
+              - column: { name: award_recorded_at, type: TIMESTAMP WITH TIME ZONE }
