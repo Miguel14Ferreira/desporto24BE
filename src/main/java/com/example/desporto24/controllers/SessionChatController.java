@@ -31,4 +31,18 @@ public class SessionChatController {
             Authentication authentication) {
         return sessionChatService.post(sessionId, request.body(), authentication.getName(), request.replyToMessageId());
     }
+    @PutMapping("/{messageId}")
+    public SessionMessageResponse edit(@PathVariable Long sessionId,
+            @PathVariable Long messageId,
+            @RequestBody @Valid com.example.desporto24.model.dto.chat.ChatMessageMutationRequest request,
+            Authentication authentication) {
+        return sessionChatService.editMessage(sessionId, messageId, request.text(), authentication.getName());
+    }
+
+    @DeleteMapping("/{messageId}")
+    public SessionMessageResponse delete(@PathVariable Long sessionId,
+            @PathVariable Long messageId, Authentication authentication) {
+        return sessionChatService.deleteMessage(sessionId, messageId, authentication.getName());
+    }
+
 }

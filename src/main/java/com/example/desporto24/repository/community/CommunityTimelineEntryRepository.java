@@ -56,4 +56,10 @@ public interface CommunityTimelineEntryRepository extends JpaRepository<Communit
     @EntityGraph(attributePaths = "author")
     List<CommunityTimelineEntry> findTop60ByCommunityIdAndKindOrderByCreatedAtDescIdDesc(
             Long communityId, CommunityTimelineEntry.Kind kind);
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update CommunityTimelineEntry e set e.replyToText = :replacement " +
+           "where e.community.id = :communityId and e.replyToMessageId = :messageId")
+    int redactRepliesToDeleted(@Param("communityId") Long communityId,
+                               @Param("messageId") Long messageId,
+                               @Param("replacement") String replacement);
 }
