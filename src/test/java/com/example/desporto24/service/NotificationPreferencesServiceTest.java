@@ -100,8 +100,21 @@ class NotificationPreferencesServiceTest {
     }
 
     @Test
+    void registeredRecipientsCannotBypassInviteEmailOptOutWithDifferentCasing() {
+        Profile recipient = new Profile();
+        recipient.setUsername("ana");
+        when(profiles.findUserByEmailIgnoreCase("ANA@EXAMPLE.TEST"))
+                .thenReturn(Optional.of(recipient));
+        when(preferences.findById("ana"))
+                .thenReturn(Optional.of(saved(true, true, "", "COMMUNITY_INVITE")));
+
+        assertFalse(service.allowsOptionalEmailAddress("ANA@EXAMPLE.TEST",
+                NotificationType.COMMUNITY_INVITE));
+    }
+
+    @Test
     void externalRecipientsWithoutAnAccountHaveNoStoredPreferences() {
-        when(profiles.findUserByEmail("guest@external.example")).thenReturn(Optional.empty());
+        when(profiles.findUserByEmailIgnoreCase("guest@external.example")).thenReturn(Optional.empty());
         assertTrue(service.allowsOptionalEmailAddress("guest@external.example",
                 NotificationType.COMMUNITY_INVITE));
     }
