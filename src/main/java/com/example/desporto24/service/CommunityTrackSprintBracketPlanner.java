@@ -22,7 +22,8 @@ final class CommunityTrackSprintBracketPlanner {
     private static String norm(String s) { return s == null ? null : s.trim().toLowerCase(Locale.ROOT); }
 
     static String seriesKey(long bracketId, String slot) {
-        if (!SLOTS.contains(slot) && !EIGHTHS.contains(slot) && !SIXTEENTHS.contains(slot)) throw new IllegalArgumentException("Posição Sprint inválida");
+        if (!SLOTS.contains(slot) && !EIGHTHS.contains(slot) && !SIXTEENTHS.contains(slot)
+                && !CommunityTrackSprintOlympic24.isOlympicSlot(slot)) throw new IllegalArgumentException("Posição Sprint inválida");
         return "SP" + bracketId + "-" + slot;
     }
 
@@ -32,6 +33,8 @@ final class CommunityTrackSprintBracketPlanner {
 
     static List<Match> project(long bracketId, List<CommunityRoundResponse> rounds,
             List<String> seeds) {
+        if (seeds != null && seeds.size() == 24)
+            return CommunityTrackSprintOlympic24.project(bracketId, rounds, seeds);
         boolean sixteen = seeds != null && seeds.size() == 16;
         boolean twentyEight = seeds != null && seeds.size() == 28;
         if (seeds != null && !seeds.isEmpty() && !sixteen && !twentyEight)
@@ -134,6 +137,14 @@ final class CommunityTrackSprintBracketPlanner {
     static void validateNewHeat(long bracketId, String seriesKey, String phase,
             List<CommunityRoundResponse> rounds, List<CommunityRoundEntryRequest> entrants,
             List<String> seeds) {
+        if (seeds != null && seeds.size() == 24) {
+            CommunityTrackSprintOlympic24.validateNewHeat(bracketId, seriesKey, phase,
+                    CommunityTrackSprintOlympic24.isRepechage(seriesKey.substring(
+                        seriesKey.lastIndexOf('-')+1))
+                        ? "TRACK_SPRINT_REPECHAGE" : "TRACK_SPRINT_HEAT",
+                    rounds, entrants, seeds);
+            return;
+        }
         List<Match> list = project(bracketId, rounds, seeds);
         Match match = list.stream().filter(m -> m.seriesKey().equals(seriesKey))
                 .findFirst().orElseThrow(() -> new IllegalArgumentException("Série fora do quadro Sprint"));

@@ -23,8 +23,11 @@ final class CommunityFieldDisciplines {
     // Descriptive stage for an independently recorded Sprint heat.
     // A complete bracket or best-of-three match outcome requires a separate relation.
     private static final List<String> TRACK_SPRINT_PHASES = List.of(
-            "SPRINT_SIXTEENTH_FINAL", "SPRINT_EIGHTH_FINAL", "SPRINT_QUARTER_FINAL", "SPRINT_SEMI_FINAL",
+            "SPRINT_THIRTY_SECOND_FINAL", "SPRINT_SIXTEENTH_FINAL", "SPRINT_EIGHTH_FINAL", "SPRINT_QUARTER_FINAL", "SPRINT_SEMI_FINAL",
             "SPRINT_BRONZE_FINAL", "SPRINT_GOLD_FINAL");
+
+    private static final List<String> TRACK_SPRINT_REPECHAGES = List.of(
+            "SPRINT_REPECHAGE_1_32", "SPRINT_REPECHAGE_1_16", "SPRINT_REPECHAGE_1_8");
 
     // Only separately timed individual distances; knockout sprint and relays need
     // dedicated multi-stage and team contracts, so they are not offered here.
@@ -45,6 +48,8 @@ final class CommunityFieldDisciplines {
     static String validate(String sport, String eventType, String requested) {
         List<String> allowed = "Ciclismo de Pista".equals(sport)
                 && "TRACK_SPRINT_HEAT".equals(eventType) ? TRACK_SPRINT_PHASES
+                : "Ciclismo de Pista".equals(sport)
+                && "TRACK_SPRINT_REPECHAGE".equals(eventType) ? TRACK_SPRINT_REPECHAGES
                 : "Orientação".equals(sport)
                 && "FOOT_ORIENTEERING".equals(eventType) ? FOOT_ORIENTEERING
                 : "Natação em Águas Abertas".equals(sport)
