@@ -224,8 +224,8 @@ class AuthenticationServiceImplTest {
         profile.setEmail("fixture@example.test");
         ProfileDTO input = credentials();
         input.setUsername("FiXtUrE@ExAmPlE.TeSt");
-        when(profileRepository.findUserByEmailIgnoreCase("FiXtUrE@ExAmPlE.TeSt"))
-                .thenReturn(Optional.of(profile));
+        when(profileRepository.findTop2ByEmailIgnoreCase("FiXtUrE@ExAmPlE.TeSt"))
+                .thenReturn(java.util.List.of(profile));
         when(profileRepository.save(profile)).thenReturn(profile);
         when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("token-email");
         when(profileMapper.toDto(profile)).thenReturn(safeProfile());
@@ -312,12 +312,30 @@ class AuthenticationServiceImplTest {
         input.setUsername("someone@example.test");
         when(profileRepository.findUserByUsernameIgnoreCase("someone@example.test"))
                 .thenReturn(Optional.of(usernameOwner));
-        when(profileRepository.findUserByEmailIgnoreCase("someone@example.test"))
-                .thenReturn(Optional.of(emailOwner));
+        when(profileRepository.findTop2ByEmailIgnoreCase("someone@example.test"))
+                .thenReturn(java.util.List.of(emailOwner));
 
         assertThrows(BadCredentialsException.class, () -> service().login(input));
 
         verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void legacyCaseFoldedDuplicateEmailNeverAuthenticatesArbitrarily() {
+        Profile first = activeProfile(false);
+        first.setId(1L);
+        Profile second = activeProfile(false);
+        second.setId(2L);
+        second.setUsername("second-account");
+        ProfileDTO input = credentials();
+        input.setUsername("fixture@example.test");
+        when(profileRepository.findTop2ByEmailIgnoreCase("fixture@example.test"))
+                .thenReturn(java.util.List.of(first, second));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
     }
 
     @Test
@@ -343,8 +361,8 @@ class AuthenticationServiceImplTest {
         profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
         ProfileDTO input = credentials();
         input.setUsername("fixture@example.test");
-        when(profileRepository.findUserByEmailIgnoreCase("fixture@example.test"))
-                .thenReturn(Optional.of(profile));
+        when(profileRepository.findTop2ByEmailIgnoreCase("fixture@example.test"))
+                .thenReturn(java.util.List.of(profile));
 
         LoginResponse result = service().login(input);
 
