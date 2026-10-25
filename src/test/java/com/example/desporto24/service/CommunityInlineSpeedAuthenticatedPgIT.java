@@ -436,5 +436,26 @@ class CommunityInlineSpeedAuthenticatedPgIT {
                         "reason", "O juiz confirma os 16 apurados depois do desempate oficial"), 200);
         assertEquals(1, ratified.path("decisions").size());
         assertEquals(1, ratified.path("tieBreaks").size());
+
+        // Real PostgreSQL/JPA source edit: after the jury has ratified a
+        // tie-break, changing even a non-cutoff time must invalidate both
+        // rulings rather than silently continuing with the old qualifier list.
+        long originalRound = tieState.path("linkedHeats").get(0).path("roundId").asLong();
+        var originalResult = entries.findByRoundIdOrderByIdAsc(originalRound).get(0);
+        var originalSeconds = originalResult.getElapsedSeconds();
+        originalResult.setElapsedSeconds(originalSeconds.add(new java.math.BigDecimal("0.01")));
+        entries.saveAndFlush(originalResult);
+        JsonNode staleOverview = overview(tieId);
+        assertTrue(staleOverview.path("tieBreaks").get(0).path("stale").asBoolean(),
+                "The saved tie-break must show as stale after editing source timing");
+        assertTrue(staleOverview.path("decisions").get(0).path("stale").asBoolean(),
+                "Previously ratified qualifiers must also show as stale");
+        assertFalse(staleOverview.path("proposals").get(0).path("ready").asBoolean(),
+                "A changed multiway cutoff must require a new official tie-break");
+
+        // Alteration of a source time does not delete the old ruling: it must
+        // remain visible for the organizer's audit of what was decided.
+        assertEquals(reason, staleOverview.path("tieBreaks").get(0).path("reason").asText());
+        assertEquals(1, staleOverview.path("tieBreaks").size());
     }
 }
