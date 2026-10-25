@@ -189,7 +189,8 @@ class PrivateChatFileStorageTest {
                 .thenReturn(HeadBucketResponse.builder().build());
 
         assertTrue(storage.isConfigured());
-        verify(client).headBucket(argThat(req -> "jynlo-chat-private".equals(req.bucket())));
+        verify(client).headBucket(argThat((HeadBucketRequest req) ->
+                "jynlo-chat-private".equals(req.bucket())));
     }
 
     @Test
