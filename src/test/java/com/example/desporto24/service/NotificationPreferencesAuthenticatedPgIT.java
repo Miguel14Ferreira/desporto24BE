@@ -1,6 +1,8 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.email.EmailSender;
 import com.example.desporto24.enumeration.NotificationType;
+import com.example.desporto24.model.dto.NotificationPreferencesRequest;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.ProfilePrincipal;
 import com.example.desporto24.register.Notifications.Notifications;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +25,10 @@ import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.Locale;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -33,6 +40,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Full HTTP -> signed JWT -> security filter -> controller -> JPA -> PostgreSQL 16.
@@ -62,6 +71,13 @@ class NotificationPreferencesAuthenticatedPgIT {
         TaskExecutor fixtureExecutor() {
             return new SyncTaskExecutor();
         }
+
+        // No optional message can reach Resend from this isolated test context.
+        @Bean(name = "fixtureOptionalEmailSender")
+        @Primary
+        EmailSender fixtureOptionalEmailSender() {
+            return mock(EmailSender.class);
+        }
     }
 
     @DynamicPropertySource
@@ -79,6 +95,10 @@ class NotificationPreferencesAuthenticatedPgIT {
     @Autowired ProfileRepository profiles;
     @Autowired NotificationsRepository notifications;
     @Autowired JWTokenProvider jwt;
+    @Autowired NotificationPreferencesService preferenceService;
+    @Autowired ApplicationEventPublisher publisher;
+    @Autowired PlatformTransactionManager transactionManager;
+    @Autowired EmailSender optionalEmailSender;
 
     private final HttpClient client = HttpClient.newHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -143,6 +163,53 @@ class NotificationPreferencesAuthenticatedPgIT {
         assertEquals(expectedStatus, response.statusCode(),
                 method + " " + path + " -> " + response.statusCode() + " " + response.body());
         return response.body().isBlank() ? mapper.createObjectNode() : mapper.readTree(response.body());
+    }
+
+    @Test
+    void committedCommunityInviteEmailsFollowPersistedOptOutWithoutCallingResend() {
+        String username = "notif_jwt_invitee";
+        String address = username + "@example.invalid";
+        // Keep this fixture independent from the Ana/Bob JWT scenario.
+        profile(username);
+        reset(optionalEmailSender);
+
+        // A committed invitation must not send if its recipient disabled this type.
+        preferenceService.update(username, new NotificationPreferencesRequest(
+                true, true, Set.of(), Set.of("COMMUNITY_INVITE")));
+        publishCommittedInvite(991L, address.toUpperCase(Locale.ROOT));
+        verifyNoInteractions(optionalEmailSender);
+
+        // Re-enable and verify a single bilingual email, with the real committed
+        // event listener querying persisted preferences by case-insensitive email.
+        preferenceService.update(username, new NotificationPreferencesRequest(
+                true, true, Set.of(), Set.of()));
+        publishCommittedInvite(992L, address.toUpperCase(Locale.ROOT));
+        verify(optionalEmailSender).send(eq(address.toUpperCase(Locale.ROOT)),
+                contains("Jynlo"), and(contains("view=mine&amp;invite=992"), contains("Community invitation")));
+        verifyNoMoreInteractions(optionalEmailSender);
+
+        // The global email switch is independent of in-app notifications.
+        reset(optionalEmailSender);
+        preferenceService.update(username, new NotificationPreferencesRequest(
+                true, false, Set.of(), Set.of()));
+        publishCommittedInvite(993L, address);
+        verifyNoInteractions(optionalEmailSender);
+
+        // Sender outage after commit does not fail or undo the invitation event.
+        preferenceService.update(username, new NotificationPreferencesRequest(
+                true, true, Set.of(), Set.of()));
+        doThrow(new IllegalStateException("Fixture email provider unavailable"))
+                .when(optionalEmailSender).send(anyString(), anyString(), anyString());
+        assertDoesNotThrow(() -> publishCommittedInvite(994L, address));
+        verify(optionalEmailSender).send(eq(address), anyString(), anyString());
+    }
+
+    private void publishCommittedInvite(Long id, String email) {
+        // @TransactionalEventListener(AFTER_COMMIT) is exercised by a real DB
+        // transaction rather than invoking the listener method directly.
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                publisher.publishEvent(new CommunityInviteCreatedEvent(
+                        id, email, "fixture_owner", "Fictional Sports Community")));
     }
 
     @Test
