@@ -417,6 +417,44 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         List<Long> sixteenChosen = new ArrayList<>();
         for (int i = 0; i < 15; i++)
             sixteenChosen.add(ordered.get(i).path("playerId").asLong());
+        // A trial is recorded only if actually held, and ONLY among skaters tied at the cutoff.
+        // It is not used to change any original qualification time or award a place automatically.
+        List<Long> tiedIds = List.of(ordered.get(15).path("playerId").asLong(),
+                ordered.get(16).path("playerId").asLong(),
+                ordered.get(17).path("playerId").asLong());
+        List<Map<String, Object>> trialPlacings = List.of(
+                Map.of("playerId", tiedIds.get(2), "place", 1, "seconds", 31.101),
+                Map.of("playerId", tiedIds.get(1), "place", 2, "seconds", 31.102),
+                Map.of("playerId", tiedIds.get(0), "place", 3, "seconds", 31.103));
+        var trialRequest = Map.of("actuallyHeld", true,
+                "heldAt", "2026-10-25T10:00:00Z",
+                "officialReference", "Ata oficial TRIAL-2026-001",
+                "reason", "A prova adicional foi realmente disputada perante o júri",
+                "results", trialPlacings);
+        request("POST", speed(tieId) + "/tiebreaks/FIRST/trials", outsiderToken,
+                trialRequest, 403);
+        request("POST", speed(tieId) + "/tiebreaks/FIRST/trials", ownerToken,
+                Map.of("actuallyHeld", false, "heldAt", "2026-10-25T10:00:00Z",
+                        "officialReference", "Ata oficial TRIAL-2026-001",
+                        "reason", "A prova adicional foi realmente disputada perante o júri",
+                        "results", trialPlacings), 422);
+        request("POST", speed(tieId) + "/tiebreaks/FIRST/trials", ownerToken,
+                Map.of("actuallyHeld", true, "heldAt", "2026-10-25T10:00:00Z",
+                        "officialReference", "Ata oficial TRIAL-2026-001",
+                        "reason", "A prova adicional foi realmente disputada perante o júri",
+                        "results", List.of(
+                                Map.of("playerId", tiedIds.get(2), "place", 1),
+                                Map.of("playerId", tiedIds.get(2), "place", 2))), 422);
+        JsonNode recorded = request("POST", speed(tieId) + "/tiebreaks/FIRST/trials",
+                ownerToken, trialRequest, 200);
+        assertEquals(1, recorded.path("trials").size());
+        assertEquals(3, recorded.path("trials").get(0).path("results").size());
+        assertEquals("Ata oficial TRIAL-2026-001",
+                recorded.path("trials").get(0).path("officialReference").asText());
+        assertEquals(tiedIds.get(2).longValue(),
+                recorded.path("trials").get(0).path("results").get(0).path("playerId").asLong());
+        assertEquals(0, recorded.path("decisions").size());
+        assertFalse(recorded.path("proposals").get(0).path("ready").asBoolean());
         // Choose one of the three tied at the cutoff, based on a recorded jury ruling.
         sixteenChosen.add(ordered.get(17).path("playerId").asLong());
         String reason = "A equipa de juízes confirmou o desempate com a prova oficial";
@@ -424,8 +462,21 @@ class CommunityInlineSpeedAuthenticatedPgIT {
                 Map.of("playerIds", sixteenChosen, "reason", reason), 403);
         request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
                 Map.of("playerIds", sixteenChosen, "reason", "Curto"), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "FAKE_METHOD",
+                        "evidenceReference", "Ata 2026-001"), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "OFFICIAL_MINUTES"), 422);
         JsonNode resolved = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
-                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason), 200);
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "OFFICIAL_MINUTES",
+                        "evidenceReference", "Ata oficial de júri 2026-001"), 200);
+        assertEquals("OFFICIAL_MINUTES", resolved.path("tieBreaks").get(0)
+                .path("evidenceType").asText());
+        assertEquals("Ata oficial de júri 2026-001", resolved.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("evidenceReference").asText());
         assertTrue(resolved.path("proposals").get(0).path("ready").asBoolean());
         assertEquals(1, resolved.path("tieBreaks").size());
         assertEquals("qa_owner_speed", resolved.path("tieBreaks").get(0).path("confirmedBy").asText());
@@ -439,14 +490,21 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         String correctedReason = "A segunda revisão oficial escolheu outra atleta empatada";
         JsonNode amended = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
                 ownerToken, Map.of("playerIds", correction,
-                        "reason", correctedReason), 200);
+                        "reason", correctedReason, "evidenceType", "VIDEO_REVIEW",
+                        "evidenceReference", "Vídeo oficial de chegada 2026-002"), 200);
+        assertEquals("VIDEO_REVIEW", amended.path("tieBreaks").get(0)
+                .path("evidenceType").asText());
+        assertEquals("OFFICIAL_MINUTES", amended.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("evidenceType").asText());
         assertEquals(2, amended.path("tieBreaks").get(0).path("revisions").size());
         assertEquals(reason, amended.path("tieBreaks").get(0).path("revisions").get(0).path("reason").asText());
         assertEquals(correctedReason, amended.path("tieBreaks").get(0).path("revisions").get(1).path("reason").asText());
         assertEquals(0, amended.path("decisions").size());
 
         JsonNode restored = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
-                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason), 200);
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "OFFICIAL_MINUTES",
+                        "evidenceReference", "Ata oficial de júri 2026-003"), 200);
         assertEquals(3, restored.path("tieBreaks").get(0).path("revisions").size());
         assertEquals("qa_owner_speed", restored.path("tieBreaks").get(0)
                 .path("revisions").get(2).path("confirmedBy").asText());
@@ -456,6 +514,8 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         assertEquals(1, ratified.path("decisions").size());
         assertEquals(1, ratified.path("tieBreaks").size());
         assertEquals(3, ratified.path("tieBreaks").get(0).path("revisions").size());
+        request("POST", speed(tieId) + "/tiebreaks/FIRST/trials",
+                ownerToken, trialRequest, 409);
 
         // Real PostgreSQL/JPA source edit: after the jury has ratified a
         // tie-break, changing even a non-cutoff time must invalidate both

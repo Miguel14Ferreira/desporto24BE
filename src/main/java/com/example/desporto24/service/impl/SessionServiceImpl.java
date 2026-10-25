@@ -156,24 +156,15 @@ public class SessionServiceImpl implements SessionService {
         SessionRecurrence recurrence = request.recurrence() == null
                 ? SessionRecurrence.NONE
                 : request.recurrence();
-        int occurrences = 1;
-        long intervalDays = 0;
-
-        if (recurrence != SessionRecurrence.NONE) {
-            if (linkedCommunity == null) {
-                throw new IllegalArgumentException(
-                        "Recurring sessions must belong to a community"
-                );
-            }
-            if (request.recurrenceOccurrences() == null) {
-                throw new IllegalArgumentException(
-                        "Recurring sessions require recurrenceOccurrences"
-                );
-            }
-
-            occurrences = request.recurrenceOccurrences();
-            intervalDays = recurrence == SessionRecurrence.WEEKLY ? 7 : 14;
+        if (recurrence != SessionRecurrence.NONE && linkedCommunity == null) {
+            throw new IllegalArgumentException(
+                    "Recurring sessions must belong to a community");
         }
+
+        // Preflight every weekly slot and call-up time *before* saving anything.
+        // The planner also rejects oversized batches, collisions and past slots.
+        var planned = com.example.desporto24.service.CommunitySessionSchedule
+                .expand(request, Instant.now());
 
         var openingMode = request.registrationOpeningMode() == null
                 ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
@@ -194,11 +185,7 @@ public class SessionServiceImpl implements SessionService {
                 : UUID.randomUUID().toString();
 
         Session firstSaved = null;
-        for (int occurrence = 0; occurrence < occurrences; occurrence++) {
-            Instant gameDate = request.gameDate().plus(
-                    intervalDays * occurrence,
-                    ChronoUnit.DAYS
-            );
+        for (var occurrence : planned) {
             Session saved = saveCreatedSession(
                     request,
                     photo,
@@ -206,12 +193,10 @@ public class SessionServiceImpl implements SessionService {
                     linkedCommunity,
                     linkedVenue,
                     sport,
-                    gameDate,
+                    occurrence.kickoff(),
                     recurrenceSeriesId,
                     openingMode,
-                    openingMode == com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED
-                            ? request.registrationOpensAt().plus(intervalDays * occurrence, ChronoUnit.DAYS)
-                            : null
+                    occurrence.registrationOpensAt()
             );
             if (firstSaved == null) {
                 firstSaved = saved;

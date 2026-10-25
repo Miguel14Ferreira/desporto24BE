@@ -20,6 +20,12 @@ public class AdminVenueEditSuggestionController {
         return suggestions.pending(page);
     }
 
+    /** Decision history is read-only and inherits ADMIN/SUPER_ADMIN restrictions. */
+    @GetMapping("/history")
+    public VenueEditSuggestionPageResponse history(@RequestParam(defaultValue = "0") int page) {
+        return suggestions.history(page);
+    }
+
     @PostMapping("/{id}/approve")
     public VenueEditSuggestionResponse approve(@PathVariable long id,
             @Valid @RequestBody VenueEditReviewRequest request, Authentication auth) {

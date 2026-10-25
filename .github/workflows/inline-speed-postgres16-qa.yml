@@ -9,6 +9,8 @@ on:
       - 'src/main/resources/db/changelog/changes/2026-10-25-inline-speed-progression-v1.yaml'
       - 'src/main/resources/db/changelog/changes/2026-10-25-inline-speed-jury-tiebreak-v1.yaml'
       - 'src/main/resources/db/changelog/changes/2026-10-25-inline-speed-jury-tiebreak-revisions-v1.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-inline-speed-jury-evidence-v1.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-inline-speed-real-tie-trials-v1.yaml'
       - '.github/workflows/inline-speed-postgres16-qa.yml'
   workflow_dispatch:
 

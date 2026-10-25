@@ -155,3 +155,22 @@ Fontes oficiais Ágora pertinentes para distinguir moradas:
 - Constituição: Rua Almirante Leote do Rêgo
 - Cartes: Alameda de Cartes; discrepância de código postal nas duas fichas
 - Armando Pimentel: Rua de Diogo Botelho (4150-262 Porto)
+
+## Auditoria de decisão: confirmação manual da fonte
+
+A revisão de uma proposta para adicionar/alterar um **contacto não vazio**
+já exige URL HTTPS e `sourceReviewed=true` no serviço, após autenticação
+de administrador. Uma URL sintaticamente válida **não** prova que o conteúdo
+da página está correto ou que permite reutilização.
+
+Quando uma proposta dessas é efetivamente aprovada, o backend guarda agora
+`source_review_confirmed_at` com o mesmo instante de `reviewed_at`,
+além do `reviewed_by_username`, `source_url` e da nota de decisão
+preexistentes. Isto documenta **a declaração do moderador**; não substitui
+verificação independente nem certifica automaticamente a entidade gestora.
+
+A nova coluna é opcional. Mantém-se `NULL` para submissões pendentes,
+rejeições, remoções de contacto, aprovação de outros campos e decisões
+históricas sem esse registo explícito. **Nunca inferir retroativamente
+uma confirmação** a partir de dados legados; também não importa ou
+publica números. Apenas o fluxo autenticado pode aprovar alterações.

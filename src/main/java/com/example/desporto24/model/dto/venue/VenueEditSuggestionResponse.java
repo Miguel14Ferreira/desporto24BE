@@ -8,5 +8,5 @@ public record VenueEditSuggestionResponse(
         Map<String, String> before, Map<String, String> proposed,
         String reason, String submittedByUsername, Instant submittedAt,
         String reviewedByUsername, Instant reviewedAt, String decisionNote,
-        String sourceUrl
+        String sourceUrl, Instant sourceReviewConfirmedAt
 ) {}

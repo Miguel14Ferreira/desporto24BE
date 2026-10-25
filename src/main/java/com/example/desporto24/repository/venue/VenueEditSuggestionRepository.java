@@ -14,6 +14,10 @@ public interface VenueEditSuggestionRepository extends JpaRepository<VenueEditSu
     Slice<VenueEditSuggestion> findByStatusOrderBySubmittedAtAsc(
             VenueEditSuggestion.Status status, Pageable pageable);
 
+    /** Completed decisions only, newest first. Pending proposals are never exposed here. */
+    Slice<VenueEditSuggestion> findByStatusInOrderByReviewedAtDescIdDesc(
+            java.util.Collection<VenueEditSuggestion.Status> statuses, Pageable pageable);
+
     boolean existsByVenue_IdAndSubmittedByUsernameIgnoreCaseAndStatus(
             Long venueId, String username, VenueEditSuggestion.Status status);
 

@@ -20,6 +20,12 @@ public class CommunityInlineSpeedProgressionController {
             @NotEmpty List<@NotNull @Positive Long> playerIds,
             @Size(max = 500) String reason) {}
 
+    public record TieBreakApproveRequest(
+            @NotEmpty List<@NotNull @Positive Long> playerIds,
+            @Size(max = 500) String reason,
+            String evidenceType,
+            @Size(max = 500) String evidenceReference) {}
+
     @GetMapping
     public CommunityInlineSpeedProgressionService.Overview overview(
             @PathVariable Long communityId, @PathVariable Long tournamentId,
@@ -49,11 +55,23 @@ public class CommunityInlineSpeedProgressionController {
     @PutMapping("/tiebreaks/{sourceStage}")
     public CommunityInlineSpeedProgressionService.Overview resolveTieBreak(
             @PathVariable Long communityId, @PathVariable Long tournamentId,
-            @PathVariable String sourceStage, @RequestBody @Valid ApproveRequest request,
+            @PathVariable String sourceStage, @RequestBody @Valid TieBreakApproveRequest request,
             Authentication auth) {
         return service.resolveTieBreak(communityId, tournamentId, sourceStage,
-                new CommunityInlineSpeedProgressionService.ConfirmRequest(
-                        request.playerIds(), request.reason()), auth.getName());
+                new CommunityInlineSpeedProgressionService.TieBreakRequest(
+                        request.playerIds(), request.reason(),
+                        request.evidenceType(), request.evidenceReference()), auth.getName());
+    }
+
+    /** Record the actual results of a trial only after it has happened. */
+    @PostMapping("/tiebreaks/{sourceStage}/trials")
+    public CommunityInlineSpeedProgressionService.Overview recordTrial(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @PathVariable String sourceStage,
+            @RequestBody @Valid CommunityInlineSpeedProgressionService.TrialCreateRequest request,
+            Authentication auth) {
+        return service.recordTieTrial(communityId, tournamentId, sourceStage,
+                request, auth.getName());
     }
 
     @PutMapping("/qualifications/{sourceStage}")
