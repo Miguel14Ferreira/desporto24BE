@@ -34,6 +34,11 @@ public class SessionMessage {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "edited_at")
+    private Instant editedAt;
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     // Immutable server-owned quote; parent must belong to this session.
     @Column(name = "reply_to_message_id")
     private Long replyToMessageId;
