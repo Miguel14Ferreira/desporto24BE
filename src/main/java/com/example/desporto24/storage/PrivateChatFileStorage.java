@@ -2,6 +2,7 @@ package com.example.desporto24.storage;
 
 import com.example.desporto24.configuration.MediaStorageProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
@@ -34,6 +36,7 @@ import java.util.UUID;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class PrivateChatFileStorage {
     public static final long MAX_BYTES = 5L * 1024L * 1024L;
     private static final String PREFIX = "private-chat/";
@@ -43,6 +46,8 @@ public class PrivateChatFileStorage {
     // remains unavailable and can be retried after a short bounded interval.
     private volatile Boolean privateBucketReady;
     private volatile long privateBucketCheckedAtNanos;
+    private volatile long diagnosticLastAtNanos;
+    private volatile String diagnosticLastCode;
     private static final long BUCKET_CHECK_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
 
     public record StoredFile(String key, String name, String mime, long size) {}
@@ -69,8 +74,14 @@ public class PrivateChatFileStorage {
                     client().headBucket(HeadBucketRequest.builder()
                             .bucket(privateBucket()).build());
                     ready = true;
+                    reportReadiness("ready", 200);
                 } catch (RuntimeException unavailable) {
                     ready = false; // Fail closed; never fall back to the public feed bucket.
+                    // Never log S3 exception messages or request details: SDK
+                    // errors can contain endpoint paths and sensitive headers.
+                    int httpStatus = unavailable instanceof S3Exception s3
+                            ? s3.statusCode() : 0;
+                    reportReadiness("head_bucket_failed", httpStatus);
                 }
                 privateBucketReady = ready;
                 privateBucketCheckedAtNanos = System.nanoTime();
@@ -85,25 +96,75 @@ public class PrivateChatFileStorage {
         return false;
     }
 
+    /**
+     * Emit only fixed diagnostic codes and HTTP status, never credentials,
+     * bucket names, endpoint URLs, usernames, exception messages or object keys.
+     * Limit to one occurrence per reason per 30 seconds.
+     */
+    private void reportReadiness(String code, int httpStatus) {
+        long now = System.nanoTime();
+        if (code.equals(diagnosticLastCode)
+                && now - diagnosticLastAtNanos < BUCKET_CHECK_NANOS) return;
+        synchronized (this) {
+            now = System.nanoTime();
+            if (code.equals(diagnosticLastCode)
+                    && now - diagnosticLastAtNanos < BUCKET_CHECK_NANOS) return;
+            diagnosticLastCode = code;
+            diagnosticLastAtNanos = now;
+            if ("ready".equals(code)) {
+                log.info("JYNLO_PRIVATE_R2 readiness=ready");
+            } else {
+                log.warn("JYNLO_PRIVATE_R2 readiness=unavailable code={} http_status={}",
+                        code, httpStatus);
+            }
+        }
+    }
+
     private boolean hasPrivateR2Settings() {
         MediaStorageProperties.S3 s3 = settings.getS3();
         String bucket = settings.getPrivateBucket();
-        if (bucket == null || bucket.isBlank() || bucket.equals(s3.getBucket())
-                || s3.getEndpoint() == null || s3.getEndpoint().isBlank()
-                || settings.getPrivateAccessKey() == null || settings.getPrivateAccessKey().isBlank()
-                || settings.getPrivateSecretKey() == null || settings.getPrivateSecretKey().isBlank()
-                // A copied feed token defeats credential isolation even when bucket names differ.
-                // Fail closed before any R2 request; private media requires its own R2 API token.
-                || (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()
-                    && s3.getAccessKey().equals(settings.getPrivateAccessKey()))
-                || (s3.getSecretKey() != null && !s3.getSecretKey().isBlank()
-                    && s3.getSecretKey().equals(settings.getPrivateSecretKey()))) return false;
+        if (bucket == null || bucket.isBlank()) {
+            reportReadiness("missing_private_bucket", 0);
+            return false;
+        }
+        if (bucket.equals(s3.getBucket())) {
+            reportReadiness("private_bucket_matches_public", 0);
+            return false;
+        }
+        if (s3.getEndpoint() == null || s3.getEndpoint().isBlank()) {
+            reportReadiness("missing_s3_endpoint", 0);
+            return false;
+        }
+        if (settings.getPrivateAccessKey() == null || settings.getPrivateAccessKey().isBlank()) {
+            reportReadiness("missing_private_access_key", 0);
+            return false;
+        }
+        if (settings.getPrivateSecretKey() == null || settings.getPrivateSecretKey().isBlank()) {
+            reportReadiness("missing_private_secret_key", 0);
+            return false;
+        }
+        if (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()
+                && s3.getAccessKey().equals(settings.getPrivateAccessKey())) {
+            reportReadiness("private_access_key_matches_public", 0);
+            return false;
+        }
+        if (s3.getSecretKey() != null && !s3.getSecretKey().isBlank()
+                && s3.getSecretKey().equals(settings.getPrivateSecretKey())) {
+            reportReadiness("private_secret_key_matches_public", 0);
+            return false;
+        }
         try {
             URI uri = URI.create(s3.getEndpoint());
-            return "https".equalsIgnoreCase(uri.getScheme())
+            boolean valid = "https".equalsIgnoreCase(uri.getScheme())
                     && uri.getHost() != null
-                    && uri.getHost().toLowerCase(Locale.ROOT).endsWith(".r2.cloudflarestorage.com");
+                    && uri.getHost().toLowerCase(Locale.ROOT).endsWith(".r2.cloudflarestorage.com")
+                    && (uri.getRawPath() == null || uri.getRawPath().isBlank()
+                        || "/".equals(uri.getRawPath()))
+                    && uri.getRawQuery() == null && uri.getRawFragment() == null;
+            if (!valid) reportReadiness("invalid_s3_endpoint", 0);
+            return valid;
         } catch (IllegalArgumentException invalidEndpoint) {
+            reportReadiness("invalid_s3_endpoint", 0);
             return false;
         }
     }
