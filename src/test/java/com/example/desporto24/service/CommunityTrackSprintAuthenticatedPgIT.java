@@ -506,6 +506,10 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals("FINISHED",cautionOverview.path("matches").get(0).path("status").asText());
         assertEquals("WARNING",cautionOverview.path("incidents").get(0)
             .path("sanctionType").asText());
+        assertEquals("DECIDED",cautionOverview.path("incidents").get(0)
+            .path("status").asText());
+        assertEquals("fixture_sprint_owner",cautionOverview.path("incidents").get(0)
+            .path("decidedBy").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
