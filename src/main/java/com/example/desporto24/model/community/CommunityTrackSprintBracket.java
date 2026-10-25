@@ -41,6 +41,14 @@ public class CommunityTrackSprintBracket {
     @Column(name = "username", nullable = false, length = 100)
     private List<String> qualifiedRiders;
 
+    // Immutable official UCI 3.2.027 source decision recorded at creation.
+    // Nullable for the entire historical catalogue and unambiguous 200m times.
+    @Column(name = "tie_decisions_json", columnDefinition = "TEXT")
+    private String tieDecisionsJson;
+
+    @Column(name = "tie_decisions_recorded_by", length = 100)
+    private String tieDecisionsRecordedBy;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 }
