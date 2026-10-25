@@ -59,6 +59,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityHistoricalPlayerLinkRepository historicalPlayerLinkRepository;
     @Mock private CommunityRoundRepository roundRepository;
     @Mock private CommunityTrackSprintBracketRepository trackSprintBracketRepository;
+    @Mock private com.example.desporto24.repository.community.CommunityTrackSprintIncidentRepository trackSprintIncidentRepository;
     @Mock private CommunityTournamentRepository tournamentRepository;
     @Mock private CommunityRacketRuleRepository racketRuleRepository;
     @Mock private CommunityRoundEntryRepository entryRepository;
