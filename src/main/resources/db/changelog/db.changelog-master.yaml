@@ -222,3 +222,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-25-track-sprint-final-interruption.yaml
   - include:
       file: db/changelog/changes/2026-10-25-session-callup-opening-v1.yaml
+  - include:
+      file: db/changelog/changes/2026-10-25-chat-edit-delete-v1.yaml
