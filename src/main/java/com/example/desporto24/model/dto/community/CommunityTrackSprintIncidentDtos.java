@@ -34,6 +34,14 @@ public final class CommunityTrackSprintIncidentDtos {
             @NotBlank @Size(min=12,max=255) String reference,
             @NotBlank @Size(min=12,max=500) String reason) {}
 
+    /** Separate, witnessed match award following an intentional fall in a single
+     * two-rider heat. This is NOT a physical race time/heat recording. */
+    public record ConfirmOfficialAward(
+            @NotBlank String winnerUsername,
+            @NotBlank String basis,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
     public record View(Long id, String seriesKey, int heatNumber,
                        String incidentType, String details, String status,
                        String reportedBy, Instant reportedAt, String decisionType,
@@ -42,7 +50,9 @@ public final class CommunityTrackSprintIncidentDtos {
                        String sanctionType, String sanctionedUsername,
                        java.util.List<String> rerunRiders, String rerunReference,
                        String rerunReason, String rerunAuthorizedBy,
-                       Instant rerunAuthorizedAt) {
+                       Instant rerunAuthorizedAt,
+                       String awardWinner, String awardReference, String awardReason,
+                       String awardConfirmedBy, Instant awardConfirmedAt) {
         public View(Long id, String seriesKey, int heatNumber,
                 String incidentType, String details, String status,
                 String reportedBy, Instant reportedAt, String decisionType,
@@ -50,7 +60,8 @@ public final class CommunityTrackSprintIncidentDtos {
                 String decidedBy, Instant decidedAt) {
             this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
                  reportedAt,decisionType,decisionReference,decisionReason,decidedBy,
-                 decidedAt,null,null,java.util.List.of(),null,null,null,null);
+                 decidedAt,null,null,java.util.List.of(),null,null,null,null,
+                 null,null,null,null,null);
         }
     }
 }

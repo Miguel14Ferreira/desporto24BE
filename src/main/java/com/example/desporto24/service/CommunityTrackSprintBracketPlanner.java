@@ -37,8 +37,14 @@ final class CommunityTrackSprintBracketPlanner {
     }
     static List<Match> project(long bracketId, List<CommunityRoundResponse> rounds,
             List<String> seeds, Map<String,List<String>> reruns) {
+        return project(bracketId,rounds,seeds,reruns,Map.of());
+    }
+    static List<Match> project(long bracketId, List<CommunityRoundResponse> rounds,
+            List<String> seeds, Map<String,List<String>> reruns, Map<String,String> awards) {
         if (seeds != null && seeds.size() == 24)
-            return CommunityTrackSprintOlympic24.project(bracketId, rounds, seeds, reruns);
+            return CommunityTrackSprintOlympic24.project(bracketId, rounds, seeds, reruns, awards);
+        if (!awards.isEmpty()) throw new IllegalArgumentException(
+                "Atribuição oficial de resultado só disponível no quadro olímpico");
         if (!reruns.isEmpty())
             throw new IllegalArgumentException("Reinício reduzido só disponível em quadro olímpico");
         boolean sixteen = seeds != null && seeds.size() == 16;

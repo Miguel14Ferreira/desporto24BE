@@ -636,6 +636,70 @@ class CommunityTrackSprintAuthenticatedPgIT {
             "sprintSeriesKey","SP"+interruptedId+"-A1","sprintHeatNumber",1,
             "entries",List.of(rider(riders.get(0),"WIN"),
                 rider(riders.get(23),"LOSS"))),409);
+        // UCI 3.2.048 intentional fall, only one-heat two-rider A1.
+        // The official decision is a separate record, NOT a fake raced round.
+        JsonNode twoUp=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional referee-awarded heat","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long awardBracket=twoUp.path("id").asLong();
+        String awardSeries="SP"+awardBracket+"-A1";
+        String incidents=brackets(activeSeason)+"/"+awardBracket+"/incidents";
+        JsonNode fall=api("POST",incidents,ownerJwt,Map.of(
+            "seriesKey",awardSeries,"heatNumber",1,
+            "incidentType","FALL",
+            "details","Fictional intentional fall alleged on first single heat"),200);
+        long fallId=fall.path("id").asLong();
+        String awardRulingUrl=incidents+"/"+fallId+"/decision";
+        api("PUT",awardRulingUrl,ownerJwt,Map.of(
+            "decisionType","DISCIPLINARY_RULING",
+            "sanctionType","DISQUALIFICATION",
+            "sanctionedUsername",riders.get(23),
+            "reference","Fictional signed DQ decision #2026/83",
+            "reason","Commissaires declare documented intentional fall in the first sprint heat"),200);
+        String awardUrl=incidents+"/"+fallId+"/official-award";
+        var officialAward=Map.of(
+            "winnerUsername",riders.get(0),
+            "basis","INTENTIONAL_FALL",
+            "reference","Separate fictional official result sheet #2026/84",
+            "reason","Other rider declared winner by commissaires after intentional fall");
+        api("PUT",awardUrl,memberJwt,officialAward,403);
+        api("PUT",awardUrl,outsiderJwt,officialAward,403);
+        api("PUT",awardUrl,ownerJwt,Map.of(
+            "winnerUsername",riders.get(23),"basis","INTENTIONAL_FALL",
+            "reference","Invalid fictitious award for sanctioned rider",
+            "reason","A deliberate attempt to award victory to disqualified cyclist"),400);
+        api("PUT",awardUrl,ownerJwt,Map.of(
+            "winnerUsername",riders.get(0),"basis","UNRECORDED_INFRINGEMENT",
+            "reference","Invalid fictitious legal basis",
+            "reason","Unsupported reason must never advance the bracket"),400);
+        JsonNode confirmed=api("PUT",awardUrl,ownerJwt,officialAward,200);
+        assertEquals("OFFICIAL_HEAT_AWARDED",confirmed.path("status").asText());
+        assertEquals(riders.get(0),confirmed.path("awardWinner").asText());
+        assertEquals("fixture_sprint_owner",confirmed.path("awardConfirmedBy").asText());
+        api("PUT",awardUrl,ownerJwt,officialAward,409);
+        JsonNode after=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode chosen=null;
+        for(JsonNode b:after)if(b.path("id").asLong()==awardBracket)chosen=b;
+        assertNotNull(chosen);
+        JsonNode a1=null;
+        for(JsonNode m:chosen.path("matches"))
+            if("A1".equals(m.path("slot").asText()))a1=m;
+        assertNotNull(a1);
+        assertEquals("FINISHED",a1.path("status").asText());
+        assertEquals(riders.get(0),a1.path("winner").asText());
+        assertEquals(1,chosen.path("incidents").size());
+        assertEquals("OFFICIAL_HEAT_AWARDED",
+            chosen.path("incidents").get(0).path("status").asText());
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+            group,activeSeason,awardSeries).isEmpty(),
+            "An awarded result must never manufacture a physical round");
+        // The result is definitive; no organizer may record an extra A1 heat.
+        api("POST",community()+"/rounds",ownerJwt,Map.of(
+            "name","Invalid synthetic second match",
+            "playedAt",Instant.now().toString(),"sport",sport,
+            "eventType","TRACK_SPRINT_HEAT","eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+            "sprintSeriesKey",awardSeries,"sprintHeatNumber",1,
+            "entries",List.of(rider(riders.get(0),"WIN"),rider(riders.get(23),"LOSS"))),400);
         // Guardrail for unresolved original TWO-rider sanctions: the U/W
         // three-up restart endpoint MUST NOT be usable to invent a winner,
         // remove a rider or bypass the held official decision.

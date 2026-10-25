@@ -75,6 +75,22 @@ public class CommunityTrackSprintIncident {
     @Column(name="rerun_authorized_at")
     private Instant rerunAuthorizedAt;
 
+    // A separate official award of a single two-up heat, never a raced result.
+    @Column(name="award_winner", length=100)
+    private String awardWinner;
+
+    @Column(name="award_reference", length=255)
+    private String awardReference;
+
+    @Column(name="award_reason", length=500)
+    private String awardReason;
+
+    @Column(name="award_confirmed_by", length=100)
+    private String awardConfirmedBy;
+
+    @Column(name="award_confirmed_at")
+    private Instant awardConfirmedAt;
+
     @Column(name="decided_by",length=100)
     private String decidedBy;
 
