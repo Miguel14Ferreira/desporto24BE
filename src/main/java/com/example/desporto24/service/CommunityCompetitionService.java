@@ -632,6 +632,17 @@ public class CommunityCompetitionService {
         return settings(communityRepository.save(community));
     }
 
+    /**
+     * World Skate sprint heats can be recorded for an individual competition without
+     * enabling the unrelated community W/D/L table. Only the catalogue's 2026
+     * track 500m +D and road One Lap bracket stages qualify; legacy Final B and
+     * standalone 200m time trial do not acquire this exception.
+     */
+    static boolean isStandingsIndependentSpeedHeat(String sport, String eventType) {
+        return "Patinagem de Velocidade".equals(sport)
+                && CommunityInlineSpeed2026.stage(eventType) != null;
+    }
+
     public CommunityRoundResponse createRound(
             Long communityId,
             String username,
@@ -640,12 +651,14 @@ public class CommunityCompetitionService {
         requireAdmin(communityId, actor);
         Community community = community(communityId);
 
-        if (!community.isRankingsEnabled()) {
-            throw new IllegalStateException("Ativa primeiro o módulo de classificação desta comunidade");
-        }
-
         String resolvedSport = CommunityRoundSport.resolve(community, request.sport());
         String resolvedEventType = CommunityRoundEventType.validate(resolvedSport, request.eventType());
+        // Competition heat results are independent of the optional W/D/L standings.
+        // Keep all other rounds disabled when the community rankings module is off.
+        if (!community.isRankingsEnabled()
+                && !isStandingsIndependentSpeedHeat(resolvedSport, resolvedEventType)) {
+            throw new IllegalStateException("Ativa primeiro o módulo de classificação desta comunidade");
+        }
         String resolvedDiscipline = CommunityFieldDisciplines.validate(
                 resolvedSport, resolvedEventType, request.eventDiscipline());
         CommunityRaceMetrics.validate(resolvedSport, resolvedEventType, request.entries());
@@ -679,6 +692,10 @@ public class CommunityCompetitionService {
         CommunitySeason activeSeason = seasonRepository
                 .findByCommunityIdAndActiveTrue(communityId)
                 .orElse(null);
+        if (!community.isRankingsEnabled() && activeSeason == null) {
+            throw new IllegalStateException(
+                    "Cria uma época ativa antes de registares mangas de Patinagem de Velocidade");
+        }
 
         // Grouping is opt-in. Explicit keys are isolated by community and season.
         // Lock the season to serialize concurrent writes to the same series.
