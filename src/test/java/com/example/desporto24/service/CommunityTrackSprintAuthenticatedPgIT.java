@@ -649,8 +649,8 @@ class CommunityTrackSprintAuthenticatedPgIT {
             "incidentType","FALL",
             "details","Fictional intentional fall alleged on first single heat"),200);
         long fallId=fall.path("id").asLong();
-        String ruling=incidents+"/"+fallId+"/decision";
-        api("PUT",ruling,ownerJwt,Map.of(
+        String awardRulingUrl=incidents+"/"+fallId+"/decision";
+        api("PUT",awardRulingUrl,ownerJwt,Map.of(
             "decisionType","DISCIPLINARY_RULING",
             "sanctionType","DISQUALIFICATION",
             "sanctionedUsername",riders.get(23),
