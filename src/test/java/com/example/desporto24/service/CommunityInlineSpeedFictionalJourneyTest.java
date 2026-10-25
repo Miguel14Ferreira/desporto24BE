@@ -99,11 +99,11 @@ class CommunityInlineSpeedFictionalJourneyTest {
                 .thenAnswer(call -> Optional.ofNullable(approved.get(call.getArgument(1))));
         when(decisions.findByTournamentIdOrderByIdAsc(9L))
                 .thenAnswer(call -> new ArrayList<>(approved.values()));
-        when(tieBreaks.findByTournamentIdAndSourceStage(eq(9L), anyString()))
+        lenient().when(tieBreaks.findByTournamentIdAndSourceStage(eq(9L), anyString()))
                 .thenAnswer(call -> Optional.ofNullable(rulings.get(call.getArgument(1))));
         when(tieBreaks.findByTournamentIdOrderByIdAsc(9L))
                 .thenAnswer(call -> new ArrayList<>(rulings.values()));
-        when(tieBreaks.save(any(CommunityInlineSpeedTieBreak.class)))
+        lenient().when(tieBreaks.save(any(CommunityInlineSpeedTieBreak.class)))
                 .thenAnswer(call -> {
                     CommunityInlineSpeedTieBreak item = call.getArgument(0);
                     rulings.put(item.getSourceStage(), item);
