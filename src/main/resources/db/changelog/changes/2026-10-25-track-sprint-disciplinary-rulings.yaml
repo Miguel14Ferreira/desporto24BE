@@ -14,10 +14,12 @@ databaseChangeLog:
                   type: VARCHAR(100)
         # Previously only PENDING blocked concurrent reports. A formal DQ
         # or relegation must stay blocked too, without modifying old rows.
+        - dropIndex:
+            tableName: community_track_sprint_incident
+            indexName: uq_track_sprint_one_pending_incident
         - sql:
             dbms: postgresql
             sql: >
-              DROP INDEX IF EXISTS uq_track_sprint_one_pending_incident;
               CREATE UNIQUE INDEX uq_track_sprint_one_pending_incident
               ON community_track_sprint_incident (bracket_id, series_key)
               WHERE status IN ('PENDING', 'ADJUDICATION_REQUIRED');
