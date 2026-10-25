@@ -1,0 +1,98 @@
+name: Sprint Olympic real Angular Chromium + JWT + PostgreSQL 16
+# All identities and race outcomes are fictional. localhost-only, NEVER Render.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/test/java/com/example/desporto24/service/CommunityTrackSprintAuthenticatedPgIT.java'
+      - 'scripts/qa/track-sprint-browser-real.cjs'
+      - '.github/workflows/track-sprint-real-browser-pg16.yml'
+      - 'src/main/java/com/example/desporto24/service/CommunityCompetitionService.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: olympic-sprint-real-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-browser:
+    name: Real Angular Chromium / JWT / PG16 Sprint (PT + EN)
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sprint_http_qa
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d sprint_http_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      JYNLO_SPRINT_BROWSER_QA: 'true'
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/sprint_http_qa
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: local_only
+      UI_APP_URL: http://127.0.0.1:4200
+      VERIFY_EMAIL_HOST: http://127.0.0.1:8080
+      AES_ENCRYPTION_KEY: ciKey1
+      JWT_SECRET: isolated_authentication_key_only_for_test_2026_sprint
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: sprint_http_qa
+      POSTGRES_USERNAME: qa
+      POSTGRES_PASSWORD: local_only
+      POSTGRES_SCHEMA: desporto24
+      JYNLO_PLAYWRIGHT_QA_ROOT: /tmp/jynlo-sprint-browser
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout audited public Angular frontend at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: Miguel14Ferreira/desporto24FE
+          ref: bb6238d53d20ab5d54230146c91679970803b1b2
+          path: frontend
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exactly locked frontend and isolated Chromium dependency
+        run: |
+          npm --prefix frontend ci --no-audit --no-fund
+          mkdir -p "$JYNLO_PLAYWRIGHT_QA_ROOT"
+          printf '%s\n' '{"private":true,"dependencies":{"playwright":"1.56.1"}}' > "$JYNLO_PLAYWRIGHT_QA_ROOT/package.json"
+          npm install --prefix "$JYNLO_PLAYWRIGHT_QA_ROOT" --no-audit --no-fund
+      - name: Start real Angular development frontend on loopback
+        run: |
+          (cd frontend && npm run start -- --host 127.0.0.1 --port 4200 --configuration development > "$RUNNER_TEMP/jynlo-angular-sprint.log" 2>&1) &
+          for i in $(seq 1 120); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:4200; then exit 0; fi
+            sleep 2
+          done
+          tail -100 "$RUNNER_TEMP/jynlo-angular-sprint.log"
+          exit 1
+      - name: Create disposable JPA schema in PostgreSQL 16
+        env:
+          PGPASSWORD: local_only
+        run: psql -h 127.0.0.1 -U qa -d sprint_http_qa -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA desporto24 AUTHORIZATION qa'
+      - name: Test full fictitious Olympic progression and real PT/EN Chromium rendering
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTrackSprintAuthenticatedPgIT test
+      - name: Print bounded Angular diagnostics on failure
+        if: failure()
+        run: tail -100 "$RUNNER_TEMP/jynlo-angular-sprint.log" || true
