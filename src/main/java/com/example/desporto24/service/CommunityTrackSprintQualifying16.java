@@ -16,11 +16,11 @@ final class CommunityTrackSprintQualifying16 {
         return seeds(qualifying, 16);
     }
 
-    /** Both UCI 16- and 28-rider formats use the same qualifying 200m
+    /** UCI 16-, 24- and 28-rider formats use the same qualifying 200m
      * evidence; no times or tie-breaking outcomes are inferred.
      */
     static List<String> seeds(CommunityRoundResponse qualifying, int starters) {
-        if (starters != 16 && starters != 28)
+        if (starters != 16 && starters != 24 && starters != 28)
             throw new IllegalArgumentException("Formato de Sprint não suportado");
         if (qualifying == null || !"Ciclismo de Pista".equals(qualifying.sport())
                 || !"TRACK_FLYING_200".equals(qualifying.eventType())
