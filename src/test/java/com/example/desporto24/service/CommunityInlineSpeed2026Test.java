@@ -38,7 +38,7 @@ class CommunityInlineSpeed2026Test {
     }
     @Test void equalSixteenthAndSeventeenthNeedSeventeenAtQuarterFinal() {
         var skaters = new ArrayList<CommunityInlineSpeed2026.Skater>();
-        for (int i = 1; i <= 18; i++) skaters.add(timed(i, i == 17 ? 26 : i + 9));
+        for (int i = 1; i <= 18; i++) skaters.add(timed(i, i == 17 ? 25 : i + 9));
         // Rank 16 and rank 17 both 26.
         var result = CommunityInlineSpeed2026.propose(
                 List.of(first(3, "INLINE_TRACK_500D_FIRST_ROUND", skaters)), "FIRST", "TRACK_500D");
