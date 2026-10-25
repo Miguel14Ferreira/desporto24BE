@@ -13,13 +13,24 @@ public final class CommunityTrackSprintBracketDtos {
         public Create(String name) { this(name, null, null); }
     }
 
+    /** Ranks are supplied only by a separately recorded four-rider classification. */
+    public record RankedRider(int position, String username) {}
+
     public record Match(String phase, String slot, String seriesKey,
                         String riderA, String riderB, int winsA, int winsB,
-                        String winner, String status, String riderC) {
+                        String winner, String status, String riderC,
+                        String riderD, List<RankedRider> rankings) {
         public Match(String phase, String slot, String seriesKey,
                      String riderA, String riderB, int winsA, int winsB,
                      String winner, String status) {
-            this(phase, slot, seriesKey, riderA, riderB, winsA, winsB, winner, status, null);
+            this(phase, slot, seriesKey, riderA, riderB, winsA, winsB,
+                 winner, status, null, null, List.of());
+        }
+        public Match(String phase, String slot, String seriesKey,
+                     String riderA, String riderB, int winsA, int winsB,
+                     String winner, String status, String riderC) {
+            this(phase, slot, seriesKey, riderA, riderB, winsA, winsB,
+                 winner, status, riderC, null, List.of());
         }
     }
 
