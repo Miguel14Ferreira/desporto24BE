@@ -471,6 +471,19 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
                 Map.of("playerIds", sixteenChosen, "reason", reason,
                         "evidenceType", "OFFICIAL_MINUTES"), 422);
+        // Reject direct API calls that bypass the frontend's required link.
+        // Legacy decisions with no structured evidence remain unaffected.
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "TIEBREAK_TRIAL",
+                        "evidenceReference", "Ata oficial da prova adicional"), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "TIEBREAK_TRIAL",
+                        "evidenceReference", "Ata oficial da prova adicional",
+                        "trialIds", List.of()), 422);
+        assertEquals(0, overview(tieId).path("tieBreaks").size(),
+                "Invalid trial evidence must not create any jury ruling");
         request("PUT", speed(tieId) + "/tiebreaks/FIRST",
                 ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
                         "evidenceType", "TIEBREAK_TRIAL",

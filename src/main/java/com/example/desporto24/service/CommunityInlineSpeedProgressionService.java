@@ -347,6 +347,12 @@ public class CommunityInlineSpeedProgressionService {
                 || requestedTrialIds.stream().distinct().count() != requestedTrialIds.size())
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Seleciona até 10 provas reais distintas e válidas");
+        // The API must enforce the same audit trail as the UI. Existing legacy
+        // rulings without links remain readable, but new trial-based rulings
+        // cannot claim a real trial unless they cite its actual record.
+        if ("TIEBREAK_TRIAL".equals(evidenceType) && requestedTrialIds.isEmpty())
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Para fundamentar uma decisão numa prova adicional, associa pelo menos uma prova registada");
         Map<Long, CommunityInlineSpeedTieTrial> byId = tieTrials
                 .findByTournamentIdOrderByIdAsc(tournamentId).stream()
                 .collect(Collectors.toMap(CommunityInlineSpeedTieTrial::getId, t -> t));
