@@ -34,6 +34,7 @@ public class CommunityInlineSpeedProgressionService {
     private final CommunityRoundEntryRepository entries;
     private final CommunityInlineSpeedHeatRepository links;
     private final CommunityInlineSpeedDecisionRepository decisions;
+    private final CommunityInlineSpeedTieBreakRepository tieBreaks;
 
     public record SkaterView(long playerId, String name, Integer position,
                              BigDecimal seconds, boolean disqualified) {}
@@ -46,8 +47,12 @@ public class CommunityInlineSpeedProgressionService {
                                boolean stale) {}
     public record Overview(Long tournamentId, String discipline, List<HeatView> linkedHeats,
                            List<HeatView> availableHeats, List<ProposalView> proposals,
-                           List<DecisionView> decisions) {}
+                           List<DecisionView> decisions,
+                           List<TieBreakView> tieBreaks) {}
     public record ConfirmRequest(List<Long> playerIds, String reason) {}
+    public record TieBreakView(String sourceStage, List<Long> selectedPlayerIds,
+                               String reason, String confirmedBy, Instant confirmedAt,
+                               boolean stale) {}
 
     @Transactional(readOnly = true)
     public Overview overview(Long communityId, Long tournamentId, String username) {
@@ -166,7 +171,7 @@ public class CommunityInlineSpeedProgressionService {
         String discipline = discipline(existing);
         List<CommunityInlineSpeed2026.Heat> sourceHeats = raw(existing, sourceStage);
         CommunityInlineSpeed2026.Proposal proposal =
-                CommunityInlineSpeed2026.propose(sourceHeats, sourceStage, discipline);
+                resolvedProposal(tournamentId, sourceHeats, sourceStage, discipline);
         if (!proposal.ready())
             throw problem(HttpStatus.CONFLICT, proposal.warning());
         List<Long> selected = request.playerIds();
@@ -243,7 +248,8 @@ public class CommunityInlineSpeedProgressionService {
         for (String phase : List.of("FIRST", "QUARTER", "SEMI")) {
             List<CommunityInlineSpeed2026.Heat> source = raw(linked, phase);
             if (source.isEmpty() || discipline == null) continue;
-            CommunityInlineSpeed2026.Proposal p = CommunityInlineSpeed2026.propose(source, phase, discipline);
+            CommunityInlineSpeed2026.Proposal p =
+                    resolvedProposal(tournament.getId(), source, phase, discipline);
             proposals.add(new ProposalView(phase, p.targetStage(), p.candidatePlayerIds(),
                     p.expectedCount(), p.ready(), p.warning()));
         }
@@ -268,8 +274,15 @@ public class CommunityInlineSpeedProgressionService {
                 available.add(view(round, 0));
             }
         }
+        List<TieBreakView> resolutions = tieBreaks
+                .findByTournamentIdOrderByIdAsc(tournament.getId()).stream()
+                .map(d -> new TieBreakView(d.getSourceStage(),
+                        readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
+                        d.getConfirmedBy(), d.getConfirmedAt(),
+                        !d.getSourceFingerprint().equals(CommunityInlineSpeed2026.fingerprint(
+                                raw(linked, d.getSourceStage()))))).toList();
         return new Overview(tournament.getId(), discipline, visible, available,
-                List.copyOf(proposals), approved);
+                List.copyOf(proposals), approved, resolutions);
     }
 
     private boolean hasValidDecision(Long tournamentId, String source, String target,
