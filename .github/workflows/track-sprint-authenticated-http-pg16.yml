@@ -1,0 +1,65 @@
+name: Olympic Track Sprint authenticated HTTP - isolated PostgreSQL 16
+# Actual backend and JWT filter, all entities mapped to a disposable PG16 instance.
+# Neither Render nor existing user accounts or infrastructure are accessed.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/test/java/com/example/desporto24/service/CommunityTrackSprintAuthenticatedPgIT.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTrackSprintOlympic24.java'
+      - '.github/workflows/track-sprint-authenticated-http-pg16.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sprint-http-pg16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  authenticated-journey:
+    name: Actual JWT and HTTP Olympic Sprint with 24 fictional riders
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sprint_http_qa
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d sprint_http_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: true
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/sprint_http_qa
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: local_only
+      UI_APP_URL: http://127.0.0.1:4200
+      VERIFY_EMAIL_HOST: http://127.0.0.1:8080
+      AES_ENCRYPTION_KEY: ciKey1
+      JWT_SECRET: isolated_authentication_key_only_for_test_2026_sprint
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: sprint_http_qa
+      POSTGRES_USERNAME: qa
+      POSTGRES_PASSWORD: local_only
+      POSTGRES_SCHEMA: desporto24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Create isolated PostgreSQL schema used by the real application entities
+        env:
+          PGPASSWORD: local_only
+        run: psql -h 127.0.0.1 -U qa -d sprint_http_qa -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA desporto24 AUTHORIZATION qa'
+      - name: Authenticate and record fictional Olympic stages in disposable PostgreSQL
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTrackSprintAuthenticatedPgIT test
