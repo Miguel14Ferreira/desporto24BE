@@ -745,9 +745,16 @@ public class CommunityCompetitionService {
         List<String> seeds = bracket.getQualifiedRiders() == null
                 ? List.of() : bracket.getQualifiedRiders();
         if (seeds.size()==24) {
-            CommunityTrackSprintOlympic24.validateNewHeat(
-                    bracketId, seriesKey, phase, eventType, rounds, entrants, seeds,
-                    sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId));
+            try {
+                CommunityTrackSprintOlympic24.validateNewHeat(
+                        bracketId, seriesKey, phase, eventType, rounds, entrants, seeds,
+                        sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId));
+            } catch (IllegalArgumentException invalidHeat) {
+                // A finished or suspended bracket is a user validation error,
+                // not an unhandled 500. Race entries remain unchanged.
+                throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, invalidHeat.getMessage(), invalidHeat);
+            }
         } else {
             if (!"TRACK_SPRINT_HEAT".equals(eventType))
                 throw new IllegalArgumentException("Repescagem não pertence a este formato");
