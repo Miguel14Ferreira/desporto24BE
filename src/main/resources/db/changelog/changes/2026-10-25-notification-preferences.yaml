@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-notification-preferences-v1
+      author: desporto24
+      comment: "Optional per-account, per-channel preferences for non-essential notifications"
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: notification_preferences
+            columns:
+              - column:
+                  name: username
+                  type: varchar(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: in_app_enabled
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: email_enabled
+                  type: boolean
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: disabled_in_app_types
+                  type: text
+                  defaultValue: ""
+                  constraints:
+                    nullable: false
+              - column:
+                  name: disabled_email_types
+                  type: text
+                  defaultValue: ""
+                  constraints:
+                    nullable: false
