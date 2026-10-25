@@ -273,7 +273,7 @@ public class SessionChatService {
         SessionMessage message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Chat attachment not found"));
-        if (!sessionId.equals(message.getSession().getId()) || message.getAttachmentKey() == null) {
+        if (!sessionId.equals(message.getSession().getId()) || message.getAttachmentKey() == null || message.getDeletedAt() != null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
         }
         if (privateChatStorage == null) {
