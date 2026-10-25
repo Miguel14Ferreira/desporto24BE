@@ -28,6 +28,21 @@ import static org.springframework.http.HttpStatus.OK;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
+
+    @GetMapping("/me/preferences")
+    public com.example.desporto24.model.dto.NotificationPreferencesRequest myPreferences(
+            Authentication authentication) {
+        return preferenceService.get(authentication.getName());
+    }
+
+    @PutMapping("/me/preferences")
+    public com.example.desporto24.model.dto.NotificationPreferencesRequest updatePreferences(
+            Authentication authentication,
+            @RequestBody com.example.desporto24.model.dto.NotificationPreferencesRequest request) {
+        return preferenceService.update(authentication.getName(), request);
+    }
 
     @GetMapping("/me")
     public ResponseEntity<List<Notifications>> getMyNotifications(Authentication authentication) {
