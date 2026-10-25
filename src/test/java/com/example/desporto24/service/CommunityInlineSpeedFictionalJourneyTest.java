@@ -10,6 +10,7 @@ import com.example.desporto24.repository.community.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -136,7 +137,7 @@ class CommunityInlineSpeedFictionalJourneyTest {
     private static List<Long> all(long from, long to) {
         return LongStream.rangeClosed(from, to).boxed().toList();
     }
-    private static void hasStatus(HttpStatus expected, Runnable action) {
+    private static void hasStatus(HttpStatus expected, Executable action) {
         assertEquals(expected, assertThrows(ResponseStatusException.class, action)
                 .getStatusCode());
     }
