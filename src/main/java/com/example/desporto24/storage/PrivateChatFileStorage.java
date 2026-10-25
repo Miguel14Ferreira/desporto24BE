@@ -69,8 +69,8 @@ public class PrivateChatFileStorage {
                 }
                 boolean ready;
                 try {
-                    // R2 implements S3 HeadBucket. A configured name alone does
-                    // not prove that the bucket exists or credentials can access it.
+                    // Check private R2 access with a single-object list request.
+                    // The scoped Object Read & Write key needs no bucket-admin rights.
                     client().listObjectsV2(ListObjectsV2Request.builder()
                             .bucket(privateBucket()).prefix(PREFIX).maxKeys(1).build());
                     ready = true;
@@ -81,7 +81,9 @@ public class PrivateChatFileStorage {
                     // errors can contain endpoint paths and sensitive headers.
                     int httpStatus = unavailable instanceof S3Exception s3
                             ? s3.statusCode() : 0;
-                    reportReadiness("head_bucket_failed", httpStatus);
+                    String errorCode = unavailable instanceof S3Exception s3
+                            ? safeR2ErrorCode(s3) : "sdk_request_failed";
+                    reportReadiness("object_list_failed_" + errorCode, httpStatus);
                 }
                 privateBucketReady = ready;
                 privateBucketCheckedAtNanos = System.nanoTime();
@@ -94,6 +96,36 @@ public class PrivateChatFileStorage {
             return !privateRoot.startsWith(publicRoot) && !publicRoot.startsWith(privateRoot);
         }
         return false;
+    }
+
+    /**
+     * Accept only predetermined S3 protocol error identifiers. Never forward
+     * server-supplied error messages, endpoint URLs, headers or token values
+     * to application logs, even when an upstream error is malformed.
+     */
+    static String safeR2ErrorCode(software.amazon.awssdk.awscore.exception.AwsServiceException error) {
+        String code = error.awsErrorDetails() == null
+                ? null : error.awsErrorDetails().errorCode();
+        if (code == null) return "missing_error_code";
+        return switch (code) {
+            case "InvalidArgument" -> "invalid_argument";
+            case "InvalidRequest" -> "invalid_request";
+            case "AuthorizationHeaderMalformed" -> "authorization_header_malformed";
+            case "InvalidAccessKeyId" -> "invalid_access_key_id";
+            case "SignatureDoesNotMatch" -> "signature_does_not_match";
+            case "AccessDenied" -> "access_denied";
+            case "Unauthorized" -> "unauthorized";
+            case "NoSuchBucket" -> "no_such_bucket";
+            case "InvalidBucketName" -> "invalid_bucket_name";
+            case "MalformedXML" -> "malformed_xml";
+            case "BadRequest" -> "bad_request";
+            case "InvalidToken" -> "invalid_token";
+            case "ExpiredToken" -> "expired_token";
+            case "RequestTimeTooSkewed" -> "request_time_skewed";
+            case "NotImplemented" -> "not_implemented";
+            case "UnsupportedOperation" -> "unsupported_operation";
+            default -> "unrecognized_error_code";
+        };
     }
 
     /**

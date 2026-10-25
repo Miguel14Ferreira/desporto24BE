@@ -164,6 +164,24 @@ class PrivateChatFileStorageTest {
     }
 
     @Test
+    void reportsOnlyKnownR2ErrorCodesWithoutReflectingUntrustedText() {
+        var valid = S3Exception.builder().statusCode(400)
+                .awsErrorDetails(software.amazon.awssdk.awscore.exception.AwsErrorDetails.builder()
+                        .errorCode("InvalidArgument").errorMessage("internal/private/path")
+                        .build()).build();
+        assertEquals("invalid_argument", PrivateChatFileStorage.safeR2ErrorCode(valid));
+
+        var malicious = S3Exception.builder().statusCode(400)
+                .awsErrorDetails(software.amazon.awssdk.awscore.exception.AwsErrorDetails.builder()
+                        .errorCode("secret-access-key=not-for-logs").build()).build();
+        assertEquals("unrecognized_error_code",
+                PrivateChatFileStorage.safeR2ErrorCode(malicious));
+
+        var empty = S3Exception.builder().statusCode(400).build();
+        assertEquals("missing_error_code", PrivateChatFileStorage.safeR2ErrorCode(empty));
+    }
+
+    @Test
     void refusesBucketSuffixedEndpointBeforeContactingR2() {
         MediaStorageProperties settings = r2Settings();
         // The Cloudflare bucket Settings page displays a URL WITH /bucket.
