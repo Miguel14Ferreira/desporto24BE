@@ -29,7 +29,11 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import com.example.desporto24.storage.PrivateChatFileStorage;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -59,6 +63,12 @@ public class CommunityManagementService {
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired(required = false)
+    private PrivateChatFileStorage privateChatStorage;
 
     public CommunityResponse create(String username, CreateCommunityRequest request) {
         Profile owner = profile(username);
@@ -491,47 +501,75 @@ public class CommunityManagementService {
     }
 
     /**
-     * Only empty, single-owner communities may be permanently removed.
-     * A content check protects known historical records even when their database
-     * foreign keys use ON DELETE CASCADE. Other references are protected by FK
-     * constraints, and any failure rolls back this entire transaction.
+     * Permanently removes a community and only its dependent records, including
+     * members, requests, chat, competitions, historic imports, Stories and sessions.
+     * Shared accounts and unrelated communities are never deletion targets.
      */
     public void deleteCommunity(Long communityId, String username, String confirmationName) {
         Profile actor = profile(username);
-        CommunityMember membership = requireOwner(communityId, actor);
-        Community community = membership.getCommunity();
-
+        requireOwner(communityId, actor);
+        // This lock serializes with transfers of ownership and new FK references.
+        Community community = communityRepository.lockForDeletion(communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
         if (!community.getOwner().getId().equals(actor.getId())) {
             throw new SecurityException("Apenas o proprietário pode eliminar a comunidade");
         }
         if (confirmationName == null || !community.getName().equals(confirmationName)) {
             throw new IllegalArgumentException("Escreve exatamente o nome da comunidade para confirmar");
         }
-        if (memberRepository.findByCommunityIdOrderByJoinedAtAsc(communityId).size() != 1
-                || inviteRepository.countByCommunityId(communityId) > 0
-                || joinRequestRepository.countByCommunityId(communityId) > 0
-                || communityRepository.hasActivityPreventingDeletion(communityId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "A comunidade tem membros, convites ou atividade associada e não pode ser eliminada em segurança");
-        }
+
+        // Read storage keys before rows are removed. Storage deletion is
+        // deliberately postponed until after successful database commit.
+        String photoUrl = community.getPhotoUrl();
+        Set<String> publicMediaKeys = new LinkedHashSet<>(jdbcTemplate.queryForList("""
+                SELECT image_storage_key FROM community_timeline_entry
+                  WHERE community_id = ? AND image_storage_key IS NOT NULL
+                UNION
+                SELECT video_storage_key FROM community_timeline_entry
+                  WHERE community_id = ? AND video_storage_key IS NOT NULL
+                UNION
+                SELECT media_storage_key FROM social_story
+                  WHERE community_id = ? AND media_storage_key IS NOT NULL
+                """, String.class, communityId, communityId, communityId));
+        Set<String> privateMediaKeys = new LinkedHashSet<>(jdbcTemplate.queryForList("""
+                SELECT attachment_key FROM community_timeline_entry
+                  WHERE community_id = ? AND attachment_key IS NOT NULL
+                """, String.class, communityId));
 
         try {
-            memberRepository.delete(membership);
-            memberRepository.flush();
-            communityRepository.delete(community);
-            communityRepository.flush();
-        } catch (DataIntegrityViolationException exception) {
-            // A concurrent join or an older linked record must not be destroyed.
+            Integer removed = jdbcTemplate.queryForObject(
+                    "SELECT desporto24.delete_community_subtree(?)", Integer.class, communityId);
+            if (removed == null || removed != 1) {
+                throw new IllegalStateException("A eliminação não foi concluída");
+            }
+        } catch (DataAccessException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "A comunidade ainda tem dados associados. A eliminação foi cancelada", exception);
+                    "Uma referência inesperada impediu a eliminação. Nenhum dado foi apagado", exception);
         }
 
-        String photoUrl = community.getPhotoUrl();
-        // Deleting stored media before a successful DB commit would be irreversible.
-        if (photoUrl != null && TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override public void afterCommit() {
+                @Override
+                public void afterCommit() {
                     deleteCommunityPhoto(photoUrl, communityId);
+                    if (mediaStorage != null) {
+                        for (String key : publicMediaKeys) {
+                            try {
+                                mediaStorage.delete(key);
+                            } catch (RuntimeException failure) {
+                                log.warn("Public media cleanup failed for community {}", communityId, failure);
+                            }
+                        }
+                    }
+                    if (privateChatStorage != null) {
+                        for (String key : privateMediaKeys) {
+                            try {
+                                privateChatStorage.delete(key);
+                            } catch (RuntimeException failure) {
+                                log.warn("Private media cleanup failed for community {}", communityId, failure);
+                            }
+                        }
+                    }
                 }
             });
         }
