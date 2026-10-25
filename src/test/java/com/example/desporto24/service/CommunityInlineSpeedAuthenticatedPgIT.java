@@ -424,8 +424,21 @@ class CommunityInlineSpeedAuthenticatedPgIT {
                 Map.of("playerIds", sixteenChosen, "reason", reason), 403);
         request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
                 Map.of("playerIds", sixteenChosen, "reason", "Curto"), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "FAKE_METHOD",
+                        "evidenceReference", "Ata 2026-001"), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "OFFICIAL_MINUTES"), 422);
         JsonNode resolved = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
-                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason), 200);
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "OFFICIAL_MINUTES",
+                        "evidenceReference", "Ata oficial de júri 2026-001"), 200);
+        assertEquals("OFFICIAL_MINUTES", resolved.path("tieBreaks").get(0)
+                .path("evidenceType").asText());
+        assertEquals("Ata oficial de júri 2026-001", resolved.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("evidenceReference").asText());
         assertTrue(resolved.path("proposals").get(0).path("ready").asBoolean());
         assertEquals(1, resolved.path("tieBreaks").size());
         assertEquals("qa_owner_speed", resolved.path("tieBreaks").get(0).path("confirmedBy").asText());
@@ -439,14 +452,21 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         String correctedReason = "A segunda revisão oficial escolheu outra atleta empatada";
         JsonNode amended = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
                 ownerToken, Map.of("playerIds", correction,
-                        "reason", correctedReason), 200);
+                        "reason", correctedReason, "evidenceType", "VIDEO_REVIEW",
+                        "evidenceReference", "Vídeo oficial de chegada 2026-002"), 200);
+        assertEquals("VIDEO_REVIEW", amended.path("tieBreaks").get(0)
+                .path("evidenceType").asText());
+        assertEquals("OFFICIAL_MINUTES", amended.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("evidenceType").asText());
         assertEquals(2, amended.path("tieBreaks").get(0).path("revisions").size());
         assertEquals(reason, amended.path("tieBreaks").get(0).path("revisions").get(0).path("reason").asText());
         assertEquals(correctedReason, amended.path("tieBreaks").get(0).path("revisions").get(1).path("reason").asText());
         assertEquals(0, amended.path("decisions").size());
 
         JsonNode restored = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
-                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason), 200);
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "OFFICIAL_MINUTES",
+                        "evidenceReference", "Ata oficial de júri 2026-003"), 200);
         assertEquals(3, restored.path("tieBreaks").get(0).path("revisions").size());
         assertEquals("qa_owner_speed", restored.path("tieBreaks").get(0)
                 .path("revisions").get(2).path("confirmedBy").asText());
