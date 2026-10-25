@@ -215,6 +215,12 @@ class CommunityInlineSpeedFictionalJourneyTest {
                 "FIRST", new CommunityInlineSpeedProgressionService.ConfirmRequest(
                         List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L, 99L),
                         "Júri tenta apurar alguém sem resultado de origem"), "qa_owner"));
+        // JSON arrays and Java collections can be mutable OR immutable.
+        // A null participant is a validation error, never an unexpected NPE.
+        hasStatus(HttpStatus.BAD_REQUEST, () -> service.confirm(7L, 9L,
+                "FIRST", new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        Arrays.asList(1L, null, 3L),
+                        "Erro no formulário de confirmação do júri"), "qa_owner"));
         var overview = service.confirm(7L, 9L, "FIRST",
                 new CommunityInlineSpeedProgressionService.ConfirmRequest(
                         corrected, "Decisão fundamentada do júri: patinador 9 substitui 8"),
