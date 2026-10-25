@@ -200,6 +200,20 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         return saved.path("id").asLong();
     }
 
+    private long recordMultiwayTiedHeat(int heatNumber) throws Exception {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int index = (heatNumber - 1) * 5; index < heatNumber * 5; index++) {
+            // Three skaters at the 16th-place boundary have equal original times.
+            int timed = index >= 15 && index <= 17 ? 15 : index;
+            rows.add(entrant(index, null, 30.0 + timed / 100.0));
+        }
+        JsonNode saved = request("POST", "/api/communities/" + communityId + "/rounds",
+            ownerToken, Map.of("name", "Manga de desempate fictícia " + heatNumber,
+                "playedAt", Instant.now().toString(), "sport", SPORT,
+                "eventType", FIRST, "entries", rows), 200);
+        return saved.path("id").asLong();
+    }
+
     private JsonNode overview(long tournamentId) throws Exception {
         return request("GET", speed(tournamentId), ownerToken, null, 200);
     }
@@ -377,5 +391,49 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         assertEquals(3, finalTwenty.path("decisions").size());
         assertEquals(11, links.findByTournamentIdOrderByIdAsc(largeId).size());
         assertFalse(communities.findById(communityId).orElseThrow().isRankingsEnabled());
+
+        // Independent competition with three skaters tied at place 16.
+        var tieTournament = request("POST",
+            "/api/communities/" + communityId + "/tournaments", ownerToken,
+            Map.of("name", "Desempate fictício oficial", "sport", SPORT,
+                   "entryType", "INDIVIDUAL"), 201);
+        long tieId = tieTournament.path("id").asLong();
+        JsonNode tieState = null;
+        for (int heat = 1; heat <= 4; heat++) {
+            long roundId = recordMultiwayTiedHeat(heat);
+            tieState = request("PUT",
+                speed(tieId) + "/heats/" + roundId + "?heatNumber=" + heat,
+                ownerToken, null, 200);
+        }
+        assertNotNull(tieState);
+        assertFalse(tieState.path("proposals").get(0).path("ready").asBoolean());
+        assertTrue(tieState.path("proposals").get(0).path("warning").asText()
+                .contains("Empate múltiplo"));
+        List<JsonNode> ordered = new ArrayList<>();
+        for (var heat : tieState.path("linkedHeats"))
+            for (var skater : heat.path("skaters")) ordered.add(skater);
+        ordered.sort(Comparator.comparingDouble(s -> s.path("seconds").asDouble()));
+        List<Long> sixteenChosen = new ArrayList<>();
+        for (int i = 0; i < 15; i++)
+            sixteenChosen.add(ordered.get(i).path("playerId").asLong());
+        // Choose one of the three tied at the cutoff, based on a recorded jury ruling.
+        sixteenChosen.add(ordered.get(17).path("playerId").asLong());
+        String reason = "A equipa de juízes confirmou o desempate com a prova oficial";
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", outsiderToken,
+                Map.of("playerIds", sixteenChosen, "reason", reason), 403);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
+                Map.of("playerIds", sixteenChosen, "reason", "Curto"), 422);
+        JsonNode resolved = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason), 200);
+        assertTrue(resolved.path("proposals").get(0).path("ready").asBoolean());
+        assertEquals(1, resolved.path("tieBreaks").size());
+        assertEquals("qa_owner_speed", resolved.path("tieBreaks").get(0).path("confirmedBy").asText());
+        assertEquals(0, resolved.path("decisions").size(),
+                "Tie-break must never ratify the qualification automatically");
+        JsonNode ratified = request("PUT", speed(tieId) + "/qualifications/FIRST",
+                ownerToken, Map.of("playerIds", sixteenChosen,
+                        "reason", "O juiz confirma os 16 apurados depois do desempate oficial"), 200);
+        assertEquals(1, ratified.path("decisions").size());
+        assertEquals(1, ratified.path("tieBreaks").size());
     }
 }
