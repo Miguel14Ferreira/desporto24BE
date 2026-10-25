@@ -39,6 +39,14 @@ final class CommunityTrackSprintSeries {
 
     static void validate(String eventType, String phase, String seriesKey, Integer heatNumber,
             List<Heat> previous, List<CommunityRoundEntryRequest> upcoming) {
+        if ("TRACK_SPRINT_5_8".equals(eventType)) {
+            if (!"SPRINT_PLACES_5_8".equals(phase) || seriesKey == null
+                    || !seriesKey.matches("SP[1-9][0-9]*-F58")
+                    || !Integer.valueOf(1).equals(heatNumber) || !previous.isEmpty())
+                throw new IllegalArgumentException("Classificação 5.º–8.º exige quadro olímpico e uma prova única");
+            CommunityTrackSprintOlympic24.validatePlacings(upcoming);
+            return;
+        }
         boolean repechage = "TRACK_SPRINT_REPECHAGE".equals(eventType);
         boolean sprint = "TRACK_SPRINT_HEAT".equals(eventType) || repechage;
         if (!sprint) {

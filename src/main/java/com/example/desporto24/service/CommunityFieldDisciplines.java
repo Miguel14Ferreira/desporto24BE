@@ -29,6 +29,8 @@ final class CommunityFieldDisciplines {
     private static final List<String> TRACK_SPRINT_REPECHAGES = List.of(
             "SPRINT_REPECHAGE_1_32", "SPRINT_REPECHAGE_1_16", "SPRINT_REPECHAGE_1_8");
 
+    private static final List<String> TRACK_SPRINT_CLASSIFICATION = List.of("SPRINT_PLACES_5_8");
+
     // Only separately timed individual distances; knockout sprint and relays need
     // dedicated multi-stage and team contracts, so they are not offered here.
     private static final List<String> OPEN_WATER = List.of("OWS_5K", "OWS_10K");
@@ -50,6 +52,8 @@ final class CommunityFieldDisciplines {
                 && "TRACK_SPRINT_HEAT".equals(eventType) ? TRACK_SPRINT_PHASES
                 : "Ciclismo de Pista".equals(sport)
                 && "TRACK_SPRINT_REPECHAGE".equals(eventType) ? TRACK_SPRINT_REPECHAGES
+                : "Ciclismo de Pista".equals(sport)
+                && "TRACK_SPRINT_5_8".equals(eventType) ? TRACK_SPRINT_CLASSIFICATION
                 : "Orientação".equals(sport)
                 && "FOOT_ORIENTEERING".equals(eventType) ? FOOT_ORIENTEERING
                 : "Natação em Águas Abertas".equals(sport)

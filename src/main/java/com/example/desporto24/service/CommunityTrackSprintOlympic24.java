@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.model.dto.community.CommunityRoundEntryRequest;
 import com.example.desporto24.model.dto.community.CommunityRoundResponse;
 import com.example.desporto24.model.dto.community.CommunityTrackSprintBracketDtos.Match;
+import com.example.desporto24.model.dto.community.CommunityTrackSprintBracketDtos.RankedRider;
 import java.util.*;
 
 /**
@@ -20,7 +21,7 @@ final class CommunityTrackSprintOlympic24 {
         return slot != null && (slot.matches("A(?:[1-9]|1[0-2])")
             || slot.matches("U[1-4]") || slot.matches("C[1-8]")
             || slot.matches("V[1-4]") || slot.matches("E[1-6]")
-            || slot.matches("W[1-2]"));
+            || slot.matches("W[1-2]") || "F58".equals(slot));
     }
     static boolean isRepechage(String slot) {
         return slot.matches("[UVW][1-4]");
@@ -32,6 +33,7 @@ final class CommunityTrackSprintOlympic24 {
         if (slot.startsWith("V")) return "SPRINT_REPECHAGE_1_16";
         if (slot.startsWith("E")) return "SPRINT_EIGHTH_FINAL";
         if (slot.startsWith("W")) return "SPRINT_REPECHAGE_1_8";
+        if ("F58".equals(slot)) return "SPRINT_PLACES_5_8";
         return CommunityTrackSprintBracketPlanner.phase(slot);
     }
     private static String key(long id, String slot) {return "SP" + id + "-" + slot;}
@@ -70,12 +72,63 @@ final class CommunityTrackSprintOlympic24 {
         add(m,bracketId,rounds,"Q2",won(m,"E2"),won(m,"W1"),null);
         add(m,bracketId,rounds,"Q3",won(m,"E3"),won(m,"E6"),null);
         add(m,bracketId,rounds,"Q4",won(m,"E4"),won(m,"E5"),null);
+        addPlaces(m,bracketId,rounds);
         add(m,bracketId,rounds,"S1",won(m,"Q1"),won(m,"Q4"),null);
         add(m,bracketId,rounds,"S2",won(m,"Q2"),won(m,"Q3"),null);
         add(m,bracketId,rounds,"B",lost(m,"S1"),lost(m,"S2"),null);
         add(m,bracketId,rounds,"G",won(m,"S1"),won(m,"S2"),null);
         return List.copyOf(m.values());
     }
+    /**
+     * The four quarterfinal losers must race one explicit, four-up classification.
+     * No position is awarded using qualifying rank or losing heat time.
+     */
+    private static void addPlaces(Map<String,Match> matches, long bracketId,
+            List<CommunityRoundResponse> rounds) {
+        String slot="F58", key=key(bracketId,slot), phase=phase(slot);
+        String a=lost(matches,"Q1"), b=lost(matches,"Q2");
+        String c=lost(matches,"Q3"), d=lost(matches,"Q4");
+        List<CommunityRoundResponse> result=rounds.stream()
+                .filter(r->key.equals(r.sprintSeriesKey())).toList();
+        boolean ready=a!=null&&b!=null&&c!=null&&d!=null
+                && Set.of(a,b,c,d).size()==4;
+        if (result.isEmpty()) {
+            matches.put(slot,new Match(phase,slot,key,a,b,0,0,null,
+                    ready?"READY":"WAITING_PREVIOUS",c,d,List.of()));
+            return;
+        }
+        boolean conflict=!ready || result.size()!=1;
+        List<RankedRider> ranks=new ArrayList<>();
+        if(!conflict) {
+            CommunityRoundResponse round=result.get(0);
+            conflict=!"TRACK_SPRINT_5_8".equals(round.eventType())
+                    || !phase.equals(round.eventDiscipline())
+                    || !Integer.valueOf(1).equals(round.sprintHeatNumber())
+                    || round.entries().size()!=4;
+            if(!conflict) {
+                Set<String> actual=new HashSet<>();
+                Set<Integer> positions=new HashSet<>();
+                for(var entry:round.entries()) {
+                    String rider=normalized(entry.username());
+                    Integer position=entry.finishPosition();
+                    if(rider==null||!actual.add(rider)||position==null
+                            ||position<5||position>8||!positions.add(position)
+                            ||entry.result()!=CommunityMatchResult.DRAW) {
+                        conflict=true;
+                        break;
+                    }
+                    ranks.add(new RankedRider(position,rider));
+                }
+                if(!actual.equals(Set.of(a,b,c,d))
+                        ||!positions.equals(Set.of(5,6,7,8)))conflict=true;
+            }
+        }
+        if(conflict)ranks=List.of();
+        else ranks.sort(Comparator.comparingInt(RankedRider::position));
+        matches.put(slot,new Match(phase,slot,key,a,b,0,0,null,
+                conflict?"CONFLICT":"FINISHED",c,d,List.copyOf(ranks)));
+    }
+
     private static String won(Map<String,Match> m,String slot) {
         Match x=m.get(slot);
         return x!=null&&"FINISHED".equals(x.status())?x.winner():null;
@@ -146,14 +199,17 @@ final class CommunityTrackSprintOlympic24 {
         Match m=project(id,rounds,seeds).stream()
                 .filter(x->x.seriesKey().equals(seriesKey)).findFirst()
                 .orElseThrow(()->new IllegalArgumentException("Confronto fora do quadro olímpico"));
-        if(!m.phase().equals(phase) || (isRepechage(m.slot())
-                ? !"TRACK_SPRINT_REPECHAGE".equals(eventType)
-                : !"TRACK_SPRINT_HEAT".equals(eventType)))
+        if(!m.phase().equals(phase) || ("F58".equals(m.slot())
+                ? !"TRACK_SPRINT_5_8".equals(eventType)
+                : isRepechage(m.slot())
+                    ? !"TRACK_SPRINT_REPECHAGE".equals(eventType)
+                    : !"TRACK_SPRINT_HEAT".equals(eventType)))
             throw new IllegalArgumentException("Tipo ou fase incompatível com o quadro olímpico");
         if(!"READY".equals(m.status())&&!"IN_PROGRESS".equals(m.status()))
             throw new IllegalArgumentException("Confronto não disponível ou já terminado");
         Set<String> expected=new HashSet<>(List.of(m.riderA(),m.riderB()));
         if(m.riderC()!=null)expected.add(m.riderC());
+        if(m.riderD()!=null)expected.add(m.riderD());
         Set<String> actual=new HashSet<>();
         for(var entry:entrants) {
             String p=normalized(entry.username());
@@ -162,6 +218,28 @@ final class CommunityTrackSprintOlympic24 {
         }
         if(actual.size()!=entrants.size() || !actual.equals(expected))
             throw new IllegalArgumentException("Ciclistas não correspondem ao quadro olímpico");
+        if("F58".equals(m.slot()))validatePlacings(entrants);
+    }
+
+    static void validatePlacings(List<CommunityRoundEntryRequest> entries) {
+        if(entries==null || entries.size()!=4)
+            throw new IllegalArgumentException("Classificação olímpica exige quatro ciclistas");
+        Set<Integer> places=new HashSet<>();
+        for(var e:entries) {
+            if(e.result()!=CommunityMatchResult.DRAW || e.finishPosition()==null
+                    ||e.finishPosition()<5 || e.finishPosition()>8
+                    ||!places.add(e.finishPosition())
+                    ||e.team()!=null&&!e.team().isBlank()
+                    ||e.goals()!=null&&e.goals()!=0
+                    ||e.assists()!=null&&e.assists()!=0 || e.mvp() || e.cleanSheet()
+                    ||e.elapsedSeconds()!=null || e.bestLapSeconds()!=null
+                    ||e.lapsCompleted()!=null || e.performanceValue()!=null
+                    ||e.waveScore1()!=null || e.waveScore2()!=null)
+                throw new IllegalArgumentException(
+                    "Indica posições únicas 5, 6, 7 e 8, sem inventar um vencedor");
+        }
+        if(!places.equals(Set.of(5,6,7,8)))
+            throw new IllegalArgumentException("Faltam classificações do 5.º ao 8.º");
     }
 
     /** All immediate child rounds, to preserve historical lineage on deletion. */
@@ -185,8 +263,8 @@ final class CommunityTrackSprintOlympic24 {
         }
         if(slot.matches("W[1-2]"))return List.of(slot.equals("W1")?"Q2":"Q1");
         return switch(slot) {
-            case "Q1","Q4"->List.of("S1");
-            case "Q2","Q3"->List.of("S2");
+            case "Q1","Q4"->List.of("S1","F58");
+            case "Q2","Q3"->List.of("S2","F58");
             case "S1","S2"->List.of("B","G");
             default->List.of();
         };
