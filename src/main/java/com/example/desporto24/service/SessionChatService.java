@@ -28,6 +28,9 @@ import java.util.List;
 import java.util.Set;
 
 import com.example.desporto24.websocket.SessionChatMessageCreatedEvent;
+import com.example.desporto24.storage.PrivateChatFileStorage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -40,6 +43,9 @@ public class SessionChatService {
     private final SessionParticipantRepository participantRepository;
     private final SessionMessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Autowired(required = false)
+    private PrivateChatFileStorage privateChatStorage;
 
     @Transactional(readOnly = true)
     public List<SessionMessageResponse> messages(Long sessionId, String username) {
@@ -119,6 +125,111 @@ public class SessionChatService {
         return response;
     }
 
+    /**
+     * Session attachments are available only while the session is OPEN,
+     * and only to its organizer and active participants.
+     */
+    @Transactional(readOnly = true)
+    public boolean attachmentsAvailable(Long sessionId, String username) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        return isChatOpen(session, Instant.now())
+                && privateChatStorage != null && privateChatStorage.isConfigured();
+    }
+
+    /**
+     * Uses the same row lock as text posting and session cancellation. Recheck
+     * kickoff AFTER upload: a slow object store must not reopen a closed chat.
+     */
+    @Transactional
+    public SessionMessageResponse postAttachment(Long sessionId, MultipartFile file,
+            String caption, String username, Long replyToMessageId) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Session chat is available only before the game");
+        }
+        if (privateChatStorage == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Private chat attachment storage is unavailable");
+        }
+        String body = caption == null ? "" : caption.trim();
+        if (body.length() > 2000 || replyToMessageId != null && replyToMessageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid attachment message");
+        }
+        SessionMessage quoted = null;
+        if (replyToMessageId != null) {
+            quoted = messageRepository.findById(replyToMessageId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Invalid reply message"));
+            if (!sessionId.equals(quoted.getSession().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+        }
+        var stored = privateChatStorage.store(file);
+        try {
+            if (!isChatOpen(session, Instant.now())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Session chat closed while uploading attachment");
+            }
+            SessionMessage saved = messageRepository.save(SessionMessage.builder()
+                    .session(session).senderProfile(actor)
+                    .body(body.isEmpty() ? "📎 " + stored.name() : body)
+                    .replyToMessageId(quoted == null ? null : quoted.getId())
+                    .replyToSender(quoted == null ? null : quoted.getSenderProfile().getUsername())
+                    .replyToText(quoted == null ? null : quoted.getBody())
+                    .attachmentKey(stored.key()).attachmentName(stored.name())
+                    .attachmentMimeType(stored.mime()).attachmentSize(stored.size())
+                    .createdAt(Instant.now()).build());
+            messageRepository.flush();
+            SessionMessageResponse response = toResponse(saved);
+            eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(
+                    response, realtimeRecipients(session)));
+            return response;
+        } catch (RuntimeException failure) {
+            try { privateChatStorage.delete(stored.key()); }
+            catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
+            throw failure;
+        }
+    }
+
+    /** Never expose attachments after kickoff, even to a former participant. */
+    @Transactional(readOnly = true)
+    public ChatAttachmentContent downloadAttachment(Long sessionId, Long messageId, String username) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new AccessDeniedException("Session chat is available only before the game");
+        }
+        if (messageId == null || messageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
+        }
+        SessionMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Chat attachment not found"));
+        if (!sessionId.equals(message.getSession().getId()) || message.getAttachmentKey() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
+        }
+        if (privateChatStorage == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Private chat attachment storage is unavailable");
+        }
+        return new ChatAttachmentContent(privateChatStorage.read(message.getAttachmentKey()),
+                message.getAttachmentMimeType(), message.getAttachmentName());
+    }
+
+    public record ChatAttachmentContent(byte[] content, String mimeType, String filename) {}
+
     private Set<String> realtimeRecipients(Session session) {
         Set<String> recipients = new LinkedHashSet<>();
 
@@ -169,7 +280,10 @@ public class SessionChatService {
                 message.getCreatedAt(),
                 message.getReplyToMessageId(),
                 message.getReplyToSender(),
-                message.getReplyToText()
+                message.getReplyToText(),
+                message.getAttachmentName(),
+                message.getAttachmentMimeType(),
+                message.getAttachmentSize()
         );
     }
 }
