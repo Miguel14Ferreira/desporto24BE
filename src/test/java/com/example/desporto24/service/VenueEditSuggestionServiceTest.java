@@ -177,8 +177,8 @@ class VenueEditSuggestionServiceTest {
     @Test
     void oldPendingContactWithoutEvidenceCannotBeApproved() {
         var prior = submitted("Campo Original", "Campo Corrigido");
-        prior.setBeforeJson("{\\\"contact\\\":null}");
-        prior.setChangesJson("{\\\"contact\\\":\\\"225073300\\\"}");
+        prior.setBeforeJson("{\"contact\":null}");
+        prior.setChangesJson("{\"contact\":\"225073300\"}");
         when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
         when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         assertEquals(400, assertThrows(ResponseStatusException.class,
@@ -190,8 +190,8 @@ class VenueEditSuggestionServiceTest {
     @Test
     void reviewedContactCanBeApprovedWithoutChangingItsSource() {
         var prior = submitted("Campo Original", "Campo Corrigido");
-        prior.setBeforeJson("{\\\"contact\\\":null}");
-        prior.setChangesJson("{\\\"contact\\\":\\\"225073300\\\"}");
+        prior.setBeforeJson("{\"contact\":null}");
+        prior.setChangesJson("{\"contact\":\"225073300\"}");
         prior.setSourceUrl("https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao");
         when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
         when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
