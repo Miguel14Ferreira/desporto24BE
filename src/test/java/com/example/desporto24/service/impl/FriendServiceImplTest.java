@@ -115,6 +115,34 @@ class FriendServiceImplTest {
     }
 
     @Test
+    void optionalEmailPreferenceLookupOutageKeepsFriendRequestAndSkipsEmail() {
+        com.example.desporto24.service.NotificationPreferencesService preferences =
+                mock(com.example.desporto24.service.NotificationPreferencesService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "preferenceService", preferences);
+        when(preferences.allowsOptionalEmailCategory(
+                "recipient", com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST))
+                .thenThrow(new IllegalStateException("Preferences temporarily unavailable"));
+
+        ProfileDTO senderDto = profileDto("owner", "owner@example.test");
+        ProfileDTO recipientDto = profileDto("recipient", "recipient@example.test");
+        Profile sender = profile(1L, "owner");
+        Profile recipient = profile(2L, "recipient");
+        when(profileService.findUserByUsername("owner")).thenReturn(senderDto);
+        when(profileService.findUserByUsername("recipient")).thenReturn(recipientDto);
+        when(profileRepository.findUserByUsername("owner")).thenReturn(Optional.of(sender));
+        when(profileRepository.findUserByUsername("recipient")).thenReturn(Optional.of(recipient));
+        when(friendRepository.findByProfile1OrProfile2(sender, sender)).thenReturn(List.of());
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+                () -> service.sendFriendRequest(request("owner", "recipient")));
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(friendRequestService, notificationService);
+        order.verify(friendRequestService).saveFriendRequest(any());
+        order.verify(notificationService).save(any());
+        org.mockito.Mockito.verifyNoInteractions(emailService);
+    }
+
+    @Test
     void optionalEmailOutageDoesNotFailPersistedFriendRequestOrSkipInAppNotification() {
         ProfileDTO senderDto = profileDto("owner", "owner@example.test");
         ProfileDTO recipientDto = profileDto("recipient", "recipient@example.test");
