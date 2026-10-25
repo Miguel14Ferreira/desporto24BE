@@ -24,7 +24,8 @@ public class CommunityInlineSpeedProgressionController {
             @NotEmpty List<@NotNull @Positive Long> playerIds,
             @Size(max = 500) String reason,
             String evidenceType,
-            @Size(max = 500) String evidenceReference) {}
+            @Size(max = 500) String evidenceReference,
+            List<@NotNull @Positive Long> trialIds) {}
 
     @GetMapping
     public CommunityInlineSpeedProgressionService.Overview overview(
@@ -60,7 +61,8 @@ public class CommunityInlineSpeedProgressionController {
         return service.resolveTieBreak(communityId, tournamentId, sourceStage,
                 new CommunityInlineSpeedProgressionService.TieBreakRequest(
                         request.playerIds(), request.reason(),
-                        request.evidenceType(), request.evidenceReference()), auth.getName());
+                        request.evidenceType(), request.evidenceReference(),
+                        request.trialIds()), auth.getName());
     }
 
     /** Record the actual results of a trial only after it has happened. */

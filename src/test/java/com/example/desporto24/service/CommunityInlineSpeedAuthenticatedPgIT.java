@@ -455,6 +455,8 @@ class CommunityInlineSpeedAuthenticatedPgIT {
                 recorded.path("trials").get(0).path("results").get(0).path("playerId").asLong());
         assertEquals(0, recorded.path("decisions").size());
         assertFalse(recorded.path("proposals").get(0).path("ready").asBoolean());
+        long trialId = recorded.path("trials").get(0).path("id").asLong();
+        assertTrue(trialId > 0);
         // Choose one of the three tied at the cutoff, based on a recorded jury ruling.
         sixteenChosen.add(ordered.get(17).path("playerId").asLong());
         String reason = "A equipa de juízes confirmou o desempate com a prova oficial";
@@ -469,13 +471,28 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         request("PUT", speed(tieId) + "/tiebreaks/FIRST", ownerToken,
                 Map.of("playerIds", sixteenChosen, "reason", reason,
                         "evidenceType", "OFFICIAL_MINUTES"), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST",
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "TIEBREAK_TRIAL",
+                        "evidenceReference", "Ata oficial da prova adicional",
+                        "trialIds", List.of(trialId, trialId)), 422);
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST",
+                ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
+                        "evidenceType", "TIEBREAK_TRIAL",
+                        "evidenceReference", "Ata oficial da prova adicional",
+                        "trialIds", List.of(999999L)), 422);
         JsonNode resolved = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
                 ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
-                        "evidenceType", "OFFICIAL_MINUTES",
-                        "evidenceReference", "Ata oficial de júri 2026-001"), 200);
-        assertEquals("OFFICIAL_MINUTES", resolved.path("tieBreaks").get(0)
+                        "evidenceType", "TIEBREAK_TRIAL",
+                        "evidenceReference", "Ata oficial da prova adicional",
+                        "trialIds", List.of(trialId)), 200);
+        assertEquals(trialId, resolved.path("tieBreaks").get(0)
+                .path("trialIds").get(0).asLong());
+        assertEquals(trialId, resolved.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("trialIds").get(0).asLong());
+        assertEquals("TIEBREAK_TRIAL", resolved.path("tieBreaks").get(0)
                 .path("evidenceType").asText());
-        assertEquals("Ata oficial de júri 2026-001", resolved.path("tieBreaks").get(0)
+        assertEquals("Ata oficial da prova adicional", resolved.path("tieBreaks").get(0)
                 .path("revisions").get(0).path("evidenceReference").asText());
         assertTrue(resolved.path("proposals").get(0).path("ready").asBoolean());
         assertEquals(1, resolved.path("tieBreaks").size());
@@ -494,8 +511,12 @@ class CommunityInlineSpeedAuthenticatedPgIT {
                         "evidenceReference", "Vídeo oficial de chegada 2026-002"), 200);
         assertEquals("VIDEO_REVIEW", amended.path("tieBreaks").get(0)
                 .path("evidenceType").asText());
-        assertEquals("OFFICIAL_MINUTES", amended.path("tieBreaks").get(0)
+        assertEquals("TIEBREAK_TRIAL", amended.path("tieBreaks").get(0)
                 .path("revisions").get(0).path("evidenceType").asText());
+        assertEquals(trialId, amended.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("trialIds").get(0).asLong());
+        assertEquals(0, amended.path("tieBreaks").get(0).path("trialIds").size(),
+                "Correcting without a linked trial must never erase the prior revision's proof");
         assertEquals(2, amended.path("tieBreaks").get(0).path("revisions").size());
         assertEquals(reason, amended.path("tieBreaks").get(0).path("revisions").get(0).path("reason").asText());
         assertEquals(correctedReason, amended.path("tieBreaks").get(0).path("revisions").get(1).path("reason").asText());
@@ -504,7 +525,9 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         JsonNode restored = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
                 ownerToken, Map.of("playerIds", sixteenChosen, "reason", reason,
                         "evidenceType", "OFFICIAL_MINUTES",
-                        "evidenceReference", "Ata oficial de júri 2026-003"), 200);
+                        "evidenceReference", "Ata oficial de júri 2026-003",
+                        "trialIds", List.of(trialId)), 200);
+        assertEquals(trialId, restored.path("tieBreaks").get(0).path("trialIds").get(0).asLong());
         assertEquals(3, restored.path("tieBreaks").get(0).path("revisions").size());
         assertEquals("qa_owner_speed", restored.path("tieBreaks").get(0)
                 .path("revisions").get(2).path("confirmedBy").asText());
@@ -536,6 +559,8 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         // Alteration of a source time does not delete the old ruling: it must
         // remain visible for the organizer's audit of what was decided.
         assertEquals(reason, staleOverview.path("tieBreaks").get(0).path("reason").asText());
+        assertEquals(trialId, staleOverview.path("tieBreaks").get(0)
+                .path("revisions").get(0).path("trialIds").get(0).asLong());
         assertEquals(1, staleOverview.path("tieBreaks").size());
     }
 }
