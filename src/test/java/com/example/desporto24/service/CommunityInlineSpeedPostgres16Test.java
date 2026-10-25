@@ -56,16 +56,15 @@ class CommunityInlineSpeedPostgres16Test {
                 "id bigint primary key, name varchar(120) not null, " +
                 "event_type varchar(64), elapsed_seconds numeric(11,3))");
 
-        try (var connection = source.getConnection()) {
-            var database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(
-                    new JdbcConnection(connection));
-            try (var migration = new Liquibase(MIGRATION, new ClassLoaderResourceAccessor(), database)) {
-                migration.update(new Contexts(), new LabelExpression());
-                // A repeat deploy must not run the same DDL twice.
-                migration.update(new Contexts(), new LabelExpression());
-            }
-            for (String path : new String[]{TIEBREAK_MIGRATION, REVISIONS_MIGRATION}) {
-                try (var migration = new Liquibase(path, new ClassLoaderResourceAccessor(), database)) {
+        for (String migrationPath : new String[]{
+                MIGRATION, TIEBREAK_MIGRATION, REVISIONS_MIGRATION}) {
+            // Liquibase.close() also closes its JDBC connection. Each migration
+            // must use a fresh connection, as it would in a real deployment.
+            try (var connection = source.getConnection()) {
+                var database = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(
+                        new JdbcConnection(connection));
+                try (var migration = new Liquibase(migrationPath,
+                        new ClassLoaderResourceAccessor(), database)) {
                     migration.update(new Contexts(), new LabelExpression());
                     migration.update(new Contexts(), new LabelExpression());
                 }
