@@ -265,12 +265,14 @@ class AuthenticationControllerTest {
     @Test
     void revokeOtherDevicesRejectsUntrustedOrigin() {
         when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("miguel");
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN))
                 .when(refreshOriginValidator).requireAllowedOrigin("https://attacker.invalid");
 
         assertThrows(ResponseStatusException.class,
                 () -> controller.revokeOtherDeviceSessions(
                         authentication, "https://attacker.invalid", "Bearer token"));
+        verify(refreshOriginValidator).requireAllowedOrigin("https://attacker.invalid");
         verifyNoInteractions(refreshTokenRotationService);
     }
 
