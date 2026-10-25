@@ -142,6 +142,17 @@ public class CommunityController {
         return ResponseEntity.ok(service.updatePhoto(id, authentication.getName(), photo));
     }
 
+    public record CommunityPhotoFramingRequest(double zoom, double focusX, double focusY) {}
+
+    @PutMapping("/{id}/photo/framing")
+    public ResponseEntity<CommunityResponse> updatePhotoFraming(
+            @PathVariable Long id,
+            @RequestBody CommunityPhotoFramingRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updatePhotoFraming(
+                id, authentication.getName(), request.zoom(), request.focusX(), request.focusY()));
+    }
+
     @DeleteMapping("/{id}/photo")
     public ResponseEntity<CommunityResponse> removePhoto(
             @PathVariable Long id,
