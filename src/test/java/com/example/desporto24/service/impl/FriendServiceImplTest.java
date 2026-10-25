@@ -78,7 +78,7 @@ class FriendServiceImplTest {
 
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(org.mockito.ArgumentMatchers.eq("recipient@example.test"),
-                org.mockito.ArgumentMatchers.eq("Pedido de amizade | Friend request — Desporto24"), html.capture());
+                org.mockito.ArgumentMatchers.eq("Pedido de amizade | Friend request — Jynlo"), html.capture());
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("owner&lt;script&gt;"));
         org.junit.jupiter.api.Assertions.assertFalse(html.getValue().contains("<script>"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Ver pedido / View request"));
@@ -86,6 +86,32 @@ class FriendServiceImplTest {
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("accept or reject the request"));
         verify(friendRequestService).saveFriendRequest(any());
         verify(notificationService).save(any());
+    }
+
+    @Test
+    void disabledFriendRequestEmailsDoNotBlockTheRequestOrTheInAppPath() {
+        com.example.desporto24.service.NotificationPreferencesService preferences =
+                mock(com.example.desporto24.service.NotificationPreferencesService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "preferenceService", preferences);
+        when(preferences.allowsOptionalEmailCategory("recipient",
+                com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST))
+                .thenReturn(false);
+
+        ProfileDTO senderDto = profileDto("owner", "owner@example.test");
+        ProfileDTO recipientDto = profileDto("recipient", "recipient@example.test");
+        Profile sender = profile(1L, "owner");
+        Profile recipient = profile(2L, "recipient");
+        when(profileService.findUserByUsername("owner")).thenReturn(senderDto);
+        when(profileService.findUserByUsername("recipient")).thenReturn(recipientDto);
+        when(profileRepository.findUserByUsername("owner")).thenReturn(Optional.of(sender));
+        when(profileRepository.findUserByUsername("recipient")).thenReturn(Optional.of(recipient));
+        when(friendRepository.findByProfile1OrProfile2(sender, sender)).thenReturn(List.of());
+
+        service.sendFriendRequest(request("owner", "recipient"));
+
+        verify(friendRequestService).saveFriendRequest(any());
+        verify(notificationService).save(any());
+        org.mockito.Mockito.verifyNoInteractions(emailService);
     }
 
     @Test

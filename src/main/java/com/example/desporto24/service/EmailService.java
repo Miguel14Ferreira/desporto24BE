@@ -29,7 +29,7 @@ public class EmailService implements EmailSender {
         String from = RuntimeSecrets.require("RESEND_FROM_EMAIL");
 
         Map<String, Object> payload = Map.of(
-                "from", from,
+                "from", senderDisplayName(from),
                 "to", new String[]{to},
                 "subject", currentBrand(subject),
                 "html", currentBrand(html)
@@ -62,6 +62,14 @@ public class EmailService implements EmailSender {
      */
     static String currentBrand(String value) {
         return value == null ? "" : value.replaceAll("(?i)desporto\\s*24", "Jynlo");
+    }
+
+    /** Keep the configured sender address intact, changing only the display label. */
+    static String senderDisplayName(String configuredFrom) {
+        int addressStart = configuredFrom.indexOf('<');
+        if (addressStart < 0) return configuredFrom;
+        return currentBrand(configuredFrom.substring(0, addressStart))
+                + configuredFrom.substring(addressStart);
     }
 
     private record ResendSendResponse(String id) {

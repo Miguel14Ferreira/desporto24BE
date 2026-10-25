@@ -88,6 +88,18 @@ class NotificationPreferencesServiceTest {
     }
 
     @Test
+    void optionalFriendRequestEmailRespectsTypeAndGlobalOptOut() {
+        when(preferences.findById("ana")).thenReturn(Optional.of(saved(
+                true, true, "", "FRIEND_REQUEST")));
+        assertFalse(service.allowsOptionalEmailCategory("ana", NotificationPreferencesService.FRIEND_REQUEST));
+        assertTrue(service.allowsOptionalEmail("ana", NotificationType.COMMUNITY_INVITE));
+
+        when(preferences.findById("ana")).thenReturn(Optional.of(saved(
+                true, false, "", "")));
+        assertFalse(service.allowsOptionalEmailCategory("ana", NotificationPreferencesService.FRIEND_REQUEST));
+    }
+
+    @Test
     void externalRecipientsWithoutAnAccountHaveNoStoredPreferences() {
         when(profiles.findUserByEmail("guest@external.example")).thenReturn(Optional.empty());
         assertTrue(service.allowsOptionalEmailAddress("guest@external.example",
