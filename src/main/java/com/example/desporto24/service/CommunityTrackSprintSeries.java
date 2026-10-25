@@ -21,7 +21,9 @@ final class CommunityTrackSprintSeries {
     record Heat(String phase, int number, String riderA, String riderB, String winner) {}
 
     static Heat fromRound(CommunityRoundResponse round) {
-        if (!"TRACK_SPRINT_HEAT".equals(round.eventType()) || round.entries().size() != 2)
+        if (!("TRACK_SPRINT_HEAT".equals(round.eventType()) && round.entries().size()==2
+                || "TRACK_SPRINT_REPECHAGE".equals(round.eventType())
+                    && (round.entries().size()==2||round.entries().size()==3)))
             throw new IllegalArgumentException("Registo de manga Sprint inválido");
         var a = round.entries().get(0);
         var b = round.entries().get(1);
@@ -36,21 +38,37 @@ final class CommunityTrackSprintSeries {
 
     static void validate(String eventType, String phase, String seriesKey, Integer heatNumber,
             List<Heat> previous, List<CommunityRoundEntryRequest> upcoming) {
-        boolean sprint = "TRACK_SPRINT_HEAT".equals(eventType);
+        boolean repechage = "TRACK_SPRINT_REPECHAGE".equals(eventType);
+        boolean sprint = "TRACK_SPRINT_HEAT".equals(eventType) || repechage;
         if (!sprint) {
             if (seriesKey != null || heatNumber != null)
                 throw new IllegalArgumentException("A ligação de séries só é permitida no Sprint de Pista");
             return;
         }
+        if (repechage && (seriesKey == null || !seriesKey.matches("SP[1-9][0-9]*-[UVW][1-4]")))
+            throw new IllegalArgumentException("Repescagem exige um quadro olímpico explícito");
         if (seriesKey == null && heatNumber == null) return; // legacy independent heat
         if (seriesKey == null || !seriesKey.matches("[A-Za-z0-9][A-Za-z0-9 _.\\-]{0,39}")
                 || heatNumber == null)
             throw new IllegalArgumentException("Indica uma série (até 40 caracteres) e o número da manga");
         // UCI Part III art. 3.2.050 (2026): quarterfinals, semifinals and finals
         // all require two winning heats; a third is held only when needed.
-        int maxHeats = ("SPRINT_EIGHTH_FINAL".equals(phase) || "SPRINT_SIXTEENTH_FINAL".equals(phase)) ? 1 : 3;
+        int maxHeats = repechage || "SPRINT_THIRTY_SECOND_FINAL".equals(phase)
+                || "SPRINT_EIGHTH_FINAL".equals(phase) || "SPRINT_SIXTEENTH_FINAL".equals(phase) ? 1 : 3;
         if (heatNumber < 1 || heatNumber > maxHeats)
             throw new IllegalArgumentException("Número de manga incompatível com a fase Sprint");
+        if (repechage) {
+            int expected = "SPRINT_REPECHAGE_1_16".equals(phase) ? 2 : 3;
+            if (!Set.of("SPRINT_REPECHAGE_1_32","SPRINT_REPECHAGE_1_16",
+                    "SPRINT_REPECHAGE_1_8").contains(phase) || upcoming.size()!=expected
+                    || !previous.isEmpty() || heatNumber!=1)
+                throw new IllegalArgumentException("Repescagem olímpica exige fase, participantes e manga 1");
+            Set<String> players=new java.util.HashSet<>();
+            for(var e:upcoming)players.add(id(e.username()));
+            if(players.size()!=expected)
+                throw new IllegalArgumentException("Ciclistas repetidos na repescagem");
+            return;
+        }
         if (upcoming.size() != 2)
             throw new IllegalArgumentException("A série exige exatamente dois ciclistas");
         Set<String> pair = Set.of(id(upcoming.get(0).username()), id(upcoming.get(1).username()));
@@ -73,7 +91,9 @@ final class CommunityTrackSprintSeries {
 
     static String seriesWinner(String phase, List<Heat> heats) {
         if (heats.isEmpty()) return null;
-        int required = ("SPRINT_EIGHTH_FINAL".equals(phase) || "SPRINT_SIXTEENTH_FINAL".equals(phase)) ? 1 : 2;
+        int required = "SPRINT_THIRTY_SECOND_FINAL".equals(phase)
+                || "SPRINT_EIGHTH_FINAL".equals(phase) || "SPRINT_SIXTEENTH_FINAL".equals(phase)
+                || phase.startsWith("SPRINT_REPECHAGE_") ? 1 : 2;
         Map<String,Integer> wins = new HashMap<>();
         for (Heat heat : heats) {
             int count = wins.merge(id(heat.winner()), 1, Integer::sum);
