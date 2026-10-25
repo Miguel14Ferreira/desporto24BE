@@ -138,11 +138,17 @@ public class CommunityController {
     public ResponseEntity<CommunityResponse> updatePhoto(
             @PathVariable Long id,
             @RequestPart("photo") MultipartFile photo,
+            @RequestParam(value = "fitMode", defaultValue = "COVER") String fitMode,
+            @RequestParam(value = "zoom", defaultValue = "1") double zoom,
+            @RequestParam(value = "focusX", defaultValue = "50") double focusX,
+            @RequestParam(value = "focusY", defaultValue = "50") double focusY,
             Authentication authentication) {
-        return ResponseEntity.ok(service.updatePhoto(id, authentication.getName(), photo));
+        return ResponseEntity.ok(service.updatePhoto(
+                id, authentication.getName(), photo, fitMode, zoom, focusX, focusY));
     }
 
-    public record CommunityPhotoFramingRequest(double zoom, double focusX, double focusY, String expectedPhotoUrl) {}
+    public record CommunityPhotoFramingRequest(
+            double zoom, double focusX, double focusY, String expectedPhotoUrl, String fitMode) {}
 
     @PutMapping("/{id}/photo/framing")
     public ResponseEntity<CommunityResponse> updatePhotoFraming(
@@ -151,7 +157,7 @@ public class CommunityController {
             Authentication authentication) {
         return ResponseEntity.ok(service.updatePhotoFraming(
                 id, authentication.getName(), request.zoom(), request.focusX(),
-                request.focusY(), request.expectedPhotoUrl()));
+                request.focusY(), request.expectedPhotoUrl(), request.fitMode()));
     }
 
     @DeleteMapping("/{id}/photo")

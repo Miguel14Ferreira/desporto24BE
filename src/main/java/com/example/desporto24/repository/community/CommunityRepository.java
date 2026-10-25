@@ -15,7 +15,7 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     @Query("""
             SELECT new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
                 c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility,
-                c.photoZoom, c.photoFocusX, c.photoFocusY)
+                c.photoZoom, c.photoFocusX, c.photoFocusY, c.photoFitMode)
             FROM Community c
             WHERE (:name = '' OR LOWER(c.name) LIKE CONCAT('%', :name, '%') ESCAPE '!')
               AND (:sport = ''
@@ -34,7 +34,7 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     @Query("""
             SELECT new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
                 c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility,
-                c.photoZoom, c.photoFocusX, c.photoFocusY)
+                c.photoZoom, c.photoFocusX, c.photoFocusY, c.photoFitMode)
             FROM Community c
             WHERE c.visibility = com.example.desporto24.enumeration.CommunityVisibility.PUBLIC
             ORDER BY LOWER(c.name), c.id

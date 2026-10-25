@@ -302,17 +302,38 @@ public class CommunityManagementService {
      * Saves photo positioning without re-encoding or re-uploading the image.
      * Animated GIF frames and other media remain unchanged in storage.
      */
+    private static String validatedPhotoFitMode(String mode, double zoom, double focusX, double focusY) {
+        String normalized = (mode == null || mode.isBlank()) ? "COVER" : mode;
+        if (!"COVER".equals(normalized) && !"SHOW_ALL".equals(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Modo de enquadramento inválido");
+        }
+        double minZoom = "SHOW_ALL".equals(normalized) ? 0.6 : 1.0;
+        if (!Double.isFinite(zoom) || zoom < minZoom || zoom > 3.0
+                || !Double.isFinite(focusX) || focusX < 0 || focusX > 100
+                || !Double.isFinite(focusY) || focusY < 0 || focusY > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enquadramento inválido");
+        }
+        return normalized;
+    }
+
+    // Legacy callers keep the existing COVER behavior.
     public CommunityResponse updatePhotoFraming(
             Long communityId, String username, double zoom, double focusX, double focusY,
             String expectedPhotoUrl) {
+        return updatePhotoFraming(communityId, username, zoom, focusX, focusY,
+                expectedPhotoUrl, "COVER");
+    }
+
+    /**
+     * Saves crop or SHOW_ALL layout as presentation metadata only. It never
+     * fetches, flattens, transcodes or overwrites the underlying animated GIF.
+     */
+    public CommunityResponse updatePhotoFraming(
+            Long communityId, String username, double zoom, double focusX, double focusY,
+            String expectedPhotoUrl, String fitMode) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
-        if (!Double.isFinite(zoom) || zoom < 1 || zoom > 3
-                || !Double.isFinite(focusX) || focusX < 0 || focusX > 100
-                || !Double.isFinite(focusY) || focusY < 0 || focusY > 100) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Enquadramento inválido");
-        }
+        String validatedMode = validatedPhotoFitMode(fitMode, zoom, focusX, focusY);
         Community group = community(communityId);
         if (expectedPhotoUrl == null || !expectedPhotoUrl.equals(group.getPhotoUrl())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -322,6 +343,7 @@ public class CommunityManagementService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta comunidade ainda não tem fotografia");
         }
+        group.setPhotoFitMode(validatedMode);
         group.setPhotoZoom(zoom);
         group.setPhotoFocusX(focusX);
         group.setPhotoFocusY(focusY);
@@ -329,9 +351,14 @@ public class CommunityManagementService {
     }
 
     public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
+        return updatePhoto(communityId, username, photo, "COVER", 1, 50, 50);
+    }
+
+    public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo,
+            String fitMode, double zoom, double focusX, double focusY) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
-
+        String validatedMode = validatedPhotoFitMode(fitMode, zoom, focusX, focusY);
         if (mediaStorage == null) {
             throw new IllegalStateException("Media storage is not configured");
         }
@@ -341,17 +368,15 @@ public class CommunityManagementService {
 
         Community community = community(communityId);
         String previousPhotoUrl = community.getPhotoUrl();
-        // Dedicated validation accepts animated GIFs only for community avatars.
-        // Keep all GIF frames intact: never transcode the uploaded bytes.
+        // Keep all GIF frames intact: only layout metadata is saved for SHOW_ALL.
         var uri = mediaStorage.storeCommunityPhoto(
-                "communities/" + community.getId() + "/" + UUID.randomUUID(),
-                photo
-        );
+                "communities/" + community.getId() + "/" + UUID.randomUUID(), photo);
 
         community.setPhotoUrl(uri.toString());
-        community.setPhotoZoom(null);
-        community.setPhotoFocusX(null);
-        community.setPhotoFocusY(null);
+        community.setPhotoFitMode(validatedMode);
+        community.setPhotoZoom(zoom);
+        community.setPhotoFocusX(focusX);
+        community.setPhotoFocusY(focusY);
         Community saved = communityRepository.save(community);
         deleteCommunityPhoto(previousPhotoUrl, communityId);
         return toResponse(saved, actor);
@@ -364,6 +389,7 @@ public class CommunityManagementService {
         Community community = community(communityId);
         String photoUrl = community.getPhotoUrl();
         community.setPhotoUrl(null);
+        community.setPhotoFitMode(null);
         community.setPhotoZoom(null);
         community.setPhotoFocusX(null);
         community.setPhotoFocusY(null);
@@ -672,7 +698,8 @@ public class CommunityManagementService {
                         : List.copyOf(community.getSports()),
                 community.isIndividualTournamentsEnabled(),
                 community.isTeamTournamentsEnabled(),
-                community.getPhotoZoom(), community.getPhotoFocusX(), community.getPhotoFocusY()
+                community.getPhotoZoom(), community.getPhotoFocusX(),
+                community.getPhotoFocusY(), community.getPhotoFitMode()
         );
     }
 

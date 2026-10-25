@@ -51,6 +51,10 @@ public class Community {
     @Column(name = "photo_focus_y")
     private Double photoFocusY;
 
+    // Null means legacy COVER; changing this never modifies the stored image.
+    @Column(name = "photo_fit_mode", length = 16)
+    private String photoFitMode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommunityVisibility visibility;
