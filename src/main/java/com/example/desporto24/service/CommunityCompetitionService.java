@@ -240,7 +240,7 @@ public class CommunityCompetitionService {
                 bracket.getFormat() == null ? "EIGHT_RIDER_FINALS" : bracket.getFormat(),
                 CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds,
                         bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders(),
-                        sprintOfficialReruns(bracket.getId())),
+                        sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId())),
                 bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
                 bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()),
                 decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
@@ -255,7 +255,7 @@ public class CommunityCompetitionService {
         if(bracket.getInterruptionStage()==null) return null;
         var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
                 bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders(),
-                sprintOfficialReruns(bracket.getId()));
+                sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()));
         List<CommunityTrackSprintBracketDtos.InterruptionPlacement> placements=
                 CommunityTrackSprintInterruption.placements(
                         bracket.getInterruptionStage(),matches);
@@ -301,7 +301,7 @@ public class CommunityCompetitionService {
                         "TRACK_SPRINT_REPECHAGE","TRACK_SPRINT_5_8").contains(r.getEventType()))
                 .map(r->roundResponse(r,aliases)).toList();
         var matches=CommunityTrackSprintBracketPlanner.project(bracketId,rounds,
-                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId));
+                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId));
         String stage;
         try { stage=CommunityTrackSprintInterruption.stage(matches); }
         catch(IllegalStateException invalid) {
@@ -376,6 +376,22 @@ public class CommunityCompetitionService {
         return Map.copyOf(orders);
     }
 
+    /** Only a second signed decision supplies a referee-awarded *match*
+     * outcome; the ordinary round table remains unchanged. */
+    private Map<String,String> sprintOfficialAwards(Long bracketId) {
+        Map<String,String> awarded=new HashMap<>();
+        for (CommunityTrackSprintIncident incident:
+                trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
+            if ("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())) {
+                if(incident.getAwardWinner()==null
+                        ||awarded.putIfAbsent(incident.getSeriesKey(),
+                                             incident.getAwardWinner())!=null)
+                    throw new IllegalStateException("Atribuição oficial duplicada ou incompleta");
+            }
+        }
+        return Map.copyOf(awarded);
+    }
+
     private static CommunityTrackSprintIncidentDtos.View sprintIncidentResponse(
             CommunityTrackSprintIncident i) {
         return new CommunityTrackSprintIncidentDtos.View(
@@ -385,7 +401,9 @@ public class CommunityCompetitionService {
                 i.getDecidedBy(),i.getDecidedAt(),
                 i.getSanctionType(),i.getSanctionedUsername(),
                 decodeRerunRiders(i.getRerunRidersJson()),i.getRerunReference(),
-                i.getRerunReason(),i.getRerunAuthorizedBy(),i.getRerunAuthorizedAt());
+                i.getRerunReason(),i.getRerunAuthorizedBy(),i.getRerunAuthorizedAt(),
+                i.getAwardWinner(),i.getAwardReference(),i.getAwardReason(),
+                i.getAwardConfirmedBy(),i.getAwardConfirmedAt());
     }
 
     /**
@@ -654,7 +672,7 @@ public class CommunityCompetitionService {
         if (seeds.size()==24) {
             CommunityTrackSprintOlympic24.validateNewHeat(
                     bracketId, seriesKey, phase, eventType, rounds, entrants, seeds,
-                    sprintOfficialReruns(bracketId));
+                    sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId));
         } else {
             if (!"TRACK_SPRINT_HEAT".equals(eventType))
                 throw new IllegalArgumentException("Repescagem não pertence a este formato");
