@@ -192,7 +192,7 @@ public class CommunityTimelineService {
                         "Chat attachment not found"));
         if (!communityId.equals(entry.getCommunity().getId())
                 || entry.getKind() != CommunityTimelineEntry.Kind.CHAT
-                || entry.getAttachmentKey() == null) {
+                || entry.getAttachmentKey() == null || entry.getDeletedAt() != null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
         }
         if (privateChatStorage == null) {
