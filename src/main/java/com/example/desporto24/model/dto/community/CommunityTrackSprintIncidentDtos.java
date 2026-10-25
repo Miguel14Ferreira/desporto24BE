@@ -34,6 +34,13 @@ public final class CommunityTrackSprintIncidentDtos {
             @NotBlank @Size(min=12,max=255) String reference,
             @NotBlank @Size(min=12,max=500) String reason) {}
 
+    /** Official heat award for an intentional fall in a TWO-up match. */
+    public record AwardHeat(
+            @NotBlank String winnerUsername,
+            @NotBlank String basis,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
     public record View(Long id, String seriesKey, int heatNumber,
                        String incidentType, String details, String status,
                        String reportedBy, Instant reportedAt, String decisionType,
@@ -42,7 +49,24 @@ public final class CommunityTrackSprintIncidentDtos {
                        String sanctionType, String sanctionedUsername,
                        java.util.List<String> rerunRiders, String rerunReference,
                        String rerunReason, String rerunAuthorizedBy,
-                       Instant rerunAuthorizedAt) {
+                       Instant rerunAuthorizedAt,
+                       String awardWinnerUsername, String awardBasis,
+                       String awardReference, String awardReason,
+                       String awardRecordedBy, Instant awardRecordedAt) {
+        public View(Long id, String seriesKey, int heatNumber,
+                String incidentType, String details, String status,
+                String reportedBy, Instant reportedAt, String decisionType,
+                String decisionReference, String decisionReason,
+                String decidedBy, Instant decidedAt, String sanctionType,
+                String sanctionedUsername, java.util.List<String> rerunRiders,
+                String rerunReference, String rerunReason,
+                String rerunAuthorizedBy, Instant rerunAuthorizedAt) {
+            this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
+                    reportedAt,decisionType,decisionReference,decisionReason,
+                    decidedBy,decidedAt,sanctionType,sanctionedUsername,rerunRiders,
+                    rerunReference,rerunReason,rerunAuthorizedBy,rerunAuthorizedAt,
+                    null,null,null,null,null,null);
+        }
         public View(Long id, String seriesKey, int heatNumber,
                 String incidentType, String details, String status,
                 String reportedBy, Instant reportedAt, String decisionType,
