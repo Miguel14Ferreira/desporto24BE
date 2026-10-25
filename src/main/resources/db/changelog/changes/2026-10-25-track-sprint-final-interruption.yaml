@@ -11,7 +11,10 @@ databaseChangeLog:
               - column: { name: interruption_reason, type: VARCHAR(500) }
               - column: { name: interruption_recorded_by, type: VARCHAR(100) }
               - column: { name: interruption_recorded_at, type: TIMESTAMP WITH TIME ZONE }
-        - addCheckConstraint:
-            tableName: community_track_sprint_bracket
-            constraintName: chk_sprint_interruption_stage
-            constraintBody: "interruption_stage IS NULL OR interruption_stage IN ('BEFORE_QUARTERS','AFTER_QUARTERS','AFTER_SEMIS')"
+        - sql:
+            dbms: postgresql
+            sql: >
+              ALTER TABLE community_track_sprint_bracket
+              ADD CONSTRAINT chk_sprint_interruption_stage
+              CHECK (interruption_stage IS NULL OR interruption_stage
+              IN ('BEFORE_QUARTERS','AFTER_QUARTERS','AFTER_SEMIS'))
