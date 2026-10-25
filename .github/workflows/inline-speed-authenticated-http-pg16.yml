@@ -1,0 +1,61 @@
+name: World Skate 2026 authenticated HTTP - isolated PostgreSQL 16
+# Actual backend and JWT filter, all entities mapped to a disposable PG16 instance.
+# Neither Render nor existing user accounts or infrastructure are accessed.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/test/java/com/example/desporto24/service/CommunityInlineSpeedAuthenticatedPgIT.java'
+      - 'src/main/java/com/example/desporto24/model/dto/community/CreateCommunityRoundRequest.java'
+      - '.github/workflows/inline-speed-authenticated-http-pg16.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: speed-http-pg16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  authenticated-journey:
+    name: Actual JWT and HTTP with 12 fictional skaters
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: speed_http_qa
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d speed_http_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: true
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/speed_http_qa
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: local_only
+      UI_APP_URL: http://127.0.0.1:4200
+      VERIFY_EMAIL_HOST: http://127.0.0.1:8080
+      AES_ENCRYPTION_KEY: ciKey1
+      JWT_SECRET: isolated_authentication_key_only_for_test_2026_speed
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: speed_http_qa
+      POSTGRES_USERNAME: qa
+      POSTGRES_PASSWORD: local_only
+      POSTGRES_SCHEMA: public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Authenticate, record real HTTP heats and approve qualifiers in disposable database
+        run: bash ./mvnw -B -ntp -Dtest=CommunityInlineSpeedAuthenticatedPgIT test
