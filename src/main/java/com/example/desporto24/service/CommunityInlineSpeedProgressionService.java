@@ -38,6 +38,7 @@ public class CommunityInlineSpeedProgressionService {
     private final CommunityInlineSpeedTieBreakRevisionRepository tieBreakRevisions;
     private final CommunityInlineSpeedTieTrialRepository tieTrials;
     private final CommunityInlineSpeedTieTrialResultRepository trialResults;
+    private final CommunityInlineSpeedTrialUsageRepository trialUsages;
 
     public record SkaterView(long playerId, String name, Integer position,
                              BigDecimal seconds, boolean disqualified) {}
@@ -54,7 +55,14 @@ public class CommunityInlineSpeedProgressionService {
                            List<TieBreakView> tieBreaks, List<TieTrialView> trials) {}
     public record ConfirmRequest(List<Long> playerIds, String reason) {}
     public record TieBreakRequest(List<Long> playerIds, String reason,
-                                  String evidenceType, String evidenceReference) {}
+                                  String evidenceType, String evidenceReference,
+                                  List<Long> trialIds) {
+        /** Previous internal integrations did not attach the structured trials. */
+        public TieBreakRequest(List<Long> playerIds, String reason, String evidenceType,
+                               String evidenceReference) {
+            this(playerIds, reason, evidenceType, evidenceReference, null);
+        }
+    }
     public record TrialSkaterRequest(Long playerId, Integer place, BigDecimal seconds) {}
     public record TrialCreateRequest(boolean actuallyHeld, Instant heldAt,
                                      String officialReference, String reason,
@@ -66,11 +74,13 @@ public class CommunityInlineSpeedProgressionService {
                                List<TrialSkaterView> results) {}
     public record TieBreakRevisionView(int revision, List<Long> selectedPlayerIds,
                                        String reason, String confirmedBy, Instant confirmedAt,
-                                       boolean stale, String evidenceType, String evidenceReference) {}
+                                       boolean stale, String evidenceType, String evidenceReference,
+                                       List<Long> trialIds) {}
     public record TieBreakView(String sourceStage, List<Long> selectedPlayerIds,
                                String reason, String confirmedBy, Instant confirmedAt,
                                boolean stale, List<TieBreakRevisionView> revisions,
-                               String evidenceType, String evidenceReference) {}
+                               String evidenceType, String evidenceReference,
+                               List<Long> trialIds) {}
 
     @Transactional(readOnly = true)
     public Overview overview(Long communityId, Long tournamentId, String username) {
@@ -329,6 +339,30 @@ public class CommunityInlineSpeedProgressionService {
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
                     "A evidência exige tipo válido e referência oficial de 8 a 500 caracteres");
 
+        // A decision may cite multiple independently recorded real trials, but no
+        // fabricated, cross-tournament, repeated or stale trial identifiers.
+        List<Long> requestedTrialIds = request.trialIds() == null ? List.of() : request.trialIds();
+        if (requestedTrialIds.size() > 10
+                || requestedTrialIds.stream().anyMatch(id -> id == null || id <= 0)
+                || requestedTrialIds.stream().distinct().count() != requestedTrialIds.size())
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Seleciona até 10 provas reais distintas e válidas");
+        Map<Long, CommunityInlineSpeedTieTrial> byId = tieTrials
+                .findByTournamentIdOrderByIdAsc(tournamentId).stream()
+                .collect(Collectors.toMap(CommunityInlineSpeedTieTrial::getId, t -> t));
+        String sourceFingerprint = CommunityInlineSpeed2026.fingerprint(source);
+        List<CommunityInlineSpeedTieTrial> usedTrials = new ArrayList<>();
+        for (Long trialId : requestedTrialIds) {
+            CommunityInlineSpeedTieTrial used = byId.get(trialId);
+            if (used == null || !"FIRST".equals(used.getSourceStage()))
+                throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "A prova associada não pertence a este torneio e fase");
+            if (!sourceFingerprint.equals(used.getSourceFingerprint()))
+                throw problem(HttpStatus.CONFLICT,
+                        "A prova associada está desatualizada face às mangas originais");
+            usedTrials.add(used);
+        }
+
         CommunityInlineSpeedTieBreak ruling = tieBreaks
                 .findByTournamentIdAndSourceStage(tournamentId, "FIRST")
                 .orElseGet(CommunityInlineSpeedTieBreak::new);
@@ -354,7 +388,14 @@ public class CommunityInlineSpeedProgressionService {
         ruling.setConfirmedBy(username);
         ruling.setConfirmedAt(Instant.now());
         ruling = tieBreaks.save(ruling);
-        tieBreakRevisions.save(revisionSnapshot(ruling, nextRevision));
+        CommunityInlineSpeedTieBreakRevision revision =
+                tieBreakRevisions.save(revisionSnapshot(ruling, nextRevision));
+        if (!usedTrials.isEmpty()) {
+            trialUsages.saveAll(usedTrials.stream()
+                    .map(trial -> CommunityInlineSpeedTrialUsage.builder()
+                            .revision(revision).trial(trial).build())
+                    .toList());
+        }
         return snapshot(communityId, tournament, true);
     }
 
@@ -504,20 +545,23 @@ public class CommunityInlineSpeedProgressionService {
                                     readIds(v.getSelectedPlayerIds()), v.getJudgeReason(),
                                     v.getConfirmedBy(), v.getConfirmedAt(),
                                     !v.getSourceFingerprint().equals(fingerprint),
-                                    v.getEvidenceType(), v.getEvidenceReference())).toList();
+                                    v.getEvidenceType(), v.getEvidenceReference(),
+                                    trialUsages.findByRevisionIdOrderByIdAsc(v.getId()).stream()
+                                            .map(use -> use.getTrial().getId()).toList())).toList();
                     if (revisions.isEmpty()) {
                         // An existing ruling is still visible before its first edit.
                         revisions = List.of(new TieBreakRevisionView(1,
                                 readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
                                 d.getConfirmedBy(), d.getConfirmedAt(),
                                 !d.getSourceFingerprint().equals(fingerprint),
-                                d.getEvidenceType(), d.getEvidenceReference()));
+                                d.getEvidenceType(), d.getEvidenceReference(), List.of()));
                     }
                     return new TieBreakView(d.getSourceStage(),
                             readIds(d.getSelectedPlayerIds()), d.getJudgeReason(),
                             d.getConfirmedBy(), d.getConfirmedAt(),
                             !d.getSourceFingerprint().equals(fingerprint), revisions,
-                            d.getEvidenceType(), d.getEvidenceReference());
+                            d.getEvidenceType(), d.getEvidenceReference(),
+                            revisions.get(revisions.size() - 1).trialIds());
                 }).toList();
         List<TieTrialView> recordedTrials = tieTrials
                 .findByTournamentIdOrderByIdAsc(tournament.getId()).stream()

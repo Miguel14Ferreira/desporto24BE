@@ -232,3 +232,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-25-inline-speed-jury-evidence-v1.yaml
   - include:
       file: db/changelog/changes/2026-10-25-inline-speed-real-tie-trials-v1.yaml
+  - include:
+      file: db/changelog/changes/2026-10-25-inline-speed-trial-revision-links-v1.yaml
