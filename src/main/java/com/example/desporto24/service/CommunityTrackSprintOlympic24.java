@@ -48,6 +48,11 @@ final class CommunityTrackSprintOlympic24 {
     static List<Match> project(long bracketId, List<CommunityRoundResponse> rounds,
             List<String> seeds, Map<String,List<String>> reruns,
             Map<String,String> awardedWinners) {
+        return project(bracketId,rounds,seeds,reruns,awardedWinners,Set.of());
+    }
+    static List<Match> project(long bracketId,List<CommunityRoundResponse> rounds,
+            List<String> seeds,Map<String,List<String>> reruns,
+            Map<String,String> awardedWinners,Set<String> excludedRiders) {
         if (seeds == null || seeds.size() != 24 || seeds.stream().anyMatch(x->x==null||x.isBlank())
                 || seeds.stream().map(CommunityTrackSprintOlympic24::normalized).distinct().count()!=24)
             throw new IllegalArgumentException("Quadro olímpico exige 24 ciclistas distintos");
@@ -59,8 +64,8 @@ final class CommunityTrackSprintOlympic24 {
         // 1/32 repechage: four heats of THREE defeated riders, table order.
         int[][] u={{1,8,9},{2,7,10},{3,6,11},{4,5,12}};
         for (int i=0;i<4;i++)
-            add(m,bracketId,rounds,reruns,awardedWinners,"U"+(i+1),lost(m,"A"+u[i][0]),lost(m,"A"+u[i][1]),
-                    lost(m,"A"+u[i][2]));
+            add(m,bracketId,rounds,reruns,awardedWinners,"U"+(i+1),lost(m,"A"+u[i][0],excludedRiders),lost(m,"A"+u[i][1],excludedRiders),
+                    lost(m,"A"+u[i][2],excludedRiders));
         // 1/16: 8 two-up matches; first four vs winners of repechages.
         for (int i=1;i<=8;i++) {
             String a=won(m,"A"+i);
@@ -69,14 +74,14 @@ final class CommunityTrackSprintOlympic24 {
         }
         // 1/16 repechage: pair the eight losses (1/8,2/7,3/6,4/5).
         for(int i=1;i<=4;i++)
-            add(m,bracketId,rounds,reruns,awardedWinners,"V"+i,lost(m,"C"+i),lost(m,"C"+(9-i)),null);
+            add(m,bracketId,rounds,reruns,awardedWinners,"V"+i,lost(m,"C"+i,excludedRiders),lost(m,"C"+(9-i),excludedRiders),null);
         // 1/8: first four vs repechage winners, fifth & sixth from original 1/16 winners.
         for(int i=1;i<=6;i++)
             add(m,bracketId,rounds,reruns,awardedWinners,"E"+i,won(m,"C"+i),
                     i<=4?won(m,"V"+(5-i)):won(m,"C"+(13-i)),null);
         // 1/8 repechage: THREE-up, losers of (1,4,5) and (2,3,6).
-        add(m,bracketId,rounds,reruns,awardedWinners,"W1",lost(m,"E1"),lost(m,"E4"),lost(m,"E5"));
-        add(m,bracketId,rounds,reruns,awardedWinners,"W2",lost(m,"E2"),lost(m,"E3"),lost(m,"E6"));
+        add(m,bracketId,rounds,reruns,awardedWinners,"W1",lost(m,"E1",excludedRiders),lost(m,"E4",excludedRiders),lost(m,"E5",excludedRiders));
+        add(m,bracketId,rounds,reruns,awardedWinners,"W2",lost(m,"E2",excludedRiders),lost(m,"E3",excludedRiders),lost(m,"E6",excludedRiders));
         add(m,bracketId,rounds,reruns,awardedWinners,"Q1",won(m,"E1"),won(m,"W2"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,"Q2",won(m,"E2"),won(m,"W1"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,"Q3",won(m,"E3"),won(m,"E6"),null);
@@ -84,7 +89,7 @@ final class CommunityTrackSprintOlympic24 {
         addPlaces(m,bracketId,rounds);
         add(m,bracketId,rounds,reruns,awardedWinners,"S1",won(m,"Q1"),won(m,"Q4"),null);
         add(m,bracketId,rounds,reruns,awardedWinners,"S2",won(m,"Q2"),won(m,"Q3"),null);
-        add(m,bracketId,rounds,reruns,awardedWinners,"B",lost(m,"S1"),lost(m,"S2"),null);
+        add(m,bracketId,rounds,reruns,awardedWinners,"B",lost(m,"S1",excludedRiders),lost(m,"S2",excludedRiders),null);
         add(m,bracketId,rounds,reruns,awardedWinners,"G",won(m,"S1"),won(m,"S2"),null);
         return List.copyOf(m.values());
     }
@@ -143,9 +148,14 @@ final class CommunityTrackSprintOlympic24 {
         return x!=null&&"FINISHED".equals(x.status())?x.winner():null;
     }
     private static String lost(Map<String,Match> m,String slot) {
+        return lost(m,slot,Set.of());
+    }
+    private static String lost(Map<String,Match> m,String slot,Set<String> excludedRiders) {
         Match x=m.get(slot);
         if(x==null||!"FINISHED".equals(x.status())||x.riderC()!=null)return null;
-        return x.winner().equals(x.riderA())?x.riderB():x.riderA();
+        String loser=x.winner().equals(x.riderA())?x.riderB():x.riderA();
+        // A rider disqualified from competition cannot re-enter any repechage.
+        return excludedRiders.contains(loser)?null:loser;
     }
     private static void add(Map<String,Match> m,long id,List<CommunityRoundResponse> rounds,
             Map<String,List<String>> reruns, Map<String,String> awardedWinners,
@@ -243,7 +253,14 @@ final class CommunityTrackSprintOlympic24 {
             List<CommunityRoundResponse> rounds,List<CommunityRoundEntryRequest> entrants,
             List<String> seeds,Map<String,List<String>> reruns,
             Map<String,String> awardedWinners) {
-        Match m=project(id,rounds,seeds,reruns,awardedWinners).stream()
+        validateNewHeat(id,seriesKey,phase,eventType,rounds,entrants,seeds,reruns,
+                awardedWinners,Set.of());
+    }
+    static void validateNewHeat(long id,String seriesKey,String phase,String eventType,
+            List<CommunityRoundResponse> rounds,List<CommunityRoundEntryRequest> entrants,
+            List<String> seeds,Map<String,List<String>> reruns,
+            Map<String,String> awardedWinners,Set<String> excludedRiders) {
+        Match m=project(id,rounds,seeds,reruns,awardedWinners,excludedRiders).stream()
                 .filter(x->x.seriesKey().equals(seriesKey)).findFirst()
                 .orElseThrow(()->new IllegalArgumentException("Confronto fora do quadro olímpico"));
         if(!m.phase().equals(phase) || ("F58".equals(m.slot())

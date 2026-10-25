@@ -240,7 +240,7 @@ public class CommunityCompetitionService {
                 bracket.getFormat() == null ? "EIGHT_RIDER_FINALS" : bracket.getFormat(),
                 CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds,
                         bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders(),
-                        sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId())),
+                        sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()),sprintOfficialDisqualified(bracket.getId())),
                 bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
                 bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()),
                 decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
@@ -255,7 +255,7 @@ public class CommunityCompetitionService {
         if(bracket.getInterruptionStage()==null) return null;
         var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
                 bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders(),
-                sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()));
+                sprintOfficialReruns(bracket.getId()),sprintOfficialAwards(bracket.getId()),sprintOfficialDisqualified(bracket.getId()));
         List<CommunityTrackSprintBracketDtos.InterruptionPlacement> placements=
                 CommunityTrackSprintInterruption.placements(
                         bracket.getInterruptionStage(),matches);
@@ -301,7 +301,7 @@ public class CommunityCompetitionService {
                         "TRACK_SPRINT_REPECHAGE","TRACK_SPRINT_5_8").contains(r.getEventType()))
                 .map(r->roundResponse(r,aliases)).toList();
         var matches=CommunityTrackSprintBracketPlanner.project(bracketId,rounds,
-                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId));
+                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId),sprintOfficialDisqualified(bracketId));
         String stage;
         try { stage=CommunityTrackSprintInterruption.stage(matches); }
         catch(IllegalStateException invalid) {
@@ -390,6 +390,18 @@ public class CommunityCompetitionService {
             }
         }
         return Map.copyOf(awarded);
+    }
+
+    private Set<String> sprintOfficialDisqualified(Long bracketId) {
+        Set<String> excluded=new HashSet<>();
+        for(var incident:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId))
+            if("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
+                    &&"DISQUALIFICATION".equals(incident.getSanctionType())) {
+                if(incident.getSanctionedUsername()==null)
+                    throw new IllegalStateException("Desclassificação sem ciclista identificado");
+                excluded.add(incident.getSanctionedUsername());
+            }
+        return Set.copyOf(excluded);
     }
 
     private static CommunityTrackSprintIncidentDtos.View sprintIncidentResponse(
@@ -748,7 +760,7 @@ public class CommunityCompetitionService {
             try {
                 CommunityTrackSprintOlympic24.validateNewHeat(
                         bracketId, seriesKey, phase, eventType, rounds, entrants, seeds,
-                        sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId));
+                        sprintOfficialReruns(bracketId),sprintOfficialAwards(bracketId),sprintOfficialDisqualified(bracketId));
             } catch (IllegalArgumentException invalidHeat) {
                 // A finished or suspended bracket is a user validation error,
                 // not an unhandled 500. Race entries remain unchanged.

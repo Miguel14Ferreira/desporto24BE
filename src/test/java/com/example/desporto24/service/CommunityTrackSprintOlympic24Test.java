@@ -97,6 +97,29 @@ class CommunityTrackSprintOlympic24Test {
         assertEquals("READY",match(List.of(),"A1").status()); // older projection unchanged
     }
 
+    @Test void disqualifiedRiderNeverAdvancesToOlympicRepechage() {
+        List<CommunityRoundResponse> raced=new ArrayList<>();
+        for(int i=2;i<=12;i++){var m=match(raced,"A"+i);raced.add(record(m,m.riderA()));}
+        var award=Map.of("SP53-A1","r1");
+        var result=CommunityTrackSprintOlympic24.project(
+                BRACKET,raced,seeds(),Map.of(),award,Set.of("r24"));
+        var a1=result.stream().filter(x->x.slot().equals("A1")).findFirst().orElseThrow();
+        var u1=result.stream().filter(x->x.slot().equals("U1")).findFirst().orElseThrow();
+        assertEquals("FINISHED",a1.status());
+        assertEquals("r1",a1.winner());
+        assertEquals("WAITING_PREVIOUS",u1.status());
+        assertNull(u1.riderA());
+        assertNull(u1.winner());
+        assertTrue(raced.stream().noneMatch(x->"SP53-A1".equals(x.sprintSeriesKey())));
+        assertThrows(IllegalArgumentException.class,()->
+            CommunityTrackSprintOlympic24.validateNewHeat(
+                BRACKET,"SP53-U1","SPRINT_REPECHAGE_1_32",
+                "TRACK_SPRINT_REPECHAGE",raced,List.of(),seeds(),
+                Map.of(),award,Set.of("r24")));
+        assertEquals("READY",CommunityTrackSprintOlympic24.project(
+                BRACKET,raced,seeds(),Map.of(),award,Set.of()).stream()
+                .filter(x->x.slot().equals("U1")).findFirst().orElseThrow().status());
+    }
     @Test void firstRepechageHasExactlyThreeLosersAndWinnerFeedsOneSixteenth() {
         List<CommunityRoundResponse> rounds=new ArrayList<>();
         for(int i=1;i<=12;i++){
