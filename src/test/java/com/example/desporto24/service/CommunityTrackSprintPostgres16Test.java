@@ -31,7 +31,8 @@ class CommunityTrackSprintPostgres16Test {
         "db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml",
         "db/changelog/changes/2026-10-25-track-sprint-incident-decisions.yaml",
         "db/changelog/changes/2026-10-25-track-sprint-disciplinary-rulings.yaml",
-        "db/changelog/changes/2026-10-25-sprint-three-up-rerun-approval.yaml");
+        "db/changelog/changes/2026-10-25-sprint-three-up-rerun-approval.yaml",
+        "db/changelog/changes/2026-10-25-track-sprint-final-interruption.yaml");
 
     @BeforeAll
     void migrateDisposableLocalDatabaseOnly() throws Exception {
@@ -91,14 +92,15 @@ class CommunityTrackSprintPostgres16Test {
 
     @Test
     void migrationsAreIdempotentAndHistoricEightRiderDefaultSurvives() {
-        assertEquals(7, jdbc.queryForObject("select count(*) from databasechangelog " +
+        assertEquals(8, jdbc.queryForObject("select count(*) from databasechangelog " +
             "where id in ('2026-10-24-track-sprint-series-v1'," +
             "'2026-10-25-community-track-sprint-bracket8'," +
             "'2026-10-25-track-sprint-qualifying16'," +
             "'2026-10-25-sprint-official-200m-tie-decisions'," +
             "'2026-10-25-track-sprint-incident-decisions'," +
             "'2026-10-25-track-sprint-disciplinary-rulings'," +
-            "'2026-10-25-sprint-three-up-rerun-approval')", Integer.class));
+            "'2026-10-25-sprint-three-up-rerun-approval'," +
+            "'2026-10-25-track-sprint-final-interruption')", Integer.class));
         jdbc.update("insert into community_track_sprint_bracket " +
             "(id,community_id,season_id,name,created_at) " +
             "values (81,7,6,'Existing eight riders',now())");
@@ -203,6 +205,22 @@ class CommunityTrackSprintPostgres16Test {
             "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at) " +
             "values (41,'SP41-U1',1,'PUNCTURE','Fictional duplicate','PENDING','owner',now())"));
         assertEquals(1,count("community_track_sprint_incident"));
+        assertEquals(3,count("community_round"));
+    }
+
+    @Test
+    void officialInterruptionHasValidatedStagesAndLeavesHistoricRowsIntact() {
+        bracket(41,7,4,42L);
+        jdbc.update("update community_track_sprint_bracket set interruption_stage = ?, " +
+            "interruption_reference = ?, interruption_reason = ?, " +
+            "interruption_recorded_by = ?, interruption_recorded_at = now() where id = 41",
+            "BEFORE_QUARTERS","Synthetic signed commissaires minutes 2026/11",
+            "Synthetic event cannot restart before end of competition","owner");
+        assertEquals("BEFORE_QUARTERS",jdbc.queryForObject(
+            "select interruption_stage from community_track_sprint_bracket where id=41",
+            String.class));
+        assertThrows(DataIntegrityViolationException.class,()->jdbc.update(
+            "update community_track_sprint_bracket set interruption_stage = 'FABRICATED_STAGE' where id=41"));
         assertEquals(3,count("community_round"));
     }
 
