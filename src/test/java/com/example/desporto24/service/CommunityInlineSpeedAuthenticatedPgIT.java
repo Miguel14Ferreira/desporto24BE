@@ -518,18 +518,34 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         List<Long> correction = new ArrayList<>(sixteenChosen);
         correction.set(15, ordered.get(16).path("playerId").asLong());
         String correctedReason = "A segunda revisão oficial escolheu outra atleta empatada";
+        var divergentTrialRuling = Map.of("playerIds", correction,
+                "reason", correctedReason, "evidenceType", "TIEBREAK_TRIAL",
+                "evidenceReference", "Ata oficial da prova adicional 2026-002",
+                "trialIds", List.of(trialId));
+        request("PUT", speed(tieId) + "/tiebreaks/FIRST",
+                ownerToken, divergentTrialRuling, 422);
+        assertEquals(1, overview(tieId).path("tieBreaks").get(0)
+                .path("revisions").size(), "Rejected corrections must leave history intact");
+        String exceptionReason = "O júri reviu a prova e decidiu excecionalmente perante a ocorrência descrita em ata";
         JsonNode amended = request("PUT", speed(tieId) + "/tiebreaks/FIRST",
                 ownerToken, Map.of("playerIds", correction,
-                        "reason", correctedReason, "evidenceType", "VIDEO_REVIEW",
-                        "evidenceReference", "Vídeo oficial de chegada 2026-002"), 200);
-        assertEquals("VIDEO_REVIEW", amended.path("tieBreaks").get(0)
+                        "reason", correctedReason, "evidenceType", "TIEBREAK_TRIAL",
+                        "evidenceReference", "Ata oficial da prova adicional 2026-002",
+                        "trialIds", List.of(trialId),
+                        "trialOrderExceptionReason", exceptionReason), 200);
+        assertEquals(exceptionReason, amended.path("tieBreaks").get(0)
+                .path("trialOrderExceptionReason").asText());
+        assertEquals(exceptionReason, amended.path("tieBreaks").get(0)
+                .path("revisions").get(1).path("trialOrderExceptionReason").asText());
+        assertEquals("TIEBREAK_TRIAL", amended.path("tieBreaks").get(0)
                 .path("evidenceType").asText());
         assertEquals("TIEBREAK_TRIAL", amended.path("tieBreaks").get(0)
                 .path("revisions").get(0).path("evidenceType").asText());
         assertEquals(trialId, amended.path("tieBreaks").get(0)
                 .path("revisions").get(0).path("trialIds").get(0).asLong());
-        assertEquals(0, amended.path("tieBreaks").get(0).path("trialIds").size(),
-                "Correcting without a linked trial must never erase the prior revision's proof");
+        assertEquals(trialId, amended.path("tieBreaks").get(0)
+                .path("trialIds").get(0).asLong(),
+                "An explicitly justified exception remains linked to the actual race");
         assertEquals(2, amended.path("tieBreaks").get(0).path("revisions").size());
         assertEquals(reason, amended.path("tieBreaks").get(0).path("revisions").get(0).path("reason").asText());
         assertEquals(correctedReason, amended.path("tieBreaks").get(0).path("revisions").get(1).path("reason").asText());
@@ -544,6 +560,11 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         assertEquals(3, restored.path("tieBreaks").get(0).path("revisions").size());
         assertEquals("qa_owner_speed", restored.path("tieBreaks").get(0)
                 .path("revisions").get(2).path("confirmedBy").asText());
+        request("PUT", speed(tieId) + "/qualifications/FIRST", ownerToken,
+                Map.of("playerIds", correction,
+                        "reason", "Tentativa de ratificação sem corrigir a decisão do júri"), 409);
+        assertEquals(0, overview(tieId).path("decisions").size(),
+                "Ratification must not bypass the latest jury ruling");
         JsonNode ratified = request("PUT", speed(tieId) + "/qualifications/FIRST",
                 ownerToken, Map.of("playerIds", sixteenChosen,
                         "reason", "O juiz confirma os 16 apurados depois do desempate oficial"), 200);

@@ -40,6 +40,8 @@ class CommunityInlineSpeedPostgres16Test {
             "db/changelog/changes/2026-10-25-inline-speed-real-tie-trials-v1.yaml";
     private static final String TRIAL_LINK_MIGRATION =
             "db/changelog/changes/2026-10-25-inline-speed-trial-revision-links-v1.yaml";
+    private static final String ORDER_AUDIT_MIGRATION =
+            "db/changelog/changes/2026-10-25-inline-speed-trial-order-audit-v1.yaml";
 
     @BeforeAll
     void setUpDisposableDatabase() throws Exception {
@@ -64,7 +66,7 @@ class CommunityInlineSpeedPostgres16Test {
 
         for (String migrationPath : new String[]{
                 MIGRATION, TIEBREAK_MIGRATION, REVISIONS_MIGRATION, EVIDENCE_MIGRATION,
-                TRIAL_MIGRATION, TRIAL_LINK_MIGRATION}) {
+                TRIAL_MIGRATION, TRIAL_LINK_MIGRATION, ORDER_AUDIT_MIGRATION}) {
             // Liquibase.close() also closes its JDBC connection. Each migration
             // must use a fresh connection, as it would in a real deployment.
             try (var connection = source.getConnection()) {
@@ -285,6 +287,29 @@ class CommunityInlineSpeedPostgres16Test {
         assertEquals(0, count("community_inline_speed_tie_trial"));
         assertEquals(0, count("community_inline_speed_tiebreak_revision"));
         assertEquals(3, count("community_round"));
+    }
+
+    @Test
+    void orderExceptionColumnsRemainNullableForLegacyRulings() {
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from databasechangelog " +
+                "where id='2026-10-25-inline-speed-trial-order-audit-v1'", Integer.class));
+        jdbc.update("insert into community_inline_speed_tiebreak " +
+                "(tournament_id,source_stage,selected_player_ids,source_fingerprint," +
+                "judge_reason,confirmed_by,confirmed_at) values " +
+                "(9,'FIRST','1,2',repeat('a',64)," +
+                "'Ata histórica preservada','qa_owner',now())");
+        assertNull(jdbc.queryForObject("select trial_order_exception_reason from " +
+                "community_inline_speed_tiebreak where tournament_id=9", String.class));
+        jdbc.update("update community_inline_speed_tiebreak " +
+                "set trial_order_exception_reason='O júri analisou provas contraditórias' " +
+                "where tournament_id=9");
+        assertEquals("O júri analisou provas contraditórias", jdbc.queryForObject(
+                "select trial_order_exception_reason from community_inline_speed_tiebreak " +
+                "where tournament_id=9", String.class));
+        assertEquals(0, new java.math.BigDecimal("30.010").compareTo(
+                jdbc.queryForObject("select elapsed_seconds from community_round where id=100",
+                        java.math.BigDecimal.class)));
     }
 
     @Test

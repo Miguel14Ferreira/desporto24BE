@@ -25,7 +25,8 @@ public class CommunityInlineSpeedProgressionController {
             @Size(max = 500) String reason,
             String evidenceType,
             @Size(max = 500) String evidenceReference,
-            List<@NotNull @Positive Long> trialIds) {}
+            List<@NotNull @Positive Long> trialIds,
+            @Size(max = 500) String trialOrderExceptionReason) {}
 
     @GetMapping
     public CommunityInlineSpeedProgressionService.Overview overview(
@@ -62,7 +63,7 @@ public class CommunityInlineSpeedProgressionController {
                 new CommunityInlineSpeedProgressionService.TieBreakRequest(
                         request.playerIds(), request.reason(),
                         request.evidenceType(), request.evidenceReference(),
-                        request.trialIds()), auth.getName());
+                        request.trialIds(), request.trialOrderExceptionReason()), auth.getName());
     }
 
     /** Record the actual results of a trial only after it has happened. */
