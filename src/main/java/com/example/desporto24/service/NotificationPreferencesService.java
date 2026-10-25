@@ -77,8 +77,16 @@ public class NotificationPreferencesService {
     }
 
     public boolean allowsOptionalEmail(String username, NotificationType type) {
+        return allowsOptionalEmailCategory(username, type == null ? OTHER : type.name());
+    }
+
+    /** Also covers legacy optional types without a NotificationType enum value. */
+    public boolean allowsOptionalEmailCategory(String username, String category) {
+        if (!TYPES.contains(category)) {
+            throw new IllegalArgumentException("Tipo de notificação inválido");
+        }
         NotificationPreferencesRequest prefs = get(username);
-        return prefs.emailEnabled() && !prefs.disabledEmailTypes().contains(type == null ? OTHER : type.name());
+        return prefs.emailEnabled() && !prefs.disabledEmailTypes().contains(category);
     }
 
     public boolean allowsOptionalEmailAddress(String email, NotificationType type) {
