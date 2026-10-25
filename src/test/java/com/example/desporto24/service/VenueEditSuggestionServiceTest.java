@@ -196,10 +196,46 @@ class VenueEditSuggestionServiceTest {
         when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
         when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         when(submissions.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        var result = service.approve(44L, "Confirmado no recinto e na fonte oficial", "moderator");
+        var result = service.approve(44L, "Confirmado no recinto e na fonte oficial", "moderator", true);
         assertEquals("APPROVED", result.status());
         assertEquals("225073300", venue.getContact());
         assertEquals(prior.getSourceUrl(), result.sourceUrl());
+    }
+
+
+    @Test
+    void directApiStyleApprovalMustNotBypassManualSourceReview() {
+        var prior = submitted("Campo Original", "Campo Corrigido");
+        prior.setBeforeJson("{\"contact\":null}");
+        prior.setChangesJson("{\"contact\":\"225073300\"}");
+        prior.setSourceUrl("https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao");
+        when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.approve(44L, "Fonte revista", "moderator")
+        ).getStatusCode().value());
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.approve(44L, "Fonte revista", "moderator", false)
+        ).getStatusCode().value());
+        assertEquals(VenueEditSuggestion.Status.PENDING, prior.getStatus());
+        assertNull(venue.getContact());
+        verify(venues, never()).save(any());
+        verify(submissions, never()).save(any());
+        verifyNoInteractions(decisionNotifications);
+    }
+
+    @Test
+    void attestationAloneNeverOverridesMissingContactSource() {
+        var prior = submitted("Campo Original", "Campo Corrigido");
+        prior.setBeforeJson("{\"contact\":null}");
+        prior.setChangesJson("{\"contact\":\"225073300\"}");
+        when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.approve(44L, "Fonte revista", "moderator", true)
+        ).getStatusCode().value());
+        verify(venues, never()).save(any());
     }
 
     private VenueEditSuggestion submitted(String oldName, String newName) {
