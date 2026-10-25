@@ -206,7 +206,8 @@ public class CommunityCompetitionService {
         List<CommunityRoundResponse> rounds = roundRepository
                 .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId)
                  .stream().filter(r -> "TRACK_SPRINT_HEAT".equals(r.getEventType())
-                        || "TRACK_SPRINT_REPECHAGE".equals(r.getEventType()))
+                        || "TRACK_SPRINT_REPECHAGE".equals(r.getEventType())
+                        || "TRACK_SPRINT_5_8".equals(r.getEventType()))
                 .map(r -> roundResponse(r, aliases)).toList();
         return brackets.stream().map(b -> trackSprintBracketResponse(b, rounds)).toList();
     }
@@ -223,7 +224,7 @@ public class CommunityCompetitionService {
     }
 
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
-            java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(A(?:[1-9]|1[0-2])|U[1-4]|C[1-8]|V[1-4]|E[1-6]|W[1-2]|P(?:[5-9]|1[0-6])|R[1-8]|Q[1-4]|S[1-2]|B|G)$");
+            java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(A(?:[1-9]|1[0-2])|U[1-4]|C[1-8]|V[1-4]|E[1-6]|W[1-2]|F58|P(?:[5-9]|1[0-6])|R[1-8]|Q[1-4]|S[1-2]|B|G)$");
 
     /** Guards organizer-created heats against the source knockout series. */
     private void validateBracketRound(Long communityId, CommunitySeason season,
@@ -245,7 +246,8 @@ public class CommunityCompetitionService {
         List<CommunityRoundResponse> rounds = roundRepository
                 .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, season.getId())
                  .stream().filter(r -> "TRACK_SPRINT_HEAT".equals(r.getEventType())
-                        || "TRACK_SPRINT_REPECHAGE".equals(r.getEventType()))
+                        || "TRACK_SPRINT_REPECHAGE".equals(r.getEventType())
+                        || "TRACK_SPRINT_5_8".equals(r.getEventType()))
                 .map(r -> roundResponse(r, aliases)).toList();
         List<String> seeds = bracket.getQualifiedRiders() == null
                 ? List.of() : bracket.getQualifiedRiders();
@@ -683,17 +685,25 @@ public class CommunityCompetitionService {
         List<CommunityTrackSprintSeries.Heat> existingSprintHeats = List.of();
         if (request.sprintSeriesKey() != null && !request.sprintSeriesKey().isBlank()
                 && ("TRACK_SPRINT_HEAT".equals(resolvedEventType)
-                    || "TRACK_SPRINT_REPECHAGE".equals(resolvedEventType))) {
+                    || "TRACK_SPRINT_REPECHAGE".equals(resolvedEventType)
+                    || "TRACK_SPRINT_5_8".equals(resolvedEventType))) {
             if (activeSeason == null) {
                 throw new IllegalArgumentException("Cria uma época ativa antes de agrupar mangas de Sprint");
             }
             activeSeason = seasonRepository.lockByIdAndCommunityId(activeSeason.getId(), communityId)
                     .orElseThrow(() -> new IllegalArgumentException("Época indisponível"));
             AcceptedAliases aliases = acceptedAliasProfiles(communityId);
-            existingSprintHeats = roundRepository
+            var existing = roundRepository
                     .findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
-                            communityId, activeSeason.getId(), request.sprintSeriesKey().trim())
-                    .stream().map(item -> CommunityTrackSprintSeries.fromRound(roundResponse(item, aliases))).toList();
+                            communityId, activeSeason.getId(), request.sprintSeriesKey().trim());
+            if ("TRACK_SPRINT_5_8".equals(resolvedEventType)) {
+                if (!existing.isEmpty())
+                    throw new IllegalStateException("A prova do 5.º ao 8.º já foi registada");
+            } else {
+                existingSprintHeats = existing.stream()
+                    .map(item -> CommunityTrackSprintSeries.fromRound(
+                            roundResponse(item, aliases))).toList();
+            }
         }
         CommunityTrackSprintSeries.validate(resolvedEventType, resolvedDiscipline,
                 request.sprintSeriesKey(), request.sprintHeatNumber(),
