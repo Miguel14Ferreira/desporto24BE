@@ -7,8 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -185,24 +185,26 @@ class PrivateChatFileStorageTest {
         var storage = new PrivateChatFileStorage(settings);
         S3Client client = mock(S3Client.class);
         ReflectionTestUtils.setField(storage, "s3Client", client);
-        when(client.headBucket(any(HeadBucketRequest.class)))
-                .thenReturn(HeadBucketResponse.builder().build());
+        when(client.listObjectsV2(any(ListObjectsV2Request.class)))
+                .thenReturn(ListObjectsV2Response.builder().build());
 
         assertTrue(storage.isConfigured());
-        verify(client).headBucket(argThat((HeadBucketRequest req) ->
+        verify(client).listObjectsV2(argThat((ListObjectsV2Request req) ->
                 "jynlo-chat-private".equals(req.bucket())));
     }
 
     @Test
-    void confirmsBucketAccessWithHeadRequestAndCachesTheResult() {
+    void confirmsBucketAccessWithObjectListAndCachesTheResult() {
         var storage = new PrivateChatFileStorage(r2Settings());
         S3Client client = mock(S3Client.class);
         ReflectionTestUtils.setField(storage, "s3Client", client);
-        when(client.headBucket(any(HeadBucketRequest.class)))
-                .thenReturn(HeadBucketResponse.builder().build());
+        when(client.listObjectsV2(any(ListObjectsV2Request.class)))
+                .thenReturn(ListObjectsV2Response.builder().build());
         assertTrue(storage.isConfigured());
         assertTrue(storage.isConfigured());
-        verify(client, times(1)).headBucket(any(HeadBucketRequest.class));
+        verify(client, times(1)).listObjectsV2(argThat((ListObjectsV2Request req) ->
+                "jynlo-chat-private".equals(req.bucket()) &&
+                "private-chat/".equals(req.prefix()) && req.maxKeys() == 1));
     }
 
     @Test
@@ -210,11 +212,11 @@ class PrivateChatFileStorageTest {
         var storage = new PrivateChatFileStorage(r2Settings());
         S3Client client = mock(S3Client.class);
         ReflectionTestUtils.setField(storage, "s3Client", client);
-        when(client.headBucket(any(HeadBucketRequest.class)))
+        when(client.listObjectsV2(any(ListObjectsV2Request.class)))
                 .thenThrow(S3Exception.builder().statusCode(403).message("Forbidden").build());
         assertFalse(storage.isConfigured());
         assertFalse(storage.isConfigured());
-        verify(client, times(1)).headBucket(any(HeadBucketRequest.class));
+        verify(client, times(1)).listObjectsV2(any(ListObjectsV2Request.class));
         var file = new MockMultipartFile("file", "jogo.pdf", "application/pdf",
                 "%PDF-1.4\\n%%EOF".getBytes(StandardCharsets.US_ASCII));
         var error = assertThrows(ResponseStatusException.class, () -> storage.store(file));
