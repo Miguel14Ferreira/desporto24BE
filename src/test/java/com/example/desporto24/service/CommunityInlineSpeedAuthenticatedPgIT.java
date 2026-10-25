@@ -66,7 +66,9 @@ class CommunityInlineSpeedAuthenticatedPgIT {
     private static final String[] NAMES = {
       "Ana Exemplo", "Bruno Exemplo", "Carla Exemplo", "Diogo Exemplo",
       "Eva Exemplo", "Filipe Exemplo", "Gabriela Exemplo", "Hugo Exemplo",
-      "Ines Exemplo", "Joao Exemplo", "Lara Exemplo", "Marco Exemplo"
+      "Ines Exemplo", "Joao Exemplo", "Lara Exemplo", "Marco Exemplo",
+      "Nuno Exemplo", "Olga Exemplo", "Paulo Exemplo", "Rita Exemplo",
+      "Sara Exemplo", "Tiago Exemplo", "Vera Exemplo", "Zeca Exemplo"
     };
 
     /** Resolve an unrelated admin importer executor ambiguity only in this QA context. */
@@ -228,12 +230,16 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         assertTrue(tournamentId > 0, tournament.toString());
 
         // First timed stage: 12 distinct skaters and eight provisional qualifiers.
-        long first = record("Primeira fase 500m +D",
-            FIRST, 0,1,2,3,4,5,6,7,8,9,10,11);
+        long first = record("Primeira manga da primeira fase 500m +D",
+            FIRST, 0,1,2,3,4,5);
+        long firstTwo = record("Segunda manga da primeira fase 500m +D",
+            FIRST, 6,7,8,9,10,11);
         request("PUT", speed(tournamentId) + "/heats/" + first + "?heatNumber=1",
             outsiderToken, null, 403);
+        request("PUT", speed(tournamentId) + "/heats/" + first + "?heatNumber=1",
+            ownerToken, null, 200);
         JsonNode linked = request("PUT",
-            speed(tournamentId) + "/heats/" + first + "?heatNumber=1",
+            speed(tournamentId) + "/heats/" + firstTwo + "?heatNumber=2",
             ownerToken, null, 200);
         assertEquals("SEMI", linked.path("proposals").get(0).path("targetStage").asText());
         assertEquals(8, linked.path("proposals").get(0).path("playerIds").size());
@@ -274,13 +280,102 @@ class CommunityInlineSpeedAuthenticatedPgIT {
         JsonNode finalOverview = request("PUT",
             speed(tournamentId) + "/heats/" + finalRound + "?heatNumber=1",
             ownerToken, null, 200);
-        assertEquals(4, finalOverview.path("linkedHeats").size());
+        assertEquals(5, finalOverview.path("linkedHeats").size());
         assertEquals(2, finalOverview.path("decisions").size());
         assertFalse(communities.findById(communityId).orElseThrow().isRankingsEnabled());
-        assertEquals(4, links.findByTournamentIdOrderByIdAsc(tournamentId).size());
+        assertEquals(5, links.findByTournamentIdOrderByIdAsc(tournamentId).size());
         assertEquals(2, decisions.findByTournamentIdOrderByIdAsc(tournamentId).size());
         assertTrue(rounds.findById(first).isPresent());
-        assertEquals(12, entries.findByRoundIdOrderByIdAsc(first).size());
+        assertEquals(6, entries.findByRoundIdOrderByIdAsc(first).size());
+        assertEquals(6, entries.findByRoundIdOrderByIdAsc(firstTwo).size());
         assertTrue(overview(tournamentId).path("decisions").get(0).has("confirmedBy"));
+
+        // A separate 20-skater competition must take the 2026 quarter-final route.
+        JsonNode largeTournament = request("POST",
+            "/api/communities/" + communityId + "/tournaments", ownerToken,
+            Map.of("name", "Campeonato de 20 Patinadores (QA)",
+                "sport", SPORT, "entryType", "INDIVIDUAL"), 201);
+        long largeId = largeTournament.path("id").asLong();
+        assertTrue(largeId > 0);
+        JsonNode largeOverview = null;
+        for (int heat = 0; heat < 4; heat++) {
+            int base = heat * 5;
+            long roundId = record("20 patinadores - qualificacao " + (heat + 1),
+                FIRST, base,base+1,base+2,base+3,base+4);
+            largeOverview = request("PUT",
+                speed(largeId) + "/heats/" + roundId + "?heatNumber=" + (heat + 1),
+                ownerToken, null, 200);
+        }
+        assertNotNull(largeOverview);
+        assertEquals("QUARTER",
+            largeOverview.path("proposals").get(0).path("targetStage").asText());
+        assertEquals(16, largeOverview.path("proposals").get(0).path("playerIds").size());
+        List<Long> sixteen = new ArrayList<>();
+        largeOverview.path("proposals").get(0).path("playerIds")
+            .forEach(id -> sixteen.add(id.asLong()));
+
+        // Never silently approve 15 or 17 unless the 16th/17th tie was recorded.
+        request("PUT", speed(largeId) + "/qualifications/FIRST",
+            ownerToken, Map.of("playerIds", sixteen.subList(0, 15),
+                "reason", "Juri presente e manga completa"), 422);
+        List<Long> seventeen = new ArrayList<>(sixteen);
+        JsonNode last = largeOverview.path("linkedHeats").get(3)
+            .path("skaters").get(1);
+        long extraId = last.path("playerId").asLong();
+        if (sixteen.contains(extraId)) {
+            extraId = largeOverview.path("linkedHeats").get(3)
+                .path("skaters").get(4).path("playerId").asLong();
+        }
+        assertFalse(sixteen.contains(extraId));
+        seventeen.add(extraId);
+        request("PUT", speed(largeId) + "/qualifications/FIRST",
+            ownerToken, Map.of("playerIds", seventeen,
+                "reason", "Juri presente e manga completa"), 422);
+
+        request("PUT", speed(largeId) + "/qualifications/FIRST", ownerToken,
+            Map.of("playerIds", sixteen,
+                "reason", "Os vinte tempos foram verificados e a fase esta concluida"), 200);
+
+        JsonNode quarterOverview = null;
+        for (int heat = 0; heat < 4; heat++) {
+            int base = heat * 4;
+            long roundId = record("Quarto " + (heat + 1), "INLINE_TRACK_500D_QUARTER_HEAT",
+                base,base+1,base+2,base+3);
+            quarterOverview = request("PUT",
+                speed(largeId) + "/heats/" + roundId + "?heatNumber=" + (heat + 1),
+                ownerToken, null, 200);
+        }
+        assertNotNull(quarterOverview);
+        List<Long> eightQuarter = new ArrayList<>();
+        for (var p : quarterOverview.path("proposals"))
+            if ("QUARTER".equals(p.path("sourceStage").asText()))
+                p.path("playerIds").forEach(id -> eightQuarter.add(id.asLong()));
+        assertEquals(8, eightQuarter.size());
+        request("PUT", speed(largeId) + "/qualifications/QUARTER",
+            ownerToken, Map.of("playerIds", eightQuarter), 200);
+
+        long semifinal1 = record("20 skaters semifinal 1", SEMI, 0,1,4,5);
+        long semifinal2 = record("20 skaters semifinal 2", SEMI, 8,9,12,13);
+        request("PUT", speed(largeId) + "/heats/" + semifinal1 + "?heatNumber=1",
+            ownerToken, null, 200);
+        JsonNode semifinalOverview = request("PUT",
+            speed(largeId) + "/heats/" + semifinal2 + "?heatNumber=2",
+            ownerToken, null, 200);
+        List<Long> fourFinal = new ArrayList<>();
+        for (var p : semifinalOverview.path("proposals"))
+            if ("SEMI".equals(p.path("sourceStage").asText()))
+                p.path("playerIds").forEach(id -> fourFinal.add(id.asLong()));
+        assertEquals(4, fourFinal.size());
+        request("PUT", speed(largeId) + "/qualifications/SEMI",
+            ownerToken, Map.of("playerIds", fourFinal), 200);
+
+        long largeFinal = record("Final dos 20", FINAL, 0,8,1,9);
+        JsonNode finalTwenty = request("PUT",
+            speed(largeId) + "/heats/" + largeFinal + "?heatNumber=1",
+            ownerToken, null, 200);
+        assertEquals(11, finalTwenty.path("linkedHeats").size());
+        assertEquals(3, finalTwenty.path("decisions").size());
+        assertEquals(11, links.findByTournamentIdOrderByIdAsc(largeId).size());
+        assertFalse(communities.findById(communityId).orElseThrow().isRankingsEnabled());
     }
 }
