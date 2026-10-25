@@ -48,9 +48,9 @@ class VenueSuggestionServiceTest {
 
     @Test
     void newSuggestionRequiresAnExplicitEnvironmentBeforeSaving() throws Exception {
-        var missing = mapper.readValue(
-            "{\\"name\\":\\"Recinto\\",\\"city\\":\\"Lisboa\\",\\"address\\":\\"Rua A\\",\\"sports\\":\\"Futsal\\"}",
-            CreateVenueRequest.class);
+        var missing = mapper.readValue("""
+            {"name":"Recinto","city":"Lisboa","address":"Rua A","sports":"Futsal"}
+            """, CreateVenueRequest.class);
         var exception = assertThrows(ResponseStatusException.class,
                 () -> service.submit(missing, "tester"));
         assertEquals(400, exception.getStatusCode().value());
