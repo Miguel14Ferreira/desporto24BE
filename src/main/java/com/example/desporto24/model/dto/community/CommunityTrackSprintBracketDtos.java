@@ -49,12 +49,26 @@ public final class CommunityTrackSprintBracketDtos {
         }
     }
 
+    public record EndEvent(@NotBlank @Size(min=12,max=255) String reference,
+                           @NotBlank @Size(min=12,max=500) String reason) {}
+
+    public record Interruption(String stage, String reference, String reason,
+                               String recordedBy, java.time.Instant recordedAt) {}
+
     public record Overview(Long id, Long seasonId, String name, String format,
                            List<Match> matches, Long qualifyingRoundId,
                            List<String> qualifyingSeeds,
                            List<TieDecision> officialTieDecisions,
                            String tieDecisionRecordedBy,
-                           List<CommunityTrackSprintIncidentDtos.View> incidents) {
+                           List<CommunityTrackSprintIncidentDtos.View> incidents,
+                           Interruption interruption) {
+        public Overview(Long id, Long seasonId, String name, String format,
+                        List<Match> matches, Long qualifyingRoundId,
+                        List<String> qualifyingSeeds, List<TieDecision> tieDecisions,
+                        String recordedBy, List<CommunityTrackSprintIncidentDtos.View> incidents) {
+            this(id,seasonId,name,format,matches,qualifyingRoundId,qualifyingSeeds,
+                tieDecisions,recordedBy,incidents,null);
+        }
         public Overview(Long id, Long seasonId, String name, String format,
                         List<Match> matches) {
             this(id, seasonId, name, format, matches, null, List.of(), List.of(), null, List.of());
