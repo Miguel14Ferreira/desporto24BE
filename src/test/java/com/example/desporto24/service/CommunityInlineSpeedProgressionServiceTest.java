@@ -32,6 +32,7 @@ class CommunityInlineSpeedProgressionServiceTest {
     @Mock CommunityRoundEntryRepository entries;
     @Mock CommunityInlineSpeedHeatRepository links;
     @Mock CommunityInlineSpeedDecisionRepository decisions;
+    @Mock CommunityInlineSpeedTieBreakRepository tieBreaks;
     @InjectMocks CommunityInlineSpeedProgressionService service;
 
     private Community community;

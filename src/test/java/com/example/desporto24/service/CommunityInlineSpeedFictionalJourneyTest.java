@@ -51,6 +51,7 @@ class CommunityInlineSpeedFictionalJourneyTest {
     @Mock CommunityRoundEntryRepository entries;
     @Mock CommunityInlineSpeedHeatRepository links;
     @Mock CommunityInlineSpeedDecisionRepository decisions;
+    @Mock CommunityInlineSpeedTieBreakRepository tieBreaks;
     @InjectMocks CommunityInlineSpeedProgressionService service;
 
     private Community community;
@@ -60,6 +61,7 @@ class CommunityInlineSpeedFictionalJourneyTest {
     private final Map<Long, List<CommunityRoundEntry>> resultsByRound = new HashMap<>();
     private final List<CommunityInlineSpeedHeatLink> linked = new ArrayList<>();
     private final Map<String, CommunityInlineSpeedDecision> approved = new LinkedHashMap<>();
+    private final Map<String, CommunityInlineSpeedTieBreak> rulings = new LinkedHashMap<>();
     private final Map<Long, CommunityPlayer> skaters = new HashMap<>();
 
     @BeforeEach
@@ -97,6 +99,16 @@ class CommunityInlineSpeedFictionalJourneyTest {
                 .thenAnswer(call -> Optional.ofNullable(approved.get(call.getArgument(1))));
         when(decisions.findByTournamentIdOrderByIdAsc(9L))
                 .thenAnswer(call -> new ArrayList<>(approved.values()));
+        lenient().when(tieBreaks.findByTournamentIdAndSourceStage(eq(9L), anyString()))
+                .thenAnswer(call -> Optional.ofNullable(rulings.get(call.getArgument(1))));
+        when(tieBreaks.findByTournamentIdOrderByIdAsc(9L))
+                .thenAnswer(call -> new ArrayList<>(rulings.values()));
+        lenient().when(tieBreaks.save(any(CommunityInlineSpeedTieBreak.class)))
+                .thenAnswer(call -> {
+                    CommunityInlineSpeedTieBreak item = call.getArgument(0);
+                    rulings.put(item.getSourceStage(), item);
+                    return item;
+                });
         when(links.save(any(CommunityInlineSpeedHeatLink.class)))
                 .thenAnswer(call -> {
                     CommunityInlineSpeedHeatLink item = call.getArgument(0);
@@ -282,6 +294,68 @@ class CommunityInlineSpeedFictionalJourneyTest {
                 new CommunityInlineSpeedProgressionService.ConfirmRequest(
                         all(1, 17), "O juiz confirma o empate entre 16.º e 17.º"), "qa_owner");
         assertEquals(17, decision.decisions().get(0).playerIds().size());
+    }
+
+    @Test
+    void aJuryResolvesThreeWayCutoffWithoutEditingOriginalTimes() {
+        for (int heat = 0; heat < 4; heat++) {
+            long[] ids = LongStream.rangeClosed(1 + heat * 5, 5 + heat * 5).toArray();
+            record(100 + heat, FIRST, "Primeira fase " + (heat + 1), ids, false);
+        }
+        // The 16th, 17th and 18th share the same recorded time.
+        for (long id : new long[]{17, 18}) {
+            long roundId = 100 + (id - 1) / 5;
+            resultsByRound.get(roundId).stream()
+                    .filter(e -> e.getCommunityPlayer().getId().equals(id))
+                    .findFirst().orElseThrow().setElapsedSeconds(new BigDecimal("30.16"));
+        }
+        CommunityInlineSpeedProgressionService.Overview state = null;
+        for (int heat = 0; heat < 4; heat++)
+            state = service.link(7L, 9L, 100 + heat, heat + 1, "qa_owner");
+        assertNotNull(state);
+        assertFalse(state.proposals().get(0).ready());
+        assertTrue(state.proposals().get(0).warning().contains("Empate múltiplo"));
+        hasStatus(HttpStatus.CONFLICT, () -> service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 16), "A primeira fase está completa"), "qa_owner"));
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> service.resolveTieBreak(
+                7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(2, 17), "O júri observou um desempate oficial documentado"),
+                "qa_owner"));
+        hasStatus(HttpStatus.UNPROCESSABLE_ENTITY, () -> service.resolveTieBreak(
+                7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 16), "Curto"), "qa_owner"));
+        var tied = service.resolveTieBreak(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 16),
+                        "O júri decidiu o desempate do 16.º lugar após rever a chegada oficial"),
+                "qa_owner");
+        assertEquals(1, tied.tieBreaks().size());
+        assertEquals("qa_owner", tied.tieBreaks().get(0).confirmedBy());
+        assertTrue(tied.proposals().get(0).ready());
+        assertEquals(all(1, 16), tied.proposals().get(0).playerIds());
+        assertEquals(new BigDecimal("30.16"),
+                resultsByRound.get(103L).get(1).getElapsedSeconds());
+        assertTrue(approved.isEmpty(), "Tie resolution cannot auto-confirm the qualification");
+        var confirmed = service.confirm(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 16), "O júri confirma o apuramento após desempate registado"),
+                "qa_owner");
+        assertEquals(1, confirmed.decisions().size());
+        hasStatus(HttpStatus.CONFLICT, () -> service.resolveTieBreak(7L, 9L, "FIRST",
+                new CommunityInlineSpeedProgressionService.ConfirmRequest(
+                        all(1, 15).stream().toList(), "Não é permitido reabrir após confirmação"),
+                "qa_owner"));
+        // Editing a source time invalidates both the ruling and its proposal.
+        resultsByRound.get(100L).get(0).setElapsedSeconds(new BigDecimal("30.02"));
+        when(members.existsByCommunityIdAndProfileId(7L, 99L)).thenReturn(true);
+        when(tournaments.findById(9L)).thenReturn(Optional.of(tournament));
+        var stale = service.overview(7L, 9L, "qa_owner");
+        assertTrue(stale.tieBreaks().get(0).stale());
+        assertFalse(stale.proposals().get(0).ready());
+        assertTrue(stale.decisions().get(0).stale());
     }
 
     @Test
