@@ -42,6 +42,7 @@ public class VenueEditSuggestionService {
 
     private final VenueEditSuggestionRepository repository;
     private final VenueRepository venues;
+    private final VenueEditDecisionNotificationService decisionNotifications;
     // Do not inject the Jackson 2 mapper into Spring Boot 4's Jackson 3 HTTP context.
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -129,7 +130,10 @@ public class VenueEditSuggestionService {
         proposal.setReviewedByUsername(moderator);
         proposal.setReviewedAt(Instant.now());
         proposal.setDecisionNote(cleanNote(note));
-        return response(repository.save(proposal));
+        var result = response(repository.save(proposal));
+        decisionNotifications.decision(id, venue.getId(), venue.getName(),
+                proposal.getSubmittedByUsername(), true, proposal.getDecisionNote());
+        return result;
     }
 
     public VenueEditSuggestionResponse reject(long id, String note, String moderator) {
@@ -141,7 +145,10 @@ public class VenueEditSuggestionService {
         proposal.setReviewedByUsername(moderator);
         proposal.setReviewedAt(Instant.now());
         proposal.setDecisionNote(note.trim());
-        return response(repository.save(proposal));
+        var result = response(repository.save(proposal));
+        decisionNotifications.decision(id, proposal.getVenue().getId(), proposal.getVenue().getName(),
+                proposal.getSubmittedByUsername(), false, proposal.getDecisionNote());
+        return result;
     }
 
     private VenueEditSuggestion pendingForReview(long id) {

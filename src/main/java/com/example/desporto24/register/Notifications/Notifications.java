@@ -41,6 +41,12 @@ public class Notifications {
     @Column(name = "community_id")
     private Long communityId;
 
+    @Column(name = "venue_id")
+    private Long venueId;
+
+    @Column(name = "venue_edit_suggestion_id")
+    private Long venueEditSuggestionId;
+
     @Column(name = "related_username")
     private String relatedUsername;
 
