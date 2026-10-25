@@ -303,7 +303,8 @@ public class CommunityManagementService {
      * Animated GIF frames and other media remain unchanged in storage.
      */
     public CommunityResponse updatePhotoFraming(
-            Long communityId, String username, double zoom, double focusX, double focusY) {
+            Long communityId, String username, double zoom, double focusX, double focusY,
+            String expectedPhotoUrl) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
         if (!Double.isFinite(zoom) || zoom < 1 || zoom > 3
@@ -313,6 +314,10 @@ public class CommunityManagementService {
                     "Enquadramento inválido");
         }
         Community group = community(communityId);
+        if (expectedPhotoUrl == null || !expectedPhotoUrl.equals(group.getPhotoUrl())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A fotografia foi alterada. Atualiza a página antes de ajustar");
+        }
         if (group.getPhotoUrl() == null || group.getPhotoUrl().isBlank()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta comunidade ainda não tem fotografia");
