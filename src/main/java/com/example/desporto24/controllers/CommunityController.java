@@ -18,6 +18,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.function.Supplier;
+import org.springframework.http.HttpStatus;
+import com.example.desporto24.domain.CommunityImportHttpResponse;
 
 @RestController
 @RequiredArgsConstructor
@@ -369,7 +372,7 @@ public class CommunityController {
             @RequestBody @Valid CommunityImportContextRequest request,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.validateContext(id, authentication.getName(), request)
+                withImportHttpError(() -> communityImportService.validateContext(id, authentication.getName(), request))
         );
     }
 
@@ -379,7 +382,7 @@ public class CommunityController {
             @RequestPart("file") MultipartFile file,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.preview(id, authentication.getName(), file)
+                withImportHttpError(() -> communityImportService.preview(id, authentication.getName(), file))
         );
     }
 
@@ -390,7 +393,7 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.validateMapping(id, authentication.getName(), file, mapping)
+                withImportHttpError(() -> communityImportService.validateMapping(id, authentication.getName(), file, mapping))
         );
     }
 
@@ -401,7 +404,7 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.normalizedPreview(id, authentication.getName(), file, mapping)
+                withImportHttpError(() -> communityImportService.normalizedPreview(id, authentication.getName(), file, mapping))
         );
     }
 
@@ -412,7 +415,7 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.importPlan(id, authentication.getName(), file, mapping)
+                withImportHttpError(() -> communityImportService.importPlan(id, authentication.getName(), file, mapping))
         );
     }
 
@@ -423,7 +426,7 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.roundsPlan(id, authentication.getName(), file, mapping)
+                withImportHttpError(() -> communityImportService.roundsPlan(id, authentication.getName(), file, mapping))
         );
     }
 
@@ -435,7 +438,7 @@ public class CommunityController {
             @RequestPart("context") @Valid CommunityImportContextRequest context,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.finalRoundsPlan(id, authentication.getName(), file, mapping, context)
+                withImportHttpError(() -> communityImportService.finalRoundsPlan(id, authentication.getName(), file, mapping, context))
         );
     }
 
@@ -447,7 +450,7 @@ public class CommunityController {
             @RequestPart("context") @Valid CommunityImportContextRequest context,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.confirmRounds(id, authentication.getName(), file, mapping, context)
+                withImportHttpError(() -> communityImportService.confirmRounds(id, authentication.getName(), file, mapping, context))
         );
     }
 
@@ -458,7 +461,7 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
         return ResponseEntity.ok(
-                communityImportService.confirmPlayers(id, authentication.getName(), file, mapping)
+                withImportHttpError(() -> communityImportService.confirmPlayers(id, authentication.getName(), file, mapping))
         );
     }
 
@@ -473,7 +476,7 @@ public class CommunityController {
             @RequestPart("file") MultipartFile file,
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
-        return ResponseEntity.ok(historicalMatchPreviewService.preview(id, authentication.getName(), file, mapping));
+        return ResponseEntity.ok(withImportHttpError(() -> historicalMatchPreviewService.preview(id, authentication.getName(), file, mapping)));
     }
 
     /** Preserve real old fixtures in a separate archive, never a live tournament. */
@@ -485,8 +488,8 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             @RequestPart("context") @Valid CommunityHistoricalMatchArchiveConfirmRequest context,
             Authentication authentication) {
-        return ResponseEntity.ok(historicalMatchArchiveService.confirm(
-                id, authentication.getName(), file, mapping, context));
+        return ResponseEntity.ok(withImportHttpError(() -> historicalMatchArchiveService.confirm(
+                id, authentication.getName(), file, mapping, context)));
     }
 
     @GetMapping("/{id}/competition/match-archives")
@@ -513,7 +516,7 @@ public class CommunityController {
             @RequestPart("file") MultipartFile file,
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             Authentication authentication) {
-        return ResponseEntity.ok(historicalStandingsService.preview(id, authentication.getName(), file, mapping));
+        return ResponseEntity.ok(withImportHttpError(() -> historicalStandingsService.preview(id, authentication.getName(), file, mapping)));
     }
 
     @PostMapping(value = "/{id}/competition/import/standings/confirm",
@@ -524,7 +527,7 @@ public class CommunityController {
             @RequestPart("mapping") @Valid CommunityImportMappingRequest mapping,
             @RequestPart("context") @Valid CommunityStandingsArchiveConfirmRequest context,
             Authentication authentication) {
-        return ResponseEntity.ok(historicalStandingsService.confirm(id, authentication.getName(), file, mapping, context));
+        return ResponseEntity.ok(withImportHttpError(() -> historicalStandingsService.confirm(id, authentication.getName(), file, mapping, context)));
     }
 
     @GetMapping("/{id}/competition/standings-archives")
@@ -599,5 +602,34 @@ public class CommunityController {
                 authentication.getName(),
                 request
         ));
+    }
+
+    /**
+     * Apply HTTP validation semantics only to historical spreadsheet import
+     * operations. Other community endpoints keep their existing handlers.
+     * Authorization and unexpected failures still use the normal global flow.
+     */
+    private <T> T withImportHttpError(Supplier<T> operation) {
+        try {
+            return operation.get();
+        } catch (IllegalArgumentException invalidImport) {
+            throw new ImportValidationFailure(invalidImport.getMessage());
+        }
+    }
+
+    private static final class ImportValidationFailure extends RuntimeException {
+        private ImportValidationFailure(String legacyMessage) {
+            super(legacyMessage);
+        }
+    }
+
+    @ExceptionHandler(ImportValidationFailure.class)
+    public ResponseEntity<CommunityImportHttpResponse> invalidSpreadsheetImport(ImportValidationFailure failure) {
+        String message = failure.getMessage() == null || failure.getMessage().isBlank()
+                ? "Não foi possível validar o ficheiro histórico" : failure.getMessage();
+        CommunityImportDiagnostic detail = CommunityImportDiagnostic.fromLegacy(message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new CommunityImportHttpResponse(HttpStatus.BAD_REQUEST, message,
+                        detail.code(), detail.params()));
     }
 }

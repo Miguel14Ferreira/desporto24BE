@@ -33,6 +33,18 @@ public record CommunityImportDiagnostic(String code, Map<String, String> params)
     }
 
     private static final List<Rule> RULES = List.of(
+            new Rule("IMPORT_FILE_REQUIRED", "Seleciona um ficheiro(?: Excel| histórico)?"),
+            new Rule("IMPORT_FILE_TOO_LARGE", "O ficheiro não pode ultrapassar 10 MB"),
+            new Rule("IMPORT_FILE_FORMAT_UNSUPPORTED",
+                    "(?:Suportamos Excel, CSV e TSV|Formatos suportados: \\.xlsx, \\.xls, \\.csv e \\.tsv|Formatos suportados: Excel, CSV e TSV)"),
+            new Rule("IMPORT_FILE_READ_FAILED", "Não foi possível ler o ficheiro (?:Excel|histórico)"),
+            new Rule("IMPORT_FILE_NAME_INVALID", "Nome de ficheiro inválido"),
+            new Rule("IMPORT_MAPPING_INVALID", "(?:Mapeamento de colunas inválido|Corrige o mapeamento antes de continuar)"),
+            new Rule("IMPORT_ROW_SCORE_INVALID", "Linha (\\d+): resultado inválido \\(exemplo: 2-1 ou 2:1\\)", "row"),
+            new Rule("IMPORT_ROW_SCORE_RANGE", "Linha (\\d+): o resultado deve ser inteiro entre 0 e 999", "row"),
+            new Rule("IMPORT_ROW_OPPONENTS_INVALID", "Linha (\\d+): indica os dois adversários \\(máximo 120 caracteres cada\\)", "row"),
+            new Rule("IMPORT_ROW_SELF_MATCH", "Linha (\\d+): a mesma pessoa/equipa não pode jogar contra si própria", "row"),
+            new Rule("IMPORT_SOURCE_DATE_INVALID", "Não foi possível resolver a data: (.+)", "date"),
             new Rule("IMPORT_SHEET_MISSING", "A folha selecionada não existe"),
             new Rule("IMPORT_COLUMN_MISSING", "A coluna (\\d+) não existe na folha", "column"),
             new Rule("IMPORT_UNSUPPORTED_FIELD", "Campo não suportado: (.+)", "field"),
