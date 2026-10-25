@@ -29,8 +29,9 @@ final class CommunityTrackSprintSeries {
         var b = round.entries().get(1);
         if (a.username() == null || b.username() == null)
             throw new IllegalArgumentException("Os ciclistas da série devem ter contas identificadas");
-        String winner = a.result() == CommunityMatchResult.WIN ? a.username()
-                : b.result() == CommunityMatchResult.WIN ? b.username() : null;
+        String winner = round.entries().stream()
+                .filter(e -> e.result() == CommunityMatchResult.WIN)
+                .map(e -> e.username()).findFirst().orElse(null);
         if (winner == null) throw new IllegalArgumentException("A manga não tem vencedor");
         return new Heat(round.eventDiscipline(), round.sprintHeatNumber(),
                 a.username(), b.username(), winner);
