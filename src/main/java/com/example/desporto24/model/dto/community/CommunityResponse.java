@@ -21,8 +21,23 @@ public record CommunityResponse(
         List<CommunityMemberResponse> members,
         List<String> sports,
         boolean individualTournamentsEnabled,
-        boolean teamTournamentsEnabled
+        boolean teamTournamentsEnabled,
+        Double photoZoom,
+        Double photoFocusX,
+        Double photoFocusY
 ) {
+    // Compatibility with existing tests and older response factories.
+    public CommunityResponse(Long id, String name, String description, String sport,
+                             String photoUrl, CommunityVisibility visibility,
+                             boolean rankingsEnabled, String ownerUsername,
+                             CommunityRole myRole, int memberCount,
+                             Instant createdAt, List<CommunityMemberResponse> members,
+                             List<String> sports, boolean individualTournamentsEnabled,
+                             boolean teamTournamentsEnabled) {
+        this(id, name, description, sport, photoUrl, visibility, rankingsEnabled,
+                ownerUsername, myRole, memberCount, createdAt, members, sports,
+                individualTournamentsEnabled, teamTournamentsEnabled, null, null, null);
+    }
     public CommunityResponse(Long id, String name, String description, String sport,
                              String photoUrl, CommunityVisibility visibility,
                              boolean rankingsEnabled, String ownerUsername,
