@@ -46,6 +46,12 @@ async function newFixturePage(browser, token, language) {
     // the genuine random-port Spring Boot application in this same JUnit run.
     if ((u.hostname === 'localhost' || u.hostname === '127.0.0.1')
         && Number(u.port) === 8080 && u.pathname.startsWith('/api/')) {
+      // Angular routinely sends these two independent telemetry writes.
+      // Satisfy them IN MEMORY, never forward to Spring, and still reject
+      // every competition mutation or newly introduced unexpected POST.
+      if (method === 'POST' && (u.pathname === '/api/pilot/events/access'
+          || u.pathname === '/api/presence/heartbeat'))
+        return route.fulfill({status:200,contentType:'application/json',body:'{}'});
       if (!['GET','OPTIONS','HEAD'].includes(method)) {
         forbiddenWrites.push(method + ' ' + u.pathname);
         return route.fulfill({status: 403, contentType:'application/json',
