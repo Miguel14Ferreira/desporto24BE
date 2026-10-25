@@ -14,6 +14,7 @@ import com.example.desporto24.model.community.CommunityRound;
 import com.example.desporto24.model.community.CommunityRoundEntry;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.community.CommunityTrackSprintBracket;
+import com.example.desporto24.model.community.CommunityTrackSprintIncident;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
@@ -23,6 +24,7 @@ import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityTrackSprintBracketRepository;
+import com.example.desporto24.repository.community.CommunityTrackSprintIncidentRepository;
 import com.example.desporto24.repository.community.CommunityTournamentRepository;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
@@ -54,6 +56,7 @@ public class CommunityCompetitionService {
     private final CommunityRoundRepository roundRepository;
     private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTrackSprintBracketRepository trackSprintBracketRepository;
+    private final CommunityTrackSprintIncidentRepository trackSprintIncidentRepository;
     private final CommunityRacketRuleRepository racketRuleRepository;
     private final CommunityRaceRuleRepository raceRuleRepository;
     private final CommunityRoundEntryRepository entryRepository;
@@ -194,6 +197,8 @@ public class CommunityCompetitionService {
                         && r.getSprintSeriesKey().startsWith(prefix));
         if (containsHeats)
             throw new IllegalStateException("Apaga as mangas do quadro antes de o eliminar");
+        if (trackSprintIncidentRepository.existsByBracketId(bracketId))
+            throw new IllegalStateException("Um quadro com incidentes documentados não pode ser apagado");
         trackSprintBracketRepository.delete(bracket);
         trackSprintBracketRepository.flush();
     }
@@ -235,7 +240,9 @@ public class CommunityCompetitionService {
                 bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
                 bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()),
                 decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
-                bracket.getTieDecisionsRecordedBy());
+                bracket.getTieDecisionsRecordedBy(),
+                trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracket.getId())
+                        .stream().map(CommunityCompetitionService::sprintIncidentResponse).toList());
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper SPRINT_TIE_MAPPER =
@@ -262,6 +269,111 @@ public class CommunityCompetitionService {
         }
     }
 
+
+    private static final Set<String> SPRINT_INCIDENT_TYPES =
+            Set.of("FALL","PUNCTURE","BICYCLE_DEFECT","RULE_INFRINGEMENT","OTHER");
+    private static final Set<String> SPRINT_INCIDENT_DECISIONS =
+            Set.of("RESTART_REQUIRED","OFFICIAL_RESULT_TO_RECORD");
+
+    private static CommunityTrackSprintIncidentDtos.View sprintIncidentResponse(
+            CommunityTrackSprintIncident i) {
+        return new CommunityTrackSprintIncidentDtos.View(
+                i.getId(),i.getSeriesKey(),i.getHeatNumber(),i.getIncidentType(),
+                i.getDetails(),i.getStatus(),i.getReportedBy(),i.getReportedAt(),
+                i.getDecisionType(),i.getDecisionReference(),i.getDecisionReason(),
+                i.getDecidedBy(),i.getDecidedAt());
+    }
+
+    /**
+     * Report an incident against the NEXT unrecorded heat. This is a
+     * non-sporting, append-only audit entry and never assigns a winner.
+     * The season lock plus the PG partial unique index stop simultaneous
+     * contradictory unresolved reports.
+     */
+    public CommunityTrackSprintIncidentDtos.View reportTrackSprintIncident(
+            Long communityId,Long seasonId,Long bracketId,String username,
+            CommunityTrackSprintIncidentDtos.Report request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive()) throw new IllegalStateException("Época encerrada");
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não encontrado nesta época"));
+        String series=request.seriesKey()==null?"":request.seriesKey().trim();
+        if(!SPRINT_INCIDENT_TYPES.contains(request.incidentType()))
+            throw new IllegalArgumentException("Tipo de incidente não reconhecido");
+        if(request.details()==null || request.details().trim().length()<12 ||
+                request.details().trim().length()>500)
+            throw new IllegalArgumentException("Descreve o incidente, sem declarar um vencedor");
+        if(!series.startsWith("SP"+bracketId+"-") || series.length()>40 ||
+                request.heatNumber()<1 || request.heatNumber()>3)
+            throw new IllegalArgumentException("Série ou número de manga inválido");
+        if(trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatus(
+                bracketId,series,"PENDING"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Este confronto já tem um incidente por resolver");
+        AcceptedAliases aliases=acceptedAliasProfiles(communityId);
+        List<CommunityRoundResponse> related=roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
+                .stream().filter(r->"TRACK_SPRINT_HEAT".equals(r.getEventType())
+                        ||"TRACK_SPRINT_REPECHAGE".equals(r.getEventType())
+                        ||"TRACK_SPRINT_5_8".equals(r.getEventType()))
+                .map(r->roundResponse(r,aliases)).toList();
+        CommunityTrackSprintBracketDtos.Match match=trackSprintBracketResponse(bracket,related)
+                .matches().stream().filter(m->series.equals(m.seriesKey())).findFirst()
+                .orElseThrow(()->new IllegalArgumentException("Série fora do quadro"));
+        if(!Set.of("READY","IN_PROGRESS").contains(match.status()) ||
+                "SPRINT_PLACES_5_8".equals(match.phase()))
+            throw new IllegalArgumentException("Não é possível reportar esta manga");
+        int nextHeat=1+(int)related.stream()
+                .filter(r->series.equals(r.sprintSeriesKey())).count();
+        if(nextHeat!=request.heatNumber())
+            throw new IllegalArgumentException("O incidente tem de referir a próxima manga ainda não registada");
+        CommunityTrackSprintIncident incident=trackSprintIncidentRepository.save(
+                CommunityTrackSprintIncident.builder().bracket(bracket)
+                        .seriesKey(series).heatNumber(nextHeat)
+                        .incidentType(request.incidentType())
+                        .details(request.details().trim()).status("PENDING")
+                        .reportedBy(username).reportedAt(Instant.now()).build());
+        return sprintIncidentResponse(incident);
+    }
+
+    /**
+     * Only a signed, explicitly chosen commissaires' decision unblocks a
+     * series. The organizer must still record the actual official heat result
+     * with the existing heat editor. No auto-advancement is possible here.
+     */
+    public CommunityTrackSprintIncidentDtos.View decideTrackSprintIncident(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintIncidentDtos.Decide request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())throw new IllegalStateException("Época encerrada");
+        trackSprintBracketRepository.findByIdAndCommunityIdAndSeasonId(
+                bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não encontrado"));
+        CommunityTrackSprintIncident incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
+        if(!"PENDING".equals(incident.getStatus()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Decisão já registada");
+        if(request==null || !SPRINT_INCIDENT_DECISIONS.contains(request.decisionType())
+                ||request.reference()==null||request.reference().trim().length()<12
+                ||request.reference().trim().length()>255
+                ||request.reason()==null||request.reason().trim().length()<12
+                ||request.reason().trim().length()>500)
+            throw new IllegalArgumentException("É necessária uma decisão e referência oficial válidas");
+        incident.setStatus("DECIDED");
+        incident.setDecisionType(request.decisionType());
+        incident.setDecisionReason(request.reason().trim());
+        incident.setDecisionReference(request.reference().trim());
+        incident.setDecidedBy(username);
+        incident.setDecidedAt(Instant.now());
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
             java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(A(?:[1-9]|1[0-2])|U[1-4]|C[1-8]|V[1-4]|E[1-6]|W[1-2]|F58|P(?:[5-9]|1[0-6])|R[1-8]|Q[1-4]|S[1-2]|B|G)$");
 
@@ -281,6 +393,11 @@ public class CommunityCompetitionService {
         CommunityTrackSprintBracket bracket = trackSprintBracketRepository
                 .findByIdAndCommunityIdAndSeasonId(bracketId, communityId, season.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Quadro Sprint não pertence à época"));
+        // A reported incident never becomes an official result by itself.
+        if (trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatus(
+                bracketId, seriesKey.trim(), "PENDING"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Manga suspensa até ser registada a decisão oficial dos comissários");
         AcceptedAliases aliases = acceptedAliasProfiles(communityId);
         List<CommunityRoundResponse> rounds = roundRepository
                 .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, season.getId())
@@ -577,6 +694,12 @@ public class CommunityCompetitionService {
 
         // Bracket references its flying-200m source; remove the dependent
         // record and its ordered seeds before season rounds or their FK.
+        // An explicitly deleted season is the ONLY deletion path for incident
+        // history. Normal bracket deletion always protects its audit record.
+        for (CommunityTrackSprintBracket b: trackSprintBracketRepository
+                .findByCommunityIdAndSeasonIdOrderByIdAsc(communityId, seasonId))
+            trackSprintIncidentRepository.deleteByBracketId(b.getId());
+        trackSprintIncidentRepository.flush();
         trackSprintBracketRepository.deleteBySeasonId(seasonId);
         trackSprintBracketRepository.flush();
         List<CommunityRound> rounds =
