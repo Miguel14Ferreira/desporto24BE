@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-inline-speed-trial-order-audit-v1
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_inline_speed_tiebreak
+            columns:
+              - column: {name: trial_order_exception_reason, type: VARCHAR(500)}
+        - addColumn:
+            tableName: community_inline_speed_tiebreak_revision
+            columns:
+              - column: {name: trial_order_exception_reason, type: VARCHAR(500)}
