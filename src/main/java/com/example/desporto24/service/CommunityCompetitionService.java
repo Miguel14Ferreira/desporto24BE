@@ -633,6 +633,81 @@ public class CommunityCompetitionService {
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
+    /**
+     * UCI 3.2.048(1): after an expressly documented intentional fall in a
+     * two-rider single-heat race, the commissaires may declare the other rider
+     * winner. This is a separately witnessed award, NOT a raced/virtual round.
+     * BO3 series (Q/S/B/G) remain blocked pending heat-specific accounting.
+     */
+    public CommunityTrackSprintIncidentDtos.View confirmTwoUpOfficialAward(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username, CommunityTrackSprintIncidentDtos.ConfirmOfficialAward request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Não é possível decidir resultados numa época encerrada");
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não pertence à época"));
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Competição definitivamente interrompida");
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+            throw new IllegalArgumentException("Atribuição oficial só está implementada no quadro olímpico");
+        CommunityTrackSprintIncident incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
+        if(!"ADJUDICATION_REQUIRED".equals(incident.getStatus())
+                ||!"DISCIPLINARY_RULING".equals(incident.getDecisionType())
+                ||!"FALL".equals(incident.getIncidentType())
+                ||!Set.of("RELEGATION","DISQUALIFICATION").contains(incident.getSanctionType())
+                ||incident.getHeatNumber()!=1)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta decisão disciplinar não permite atribuição direta do confronto");
+        String key=incident.getSeriesKey();
+        if(!key.matches("SP"+bracketId+"-(A(?:[1-9]|1[0-2])|C[1-8]|E[1-6]|V[1-4])"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Confronto à melhor de três ou com repescagem de três exige procedimento próprio");
+        if(request==null || !"INTENTIONAL_FALL".equals(request.basis())
+                ||request.winnerUsername()==null||request.winnerUsername().isBlank()
+                ||request.reference()==null||request.reference().trim().length()<12
+                ||request.reference().trim().length()>255
+                ||request.reason()==null||request.reason().trim().length()<12
+                ||request.reason().trim().length()>500)
+            throw new IllegalArgumentException("Confirma queda intencional, vencedor, ata e fundamentação");
+        AcceptedAliases aliases=acceptedAliasProfiles(communityId);
+        List<CommunityRoundResponse> rounds=roundRepository
+            .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
+            .stream().filter(r->Set.of("TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE",
+                    "TRACK_SPRINT_5_8").contains(r.getEventType()))
+            .map(r->roundResponse(r,aliases)).toList();
+        if(rounds.stream().anyMatch(r->key.equals(r.sprintSeriesKey())))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Confronto com resultado disputado não admite atribuição administrativa");
+        CommunityTrackSprintBracketDtos.Match match=trackSprintBracketResponse(bracket,rounds)
+                .matches().stream().filter(m->key.equals(m.seriesKey()))
+                .findFirst().orElseThrow(()->new IllegalArgumentException("Confronto inválido"));
+        if(!"READY".equals(match.status()) ||match.riderC()!=null||match.riderD()!=null
+                ||match.riderA()==null||match.riderB()==null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "É necessária uma eliminatória preparada entre exatamente dois ciclistas");
+        String winner=request.winnerUsername().trim().toLowerCase(Locale.ROOT);
+        String sanctioned=incident.getSanctionedUsername();
+        if(sanctioned==null || !Set.of(match.riderA(),match.riderB()).contains(sanctioned)
+                || winner.equals(sanctioned)
+                || !Set.of(match.riderA(),match.riderB()).contains(winner))
+            throw new IllegalArgumentException(
+                    "O vencedor declarado tem de ser o adversário não sancionado");
+        incident.setAwardWinner(winner);
+        incident.setAwardReference(request.reference().trim());
+        incident.setAwardReason(request.reason().trim());
+        incident.setAwardConfirmedBy(username);
+        incident.setAwardConfirmedAt(Instant.now());
+        incident.setStatus("OFFICIAL_HEAT_AWARDED");
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
             java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(A(?:[1-9]|1[0-2])|U[1-4]|C[1-8]|V[1-4]|E[1-6]|W[1-2]|F58|P(?:[5-9]|1[0-6])|R[1-8]|Q[1-4]|S[1-2]|B|G)$");
 
