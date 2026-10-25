@@ -35,7 +35,7 @@ public record CommunityDiscoveryResponse(
                                       String sport, String photoUrl, CommunityVisibility visibility,
                                       Double photoZoom, Double photoFocusX, Double photoFocusY) {
         this(id, name, description, sport, photoUrl, visibility, null,
-                photoZoom, photoFocusX, photoFocusY, photoFitMode);
+                photoZoom, photoFocusX, photoFocusY, null);
     }
 
     // Keep existing JPQL constructor projections and older callers intact.
@@ -54,6 +54,6 @@ public record CommunityDiscoveryResponse(
     public CommunityDiscoveryResponse withSports(List<String> selectedSports) {
         return new CommunityDiscoveryResponse(
                 id, name, description, sport, photoUrl, visibility, selectedSports,
-                photoZoom, photoFocusX, photoFocusY);
+                photoZoom, photoFocusX, photoFocusY, photoFitMode);
     }
 }
