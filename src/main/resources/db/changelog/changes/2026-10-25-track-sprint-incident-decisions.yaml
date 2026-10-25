@@ -1,0 +1,80 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-track-sprint-incident-decisions
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: community_track_sprint_incident
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: bracket_id
+                  type: BIGINT
+                  constraints: { nullable: false }
+              - column:
+                  name: series_key
+                  type: VARCHAR(40)
+                  constraints: { nullable: false }
+              - column:
+                  name: heat_number
+                  type: INT
+                  constraints: { nullable: false }
+              - column:
+                  name: incident_type
+                  type: VARCHAR(32)
+                  constraints: { nullable: false }
+              - column:
+                  name: details
+                  type: VARCHAR(500)
+                  constraints: { nullable: false }
+              - column:
+                  name: status
+                  type: VARCHAR(28)
+                  constraints: { nullable: false }
+              - column:
+                  name: reported_by
+                  type: VARCHAR(100)
+                  constraints: { nullable: false }
+              - column:
+                  name: reported_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: { nullable: false }
+              - column:
+                  name: decision_type
+                  type: VARCHAR(24)
+              - column:
+                  name: decision_reference
+                  type: VARCHAR(255)
+              - column:
+                  name: decision_reason
+                  type: VARCHAR(500)
+              - column:
+                  name: decided_by
+                  type: VARCHAR(100)
+              - column:
+                  name: decided_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - addForeignKeyConstraint:
+            baseTableName: community_track_sprint_incident
+            baseColumnNames: bracket_id
+            referencedTableName: community_track_sprint_bracket
+            referencedColumnNames: id
+            constraintName: fk_track_sprint_incident_bracket
+        - createIndex:
+            tableName: community_track_sprint_incident
+            indexName: idx_track_sprint_incident_bracket
+            columns:
+              - column: { name: bracket_id }
+              - column: { name: series_key }
+        # Immutable record history; only one undecided incident per series,
+        # even if two organizers submit at the same instant.
+        - sql:
+            dbms: postgresql
+            sql: >
+              CREATE UNIQUE INDEX uq_track_sprint_one_pending_incident
+              ON community_track_sprint_incident (bracket_id, series_key)
+              WHERE status = 'PENDING'

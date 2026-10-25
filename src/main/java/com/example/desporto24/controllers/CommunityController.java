@@ -280,6 +280,35 @@ public class CommunityController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents")
+    public ResponseEntity<CommunityTrackSprintIncidentDtos.View> reportTrackSprintIncident(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @RequestBody @Valid CommunityTrackSprintIncidentDtos.Report request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.reportTrackSprintIncident(
+                    id,seasonId,bracketId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/decision")
+    public ResponseEntity<CommunityTrackSprintIncidentDtos.View> decideTrackSprintIncident(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintIncidentDtos.Decide request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.decideTrackSprintIncident(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
     @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets")
     public ResponseEntity<CommunityTrackSprintBracketDtos.Overview> createTrackSprintBracket(
             @PathVariable Long id, @PathVariable Long seasonId,

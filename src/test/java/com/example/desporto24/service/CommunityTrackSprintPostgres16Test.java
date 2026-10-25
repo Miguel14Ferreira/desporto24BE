@@ -28,7 +28,8 @@ class CommunityTrackSprintPostgres16Test {
         "db/changelog/changes/2026-10-24-track-sprint-series-v1.yaml",
         "db/changelog/changes/2026-10-25-community-track-sprint-bracket8.yaml",
         "db/changelog/changes/2026-10-25-track-sprint-qualification16.yaml",
-        "db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml");
+        "db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml",
+        "db/changelog/changes/2026-10-25-track-sprint-incident-decisions.yaml");
 
     @BeforeAll
     void migrateDisposableLocalDatabaseOnly() throws Exception {
@@ -88,11 +89,12 @@ class CommunityTrackSprintPostgres16Test {
 
     @Test
     void migrationsAreIdempotentAndHistoricEightRiderDefaultSurvives() {
-        assertEquals(4, jdbc.queryForObject("select count(*) from databasechangelog " +
+        assertEquals(5, jdbc.queryForObject("select count(*) from databasechangelog " +
             "where id in ('2026-10-24-track-sprint-series-v1'," +
             "'2026-10-25-community-track-sprint-bracket8'," +
             "'2026-10-25-track-sprint-qualifying16'," +
-            "'2026-10-25-sprint-official-200m-tie-decisions')", Integer.class));
+            "'2026-10-25-sprint-official-200m-tie-decisions'," +
+            "'2026-10-25-track-sprint-incident-decisions')", Integer.class));
         jdbc.update("insert into community_track_sprint_bracket " +
             "(id,community_id,season_id,name,created_at) " +
             "values (81,7,6,'Existing eight riders',now())");
@@ -125,6 +127,30 @@ class CommunityTrackSprintPostgres16Test {
             "select tie_decisions_recorded_by from community_track_sprint_bracket where id=41",
             String.class));
         assertEquals(2,count("community_track_sprint_bracket"));
+        assertEquals(3,count("community_round"));
+    }
+
+    @Test
+    void pendingIncidentIsUniquePerSeriesAndBracketDeleteRetainsAuditHistory() {
+        bracket(41,7,4,42L);
+        jdbc.update("insert into community_track_sprint_incident " +
+            "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at) " +
+            "values (41,'SP41-A1',1,'PUNCTURE','Synthetic puncture during first heat','PENDING','owner',now())");
+        assertThrows(DataIntegrityViolationException.class,()->jdbc.update(
+            "insert into community_track_sprint_incident " +
+            "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at) " +
+            "values (41,'SP41-A1',1,'FALL','Synthetic second report','PENDING','owner',now())"));
+        jdbc.update("update community_track_sprint_incident " +
+            "set status='DECIDED', decision_type='RESTART_REQUIRED', " +
+            "decision_reference='Fictional signed decision #41', " +
+            "decision_reason='Fictional documented restart order', " +
+            "decided_by='owner', decided_at=now() where bracket_id=41");
+        jdbc.update("insert into community_track_sprint_incident " +
+            "(bracket_id,series_key,heat_number,incident_type,details,status,reported_by,reported_at) " +
+            "values (41,'SP41-A1',1,'PUNCTURE','Another fictional interrupted attempt','PENDING','owner',now())");
+        assertEquals(2,count("community_track_sprint_incident"));
+        assertThrows(DataIntegrityViolationException.class,
+            ()->jdbc.update("delete from community_track_sprint_bracket where id=41"));
         assertEquals(3,count("community_round"));
     }
 
