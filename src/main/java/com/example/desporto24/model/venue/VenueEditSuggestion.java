@@ -32,6 +32,10 @@ public class VenueEditSuggestion {
     @Column(name = "reason", nullable = false, length = 1000)
     private String reason;
 
+    /** URL provided by the submitter; evidence only, never proof of verification. */
+    @Column(name = "source_url", length = 500)
+    private String sourceUrl;
+
     @Column(name = "submitted_by_username", nullable = false, length = 120)
     private String submittedByUsername;
 

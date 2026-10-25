@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-venue-edit-source-url-v1
+      author: jynlo
+      changes:
+        - addColumn:
+            tableName: venue_edit_suggestion
+            columns:
+              - column:
+                  name: source_url
+                  type: VARCHAR(500)
+                  constraints:
+                    nullable: true

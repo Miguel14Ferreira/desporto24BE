@@ -119,6 +119,89 @@ class VenueEditSuggestionServiceTest {
                 "A entrada tem outro nome"), "player")).getStatusCode().value());
     }
 
+
+    @Test
+    void contactAddRequiresExactHttpsPublicSourceBeforeAnySave() {
+        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        var noSource = new VenueEditSuggestionRequest(
+                Map.of("contact", "225 073 300"), "Telefone na página da piscina");
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.submit(5L, noSource, "player")).getStatusCode().value());
+        for (String invalid : java.util.List.of(
+                "http://www.agoraporto.pt/venue", "javascript:alert(1)",
+                "https://user:pass@www.agoraporto.pt/venue",
+                "https://127.0.0.1/source", "https://localhost/source",
+                "https://www.agoraporto.pt:444/source",
+                "https://www.agoraporto.pt/source#tracking",
+                "https://www.agoraporto.pt.evil.com/" + "x".repeat(510))) {
+            var input = new VenueEditSuggestionRequest(Map.of("contact", "225 073 300"),
+                    "Telefone na página da piscina", invalid);
+            assertEquals(400, assertThrows(ResponseStatusException.class,
+                    () -> service.submit(5L, input, "player")).getStatusCode().value(), invalid);
+        }
+        verify(submissions, never()).save(any());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void acceptsContactEvidenceAsPendingButNeverPublishesWithoutApproval() {
+        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(submissions.save(any())).thenAnswer(inv -> {
+            VenueEditSuggestion suggestion = inv.getArgument(0);
+            suggestion.setId(45L);
+            return suggestion;
+        });
+        var source = "https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao";
+        var result = service.submit(5L, new VenueEditSuggestionRequest(
+                Map.of("contact", "225 073 300"), "Telefone da receção indicado na fonte", source),
+                "player");
+        assertEquals("PENDING", result.status());
+        assertEquals(source, result.sourceUrl());
+        assertEquals("225 073 300", result.proposed().get("contact"));
+        assertNull(venue.getContact());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void contactRemovalAndUnrelatedUpdatesStayBackwardsCompatible() {
+        venue.setContact("225000000");
+        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(submissions.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var result = service.submit(5L, new VenueEditSuggestionRequest(
+                Map.of("contact", ""), "Contacto publicado incorretamente"), "player");
+        assertNull(result.sourceUrl());
+        assertEquals("", result.proposed().get("contact"));
+        assertEquals("225000000", venue.getContact());
+    }
+
+    @Test
+    void oldPendingContactWithoutEvidenceCannotBeApproved() {
+        var prior = submitted("Campo Original", "Campo Corrigido");
+        prior.setBeforeJson("{\"contact\":null}");
+        prior.setChangesJson("{\"contact\":\"225073300\"}");
+        when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.approve(44L, "Confirmado", "moderator")).getStatusCode().value());
+        assertNull(venue.getContact());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void reviewedContactCanBeApprovedWithoutChangingItsSource() {
+        var prior = submitted("Campo Original", "Campo Corrigido");
+        prior.setBeforeJson("{\"contact\":null}");
+        prior.setChangesJson("{\"contact\":\"225073300\"}");
+        prior.setSourceUrl("https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao");
+        when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        when(submissions.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var result = service.approve(44L, "Confirmado no recinto e na fonte oficial", "moderator");
+        assertEquals("APPROVED", result.status());
+        assertEquals("225073300", venue.getContact());
+        assertEquals(prior.getSourceUrl(), result.sourceUrl());
+    }
+
     private VenueEditSuggestion submitted(String oldName, String newName) {
         return VenueEditSuggestion.builder().id(44L).venue(venue)
                 .beforeJson("{\"name\":\"" + oldName + "\"}")
