@@ -75,6 +75,25 @@ public class CommunityTrackSprintIncident {
     @Column(name="rerun_authorized_at")
     private Instant rerunAuthorizedAt;
 
+    // Separate documented heat attribution, not a fabricated CommunityRound.
+    @Column(name="award_winner_username",length=100)
+    private String awardWinnerUsername;
+
+    @Column(name="award_basis",length=40)
+    private String awardBasis;
+
+    @Column(name="award_reference",length=255)
+    private String awardReference;
+
+    @Column(name="award_reason",length=500)
+    private String awardReason;
+
+    @Column(name="award_recorded_by",length=100)
+    private String awardRecordedBy;
+
+    @Column(name="award_recorded_at")
+    private Instant awardRecordedAt;
+
     @Column(name="decided_by",length=100)
     private String decidedBy;
 
