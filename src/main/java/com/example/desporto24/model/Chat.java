@@ -45,6 +45,10 @@ public class Chat {
     @Column(name = "attachment_size")
     private Long attachmentSize;
 
+    @Column(name = "edited_at")
+    private java.time.Instant editedAt;
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
     public Chat(String username1, String username2, String text, String dataDisplay,Date date) {
         this.username1 = username1;
         this.username2 = username2;
