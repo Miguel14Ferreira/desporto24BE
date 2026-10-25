@@ -1,6 +1,7 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.service.CommunityCreationQuotaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,31 @@ import java.util.Locale;
 public class AdminPlayerController {
     private static final int PAGE_SIZE = 20;
     private final ProfileRepository profileRepository;
+    private final CommunityCreationQuotaService communityCreationQuota;
+
+    @GetMapping("/{id}/community-limit")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public CommunityCreationQuotaService.Quota communityLimit(@PathVariable Long id) {
+        var profile = profileRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada"));
+        return communityCreationQuota.quota(profile);
+    }
+
+    public record ChangeCommunityLimitRequest(Integer limit, String reason) {}
+
+    @PutMapping("/{id}/community-limit")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public CommunityCreationQuotaService.Quota changeCommunityLimit(
+            @PathVariable Long id,
+            @RequestBody ChangeCommunityLimitRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        var actor = profileRepository.findUserByUsernameIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Sem autorização"));
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Pedido obrigatório");
+        }
+        return communityCreationQuota.updateOverride(id, actor.getId(), request.limit(), request.reason());
+    }
 
     @GetMapping
     public PlayerSearchResponse search(

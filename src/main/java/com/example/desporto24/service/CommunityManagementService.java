@@ -56,6 +56,9 @@ public class CommunityManagementService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.example.desporto24.service.NotificationPreferencesService preferenceService;
 
+    @Autowired
+    private CommunityCreationQuotaService creationQuota;
+
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
@@ -75,8 +78,8 @@ public class CommunityManagementService {
 
     public CommunityResponse create(String username, CreateCommunityRequest request) {
         Profile owner = profile(username);
-
         List<String> sports = normalizeSports(request.sports(), request.sport());
+        creationQuota.reserveCreate(owner);
         Community community = Community.builder()
                 .name(request.name().trim())
                 .description(trimToNull(request.description()))
@@ -118,6 +121,11 @@ public class CommunityManagementService {
         community.setIndividualTournamentsEnabled(request.individualTournamentsEnabled());
         community.setTeamTournamentsEnabled(request.teamTournamentsEnabled());
         return toResponse(communityRepository.save(community), actor);
+    }
+
+    @Transactional(readOnly = true)
+    public CommunityCreationQuotaService.Quota creationQuota(String username) {
+        return creationQuota.quota(profile(username));
     }
 
     @Transactional(readOnly = true)
@@ -648,6 +656,9 @@ public class CommunityManagementService {
         CommunityMember currentMembership = requireOwner(communityId, current);
 
         Profile newOwner = profile(request.username().trim());
+        if (!newOwner.getId().equals(current.getId())) {
+            creationQuota.requireTransferCapacity(newOwner);
+        }
         CommunityMember newOwnerMembership = memberRepository
                 .findByCommunityIdAndProfileId(communityId, newOwner.getId())
                 .orElseThrow(() -> new IllegalArgumentException("O novo Owner tem de ser membro da comunidade"));

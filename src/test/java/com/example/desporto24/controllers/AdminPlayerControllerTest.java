@@ -10,7 +10,7 @@ import static org.mockito.Mockito.*;
 
 class AdminPlayerControllerTest {
     private final ProfileRepository repository = mock(ProfileRepository.class);
-    private final AdminPlayerController controller = new AdminPlayerController(repository);
+    private final AdminPlayerController controller = new AdminPlayerController(repository, mock(com.example.desporto24.service.CommunityCreationQuotaService.class));
 
     @Test
     void blankSearchDoesNotListEveryone() {

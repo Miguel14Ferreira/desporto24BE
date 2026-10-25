@@ -43,6 +43,10 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      @Query("SELECT p FROM Profile p WHERE p.id = :id")
      Optional<Profile> findForRoleChange(@Param("id") Long id);
 
+     @Lock(LockModeType.PESSIMISTIC_WRITE)
+     @Query("SELECT p FROM Profile p WHERE p.id = :id")
+     Optional<Profile> lockForCommunityQuota(@Param("id") Long id);
+
      Optional<Profile> findByGoogleSubject(String googleSubject);
 
      @Query(value = "SELECT p " +

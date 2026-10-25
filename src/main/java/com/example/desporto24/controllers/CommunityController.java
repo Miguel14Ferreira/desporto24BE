@@ -8,6 +8,7 @@ import com.example.desporto24.service.CommunityStandingsArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityManagementService;
+import com.example.desporto24.service.CommunityCreationQuotaService;
 import com.example.desporto24.service.CommunityHistoricalPlayerLinkService;
 import com.example.desporto24.service.CommunitySessionService;
 import jakarta.validation.Valid;
@@ -41,6 +42,11 @@ public class CommunityController {
             @RequestBody @Valid CreateCommunityRequest request,
             Authentication authentication) {
         return ResponseEntity.ok(service.create(authentication.getName(), request));
+    }
+
+    @GetMapping("/creation-quota")
+    public CommunityCreationQuotaService.Quota creationQuota(Authentication authentication) {
+        return service.creationQuota(authentication.getName());
     }
 
     @GetMapping("/mine")
