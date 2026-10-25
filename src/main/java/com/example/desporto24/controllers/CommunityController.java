@@ -271,6 +271,20 @@ public class CommunityController {
                 id, seasonId, auth.getName()));
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/interruption")
+    public ResponseEntity<CommunityTrackSprintBracketDtos.Overview> endTrackSprintCompetition(
+            @PathVariable Long id, @PathVariable Long seasonId, @PathVariable Long bracketId,
+            @RequestBody @Valid CommunityTrackSprintBracketDtos.EndEvent request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.endTrackSprintCompetition(
+                    id,seasonId,bracketId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
     @DeleteMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}")
     public ResponseEntity<Void> deleteTrackSprintBracket(
             @PathVariable Long id, @PathVariable Long seasonId,

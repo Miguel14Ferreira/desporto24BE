@@ -195,6 +195,9 @@ public class CommunityCompetitionService {
                 .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId, seasonId)
                 .stream().anyMatch(r -> r.getSprintSeriesKey() != null
                         && r.getSprintSeriesKey().startsWith(prefix));
+        if (bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não podes eliminar um quadro encerrado oficialmente");
         if (containsHeats)
             throw new IllegalStateException("Apaga as mangas do quadro antes de o eliminar");
         if (trackSprintIncidentRepository.existsByBracketId(bracketId))
@@ -243,7 +246,74 @@ public class CommunityCompetitionService {
                 decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
                 bracket.getTieDecisionsRecordedBy(),
                 trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracket.getId())
-                        .stream().map(CommunityCompetitionService::sprintIncidentResponse).toList());
+                        .stream().map(CommunityCompetitionService::sprintIncidentResponse).toList(),
+                sprintInterruptionResponse(bracket,rounds));
+    }
+
+    private CommunityTrackSprintBracketDtos.Interruption sprintInterruptionResponse(
+            CommunityTrackSprintBracket bracket,List<CommunityRoundResponse> rounds) {
+        if(bracket.getInterruptionStage()==null) return null;
+        var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
+                bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders(),
+                sprintOfficialReruns(bracket.getId()));
+        List<CommunityTrackSprintBracketDtos.InterruptionPlacement> placements=
+                CommunityTrackSprintInterruption.placements(
+                        bracket.getInterruptionStage(),matches);
+        return new CommunityTrackSprintBracketDtos.Interruption(
+                bracket.getInterruptionStage(),bracket.getInterruptionReference(),
+                bracket.getInterruptionReason(),bracket.getInterruptionRecordedBy(),
+                bracket.getInterruptionRecordedAt(),
+                "BEFORE_QUARTERS".equals(bracket.getInterruptionStage()),
+                List.copyOf(placements));
+    }
+
+    /**
+     * UCI 3.2.048 bis: irrevocable official termination of a 24-rider
+     * Olympic Sprint competition. This stores an audited commissaires'
+     * interruption decision, NEVER creates missing heats or awards points.
+     */
+    public CommunityTrackSprintBracketDtos.Overview endTrackSprintCompetition(
+            Long communityId,Long seasonId,Long bracketId,String username,
+            CommunityTrackSprintBracketDtos.EndEvent request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"A época está encerrada");
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não encontrado"));
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+            throw new IllegalArgumentException("Este procedimento exige formato olímpico de 24");
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta interrupção oficial já foi registada");
+        if(request==null||request.reference()==null
+                ||request.reference().trim().length()<12
+                ||request.reference().trim().length()>255
+                ||request.reason()==null||request.reason().trim().length()<12
+                ||request.reason().trim().length()>500)
+            throw new IllegalArgumentException("Ata e fundamentação oficiais obrigatórias");
+        AcceptedAliases aliases=acceptedAliasProfiles(communityId);
+        List<CommunityRoundResponse> rounds=roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
+                .stream().filter(r->Set.of("TRACK_SPRINT_HEAT",
+                        "TRACK_SPRINT_REPECHAGE","TRACK_SPRINT_5_8").contains(r.getEventType()))
+                .map(r->roundResponse(r,aliases)).toList();
+        var matches=CommunityTrackSprintBracketPlanner.project(bracketId,rounds,
+                bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId));
+        String stage;
+        try { stage=CommunityTrackSprintInterruption.stage(matches); }
+        catch(IllegalStateException invalid) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,invalid.getMessage(),invalid);
+        }
+        bracket.setInterruptionStage(stage);
+        bracket.setInterruptionReason(request.reason().trim());
+        bracket.setInterruptionReference(request.reference().trim());
+        bracket.setInterruptionRecordedBy(username);
+        bracket.setInterruptionRecordedAt(Instant.now());
+        trackSprintBracketRepository.saveAndFlush(bracket);
+        return trackSprintBracketResponse(bracket,rounds);
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper SPRINT_TIE_MAPPER =
@@ -334,6 +404,9 @@ public class CommunityCompetitionService {
         CommunityTrackSprintBracket bracket=trackSprintBracketRepository
                 .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
                 .orElseThrow(()->new IllegalArgumentException("Quadro não encontrado nesta época"));
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Competição interrompida oficialmente");
         String series=request.seriesKey()==null?"":request.seriesKey().trim();
         if(!SPRINT_INCIDENT_TYPES.contains(request.incidentType()))
             throw new IllegalArgumentException("Tipo de incidente não reconhecido");
@@ -385,9 +458,12 @@ public class CommunityCompetitionService {
         CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
                 .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
         if(!season.isActive())throw new IllegalStateException("Época encerrada");
-        trackSprintBracketRepository.findByIdAndCommunityIdAndSeasonId(
-                bracketId,communityId,seasonId)
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
                 .orElseThrow(()->new IllegalArgumentException("Quadro não encontrado"));
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Competição interrompida oficialmente");
         CommunityTrackSprintIncident incident=trackSprintIncidentRepository.findById(incidentId)
                 .filter(i->i.getBracket().getId().equals(bracketId))
                 .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
@@ -410,7 +486,7 @@ public class CommunityCompetitionService {
                     || sanctioned == null || sanctioned.isBlank())
                 throw new IllegalArgumentException(
                     "Identifica o ciclista e a sanção do colégio de comissários");
-            CommunityTrackSprintBracket bracket = incident.getBracket();
+            // Bracket scope and active season already verified above.
             AcceptedAliases aliases = acceptedAliasProfiles(communityId);
             var heats = roundRepository
                     .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
@@ -481,6 +557,9 @@ public class CommunityCompetitionService {
                 ||!Set.of("RELEGATION","DISQUALIFICATION").contains(incident.getSanctionType()))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Só decisões disciplinares pendentes admitem esta revisão");
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Competição interrompida oficialmente");
         String series=incident.getSeriesKey();
         if(!series.matches("SP"+bracketId+"-(U[1-4]|W[1-2])")
                 || incident.getHeatNumber()!=1)
@@ -555,6 +634,9 @@ public class CommunityCompetitionService {
         CommunityTrackSprintBracket bracket = trackSprintBracketRepository
                 .findByIdAndCommunityIdAndSeasonId(bracketId, communityId, season.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Quadro Sprint não pertence à época"));
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Competição interrompida oficialmente");
         // A reported incident never becomes an official result by itself.
         if (trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatusIn(
                 bracketId, seriesKey.trim(), SPRINT_UNRESOLVED_INCIDENT_STATUSES))
@@ -1157,6 +1239,15 @@ public class CommunityCompetitionService {
         }
         if (round.getSeason() != null && !round.getSeason().isActive()) {
             throw new IllegalStateException("Não podes apagar jornadas de uma época encerrada");
+        }
+        if(round.getSeason()!=null && round.getSprintSeriesKey()!=null) {
+            var m=SPRINT_BRACKET_SERIES.matcher(round.getSprintSeriesKey());
+            if(m.matches() && trackSprintBracketRepository
+                    .findByIdAndCommunityIdAndSeasonId(Long.valueOf(m.group(1)),
+                            communityId,round.getSeason().getId())
+                    .map(b->b.getInterruptionStage()!=null).orElse(false))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Não podes eliminar resultados de competição encerrada oficialmente");
         }
 
         // Deleting a non-final heat would leave a false numbered series.

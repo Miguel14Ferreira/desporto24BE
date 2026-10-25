@@ -603,6 +603,39 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals(1,resulting.path("incidents").size());
         assertEquals("RESTART_AUTHORIZED",resulting.path("incidents").get(0)
             .path("status").asText());
+        // Official event-wide UCI 3.2.048 bis interruption on an untouched
+        // independent 24-rider bracket. No round or ranking is manufactured.
+        JsonNode interrupted=api("POST",brackets(activeSeason),ownerJwt,
+            Map.of("name","Fictional permanently interrupted sprint","format",
+                "OLYMPIC_TWENTY_FOUR_REPECHAGE","qualifyingRoundId",qual),200);
+        long interruptedId=interrupted.path("id").asLong();
+        String interruptionPath=brackets(activeSeason)+"/"+interruptedId+"/interruption";
+        var permanentClosureDecision=Map.of("reference","Fictional commissioners minutes #2026/79",
+            "reason","Venue evacuation forced a permanent termination before quarterfinals");
+        api("PUT",interruptionPath,memberJwt,permanentClosureDecision,403);
+        api("PUT",interruptionPath,outsiderJwt,permanentClosureDecision,403);
+        JsonNode stopped=api("PUT",interruptionPath,ownerJwt,permanentClosureDecision,200);
+        assertEquals("BEFORE_QUARTERS",stopped.path("interruption").path("stage").asText());
+        assertTrue(stopped.path("interruption").path("noFinalClassification").asBoolean());
+        assertEquals(0,stopped.path("interruption").path("regulatoryPlacings").size());
+        assertEquals("fixture_sprint_owner",
+            stopped.path("interruption").path("recordedBy").asText());
+        assertTrue(stopped.path("matches").get(0).path("winner").isNull());
+        api("PUT",interruptionPath,ownerJwt,permanentClosureDecision,409);
+        JsonNode closedRead=api("GET",brackets(activeSeason),memberJwt,null,200);
+        JsonNode closedBracket=null;
+        for(JsonNode b:closedRead)if(b.path("id").asLong()==interruptedId)closedBracket=b;
+        assertNotNull(closedBracket);
+        assertEquals("BEFORE_QUARTERS",closedBracket.path("interruption").path("stage").asText());
+        api("DELETE",brackets(activeSeason)+"/"+interruptedId,ownerJwt,null,409);
+        api("POST",community()+"/rounds",ownerJwt,Map.of(
+            "name","Forbidden race after definitive stop",
+            "playedAt",Instant.now().toString(),
+            "sport",sport,"eventType","TRACK_SPRINT_HEAT",
+            "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+            "sprintSeriesKey","SP"+interruptedId+"-A1","sprintHeatNumber",1,
+            "entries",List.of(rider(riders.get(0),"WIN"),
+                rider(riders.get(23),"LOSS"))),409);
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
