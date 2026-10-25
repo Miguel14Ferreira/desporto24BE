@@ -275,6 +275,51 @@ public class CommunityTimelineService {
     }
 
     @Transactional
+    public CommunityTimelineEntryResponse editChatMessage(Long communityId, Long entryId,
+                                                           String text, String username) {
+        Access access = requireMember(communityId, username);
+        CommunityTimelineEntry entry = ownedChatEntry(communityId, entryId, access);
+        String normalized = ChatMessageMutationPolicy.editText(text, entry.getCreatedAt(),
+                Instant.now(), entry.getDeletedAt(), entry.getAttachmentKey() != null);
+        entry.setBody(normalized);
+        entry.setEditedAt(Instant.now());
+        timelineRepository.saveAndFlush(entry);
+        CommunityTimelineEntryResponse response = toResponse(entry);
+        publishChatEvent(access, communityId, response);
+        return response;
+    }
+
+    @Transactional
+    public CommunityTimelineEntryResponse deleteChatForEveryone(Long communityId, Long entryId, String username) {
+        Access access = requireMember(communityId, username);
+        CommunityTimelineEntry entry = ownedChatEntry(communityId, entryId, access);
+        ChatMessageMutationPolicy.requireNotDeleted(entry.getDeletedAt());
+        entry.setBody("");
+        entry.setDeletedAt(Instant.now());
+        timelineRepository.saveAndFlush(entry);
+        timelineRepository.redactRepliesToDeleted(communityId, entryId, "[message deleted]");
+        CommunityTimelineEntryResponse response = toResponse(entry);
+        publishChatEvent(access, communityId, response);
+        return response;
+    }
+
+    private CommunityTimelineEntry ownedChatEntry(Long communityId, Long entryId, Access access) {
+        if (entryId == null || entryId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        CommunityTimelineEntry entry = timelineRepository.findById(entryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+        if (!communityId.equals(entry.getCommunity().getId())
+                || entry.getKind() != CommunityTimelineEntry.Kind.CHAT) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        if (!access.actor().getId().equals(entry.getAuthor().getId())) {
+            throw new AccessDeniedException("Only the message author may change this message");
+        }
+        return entry;
+    }
+
+    @Transactional
     public void delete(Long communityId, CommunityTimelineEntry.Kind kind, Long entryId, String username) {
         Access access = requireMember(communityId, username);
         CommunityTimelineEntry entry = timelineRepository.findById(entryId)
@@ -318,7 +363,8 @@ public class CommunityTimelineService {
                 entry.getAuthor().getUsername(), entry.getBody(), entry.getCreatedAt(),
                 entry.getReplyToMessageId(), entry.getReplyToSender(), entry.getReplyToText(),
                 entry.getImageUrl(), entry.getVideoUrl(),
-                entry.getAttachmentName(), entry.getAttachmentMimeType(), entry.getAttachmentSize());
+                entry.getAttachmentName(), entry.getAttachmentMimeType(), entry.getAttachmentSize(),
+                entry.getEditedAt(), entry.getDeletedAt());
     }
 
     private record Access(Community community, Profile actor) {}
