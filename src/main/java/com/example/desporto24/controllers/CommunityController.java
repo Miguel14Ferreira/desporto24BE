@@ -285,8 +285,16 @@ public class CommunityController {
             @PathVariable Long id, @PathVariable Long seasonId,
             @RequestBody @Valid CommunityTrackSprintBracketDtos.Create request,
             Authentication auth) {
-        return ResponseEntity.ok(competitionService.createTrackSprintBracket(
-                id, seasonId, auth.getName(), request));
+        try {
+            return ResponseEntity.ok(competitionService.createTrackSprintBracket(
+                    id, seasonId, auth.getName(), request));
+        } catch (IllegalArgumentException invalidOfficialSource) {
+            // Bad source timing / missing commissaires' evidence is a client
+            // validation error, never a generic HTTP 500.
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    invalidOfficialSource.getMessage(), invalidOfficialSource);
+        }
     }
 
     @PostMapping("/{id}/seasons")
