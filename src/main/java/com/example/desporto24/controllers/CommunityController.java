@@ -309,6 +309,21 @@ public class CommunityController {
         }
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/rerun")
+    public ResponseEntity<CommunityTrackSprintIncidentDtos.View> authorizeTrackSprintRerun(
+            @PathVariable Long id, @PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintIncidentDtos.AuthorizeRerun request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.authorizeTrackSprintRerun(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
     @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets")
     public ResponseEntity<CommunityTrackSprintBracketDtos.Overview> createTrackSprintBracket(
             @PathVariable Long id, @PathVariable Long seasonId,
