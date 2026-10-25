@@ -298,6 +298,36 @@ public class CommunityManagementService {
         return toResponse(saved, actor);
     }
 
+    /**
+     * Saves photo positioning without re-encoding or re-uploading the image.
+     * Animated GIF frames and other media remain unchanged in storage.
+     */
+    public CommunityResponse updatePhotoFraming(
+            Long communityId, String username, double zoom, double focusX, double focusY,
+            String expectedPhotoUrl) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        if (!Double.isFinite(zoom) || zoom < 1 || zoom > 3
+                || !Double.isFinite(focusX) || focusX < 0 || focusX > 100
+                || !Double.isFinite(focusY) || focusY < 0 || focusY > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Enquadramento inválido");
+        }
+        Community group = community(communityId);
+        if (expectedPhotoUrl == null || !expectedPhotoUrl.equals(group.getPhotoUrl())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A fotografia foi alterada. Atualiza a página antes de ajustar");
+        }
+        if (group.getPhotoUrl() == null || group.getPhotoUrl().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta comunidade ainda não tem fotografia");
+        }
+        group.setPhotoZoom(zoom);
+        group.setPhotoFocusX(focusX);
+        group.setPhotoFocusY(focusY);
+        return toResponse(communityRepository.save(group), actor);
+    }
+
     public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
@@ -319,6 +349,9 @@ public class CommunityManagementService {
         );
 
         community.setPhotoUrl(uri.toString());
+        community.setPhotoZoom(null);
+        community.setPhotoFocusX(null);
+        community.setPhotoFocusY(null);
         Community saved = communityRepository.save(community);
         deleteCommunityPhoto(previousPhotoUrl, communityId);
         return toResponse(saved, actor);
@@ -331,6 +364,9 @@ public class CommunityManagementService {
         Community community = community(communityId);
         String photoUrl = community.getPhotoUrl();
         community.setPhotoUrl(null);
+        community.setPhotoZoom(null);
+        community.setPhotoFocusX(null);
+        community.setPhotoFocusY(null);
         Community saved = communityRepository.save(community);
         deleteCommunityPhoto(photoUrl, communityId);
         return toResponse(saved, actor);
@@ -635,7 +671,8 @@ public class CommunityManagementService {
                         ? (community.getSport() == null ? List.of() : List.of(community.getSport()))
                         : List.copyOf(community.getSports()),
                 community.isIndividualTournamentsEnabled(),
-                community.isTeamTournamentsEnabled()
+                community.isTeamTournamentsEnabled(),
+                community.getPhotoZoom(), community.getPhotoFocusX(), community.getPhotoFocusY()
         );
     }
 
