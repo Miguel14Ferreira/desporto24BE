@@ -157,14 +157,23 @@ public class CommunityCompetitionService {
             seeds = CommunityTrackSprintQualifying16.seeds(
                     roundResponse(qualification, acceptedAliasProfiles(communityId)),
                     "TWENTY_EIGHT_RIDER_1_16".equals(format) ? 28
-                            : "OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(format) ? 24 : 16);
-        } else if (request.qualifyingRoundId() != null) {
-            throw new IllegalArgumentException("A qualificação só pode ligar ao quadro de 16, 24 ou 28 ciclistas");
+                            : "OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(format) ? 24 : 16,
+                    request.officialTieDecisions());
+        } else {
+            if (request.qualifyingRoundId() != null)
+                throw new IllegalArgumentException("A qualificação só pode ligar ao quadro de 16, 24 ou 28 ciclistas");
+            if (request.officialTieDecisions() != null && !request.officialTieDecisions().isEmpty())
+                throw new IllegalArgumentException("Um quadro de oito ciclistas não aceita desempates de 200 m");
         }
+        List<CommunityTrackSprintBracketDtos.TieDecision> officialDecisions =
+                request.officialTieDecisions() == null ? List.of() : request.officialTieDecisions();
         CommunityTrackSprintBracket bracket = trackSprintBracketRepository.save(
                 CommunityTrackSprintBracket.builder().community(community).season(season)
                         .name(name).format(format).qualifyingRound(qualification)
-                        .qualifiedRiders(seeds).createdAt(Instant.now()).build());
+                        .qualifiedRiders(seeds)
+                        .tieDecisionsJson(encodeSprintTieDecisions(officialDecisions))
+                        .tieDecisionsRecordedBy(officialDecisions.isEmpty() ? null : username)
+                        .createdAt(Instant.now()).build());
         return trackSprintBracketResponse(bracket, List.of());
     }
 
@@ -224,7 +233,33 @@ public class CommunityCompetitionService {
                 CommunityTrackSprintBracketPlanner.project(bracket.getId(), rounds,
                         bracket.getQualifiedRiders() == null ? List.of() : bracket.getQualifiedRiders()),
                 bracket.getQualifyingRound() == null ? null : bracket.getQualifyingRound().getId(),
-                bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()));
+                bracket.getQualifiedRiders() == null ? List.of() : List.copyOf(bracket.getQualifiedRiders()),
+                decodeSprintTieDecisions(bracket.getTieDecisionsJson()),
+                bracket.getTieDecisionsRecordedBy());
+    }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper SPRINT_TIE_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private static String encodeSprintTieDecisions(
+            List<CommunityTrackSprintBracketDtos.TieDecision> decisions) {
+        if (decisions.isEmpty()) return null; // all historical brackets remain unchanged
+        try {
+            return SPRINT_TIE_MAPPER.writeValueAsString(decisions);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalArgumentException("Não foi possível guardar o desempate oficial", e);
+        }
+    }
+
+    private static List<CommunityTrackSprintBracketDtos.TieDecision> decodeSprintTieDecisions(
+            String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return SPRINT_TIE_MAPPER.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<
+                    List<CommunityTrackSprintBracketDtos.TieDecision>>() {});
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("O registo oficial do desempate está ilegível", e);
+        }
     }
 
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
