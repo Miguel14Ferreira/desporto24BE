@@ -51,6 +51,9 @@ import static org.springframework.http.MediaType.*;
 @RequiredArgsConstructor
 public class ProfileServiceImpl implements ProfileService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
     private final EmailService emailService;
@@ -326,7 +329,10 @@ public class ProfileServiceImpl implements ProfileService {
                 null,
                 username
         );
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 
     private void sendEmailChangedEmail(String oldEmail, String currentEmail, String username) {
