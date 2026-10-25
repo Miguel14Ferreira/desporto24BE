@@ -41,8 +41,16 @@ final class CommunityTrackSprintBracketPlanner {
     }
     static List<Match> project(long bracketId, List<CommunityRoundResponse> rounds,
             List<String> seeds, Map<String,List<String>> reruns, Map<String,String> awards) {
+        return project(bracketId,rounds,seeds,reruns,awards,Set.of());
+    }
+    static List<Match> project(long bracketId,List<CommunityRoundResponse> rounds,
+            List<String> seeds,Map<String,List<String>> reruns,Map<String,String> awards,
+            Set<String> excludedRiders) {
         if (seeds != null && seeds.size() == 24)
-            return CommunityTrackSprintOlympic24.project(bracketId, rounds, seeds, reruns, awards);
+            return CommunityTrackSprintOlympic24.project(
+                    bracketId,rounds,seeds,reruns,awards,excludedRiders);
+        if(!excludedRiders.isEmpty())throw new IllegalArgumentException(
+                "Exclusão disciplinar não suportada neste formato");
         if (!awards.isEmpty()) throw new IllegalArgumentException(
                 "Atribuição oficial de resultado só disponível no quadro olímpico");
         if (!reruns.isEmpty())
