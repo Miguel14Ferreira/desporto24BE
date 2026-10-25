@@ -74,6 +74,28 @@ INSERT INTO desporto24.session VALUES (61,1),(62,2);
 INSERT INTO desporto24.session_participant VALUES (63,61,10),(64,62,20);
 INSERT INTO desporto24.social_post VALUES (65,61),(66,62);
 \i src/main/resources/db/changelog/changes/2026-10-25-community-owner-subtree-delete.sql
+-- Simulate bad data: a match from another community referencing deleted players.
+INSERT INTO desporto24.community_tournament VALUES (70,2);
+INSERT INTO desporto24.community_tournament_match VALUES (71,70,32,33);
+DO $qa$
+DECLARE rejected boolean := false;
+BEGIN
+  BEGIN
+    PERFORM desporto24.delete_community_subtree(1);
+  EXCEPTION WHEN OTHERS THEN
+    IF position('Cross-community dependency' in SQLERRM) > 0 THEN
+      rejected := true;
+    ELSE
+      RAISE;
+    END IF;
+  END;
+  IF NOT rejected OR NOT EXISTS(SELECT 1 FROM desporto24.community WHERE id=1) THEN
+    RAISE EXCEPTION 'cross-community dependency protection failed';
+  END IF;
+END
+$qa$;
+DELETE FROM desporto24.community_tournament_match WHERE id=71;
+DELETE FROM desporto24.community_tournament WHERE id=70;
 SELECT desporto24.delete_community_subtree(1);
 DO $qa$
 BEGIN
