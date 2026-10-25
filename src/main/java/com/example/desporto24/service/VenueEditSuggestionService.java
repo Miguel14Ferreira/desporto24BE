@@ -56,7 +56,11 @@ public class VenueEditSuggestionService {
                 || request.reason().trim().length() > 1000) {
             throw bad(HttpStatus.BAD_REQUEST, "Explica o motivo da alteração (10 a 1000 caracteres)");
         }
-        Venue venue = venues.findById(venueId)
+        // Serialize pending submissions for the same venue before checking
+        // the per-user pending invariant. Without this row lock, two requests
+        // can both see "no pending suggestion" and insert duplicates.
+        // Different users can still submit independent pending suggestions.
+        Venue venue = venues.findForEditReview(venueId)
                 .orElseThrow(() -> bad(HttpStatus.NOT_FOUND, "Recinto inexistente"));
         if (repository.existsByVenue_IdAndSubmittedByUsernameIgnoreCaseAndStatus(
                 venueId, username, VenueEditSuggestion.Status.PENDING)) {

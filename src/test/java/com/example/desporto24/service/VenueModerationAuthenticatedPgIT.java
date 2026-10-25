@@ -28,6 +28,12 @@ import java.net.http.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -86,12 +92,14 @@ class VenueModerationAuthenticatedPgIT {
     private final ObjectMapper mapper = new ObjectMapper();
     private String adminToken;
     private String memberToken;
+    private String secondMemberToken;
     private long venueA, venueB;
 
     @BeforeAll
     void setup() {
         adminToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_moderator", "ROLE_ADMIN")));
         memberToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_member", "ROLE_USER")));
+        secondMemberToken = jwt.generateJwtToken(new ProfilePrincipal(profile("venueqa_other", "ROLE_USER")));
         venueA = venue("Recinto QA Alfa").getId();
         venueB = venue("Recinto QA Beta").getId();
     }
@@ -130,6 +138,79 @@ class VenueModerationAuthenticatedPgIT {
         return reply.body().isBlank() ? mapper.createObjectNode() : mapper.readTree(reply.body());
     }
 
+
+    /**
+     * Start two HTTP requests against the same fixture row in parallel.
+     * Both requests use genuinely signed JWTs and independent DB transactions.
+     */
+    private List<Integer> parallelSubmissions(long venueId, String firstJwt, String secondJwt)
+            throws Exception {
+        String url = "http://127.0.0.1:" + port +
+                "/api/venues/" + venueId + "/edit-suggestions";
+        String body = mapper.writeValueAsString(Map.of(
+                "changes", Map.of("contact", "220000123"),
+                "reason", "Contacto totalmente fictício num teste concorrente",
+                "sourceUrl", SOURCE));
+        var executor = Executors.newFixedThreadPool(2);
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        try {
+            List<Future<Integer>> futures = new ArrayList<>();
+            for (String token : List.of(firstJwt, secondJwt)) {
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(12, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out before parallel HTTP requests");
+                    }
+                    HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                            .timeout(Duration.ofSeconds(25))
+                            .header("Authorization", "Bearer " + token)
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+                    return http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode();
+                }));
+            }
+            assertTrue(ready.await(12, TimeUnit.SECONDS));
+            start.countDown();
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> future : futures) {
+                statuses.add(future.get(40, TimeUnit.SECONDS));
+            }
+            statuses.sort(Integer::compareTo);
+            return statuses;
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void concurrentSameUserRequestsCreateOnlyOnePendingProposal() throws Exception {
+        long fixture = venue("Recinto QA Concorrência Mesmo Jogador").getId();
+        assertEquals(List.of(202, 409),
+                parallelSubmissions(fixture, memberToken, memberToken));
+        long rows = submissions.findAll().stream()
+                .filter(row -> row.getVenue().getId().equals(fixture))
+                .count();
+        assertEquals(1L, rows);
+        assertEquals(VenueEditSuggestion.Status.PENDING,
+                submissions.findFirstByVenue_IdAndSubmittedByUsernameIgnoreCaseOrderBySubmittedAtDesc(
+                        fixture, "venueqa_member").orElseThrow().getStatus());
+        assertNull(venues.findById(fixture).orElseThrow().getContact());
+    }
+
+    @Test
+    void concurrentDifferentUsersMayBothSuggestSameVenueWithoutPublishing() throws Exception {
+        long fixture = venue("Recinto QA Concorrência Dois Jogadores").getId();
+        assertEquals(List.of(202, 202),
+                parallelSubmissions(fixture, memberToken, secondMemberToken));
+        long rows = submissions.findAll().stream()
+                .filter(row -> row.getVenue().getId().equals(fixture))
+                .count();
+        assertEquals(2L, rows);
+        assertNull(venues.findById(fixture).orElseThrow().getContact());
+    }
+
     @Test
     void signedJwtRequiresExplicitModerationAndPersistsSourceReview() throws Exception {
         String submit = "/api/venues/" + venueA + "/edit-suggestions";
@@ -145,8 +226,17 @@ class VenueModerationAuthenticatedPgIT {
         assertEquals("PENDING", proposed.path("status").asText());
         assertTrue(proposed.path("sourceReviewConfirmedAt").isNull());
         assertNull(venues.findById(venueA).orElseThrow().getContact());
-        assertEquals(1, api("GET", BASE + "?page=0", adminToken, null, 200)
-                .path("suggestions").size());
+        // Each concurrent fixture owns its own pending row; inspect this
+        // proposal specifically instead of asserting a global queue size.
+        boolean visiblePending = false;
+        for (JsonNode item : api("GET", BASE + "?page=0", adminToken, null, 200)
+                .path("suggestions")) {
+            if (item.path("id").asLong() == id) {
+                visiblePending = true;
+                assertEquals("PENDING", item.path("status").asText());
+            }
+        }
+        assertTrue(visiblePending);
         // The other test may already have created a REJECTED legacy fixture:
         // history must exclude THIS still-pending record, not be globally empty.
         for (JsonNode item : api("GET", BASE + "/history?page=0", adminToken, null, 200)
@@ -174,8 +264,11 @@ class VenueModerationAuthenticatedPgIT {
         assertEquals("220000001", venues.findById(venueA).orElseThrow().getContact());
         assertEquals(id, api("GET", BASE + "/history?page=0", adminToken, null, 200)
                 .path("suggestions").get(0).path("id").asLong());
-        assertTrue(api("GET", BASE + "?page=0", adminToken, null, 200)
-                .path("suggestions").isEmpty());
+        for (JsonNode item : api("GET", BASE + "?page=0", adminToken, null, 200)
+                .path("suggestions")) {
+            assertNotEquals(id, item.path("id").asLong(),
+                    "Approved record must leave the pending queue");
+        }
         api("POST", approve, adminToken, Map.of("sourceReviewed", true), 409);
         api("GET", BASE + "/history?page=-1", adminToken, null, 400);
         api("GET", BASE + "/history?page=1001", adminToken, null, 400);

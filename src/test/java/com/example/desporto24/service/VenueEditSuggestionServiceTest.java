@@ -96,7 +96,7 @@ class VenueEditSuggestionServiceTest {
 
     @Test
     void submissionSavesOnlyDiffAndNeverChangesPublishedVenue() {
-        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         when(submissions.save(any())).thenAnswer(inv -> {
             VenueEditSuggestion proposed = inv.getArgument(0);
             proposed.setId(44L);
@@ -116,7 +116,7 @@ class VenueEditSuggestionServiceTest {
 
     @Test
     void rejectsFieldsOutsideTheAllowlist() {
-        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         assertEquals(400, assertThrows(ResponseStatusException.class,
                 () -> service.submit(5L, new VenueEditSuggestionRequest(
                     Map.of("informationSource", "OFFICIAL"), "Quero alterar a origem"), "player")
@@ -172,7 +172,7 @@ class VenueEditSuggestionServiceTest {
 
     @Test
     void repeatedPendingSuggestionPerUserAndVenueIsBlocked() {
-        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         when(submissions.existsByVenue_IdAndSubmittedByUsernameIgnoreCaseAndStatus(
                 5L, "player", VenueEditSuggestion.Status.PENDING)).thenReturn(true);
         assertEquals(409, assertThrows(ResponseStatusException.class, () -> service.submit(
@@ -183,7 +183,7 @@ class VenueEditSuggestionServiceTest {
 
     @Test
     void contactAddRequiresExactHttpsPublicSourceBeforeAnySave() {
-        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         var noSource = new VenueEditSuggestionRequest(
                 Map.of("contact", "225 073 300"), "Telefone na página da piscina");
         assertEquals(400, assertThrows(ResponseStatusException.class,
@@ -206,7 +206,7 @@ class VenueEditSuggestionServiceTest {
 
     @Test
     void acceptsContactEvidenceAsPendingButNeverPublishesWithoutApproval() {
-        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         when(submissions.save(any())).thenAnswer(inv -> {
             VenueEditSuggestion suggestion = inv.getArgument(0);
             suggestion.setId(45L);
@@ -226,7 +226,7 @@ class VenueEditSuggestionServiceTest {
     @Test
     void contactRemovalAndUnrelatedUpdatesStayBackwardsCompatible() {
         venue.setContact("225000000");
-        when(venues.findById(5L)).thenReturn(Optional.of(venue));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
         when(submissions.save(any())).thenAnswer(inv -> inv.getArgument(0));
         var result = service.submit(5L, new VenueEditSuggestionRequest(
                 Map.of("contact", ""), "Contacto publicado incorretamente"), "player");
