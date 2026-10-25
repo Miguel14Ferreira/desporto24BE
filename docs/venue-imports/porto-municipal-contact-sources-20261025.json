@@ -19,18 +19,23 @@
       "district": "Porto",
       "street_hint": "Alameda de Cartes",
       "source_url": "https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-de-cartes",
-      "source_label": "Ágora — página oficial da instalação"
+      "source_label": "Ágora — página oficial da instalação",
+      "review_note": "As duas páginas oficiais Ágora indicam códigos postais diferentes (4300-008 e 4300-088); não corrigir a morada ou publicar telefone sem confirmação presencial/administrativa.",
+      "secondary_source_url": "https://desporto.agoraporto.pt/Desporto/Centers"
     },
     {
       "name": "Piscina Municipal Eng.º Armando Pimentel",
       "aliases": [
-        "Piscina Municipal Engenheiro Armando Pimentel"
+        "Piscina Municipal Engenheiro Armando Pimentel",
+        "ARMANDO PIMENTEL, PISCINA ENGº",
+        "Piscina Eng. Armando Pimentel"
       ],
       "city": "Porto",
       "district": "Porto",
       "street_hint": "Diogo Botelho",
       "source_url": "https://www.agoraporto.pt/desporto/piscina-municipal-eng-o-armando-pimentel",
-      "source_label": "Ágora — página oficial da instalação"
+      "source_label": "Ágora — página oficial da instalação",
+      "secondary_source_url": "https://desporto.agoraporto.pt/Desporto/Centers"
     }
   ]
 }

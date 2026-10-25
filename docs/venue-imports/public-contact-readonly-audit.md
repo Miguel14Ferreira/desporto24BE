@@ -113,3 +113,28 @@ Foi encontrado ainda um dataset municipal de instalações identificado como
 CCZero no portal de dados abertos do Porto, mas o ficheiro de dados não
 estava acessível durante a verificação. **Não assumir que contém telefones**:
 https://opendata.porto.digital/en/dataset/desporto-atlas-desportivo-designacao-da-instalacao-desportiva/resource/bf5a9220-febd-4bd4-925c-afd4d7c10737
+
+## Segunda auditoria Porto: nomes e códigos postais oficiais divergentes
+
+O piloto também permite **pistas para revisão manual** quando a Jynlo não tem
+o nome exato de uma das três instalações. Só é devolvida uma lista de, no máximo,
+três recintos da própria cidade e distrito do Porto que contenham **duas
+palavras distintivas completas** do nome oficial. Termos genéricos como
+"PISCINA", "MUNICIPAL" ou "ENGENHEIRO" não valem como identificação.
+
+Essas pistas ficam em `manual_name_hints` e **nunca são promovidas a
+`jynlo_venue_id`, não acionam sugestões de contactos nem importações**.
+Mais de três homónimos significam lista vazia, não uma escolha arbitrária.
+Um nome exato com localidade divergente continua bloqueado.
+
+Foram acrescentadas à lista de fontes as variantes da piscina Eng. Armando
+Pimentel usadas no [Portal do Desporto da Ágora](https://desporto.agoraporto.pt/Desporto/Centers).
+Para Cartes, a [ficha da Ágora](https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-de-cartes)
+indica **4300-008** e o Portal do Desporto indica **4300-088**.
+Não resolver essa discrepância por palpite, nem preencher a morada em produção
+sem confirmação administrativa. Cartes continua pendente mesmo que o ID Jynlo
+seja conhecido.
+
+O script continua read-only, limitado ao endpoint público e sem emitir
+contactos pessoais ou números individuais; o mesmo workflow CI verifica
+os cenários de nomes/aliases, distrito/cidade, duplicados e ambiguidades.
