@@ -49,7 +49,7 @@ final class CommunityTrackSprintBracketPlanner {
                     String slot = "P" + i;
                     String key = seriesKey(bracketId, slot);
                     matches.put(slot, examine(phase(slot), slot, key,
-                            norm(seeds.get(i-1)), norm(seeds.get(32-i-1)),
+                            norm(seeds.get(i-1)), norm(seeds.get(32-i)),
                             heats(rounds, key), true));
                 }
             }
