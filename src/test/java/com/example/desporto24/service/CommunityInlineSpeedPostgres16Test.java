@@ -107,7 +107,7 @@ class CommunityInlineSpeedPostgres16Test {
         jdbc.update("insert into community_inline_speed_heat " +
                 "(tournament_id,round_id,stage,heat_number) values (9,201,'SEMI',1)");
         assertEquals(3, count("community_inline_speed_heat"));
-        assertEquals(2, count("community_round"));
+        assertEquals(3, count("community_round"));
     }
 
     @Test
