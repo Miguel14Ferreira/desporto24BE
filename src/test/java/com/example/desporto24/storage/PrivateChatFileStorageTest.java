@@ -164,6 +164,35 @@ class PrivateChatFileStorageTest {
     }
 
     @Test
+    void refusesBucketSuffixedEndpointBeforeContactingR2() {
+        MediaStorageProperties settings = r2Settings();
+        // The Cloudflare bucket Settings page displays a URL WITH /bucket.
+        // The AWS SDK must be given the account-root API URL instead.
+        settings.getS3().setEndpoint(
+                "https://fake-account-id.r2.cloudflarestorage.com/jynlo-chat-private");
+        var storage = new PrivateChatFileStorage(settings);
+        S3Client client = mock(S3Client.class);
+        ReflectionTestUtils.setField(storage, "s3Client", client);
+
+        assertFalse(storage.isConfigured());
+        verifyNoInteractions(client);
+    }
+
+    @Test
+    void permitsAccountRootR2EndpointWithTrailingSlash() {
+        MediaStorageProperties settings = r2Settings();
+        settings.getS3().setEndpoint("https://fake-account-id.r2.cloudflarestorage.com/");
+        var storage = new PrivateChatFileStorage(settings);
+        S3Client client = mock(S3Client.class);
+        ReflectionTestUtils.setField(storage, "s3Client", client);
+        when(client.headBucket(any(HeadBucketRequest.class)))
+                .thenReturn(HeadBucketResponse.builder().build());
+
+        assertTrue(storage.isConfigured());
+        verify(client).headBucket(argThat(req -> "jynlo-chat-private".equals(req.bucket())));
+    }
+
+    @Test
     void confirmsBucketAccessWithHeadRequestAndCachesTheResult() {
         var storage = new PrivateChatFileStorage(r2Settings());
         S3Client client = mock(S3Client.class);
