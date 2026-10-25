@@ -104,6 +104,16 @@ public class CommunityInlineSpeedProgressionService {
         List<CommunityRoundEntry> entrants = entries.findByRoundIdOrderByIdAsc(roundId);
         if (entrants.isEmpty())
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY, "Manga sem resultados");
+        if ("QUARTER".equals(phase)) {
+            CommunityInlineSpeedDecision firstDecision =
+                    validDecision(tournamentId, "FIRST", "QUARTER", existing);
+            int qualified = readIds(firstDecision.getQualifiedPlayerIds()).size();
+            int required = qualified == 17 && heatNumber == 1 ? 5 : 4;
+            if (entrants.size() != required)
+                throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Quartos de final: a manga " + heatNumber
+                        + " exige " + required + " patinadores");
+        }
         Set<Long> currentPlayers = entrants.stream()
                 .map(e -> e.getCommunityPlayer().getId()).collect(Collectors.toSet());
         for (CommunityInlineSpeedHeatLink prior : existing) {
@@ -167,17 +177,35 @@ public class CommunityInlineSpeedProgressionService {
                 .map(CommunityInlineSpeed2026.Skater::playerId).collect(Collectors.toSet());
         if (!observed.containsAll(selected))
             throw problem(HttpStatus.CONFLICT, "Não podes apurar atletas sem resultado de origem");
-        // A judge may substitute candidates and, for a recorded 16th/17th tie,
-        // accept 16 or 17 skaters. The judge cannot silently certify an
-        // undersized stage or add extra skaters with no boundary tie.
+        // A disqualified skater must have their SOURCE race result reviewed by
+        // officials, rather than being certified by editing only the qualifiers.
+        Set<Long> disqualified = sourceHeats.stream()
+                .flatMap(h -> h.skaters().stream())
+                .filter(CommunityInlineSpeed2026.Skater::disqualified)
+                .map(CommunityInlineSpeed2026.Skater::playerId)
+                .collect(Collectors.toSet());
+        if (selected.stream().anyMatch(disqualified::contains))
+            throw problem(HttpStatus.CONFLICT,
+                    "Patinador desclassificado: revê primeiro o resultado da manga de origem");
         int minimum = proposal.expectedCount();
+        // Article 115 also permits one exceptional additional skater following
+        // a sports fault or unfair circumstance, even without a tied time.
+        // This MUST be a human selection with an explicit detailed reason.
+        boolean exceptionalSeventeenth = "FIRST".equals(sourceStage)
+                && "QUARTER".equals(proposal.targetStage())
+                && minimum == 16 && selected.size() == 17
+                && proposal.candidatePlayerIds().size() == 16;
         int maximum = Math.max(minimum, proposal.candidatePlayerIds().size());
+        if (exceptionalSeventeenth) maximum = 17;
         if (selected.size() < minimum || selected.size() > maximum)
             throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
                     "Número de apurados inválido para a fase: esperado " + minimum
                     + (maximum == minimum ? "" : " a " + maximum));
         boolean correction = !selected.equals(proposal.candidatePlayerIds());
         String reason = request.reason() == null ? "" : request.reason().trim();
+        if (exceptionalSeventeenth && reason.length() < 20)
+            throw problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "A inclusão excecional do 17.º patinador exige uma fundamentação detalhada");
         // Organizer explicitly attests that the first round is complete; without that
         // declaration, an incomplete collection of timed heats could falsely advance.
         if ((correction || "FIRST".equals(sourceStage)) && reason.length() < 8)
