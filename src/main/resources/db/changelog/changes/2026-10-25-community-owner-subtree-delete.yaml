@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-community-owner-subtree-delete
+      author: desporto24
+      dbms: postgresql
+      comment: "Transactional FK-scoped deletion; only invoked after explicit OWNER confirmation."
+      changes:
+        - sqlFile:
+            path: db/changelog/changes/2026-10-25-community-owner-subtree-delete.sql
+            relativeToChangelogFile: false
+            splitStatements: false
+            stripComments: false
