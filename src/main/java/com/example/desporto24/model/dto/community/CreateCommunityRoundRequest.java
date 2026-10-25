@@ -18,7 +18,9 @@ public record CreateCommunityRoundRequest(
         @Size(max = 100) String sport,
         String matchFormat,
         List<@Valid CommunitySetScore> setScores,
-        @Size(max = 20) String eventType,
+        // Event codes such as INLINE_TRACK_500D_FIRST_ROUND exceed 20 chars.
+        // The community_round.event_type column already supports 64.
+        @Size(max = 64) String eventType,
         @Size(max = 32) String eventDiscipline,
         List<@Valid CommunityGroupRoutineScore> groupScores,
         @Valid CommunityBasketballScore basketballScore,
