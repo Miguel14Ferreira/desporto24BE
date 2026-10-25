@@ -1,0 +1,31 @@
+name: Community owner deletion PostgreSQL 16
+on:
+  pull_request:
+    paths:
+      - 'src/main/resources/db/changelog/changes/2026-10-25-community-owner-subtree-delete.sql'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-community-owner-subtree-delete.yaml'
+      - 'scripts/qa_community_owner_delete_pg16.sql'
+      - '.github/workflows/community-owner-deletion-pg16.yml'
+jobs:
+  scoped-deletion:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jynlo_delete_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test complete FK graph deletion and shared data isolation
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d jynlo_delete_test -v ON_ERROR_STOP=1 -f scripts/qa_community_owner_delete_pg16.sql
