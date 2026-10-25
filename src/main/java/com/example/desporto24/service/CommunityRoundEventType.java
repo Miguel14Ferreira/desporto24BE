@@ -19,7 +19,7 @@ final class CommunityRoundEventType {
     private static final Map<String, List<String>> TYPES = Map.ofEntries(
             Map.entry("BMX", List.of("RACE", "FREESTYLE")),
             Map.entry("Ciclismo de Estrada", List.of("ROAD_RACE", "TIME_TRIAL")),
-            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL", "TRACK_FLYING_200", "TRACK_SPRINT_HEAT")),
+            Map.entry("Ciclismo de Pista", List.of("TRACK_SCRATCH", "TRACK_TIME_TRIAL", "TRACK_FLYING_200", "TRACK_SPRINT_HEAT", "TRACK_SPRINT_REPECHAGE")),
             Map.entry("Basquetebol", List.of("BASKETBALL_FINAL")),
             Map.entry("Basquetebol 3x3", List.of("BASKETBALL_3X3_FINAL")),
             Map.entry("Basebol", List.of("BASEBALL_RUNS")),
@@ -119,8 +119,8 @@ final class CommunityRoundEventType {
      */
     static void validateEntries(String sport, String type,
             List<CommunityRoundEntryRequest> entries) {
-        if ("TRACK_SPRINT_HEAT".equals(type)) {
-            validateTrackSprintHeat(sport, entries);
+        if ("TRACK_SPRINT_HEAT".equals(type) || "TRACK_SPRINT_REPECHAGE".equals(type)) {
+            validateTrackSprintHeat(sport, entries, "TRACK_SPRINT_REPECHAGE".equals(type));
             return;
         }
         if (CommunityInlineSpeedResults.isPlacedHeat(type)) {
@@ -307,10 +307,11 @@ final class CommunityRoundEventType {
 
     /** One independently decided head-to-head heat, not an inferred best-of-three winner. */
     private static void validateTrackSprintHeat(String sport,
-            List<CommunityRoundEntryRequest> entries) {
-        if (!"Ciclismo de Pista".equals(sport) || entries == null || entries.size() != 2
+            List<CommunityRoundEntryRequest> entries, boolean repechage) {
+        if (!"Ciclismo de Pista".equals(sport) || entries == null
+                || (repechage ? entries.size() != 2 && entries.size() != 3 : entries.size() != 2)
                 || entries.stream().filter(e -> e.result() == CommunityMatchResult.WIN).count() != 1
-                || entries.stream().filter(e -> e.result() == CommunityMatchResult.LOSS).count() != 1) {
+                || entries.stream().filter(e -> e.result() == CommunityMatchResult.LOSS).count() != entries.size()-1) {
             throw new IllegalArgumentException(
                     "Uma manga Sprint exige dois ciclistas, um vencedor e um derrotado");
         }
