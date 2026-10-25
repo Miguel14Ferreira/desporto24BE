@@ -18,10 +18,11 @@ final class CommunityTrackSprintBracketPlanner {
     private CommunityTrackSprintBracketPlanner() {}
     private static final List<String> SLOTS = List.of("Q1","Q2","Q3","Q4","S1","S2","B","G");
     private static final List<String> EIGHTHS = List.of("R1","R2","R3","R4","R5","R6","R7","R8");
+    private static final List<String> SIXTEENTHS = List.of("P5","P6","P7","P8","P9","P10","P11","P12","P13","P14","P15","P16");
     private static String norm(String s) { return s == null ? null : s.trim().toLowerCase(Locale.ROOT); }
 
     static String seriesKey(long bracketId, String slot) {
-        if (!SLOTS.contains(slot) && !EIGHTHS.contains(slot)) throw new IllegalArgumentException("Posição Sprint inválida");
+        if (!SLOTS.contains(slot) && !EIGHTHS.contains(slot) && !SIXTEENTHS.contains(slot)) throw new IllegalArgumentException("Posição Sprint inválida");
         return "SP" + bracketId + "-" + slot;
     }
 
@@ -32,25 +33,42 @@ final class CommunityTrackSprintBracketPlanner {
     static List<Match> project(long bracketId, List<CommunityRoundResponse> rounds,
             List<String> seeds) {
         boolean sixteen = seeds != null && seeds.size() == 16;
-        if (seeds != null && !seeds.isEmpty() && !sixteen)
+        boolean twentyEight = seeds != null && seeds.size() == 28;
+        if (seeds != null && !seeds.isEmpty() && !sixteen && !twentyEight)
             throw new IllegalArgumentException("Sementes de Sprint inválidas");
         Map<String, Match> matches = new LinkedHashMap<>();
-        if (sixteen) {
+        if (sixteen || twentyEight) {
             if (seeds.stream().anyMatch(p -> p == null || p.isBlank())
                     || seeds.stream().map(CommunityTrackSprintBracketPlanner::norm)
-                           .distinct().count() != 16)
+                           .distinct().count() != seeds.size())
                 throw new IllegalArgumentException("A qualificação contém ciclistas duplicados");
+            if (twentyEight) {
+                // UCI art. 3.2.050: 1st-4th bypass the 1/16 stage.
+                // Heats P5-P16: ranked N5 vs N28 through N16 vs N17.
+                for (int i=5; i<=16; i++) {
+                    String slot = "P" + i;
+                    String key = seriesKey(bracketId, slot);
+                    matches.put(slot, examine(phase(slot), slot, key,
+                            norm(seeds.get(i-1)), norm(seeds.get(32-i)),
+                            heats(rounds, key), true));
+                }
+            }
             for (int i=1; i<=8; i++) {
                 String slot = "R" + i;
                 String key = seriesKey(bracketId, slot);
+                String a = twentyEight ? (i <= 4 ? norm(seeds.get(i-1))
+                        : advanced(matches.get("P" + i), false))
+                        : norm(seeds.get(i-1));
+                String b = twentyEight ? advanced(matches.get("P" + (17-i)), false)
+                        : norm(seeds.get(16-i));
                 matches.put(slot, examine(phase(slot), slot, key,
-                        norm(seeds.get(i-1)), norm(seeds.get(16-i)), heats(rounds, key), true));
+                        a, b, heats(rounds, key), true));
             }
         }
         for (String slot : SLOTS) {
             String phase = phase(slot);
             String a = null, b = null;
-            if (slot.startsWith("Q") && sixteen) {
+            if (slot.startsWith("Q") && (sixteen || twentyEight)) {
                 int index = Integer.parseInt(slot.substring(1));
                 a = advanced(matches.get("R" + index), false);
                 b = advanced(matches.get("R" + (9-index)), false);
@@ -65,7 +83,7 @@ final class CommunityTrackSprintBracketPlanner {
             }
             String key = seriesKey(bracketId, slot);
             matches.put(slot, examine(phase, slot, key, a, b,
-                    heats(rounds, key), sixteen || !slot.startsWith("Q")));
+                    heats(rounds, key), sixteen || twentyEight || !slot.startsWith("Q")));
         }
 
         // A rider cannot start in more than one quarterfinal of the same draw.
@@ -136,9 +154,10 @@ final class CommunityTrackSprintBracketPlanner {
                 throw new IllegalArgumentException("Os ciclistas não correspondem ao quadro Sprint");
         }
         if ((match.slot().startsWith("Q") && (seeds == null || seeds.isEmpty()))
-                || match.slot().startsWith("R")) {
-            List<Match> first = list.stream().filter(m -> match.slot().startsWith("R")
-                    ? m.slot().startsWith("R") : m.slot().startsWith("Q")).toList();
+                || match.slot().startsWith("R") || match.slot().startsWith("P")) {
+            String firstPrefix = match.slot().startsWith("P") ? "P"
+                    : match.slot().startsWith("R") ? "R" : "Q";
+            List<Match> first = list.stream().filter(m -> m.slot().startsWith(firstPrefix)).toList();
             for (Match other : first) {
                 if (other.slot().equals(match.slot())) continue;
                 if (pair.contains(other.riderA()) || pair.contains(other.riderB()))
@@ -163,7 +182,7 @@ final class CommunityTrackSprintBracketPlanner {
             CommunityRoundResponse round = heats.get(i);
             if (!"TRACK_SPRINT_HEAT".equals(round.eventType()) ||
                     !phase.equals(round.eventDiscipline()) || round.sprintHeatNumber() == null ||
-                    round.sprintHeatNumber() != i+1 || round.entries().size() != 2 || i >= (slot.startsWith("R") ? 1 : 3)) {
+                    round.sprintHeatNumber() != i+1 || round.entries().size() != 2 || i >= (slot.startsWith("R") || slot.startsWith("P") ? 1 : 3)) {
                 conflict = true; break;
             }
             var ea = round.entries().get(0);
@@ -185,7 +204,7 @@ final class CommunityTrackSprintBracketPlanner {
                 !Set.of(expectedA, expectedB).equals(Set.of(firstA, firstB))) conflict=true;
         String a = sourceNeeded ? expectedA : firstA;
         String b = sourceNeeded ? expectedB : firstB;
-        int winsNeeded = slot.startsWith("R") ? 1 : 2;
+        int winsNeeded = slot.startsWith("R") || slot.startsWith("P") ? 1 : 2;
         String winner = conflict ? null : winsA==winsNeeded ? firstA
                 : winsB==winsNeeded ? firstB : null;
         return new Match(phase, slot, key, a, b, winsA, winsB,
@@ -200,7 +219,8 @@ final class CommunityTrackSprintBracketPlanner {
     }
 
     static String phase(String slot) {
-        return slot.startsWith("R") ? "SPRINT_EIGHTH_FINAL"
+        return slot.startsWith("P") ? "SPRINT_SIXTEENTH_FINAL"
+                : slot.startsWith("R") ? "SPRINT_EIGHTH_FINAL"
                 : slot.startsWith("Q") ? "SPRINT_QUARTER_FINAL"
                 : slot.startsWith("S") ? "SPRINT_SEMI_FINAL"
                 : slot.equals("B") ? "SPRINT_BRONZE_FINAL" : "SPRINT_GOLD_FINAL";

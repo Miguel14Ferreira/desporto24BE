@@ -136,11 +136,11 @@ public class CommunityCompetitionService {
             throw new IllegalArgumentException("Indica um nome válido para o quadro");
         String format = request.format() == null || request.format().isBlank()
                 ? "EIGHT_RIDER_FINALS" : request.format();
-        if (!Set.of("EIGHT_RIDER_FINALS", "SIXTEEN_RIDER_1_8").contains(format))
+        if (!Set.of("EIGHT_RIDER_FINALS", "SIXTEEN_RIDER_1_8", "TWENTY_EIGHT_RIDER_1_16").contains(format))
             throw new IllegalArgumentException("Formato de Sprint não suportado");
         CommunityRound qualification = null;
         List<String> seeds = List.of();
-        if ("SIXTEEN_RIDER_1_8".equals(format)) {
+        if ("SIXTEEN_RIDER_1_8".equals(format) || "TWENTY_EIGHT_RIDER_1_16".equals(format)) {
             if (request.qualifyingRoundId() == null)
                 throw new IllegalArgumentException("Seleciona a qualificação real de 200 m");
             qualification = roundRepository.findById(request.qualifyingRoundId())
@@ -150,9 +150,10 @@ public class CommunityCompetitionService {
                     || !qualification.getSeason().getId().equals(seasonId))
                 throw new IllegalArgumentException("Qualificação de outra comunidade ou época");
             seeds = CommunityTrackSprintQualifying16.seeds(
-                    roundResponse(qualification, acceptedAliasProfiles(communityId)));
+                    roundResponse(qualification, acceptedAliasProfiles(communityId)),
+                    "TWENTY_EIGHT_RIDER_1_16".equals(format) ? 28 : 16);
         } else if (request.qualifyingRoundId() != null) {
-            throw new IllegalArgumentException("A qualificação só pode ligar ao quadro de 16 ciclistas");
+            throw new IllegalArgumentException("A qualificação só pode ligar ao quadro de 16 ou 28 ciclistas");
         }
         CommunityTrackSprintBracket bracket = trackSprintBracketRepository.save(
                 CommunityTrackSprintBracket.builder().community(community).season(season)
@@ -219,7 +220,7 @@ public class CommunityCompetitionService {
     }
 
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
-            java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(R[1-8]|Q[1-4]|S[1-2]|B|G)$");
+            java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(P(?:[5-9]|1[0-6])|R[1-8]|Q[1-4]|S[1-2]|B|G)$");
 
     /** Guards organizer-created heats against the source knockout series. */
     private void validateBracketRound(Long communityId, CommunitySeason season,
@@ -253,6 +254,14 @@ public class CommunityCompetitionService {
         if (!match.matches()) return;
         String slot = match.group(2);
         List<String> next = switch (slot) {
+            case "P16" -> List.of("R1");
+            case "P15" -> List.of("R2");
+            case "P14" -> List.of("R3");
+            case "P13" -> List.of("R4");
+            case "P5", "P12" -> List.of("R5");
+            case "P6", "P11" -> List.of("R6");
+            case "P7", "P10" -> List.of("R7");
+            case "P8", "P9" -> List.of("R8");
             case "R1", "R8" -> List.of("Q1");
             case "R2", "R7" -> List.of("Q2");
             case "R3", "R6" -> List.of("Q3");
