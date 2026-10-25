@@ -160,7 +160,7 @@ public class CommunityInlineSpeedProgressionService {
         if (!proposal.ready())
             throw problem(HttpStatus.CONFLICT, proposal.warning());
         List<Long> selected = request.playerIds();
-        if (selected.contains(null) || selected.stream().anyMatch(v -> v <= 0)
+        if (selected.stream().anyMatch(v -> v == null || v <= 0)
                 || Set.copyOf(selected).size() != selected.size())
             throw problem(HttpStatus.BAD_REQUEST, "Apurados duplicados ou inválidos");
         Set<Long> observed = sourceHeats.stream().flatMap(h -> h.skaters().stream())
