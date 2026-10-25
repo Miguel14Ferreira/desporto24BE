@@ -34,7 +34,8 @@ public class CommunityDiscoveryController {
                 community.getSport(),
                 community.getPhotoUrl(),
                 community.getVisibility(),
-                community.getSports()
+                community.getSports(),
+                community.getPhotoZoom(), community.getPhotoFocusX(), community.getPhotoFocusY()
         );
     }
 
