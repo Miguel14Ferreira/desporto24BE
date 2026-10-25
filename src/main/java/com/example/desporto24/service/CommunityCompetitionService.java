@@ -454,6 +454,88 @@ public class CommunityCompetitionService {
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
+    /**
+     * Article 3.2.047 / 3.2.048: in a three-up repechage, a specifically
+     * sanctioned rider may be removed from a rerun ONLY after a separate,
+     * witnessed authorisation. This does not create a sporting result.
+     * Unsupported two-up judgements remain blocked.
+     */
+    public CommunityTrackSprintIncidentDtos.View authorizeTrackSprintRerun(
+            Long communityId, Long seasonId, Long bracketId, Long incidentId,
+            String username, CommunityTrackSprintIncidentDtos.AuthorizeRerun request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Não podes rever uma época encerrada");
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não pertence à época"));
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+            throw new IllegalArgumentException("Repetição reduzida exclusiva de repescagem olímpica");
+        CommunityTrackSprintIncident incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(x->x.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
+        if(!"ADJUDICATION_REQUIRED".equals(incident.getStatus())
+                ||!"DISCIPLINARY_RULING".equals(incident.getDecisionType())
+                ||!Set.of("RELEGATION","DISQUALIFICATION").contains(incident.getSanctionType()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Só decisões disciplinares pendentes admitem esta revisão");
+        String series=incident.getSeriesKey();
+        if(!series.matches("SP"+bracketId+"-(U[1-4]|W[1-2])")
+                || incident.getHeatNumber()!=1)
+            throw new IllegalArgumentException("A revisão de composição exige repescagem de três ciclistas");
+        if(request==null || request.orderedRiders()==null || request.orderedRiders().size()!=2
+                ||request.reference()==null||request.reference().trim().length()<12
+                ||request.reference().trim().length()>255
+                ||request.reason()==null||request.reason().trim().length()<12
+                ||request.reason().trim().length()>500)
+            throw new IllegalArgumentException("Confirma os dois ciclistas e a nova ata oficial");
+        List<String> order=new ArrayList<>();
+        for(String rider:request.orderedRiders()) {
+            if(rider==null||rider.isBlank())
+                throw new IllegalArgumentException("Identifica os ciclistas autorizados");
+            order.add(rider.trim().toLowerCase(Locale.ROOT));
+        }
+        if(order.size()!=2||order.get(0).equals(order.get(1)))
+            throw new IllegalArgumentException("A repetição exige dois ciclistas distintos");
+        List<CommunityRoundResponse> heats=roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(communityId,seasonId)
+                .stream().filter(r->"TRACK_SPRINT_HEAT".equals(r.getEventType())
+                        ||"TRACK_SPRINT_REPECHAGE".equals(r.getEventType())
+                        ||"TRACK_SPRINT_5_8".equals(r.getEventType()))
+                .map(r->roundResponse(r,acceptedAliasProfiles(communityId))).toList();
+        if(heats.stream().anyMatch(r->series.equals(r.sprintSeriesKey())))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não podes rever uma manga que já tem resultados");
+        CommunityTrackSprintBracketDtos.Match match=CommunityTrackSprintOlympic24
+                .project(bracketId,heats,bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId))
+                .stream().filter(x->series.equals(x.seriesKey())).findFirst()
+                .orElseThrow(()->new IllegalArgumentException("Repescagem não encontrada"));
+        if(!"READY".equals(match.status()) || match.riderC()==null
+                ||match.riderD()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A repescagem não está pronta para repetição de dois ciclistas");
+        Set<String> original=Set.of(match.riderA(),match.riderB(),match.riderC());
+        Set<String> remaining=new HashSet<>(original);
+        if(!remaining.remove(incident.getSanctionedUsername())
+                ||remaining.size()!=2||!remaining.equals(new HashSet<>(order)))
+            throw new IllegalArgumentException(
+                    "A nova partida tem de conter exatamente os dois ciclistas não sancionados");
+        // Immutable original decision is preserved; this records separate
+        // authorisation and restart order. No WIN/LOSS is assigned here.
+        try { incident.setRerunRidersJson(SPRINT_TIE_MAPPER.writeValueAsString(order)); }
+        catch(com.fasterxml.jackson.core.JsonProcessingException error) {
+            throw new IllegalStateException("Não foi possível guardar a ordem oficial",error);
+        }
+        incident.setRerunReference(request.reference().trim());
+        incident.setRerunReason(request.reason().trim());
+        incident.setRerunAuthorizedBy(username);
+        incident.setRerunAuthorizedAt(Instant.now());
+        incident.setStatus("RESTART_AUTHORIZED");
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
     private static final java.util.regex.Pattern SPRINT_BRACKET_SERIES =
             java.util.regex.Pattern.compile("^SP([1-9][0-9]*)-(A(?:[1-9]|1[0-2])|U[1-4]|C[1-8]|V[1-4]|E[1-6]|W[1-2]|F58|P(?:[5-9]|1[0-6])|R[1-8]|Q[1-4]|S[1-2]|B|G)$");
 
