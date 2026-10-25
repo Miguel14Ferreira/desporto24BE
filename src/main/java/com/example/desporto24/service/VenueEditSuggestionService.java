@@ -153,7 +153,14 @@ public class VenueEditSuggestionService {
         venues.save(venue);
         proposal.setStatus(VenueEditSuggestion.Status.APPROVED);
         proposal.setReviewedByUsername(moderator);
-        proposal.setReviewedAt(Instant.now());
+        Instant reviewInstant = Instant.now();
+        proposal.setReviewedAt(reviewInstant);
+        // Persist only a positive authenticated moderator declaration.
+        // Contact removals and approvals of unrelated fields do not claim
+        // that a contact source was reviewed.
+        if (proposed.containsKey("contact") && !proposed.get("contact").isBlank()) {
+            proposal.setSourceReviewConfirmedAt(reviewInstant);
+        }
         proposal.setDecisionNote(cleanNote(note));
         var result = response(repository.save(proposal));
         decisionNotifications.decision(id, venue.getId(), venue.getName(),
@@ -288,7 +295,8 @@ public class VenueEditSuggestionService {
                 proposal.getStatus().name(), decode(proposal.getBeforeJson()),
                 decode(proposal.getChangesJson()), proposal.getReason(), proposal.getSubmittedByUsername(),
                 proposal.getSubmittedAt(), proposal.getReviewedByUsername(), proposal.getReviewedAt(),
-                proposal.getDecisionNote(), proposal.getSourceUrl());
+                proposal.getDecisionNote(), proposal.getSourceUrl(),
+                proposal.getSourceReviewConfirmedAt());
     }
 
     private String cleanNote(String value) {
