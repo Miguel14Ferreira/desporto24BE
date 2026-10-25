@@ -256,24 +256,9 @@ public class CommunityCompetitionService {
         var matches=CommunityTrackSprintBracketPlanner.project(bracket.getId(),rounds,
                 bracket.getQualifiedRiders()==null?List.of():bracket.getQualifiedRiders(),
                 sprintOfficialReruns(bracket.getId()));
-        Map<String,CommunityTrackSprintBracketDtos.Match> slots=matches.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        CommunityTrackSprintBracketDtos.Match::slot, m->m));
-        List<CommunityTrackSprintBracketDtos.InterruptionPlacement> placements=new ArrayList<>();
-        if("AFTER_QUARTERS".equals(bracket.getInterruptionStage())) {
-            for(int i=1;i<=4;i++)
-                placements.add(new CommunityTrackSprintBracketDtos.InterruptionPlacement(
-                        slots.get("Q"+i).winner(),4));
-        } else if("AFTER_SEMIS".equals(bracket.getInterruptionStage())) {
-            for(int i=1;i<=2;i++) {
-                var match=slots.get("S"+i);
-                String loser=match.winner().equals(match.riderA())
-                        ?match.riderB():match.riderA();
-                placements.add(new CommunityTrackSprintBracketDtos.InterruptionPlacement(
-                        match.winner(),2));
-                placements.add(new CommunityTrackSprintBracketDtos.InterruptionPlacement(loser,4));
-            }
-        }
+        List<CommunityTrackSprintBracketDtos.InterruptionPlacement> placements=
+                CommunityTrackSprintInterruption.placements(
+                        bracket.getInterruptionStage(),matches);
         return new CommunityTrackSprintBracketDtos.Interruption(
                 bracket.getInterruptionStage(),bracket.getInterruptionReference(),
                 bracket.getInterruptionReason(),bracket.getInterruptionRecordedBy(),
@@ -317,22 +302,11 @@ public class CommunityCompetitionService {
                 .map(r->roundResponse(r,aliases)).toList();
         var matches=CommunityTrackSprintBracketPlanner.project(bracketId,rounds,
                 bracket.getQualifiedRiders(),sprintOfficialReruns(bracketId));
-        Map<String,CommunityTrackSprintBracketDtos.Match> slots=matches.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                    CommunityTrackSprintBracketDtos.Match::slot,m->m));
-        for(var m:matches)
-            if("CONFLICT".equals(m.status()))
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Resolve os confrontos inconsistentes antes do encerramento");
-        boolean quarters=java.util.stream.IntStream.rangeClosed(1,4)
-                .allMatch(i->"FINISHED".equals(slots.get("Q"+i).status()));
-        boolean semis=java.util.stream.IntStream.rangeClosed(1,2)
-                .allMatch(i->"FINISHED".equals(slots.get("S"+i).status()));
-        if(semis && "FINISHED".equals(slots.get("B").status())
-                && "FINISHED".equals(slots.get("G").status()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "A competição já terminou; não é possível interrompê-la");
-        String stage=!quarters?"BEFORE_QUARTERS":!semis?"AFTER_QUARTERS":"AFTER_SEMIS";
+        String stage;
+        try { stage=CommunityTrackSprintInterruption.stage(matches); }
+        catch(IllegalStateException invalid) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,invalid.getMessage(),invalid);
+        }
         bracket.setInterruptionStage(stage);
         bracket.setInterruptionReason(request.reason().trim());
         bracket.setInterruptionReference(request.reference().trim());
