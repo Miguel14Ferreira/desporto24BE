@@ -1031,7 +1031,11 @@ public class CommunityCompetitionService {
                 CommunityTeamFinalResults.decode(
                         round.getTeamScoreA(), round.getTeamScoreB()),
                 CommunityCricketResults.decode(round.getCricketWicketsA(), round.getCricketBallsA(),
-                        round.getCricketWicketsB(), round.getCricketBallsB())
+                        round.getCricketWicketsB(), round.getCricketBallsB()),
+                // Preserve the persisted Sprint relation on every API read:
+                // the bracket planner must see exactly the recorded series and heat.
+                round.getSprintSeriesKey(),
+                round.getSprintHeatNumber()
         );
     }
 
