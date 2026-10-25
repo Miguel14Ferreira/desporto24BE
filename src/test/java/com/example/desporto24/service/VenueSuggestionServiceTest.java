@@ -27,7 +27,17 @@ class VenueSuggestionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new VenueSuggestionService(repository, venueService, mapper);
+        service = new VenueSuggestionService(repository, venueService);
+    }
+
+    @Test
+    void serviceConstructorDoesNotRequireAnInjectedJacksonTwoBean() {
+        var constructors = VenueSuggestionService.class.getDeclaredConstructors();
+        assertEquals(1, constructors.length);
+        assertArrayEquals(new Class<?>[]{
+                VenueSuggestionRepository.class, VenueService.class
+        }, constructors[0].getParameterTypes());
+        assertNotNull(service);
     }
 
     private CreateVenueRequest request() throws Exception {
