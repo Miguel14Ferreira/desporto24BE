@@ -147,8 +147,13 @@ class VenueModerationAuthenticatedPgIT {
         assertNull(venues.findById(venueA).orElseThrow().getContact());
         assertEquals(1, api("GET", BASE + "?page=0", adminToken, null, 200)
                 .path("suggestions").size());
-        assertTrue(api("GET", BASE + "/history?page=0", adminToken, null, 200)
-                .path("suggestions").isEmpty());
+        // The other test may already have created a REJECTED legacy fixture:
+        // history must exclude THIS still-pending record, not be globally empty.
+        for (JsonNode item : api("GET", BASE + "/history?page=0", adminToken, null, 200)
+                .path("suggestions")) {
+            assertNotEquals(id, item.path("id").asLong());
+            assertNotEquals("PENDING", item.path("status").asText());
+        }
 
         String approve = BASE + "/" + id + "/approve";
         api("POST", approve, memberToken, Map.of("sourceReviewed", true, "note", "QA"), 403);
