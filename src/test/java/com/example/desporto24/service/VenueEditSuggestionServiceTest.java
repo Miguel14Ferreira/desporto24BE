@@ -15,6 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
+import java.util.Set;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,6 +37,61 @@ class VenueEditSuggestionServiceTest {
         service = new VenueEditSuggestionService(submissions, venues, decisionNotifications);
         venue = Venue.builder().id(5L).name("Campo Original").city("Lisboa")
                 .sports("Futebol").address("Rua Velha").createdAt(Instant.now()).build();
+    }
+
+
+    @Test
+    void decisionHistoryReturnsOnlyCompletedModerationRecordsAndAttestation() {
+        var approved = submitted("Campo Original", "Campo Corrigido");
+        approved.setStatus(VenueEditSuggestion.Status.APPROVED);
+        approved.setSourceUrl("https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao");
+        approved.setSourceReviewConfirmedAt(Instant.parse("2026-10-25T19:00:00Z"));
+        approved.setReviewedAt(approved.getSourceReviewConfirmedAt());
+        approved.setReviewedByUsername("moderator");
+        var rejected = submitted("Campo Original", "Campo Errado");
+        rejected.setId(43L);
+        rejected.setStatus(VenueEditSuggestion.Status.REJECTED);
+        rejected.setSourceReviewConfirmedAt(null);
+        rejected.setReviewedAt(Instant.parse("2026-10-25T18:00:00Z"));
+        rejected.setReviewedByUsername("moderator");
+        when(submissions.findByStatusInOrderByReviewedAtDescIdDesc(
+                eq(Set.of(VenueEditSuggestion.Status.APPROVED, VenueEditSuggestion.Status.REJECTED)),
+                eq(PageRequest.of(0, 20))))
+            .thenReturn(new SliceImpl<>(List.of(approved, rejected), PageRequest.of(0, 20), false));
+
+        var result = service.history(0);
+        assertEquals(0, result.page());
+        assertFalse(result.hasMore());
+        assertEquals(List.of("APPROVED", "REJECTED"),
+                result.suggestions().stream().map(x -> x.status()).toList());
+        assertEquals("moderator", result.suggestions().getFirst().reviewedByUsername());
+        assertEquals(approved.getSourceReviewConfirmedAt(),
+                result.suggestions().getFirst().sourceReviewConfirmedAt());
+        assertNull(result.suggestions().get(1).sourceReviewConfirmedAt());
+        verify(submissions, never()).save(any());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void decisionHistoryRejectsInvalidPageAndDoesNotQueryRepository() {
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.history(-1)).getStatusCode().value());
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.history(1001)).getStatusCode().value());
+        verifyNoInteractions(submissions);
+    }
+
+    @Test
+    void decisionHistorySupportsPaginationWithoutAnyMutation() {
+        when(submissions.findByStatusInOrderByReviewedAtDescIdDesc(
+                eq(Set.of(VenueEditSuggestion.Status.APPROVED, VenueEditSuggestion.Status.REJECTED)),
+                eq(PageRequest.of(1, 20))))
+            .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(1, 20), true));
+        var result = service.history(1);
+        assertEquals(1, result.page());
+        assertTrue(result.hasMore());
+        assertTrue(result.suggestions().isEmpty());
+        verify(submissions, never()).save(any());
     }
 
     @Test
