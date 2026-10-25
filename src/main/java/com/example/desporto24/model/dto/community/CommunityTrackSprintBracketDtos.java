@@ -53,16 +53,24 @@ public final class CommunityTrackSprintBracketDtos {
                            List<Match> matches, Long qualifyingRoundId,
                            List<String> qualifyingSeeds,
                            List<TieDecision> officialTieDecisions,
-                           String tieDecisionRecordedBy) {
+                           String tieDecisionRecordedBy,
+                           List<CommunityTrackSprintIncidentDtos.View> incidents) {
         public Overview(Long id, Long seasonId, String name, String format,
                         List<Match> matches) {
-            this(id, seasonId, name, format, matches, null, List.of(), List.of(), null);
+            this(id, seasonId, name, format, matches, null, List.of(), List.of(), null, List.of());
+        }
+        public Overview(Long id, Long seasonId, String name, String format,
+                        List<Match> matches, Long qualifyingRoundId,
+                        List<String> qualifyingSeeds, List<TieDecision> tieDecisions,
+                        String recordedBy) {
+            this(id,seasonId,name,format,matches,qualifyingRoundId,
+                 qualifyingSeeds,tieDecisions,recordedBy,List.of());
         }
         public Overview(Long id, Long seasonId, String name, String format,
                         List<Match> matches, Long qualifyingRoundId,
                         List<String> qualifyingSeeds) {
             this(id, seasonId, name, format, matches, qualifyingRoundId,
-                 qualifyingSeeds, List.of(), null);
+                 qualifyingSeeds, List.of(), null, List.of());
         }
     }
 }
