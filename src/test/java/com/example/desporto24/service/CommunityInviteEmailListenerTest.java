@@ -44,6 +44,40 @@ class CommunityInviteEmailListenerTest {
     }
 
     @Test
+    void disabledCommunityInvitationEmailsAreNotDelivered() {
+        EmailSender sender = mock(EmailSender.class);
+        NotificationPreferencesService preferences = mock(NotificationPreferencesService.class);
+        when(preferences.allowsOptionalEmailAddress("friend@example.test",
+                com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE))
+                .thenReturn(false);
+        CommunityInviteEmailListener listener = new CommunityInviteEmailListener(
+                sender, "https://d24sports.com");
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                listener, "preferenceService", preferences);
+
+        assertDoesNotThrow(() -> listener.onCommunityInviteCreated(
+                new CommunityInviteCreatedEvent(9L, "friend@example.test", "owner", "CNG")));
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void preferenceLookupOutageNeverSendsMailOrFailsCommittedCommunityInvitation() {
+        EmailSender sender = mock(EmailSender.class);
+        NotificationPreferencesService preferences = mock(NotificationPreferencesService.class);
+        when(preferences.allowsOptionalEmailAddress("friend@example.test",
+                com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE))
+                .thenThrow(new IllegalStateException("Preferences temporarily unavailable"));
+        CommunityInviteEmailListener listener = new CommunityInviteEmailListener(
+                sender, "https://d24sports.com");
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                listener, "preferenceService", preferences);
+
+        assertDoesNotThrow(() -> listener.onCommunityInviteCreated(
+                new CommunityInviteCreatedEvent(10L, "friend@example.test", "owner", "CNG")));
+        verifyNoInteractions(sender);
+    }
+
+    @Test
     void skipsRecipientWithoutEmail() {
         EmailSender sender = mock(EmailSender.class);
         CommunityInviteEmailListener listener = new CommunityInviteEmailListener(
