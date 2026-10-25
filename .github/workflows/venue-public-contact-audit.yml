@@ -1,0 +1,49 @@
+name: Venue public contact read-only audit
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'scripts/audit_venue_public_contacts.py'
+      - 'scripts/test_audit_venue_public_contacts.py'
+      - 'docs/venue-imports/public-contact-readonly-audit.md'
+      - '.github/workflows/venue-public-contact-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readonly-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline tests - no network or contact updates
+        run: |
+          python3 -m py_compile scripts/audit_venue_public_contacts.py
+          python3 -m unittest discover -s scripts -p 'test_audit_venue_public_contacts.py' -v
+      - name: Single anonymous GET for public venue contact coverage
+        # Transient live API outages never become invented zero counts.
+        # Neither raw venue records nor proposed numbers are uploaded.
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/jynlo-contact-audit
+          python3 scripts/audit_venue_public_contacts.py \
+            --live-public-api \
+            --summary-json /tmp/jynlo-contact-audit/contact-summary.json \
+            --districts-csv /tmp/jynlo-contact-audit/contact-districts.csv
+      - name: Publish aggregate metrics only
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: venue-contact-coverage-aggregates
+          path: |
+            /tmp/jynlo-contact-audit/contact-summary.json
+            /tmp/jynlo-contact-audit/contact-districts.csv
+          if-no-files-found: warn
+          retention-days: 7
