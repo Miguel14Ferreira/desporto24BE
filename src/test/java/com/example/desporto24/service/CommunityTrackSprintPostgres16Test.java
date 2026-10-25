@@ -27,7 +27,8 @@ class CommunityTrackSprintPostgres16Test {
     private static final List<String> MIGRATIONS = List.of(
         "db/changelog/changes/2026-10-24-track-sprint-series-v1.yaml",
         "db/changelog/changes/2026-10-25-community-track-sprint-bracket8.yaml",
-        "db/changelog/changes/2026-10-25-track-sprint-qualification16.yaml");
+        "db/changelog/changes/2026-10-25-track-sprint-qualification16.yaml",
+        "db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml");
 
     @BeforeAll
     void migrateDisposableLocalDatabaseOnly() throws Exception {
@@ -87,15 +88,44 @@ class CommunityTrackSprintPostgres16Test {
 
     @Test
     void migrationsAreIdempotentAndHistoricEightRiderDefaultSurvives() {
-        assertEquals(3, jdbc.queryForObject("select count(*) from databasechangelog " +
+        assertEquals(4, jdbc.queryForObject("select count(*) from databasechangelog " +
             "where id in ('2026-10-24-track-sprint-series-v1'," +
             "'2026-10-25-community-track-sprint-bracket8'," +
-            "'2026-10-25-track-sprint-qualifying16')", Integer.class));
+            "'2026-10-25-track-sprint-qualifying16'," +
+            "'2026-10-25-sprint-official-200m-tie-decisions')", Integer.class));
         jdbc.update("insert into community_track_sprint_bracket " +
             "(id,community_id,season_id,name,created_at) " +
             "values (81,7,6,'Existing eight riders',now())");
         assertEquals("EIGHT_RIDER_FINALS", jdbc.queryForObject(
             "select format from community_track_sprint_bracket where id=81", String.class));
+    }
+
+    @Test
+    void nullableOfficialDecisionColumnsPreserveHistoricBracketsAndStoreAuditableEvidence() {
+        jdbc.update("insert into community_track_sprint_bracket " +
+            "(id,community_id,season_id,name,created_at) " +
+            "values (81,7,6,'Older historical bracket',now())");
+        assertNull(jdbc.queryForObject(
+            "select tie_decisions_json from community_track_sprint_bracket where id=81",
+            String.class));
+        assertNull(jdbc.queryForObject(
+            "select tie_decisions_recorded_by from community_track_sprint_bracket where id=81",
+            String.class));
+        bracket(41,7,4,42L);
+        String evidence = """
+                [{"method":"DRAW_LOTS","reference":"Fictional official drawing 41"}]
+                """;
+        jdbc.update("update community_track_sprint_bracket " +
+            "set tie_decisions_json=?, tie_decisions_recorded_by=? where id=41",
+            evidence, "fixture_sprint_owner");
+        assertEquals(evidence, jdbc.queryForObject(
+            "select tie_decisions_json from community_track_sprint_bracket where id=41",
+            String.class));
+        assertEquals("fixture_sprint_owner", jdbc.queryForObject(
+            "select tie_decisions_recorded_by from community_track_sprint_bracket where id=41",
+            String.class));
+        assertEquals(2,count("community_track_sprint_bracket"));
+        assertEquals(3,count("community_round"));
     }
 
     @Test

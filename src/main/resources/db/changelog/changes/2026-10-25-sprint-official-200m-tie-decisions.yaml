@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-sprint-official-200m-tie-decisions
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_bracket
+            columns:
+              - column:
+                  name: tie_decisions_json
+                  type: TEXT
+              - column:
+                  name: tie_decisions_recorded_by
+                  type: VARCHAR(100)
