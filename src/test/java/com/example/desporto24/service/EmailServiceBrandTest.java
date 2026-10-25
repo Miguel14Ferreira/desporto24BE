@@ -15,6 +15,16 @@ class EmailServiceBrandTest {
     }
 
     @Test
+    void normalizesSenderDisplayNameWithoutRewritingEmailAddresses() {
+        assertEquals("Jynlo <noreply@d24sports.com>",
+                EmailService.senderDisplayName("Desporto24 <noreply@d24sports.com>"));
+        assertEquals("Jynlo <noreply@desporto24.com>",
+                EmailService.senderDisplayName("DESPORTO24 <noreply@desporto24.com>"));
+        assertEquals("noreply@desporto24.com",
+                EmailService.senderDisplayName("noreply@desporto24.com"));
+    }
+
+    @Test
     void preservesExistingJynloBrandAndLegacyWebsiteLinks() {
         String original = "Jynlo · https://d24sports.com/login · https://api.d24sports.com";
         assertEquals(original, EmailService.currentBrand(original));
