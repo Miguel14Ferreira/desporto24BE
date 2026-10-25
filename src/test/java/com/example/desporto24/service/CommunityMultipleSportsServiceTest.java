@@ -33,6 +33,8 @@ class CommunityMultipleSportsServiceTest {
 
     @BeforeEach
     void setup() {
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "creationQuota",
+                mock(CommunityCreationQuotaService.class));
         owner.setId(4L);
         owner.setUsername("owner");
         when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));

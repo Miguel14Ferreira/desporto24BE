@@ -60,6 +60,9 @@ public class Profile implements Serializable {
     @Column(name = "google_subject", unique = true)
     private String googleSubject;
 
+    @Column(name = "community_creation_limit")
+    private Integer communityCreationLimit;
+
     private String role;
     private String[] authorities;
     private String lastLoginDateDisplay;
