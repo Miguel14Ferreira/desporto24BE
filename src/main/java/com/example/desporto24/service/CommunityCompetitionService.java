@@ -382,8 +382,12 @@ public class CommunityCompetitionService {
         Map<String,String> awarded=new HashMap<>();
         for (CommunityTrackSprintIncident incident:
                 trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
-            if ("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
-                    && !incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")) {
+            boolean single="OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
+                    &&!incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)");
+            boolean series="OFFICIAL_SERIES_AWARDED".equals(incident.getStatus())
+                    &&incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")
+                    &&"DISQUALIFICATION".equals(incident.getSanctionType());
+            if (single||series) {
                 if(incident.getAwardWinner()==null
                         ||awarded.putIfAbsent(incident.getSeriesKey(),
                                              incident.getAwardWinner())!=null)
@@ -414,7 +418,7 @@ public class CommunityCompetitionService {
     private Set<String> sprintOfficialDisqualified(Long bracketId) {
         Set<String> excluded=new HashSet<>();
         for(var incident:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId))
-            if("OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
+            if(Set.of("OFFICIAL_HEAT_AWARDED","OFFICIAL_SERIES_AWARDED").contains(incident.getStatus())
                     &&"DISQUALIFICATION".equals(incident.getSanctionType())) {
                 if(incident.getSanctionedUsername()==null)
                     throw new IllegalStateException("Desclassificação sem ciclista identificado");
