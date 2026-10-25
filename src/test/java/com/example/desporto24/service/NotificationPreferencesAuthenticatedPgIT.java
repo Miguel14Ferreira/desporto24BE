@@ -185,7 +185,7 @@ class NotificationPreferencesAuthenticatedPgIT {
                 true, true, Set.of(), Set.of()));
         publishCommittedInvite(992L, address.toUpperCase(Locale.ROOT));
         verify(optionalEmailSender).send(eq(address.toUpperCase(Locale.ROOT)),
-                contains("Jynlo"), and(contains("view=mine&amp;invite=992"), contains("Community invitation")));
+                contains("Jynlo"), argThat(html -> html.contains("view=mine&amp;invite=992") && html.contains("Community invitation")));
         verifyNoMoreInteractions(optionalEmailSender);
 
         // The global email switch is independent of in-app notifications.
