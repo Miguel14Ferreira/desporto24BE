@@ -545,6 +545,13 @@ class CommunityTournamentRoleAuthenticatedPgIT {
             communities.saveAndFlush(group);
             List<Profile> athletes = fictionalCompetitors(group,
                     "race_pg_" + ("Karting".equals(sport) ? "kart_" : "road_"), 3);
+            // Round entry identities are also displayed as community-player names.
+            // Use distinguishable names in this sporting-rules test; same-name
+            // collision receives its own dedicated regression test.
+            for (int i = 0; i < athletes.size(); i++) {
+                athletes.get(i).setFullName("Corredor QA " + sport + " " + (i + 1));
+                profiles.saveAndFlush(athletes.get(i));
+            }
             String communityPath = "/api/communities/" + group.getId();
             String root = communityPath + "/tournaments";
             JsonNode season = api("POST", communityPath + "/seasons", ownerJwt,
