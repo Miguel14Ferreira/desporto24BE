@@ -19,6 +19,12 @@ from audit_venue_public_contacts import (
 )
 
 OFFICIAL_HOSTS = frozenset(("www.agoraporto.pt",))
+SECONDARY_OFFICIAL_HOSTS = OFFICIAL_HOSTS | {"desporto.agoraporto.pt"}
+MANIFEST_FIELDS = frozenset(("reviewed_on", "scope", "reuse_status", "facilities"))
+FACILITY_FIELDS = frozenset((
+    "name", "aliases", "city", "district", "street_hint", "source_url",
+    "source_label", "review_note", "secondary_source_url",
+))
 MAX_FACILITIES = 10
 MAX_REVIEW_HINTS = 3
 # Generic words do not identify a particular swimming pool or sports centre.
@@ -33,9 +39,19 @@ def normalized_name(value):
     return re.sub(r"[^a-z0-9]+", " ", fold(value)).strip()
 
 
+def valid_official_url(value, hosts):
+    """Check a reference URL's origin without fetching or trusting its contents."""
+    parsed = urlsplit(str(value or ""))
+    return (parsed.scheme == "https" and parsed.hostname in hosts and
+            not parsed.username and not parsed.password and not parsed.port and
+            bool(parsed.path) and not parsed.query and not parsed.fragment)
+
+
 def verify_manifest(manifest):
     if not isinstance(manifest, dict):
         raise ValueError("Source manifest must be a JSON object")
+    if set(manifest) - MANIFEST_FIELDS:
+        raise ValueError("Unexpected manifest fields: source data must be references only")
     sources = manifest.get("facilities")
     if not isinstance(sources, list) or not 1 <= len(sources) <= MAX_FACILITIES:
         raise ValueError("Expected between 1 and 10 manually checked facility references")
@@ -46,17 +62,19 @@ def verify_manifest(manifest):
     for item in sources:
         if not isinstance(item, dict):
             raise ValueError("Invalid facility reference")
+        if set(item) - FACILITY_FIELDS:
+            raise ValueError("Unexpected facility fields: never store contacts in the manifest")
         if item.get("city") != "Porto" or item.get("district") != "Porto":
             raise ValueError("Pilot may only include facilities in Porto city and district")
         name = normalized_name(item.get("name"))
         if not name or name in seen_names:
             raise ValueError("Duplicate/invalid official venue name")
         seen_names.add(name)
-        parsed = urlsplit(str(item.get("source_url") or ""))
-        if parsed.scheme != "https" or parsed.hostname not in OFFICIAL_HOSTS or \
-                parsed.username or parsed.password or parsed.port or \
-                not parsed.path or parsed.query or parsed.fragment:
+        if not valid_official_url(item.get("source_url"), OFFICIAL_HOSTS):
             raise ValueError("Source must be an exact official HTTPS facility URL")
+        if "secondary_source_url" in item and not valid_official_url(
+                item["secondary_source_url"], SECONDARY_OFFICIAL_HOSTS):
+            raise ValueError("Secondary source must be an official HTTPS reference")
         if item["source_url"] in seen_urls:
             raise ValueError("Duplicate official source URL")
         seen_urls.add(item["source_url"])
@@ -68,9 +86,6 @@ def verify_manifest(manifest):
             raise ValueError("Aliases must be limited to explicitly reviewed facility names")
         if len({name, *(normalized_name(x) for x in aliases)}) != len(aliases) + 1:
             raise ValueError("Duplicate venue aliases")
-        if any(key.lower() in ("phone", "contact", "telephone", "mobile", "venueid")
-               for key in item):
-            raise ValueError("Do not store numbers or guessed Jynlo IDs in the source manifest")
     return sources
 
 
