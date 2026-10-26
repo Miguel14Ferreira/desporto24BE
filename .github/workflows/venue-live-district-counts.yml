@@ -1,0 +1,39 @@
+name: Jynlo LIVE venue district count read-only audit
+
+on:
+  pull_request:
+    branches: ['feature/desporto24-preview-deploy']
+    paths:
+      - 'scripts/audit_live_venue_district_coverage.py'
+      - 'scripts/test_audit_live_venue_district_coverage.py'
+      - '.github/workflows/venue-live-district-counts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  counts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline validation
+        run: |
+          python3 -m py_compile scripts/audit_live_venue_district_coverage.py
+          python3 -m unittest discover -s scripts -p 'test_audit_live_venue_district_coverage.py' -v
+      - name: One GET of public Jynlo venue catalogue; count all districts
+        run: |
+          mkdir -p /tmp/jynlo-district-counts
+          python3 scripts/audit_live_venue_district_coverage.py \
+            --live-public-api \
+            --output-json /tmp/jynlo-district-counts/current-counts.json
+      - name: Report aggregate counts only
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-live-venue-district-counts
+          path: /tmp/jynlo-district-counts/current-counts.json
+          retention-days: 7
