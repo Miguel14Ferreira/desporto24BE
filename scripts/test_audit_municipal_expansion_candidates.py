@@ -48,6 +48,15 @@ class MunicipalExpansionAuditTest(unittest.TestCase):
                          manifest(source))
         self.assertEqual("POSSIBLE_ALIAS_REVIEW", result["results"][0]["status"])
 
+    def test_city_words_alone_cannot_mark_other_sport_as_alias(self):
+        source = entry("Estádio Municipal de Castelo Branco",
+                       city="Castelo Branco", district="Castelo Branco",
+                       sourceUrl="https://www.cm-castelobranco.pt/visitante/contactos-uteis/")
+        result = compare([venue(274, "Pista de Atletismo de Castelo Branco",
+                                city="Castelo Branco", district="Castelo Branco")],
+                         manifest(source))
+        self.assertEqual("NO_NAME_MATCH_REVIEW", result["results"][0]["status"])
+
     def test_different_city_district_not_duplicate(self):
         result = compare([venue(50, "Piscinas Municipais do Sacapeito",
                                 city="Porto", district="Porto")],
