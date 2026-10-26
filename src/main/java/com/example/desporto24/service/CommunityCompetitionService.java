@@ -15,6 +15,7 @@ import com.example.desporto24.model.community.CommunityRoundEntry;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.community.CommunityTrackSprintBracket;
 import com.example.desporto24.model.community.CommunityTrackSprintIncident;
+import com.example.desporto24.model.community.CommunityTrackSprintReview;
 import com.example.desporto24.model.dto.community.*;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
@@ -25,6 +26,7 @@ import com.example.desporto24.repository.community.CommunityRoundEntryRepository
 import com.example.desporto24.repository.community.CommunityRoundRepository;
 import com.example.desporto24.repository.community.CommunityTrackSprintBracketRepository;
 import com.example.desporto24.repository.community.CommunityTrackSprintIncidentRepository;
+import com.example.desporto24.repository.community.CommunityTrackSprintReviewRepository;
 import com.example.desporto24.repository.community.CommunityTournamentRepository;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
@@ -57,6 +59,7 @@ public class CommunityCompetitionService {
     private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTrackSprintBracketRepository trackSprintBracketRepository;
     private final CommunityTrackSprintIncidentRepository trackSprintIncidentRepository;
+    private final CommunityTrackSprintReviewRepository sprintReviewRepository;
     private final CommunityRacketRuleRepository racketRuleRepository;
     private final CommunityRaceRuleRepository raceRuleRepository;
     private final CommunityRoundEntryRepository entryRepository;
@@ -288,6 +291,11 @@ public class CommunityCompetitionService {
         if(bracket.getInterruptionStage()!=null)
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta interrupção oficial já foi registada");
+        if(trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId).stream()
+                .anyMatch(i -> CommunityTrackSprintReviewPolicy.blocks(
+                    latestReviewAction(i.getId()))))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Revisão oficial pendente ou revogada; não é possível terminar o quadro");
         if(request==null||request.reference()==null
                 ||request.reference().trim().length()<12
                 ||request.reference().trim().length()>255
@@ -341,6 +349,154 @@ public class CommunityCompetitionService {
     }
 
 
+    private String latestReviewAction(Long incidentId) {
+        return CommunityTrackSprintReviewPolicy.latest(
+                sprintReviewRepository.findByIncidentIdOrderByIdAsc(incidentId));
+    }
+
+    private void rejectReviewedSprintProgression(Long bracketId,String seriesKey) {
+        String slot=seriesKey.substring(seriesKey.lastIndexOf('-')+1);
+        for(var incident:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
+            String latest=latestReviewAction(incident.getId());
+            if(!CommunityTrackSprintReviewPolicy.blocks(latest))continue;
+            String affected=incident.getSeriesKey();
+            String ancestor=affected.substring(affected.lastIndexOf('-')+1);
+            if(CommunityTrackSprintReviewPolicy.affects(ancestor,slot))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Revisão oficial pendente ou revogação sem retificação: manga suspensa");
+        }
+    }
+
+    private CommunityTrackSprintReviewDtos.View sprintReviewView(CommunityTrackSprintReview e) {
+        return new CommunityTrackSprintReviewDtos.View(e.getId(),e.getIncident().getId(),
+                e.getAction(),e.getOfficialName(),e.getOfficialReference(),
+                e.getPanelReference(),e.getReason(),e.getRecordedBy(),e.getRecordedAt());
+    }
+
+    private CommunityTrackSprintIncident sprintReviewedIncident(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId) {
+        CommunityTrackSprintBracket bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro de outra comunidade ou época"));
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Só Sprint olímpico 24");
+        return trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .filter(i->"OFFICIAL_SERIES_AWARDED".equals(i.getStatus()))
+                .filter(i->i.getSeriesKey().matches("SP"+bracketId+"-(Q[1-4]|S[1-2]|B|G)"))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Só séries BO3 com veredito oficial documentado aceitam este procedimento"));
+    }
+
+    /** UCI 3.2.011: visible to authorized community members; historical events are immutable. */
+    @Transactional(readOnly=true)
+    public List<CommunityTrackSprintReviewDtos.View> sprintVerdictReviews(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,String username) {
+        requireAccess(community(communityId),profile(username));
+        sprintReviewedIncident(communityId,seasonId,bracketId,incidentId);
+        return sprintReviewRepository.findByIncidentIdOrderByIdAsc(incidentId)
+                .stream().map(this::sprintReviewView).toList();
+    }
+
+    private void assertNoReviewedDescendants(Long communityId,Long seasonId,
+            Long bracketId,String affectedSlot) {
+        String prefix="SP"+bracketId+"-";
+        for(var round:roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+                communityId,seasonId)) {
+            String key=round.getSprintSeriesKey();
+            if(key!=null&&key.startsWith(prefix)) {
+                String descendant=key.substring(prefix.length());
+                if(!descendant.equals(affectedSlot)
+                        &&CommunityTrackSprintReviewPolicy.affects(affectedSlot,descendant))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "Existem resultados seguintes; é necessária retificação externa documentada");
+            }
+        }
+        for(var i:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
+            String descendant=i.getSeriesKey().substring(prefix.length());
+            if(!descendant.equals(affectedSlot)
+                    &&CommunityTrackSprintReviewPolicy.affects(affectedSlot,descendant)
+                    &&Set.of("OFFICIAL_HEAT_AWARDED","OFFICIAL_SERIES_AWARDED",
+                            "RESTART_AUTHORIZED").contains(i.getStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Já existem decisões oficiais seguintes; não alterar a progressão");
+        }
+    }
+
+    /** Record an actual request by the president. A user appeal is NOT a UCI 3.2.011 review. */
+    public CommunityTrackSprintReviewDtos.View requestSprintVerdictReview(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintReviewDtos.Request request) {
+        requireAdmin(communityId,profile(username));
+        var season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        var incident=sprintReviewedIncident(communityId,seasonId,bracketId,incidentId);
+        if(incident.getBracket().getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Competição interrompida");
+        if(request==null||!Boolean.TRUE.equals(request.originalJudgeRefereeDecision())
+                ||!validOfficialName(request.presidentName())
+                ||!validOfficialReference(request.requestReference())
+                ||!validOfficialReason(request.reason()))
+            throw new IllegalArgumentException("Indica presidente, ata, motivo e origem no juiz-árbitro");
+        var last=latestReviewAction(incidentId);
+        if("REQUESTED".equals(last)||"OVERTURNED".equals(last))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Já existe revisão pendente ou revogação sem retificação");
+        String slot=incident.getSeriesKey().substring(incident.getSeriesKey().lastIndexOf('-')+1);
+        assertNoReviewedDescendants(communityId,seasonId,bracketId,slot);
+        return sprintReviewView(sprintReviewRepository.save(CommunityTrackSprintReview.builder()
+                .incident(incident).action("REQUESTED")
+                .officialName(request.presidentName().trim())
+                .officialReference(request.requestReference().trim())
+                .reason(request.reason().trim()).recordedBy(username)
+                .recordedAt(Instant.now()).build()));
+    }
+
+    /** Record the panel's review and the president's express verdict: no inferred winner. */
+    public CommunityTrackSprintReviewDtos.View resolveSprintVerdictReview(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintReviewDtos.Resolve request) {
+        requireAdmin(communityId,profile(username));
+        var season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        var incident=sprintReviewedIncident(communityId,seasonId,bracketId,incidentId);
+        if(incident.getBracket().getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Competição interrompida");
+        if(!"REQUESTED".equals(latestReviewAction(incidentId)))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Não existe pedido oficial pendente");
+        if(request==null||!Set.of("UPHELD","OVERTURNED").contains(request.outcome())
+                ||!validOfficialName(request.presidentName())
+                ||!validOfficialReference(request.panelReviewReference())
+                ||!validOfficialReference(request.presidentDecisionReference())
+                ||!validOfficialReason(request.reason()))
+            throw new IllegalArgumentException(
+                    "Exige revisão do colégio e decisão documentada pelo presidente");
+        String slot=incident.getSeriesKey().substring(incident.getSeriesKey().lastIndexOf('-')+1);
+        assertNoReviewedDescendants(communityId,seasonId,bracketId,slot);
+        // OVERTURNED suppresses the effective award projection without touching
+        // historical heat results or the incident's original signed decision.
+        // It then blocks related stages until a separately supported correction.
+        return sprintReviewView(sprintReviewRepository.save(CommunityTrackSprintReview.builder()
+                .incident(incident).action(request.outcome())
+                .officialName(request.presidentName().trim())
+                .officialReference(request.presidentDecisionReference().trim())
+                .panelReference(request.panelReviewReference().trim())
+                .reason(request.reason().trim()).recordedBy(username)
+                .recordedAt(Instant.now()).build()));
+    }
+
+    private static boolean validOfficialName(String value) {
+        return value!=null&&value.trim().length()>=3&&value.trim().length()<=120;
+    }
+    private static boolean validOfficialReference(String value) {
+        return value!=null&&value.trim().length()>=12&&value.trim().length()<=255;
+    }
+    private static boolean validOfficialReason(String value) {
+        return value!=null&&value.trim().length()>=12&&value.trim().length()<=500;
+    }
+
     private static final Set<String> SPRINT_INCIDENT_TYPES =
             Set.of("FALL","PUNCTURE","BICYCLE_DEFECT","RULE_INFRINGEMENT","OTHER");
     private static final Set<String> SPRINT_INCIDENT_DECISIONS =
@@ -386,7 +542,8 @@ public class CommunityCompetitionService {
                     &&!incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)");
             boolean series="OFFICIAL_SERIES_AWARDED".equals(incident.getStatus())
                     &&incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")
-                    &&"DISQUALIFICATION".equals(incident.getSanctionType());
+                    &&"DISQUALIFICATION".equals(incident.getSanctionType())
+                    &&!"OVERTURNED".equals(latestReviewAction(incident.getId()));
             if (single||series) {
                 if(incident.getAwardWinner()==null
                         ||awarded.putIfAbsent(incident.getSeriesKey(),
@@ -469,6 +626,7 @@ public class CommunityCompetitionService {
         if(!series.startsWith("SP"+bracketId+"-") || series.length()>40 ||
                 request.heatNumber()<1 || request.heatNumber()>3)
             throw new IllegalArgumentException("Série ou número de manga inválido");
+        rejectReviewedSprintProgression(bracketId,series);
         if(trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatusIn(
                 bracketId,series,SPRINT_OPEN_INCIDENT_STATUSES))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -778,6 +936,7 @@ public class CommunityCompetitionService {
                 .filter(i->i.getBracket().getId().equals(bracketId))
                 .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
         String key=incident.getSeriesKey();
+        rejectReviewedSprintProgression(bracketId,key);
         if(!"ADJUDICATION_REQUIRED".equals(incident.getStatus())
                 ||!"DISCIPLINARY_RULING".equals(incident.getDecisionType())
                 ||!"FALL".equals(incident.getIncidentType())
@@ -846,6 +1005,7 @@ public class CommunityCompetitionService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Competição interrompida oficialmente");
         // A reported incident never becomes an official result by itself.
+        rejectReviewedSprintProgression(bracketId,seriesKey.trim());
         if (trackSprintIncidentRepository.existsByBracketIdAndSeriesKeyAndStatusIn(
                 bracketId, seriesKey.trim(), SPRINT_UNRESOLVED_INCIDENT_STATUSES))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
