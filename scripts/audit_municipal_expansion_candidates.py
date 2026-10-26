@@ -124,14 +124,17 @@ def compare(catalogue, manifest):
             matches = exact
             status = "EXACT_EXISTING" if len(exact) == 1 else "DUPLICATE_EXACT_REVIEW"
         else:
-            words = distinctive(entry["name"])
+            # Geographic names are not evidence of matching venue identity.
+            # Otherwise every facility containing "Castelo Branco" looks alike.
+            place_words = distinctive(entry["city"])
+            words = distinctive(entry["name"]) - place_words
             kind = category(entry["name"])
             # Conservative, recall-oriented: same city and same sport facility type,
             # two distinctive full words, or <=250 m from an official verified point.
             # These are *possible* aliases, NOT proven duplicates.
             ranked = []
             for venue in same_place:
-                overlap = len(words & distinctive(venue.get("name")))
+                overlap = len(words & (distinctive(venue.get("name")) - place_words))
                 proximity = distance_meters(entry, venue)
                 same_type = bool(kind and kind == category(venue.get("name")))
                 if overlap >= 2 or same_type or (
