@@ -904,6 +904,73 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
             group,activeSeason,seriesDq).isEmpty(),
             "Review decisions cannot fabricate physical rounds");
+        // A revocation does not permit recording any dependent heat.
+        api("POST",community()+"/rounds",ownerJwt,Map.of(
+            "name","Forbidden Q2 after chair revocation",
+            "playedAt",Instant.now().toString(),"sport",sport,
+            "eventType","TRACK_SPRINT_HEAT",
+            "eventDiscipline",q2.path("phase").asText(),
+            "sprintSeriesKey",seriesDq,"sprintHeatNumber",1,
+            "entries",List.of(rider(q2.path("riderA").asText(),"WIN"),
+                    rider(q2.path("riderB").asText(),"LOSS"))),409);
+        String correctionPath=reviewPath+"/rectification";
+        var correct=Map.of(
+            "presidentName","Synthetic Commissaires President",
+            "instructionReference","Fictional explicit continuation order 2026/77",
+            "overturnedDecisionReference","Synthetic chair revocation 2026/76",
+            "reason","The president expressly cancels the disqualification and orders both original riders to resume",
+            "sanctionAnnulledByPresident",true,
+            "orderedRiders",List.of(q2.path("riderA").asText(),q2.path("riderB").asText()),
+            "nextHeatNumber",1);
+        api("PUT",correctionPath,memberJwt,correct,403);
+        Map<String,Object> invalid=new HashMap<>(correct);
+        invalid.put("sanctionAnnulledByPresident",false);
+        api("PUT",correctionPath,ownerJwt,invalid,400);
+        invalid.put("sanctionAnnulledByPresident",true);
+        invalid.put("orderedRiders",
+                List.of(q2.path("riderB").asText(),q2.path("riderA").asText()));
+        api("PUT",correctionPath,ownerJwt,invalid,400);
+        invalid.put("orderedRiders",correct.get("orderedRiders"));
+        invalid.put("nextHeatNumber",2);
+        api("PUT",correctionPath,ownerJwt,invalid,409);
+        invalid.put("nextHeatNumber",1);
+        invalid.put("overturnedDecisionReference","Incorrect revocation document ref");
+        api("PUT",correctionPath,ownerJwt,invalid,400);
+        var continuation=api("PUT",correctionPath,ownerJwt,correct,200);
+        assertEquals("RECTIFIED",continuation.path("action").asText());
+        assertEquals("RESUME_SAME_RIDERS",continuation.path("remedyKind").asText());
+        assertEquals(1,continuation.path("nextHeatNumber").asInt());
+        assertEquals(2,continuation.path("orderedRiders").size());
+        api("PUT",correctionPath,ownerJwt,correct,409);
+        api("POST",reviewPath,ownerJwt,request,409);
+        assertEquals(5,api("GET",reviewPath,memberJwt,null,200).size());
+        // The historical official series award remains stored but is no longer
+        // effective, and correction does not invent a physical heat.
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+            group,activeSeason,seriesDq).isEmpty());
+        JsonNode q2Corrected=null;
+        for(JsonNode b:api("GET",brackets(activeSeason),ownerJwt,null,200))
+            if(b.path("id").asLong()==bo3Id)
+                for(JsonNode m:b.path("matches"))
+                    if("Q2".equals(m.path("slot").asText()))q2Corrected=m;
+        assertNotNull(q2Corrected);
+        assertTrue(q2Corrected.path("winner").isNull());
+        assertEquals("READY",q2Corrected.path("status").asText());
+        record("Fictional Q2 physical heat only after official continuation",
+            "TRACK_SPRINT_HEAT",q2.path("phase").asText(),seriesDq,1,
+            List.of(rider(q2.path("riderA").asText(),"WIN"),
+                    rider(q2.path("riderB").asText(),"LOSS")));
+        JsonNode q2Raced=null;
+        for(JsonNode b:api("GET",brackets(activeSeason),memberJwt,null,200))
+            if(b.path("id").asLong()==bo3Id)
+                for(JsonNode m:b.path("matches"))
+                    if("Q2".equals(m.path("slot").asText()))q2Raced=m;
+        assertNotNull(q2Raced);
+        assertEquals("IN_PROGRESS",q2Raced.path("status").asText());
+        assertEquals(1,q2Raced.path("winsA").asInt());
+        assertTrue(q2Raced.path("winner").isNull(),
+            "One physical heat cannot infer the BO3 winner");
+
 
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
