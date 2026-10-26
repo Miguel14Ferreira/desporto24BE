@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-sprint-unintentional-fall-start
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column: { name: fall_fault_rider, type: VARCHAR(100) }
+              - column: { name: fall_non_fault_rider, type: VARCHAR(100) }
+              - column: { name: fall_chosen_start_position, type: VARCHAR(8) }
