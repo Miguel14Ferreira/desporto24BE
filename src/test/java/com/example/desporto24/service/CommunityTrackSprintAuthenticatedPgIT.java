@@ -864,6 +864,47 @@ class CommunityTrackSprintAuthenticatedPgIT {
         api("PUT",dqPath+"/official-series-verdict",ownerJwt,verdict,409);
         assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
             group,activeSeason,seriesDq).isEmpty());
+        // UCI 3.2.011: only a documented request by the president starts review.
+        String reviewPath=dqPath+"/reviews";
+        var request=Map.of("presidentName","Synthetic Commissaires President",
+            "requestReference","Synthetic request record 2026/72",
+            "reason","Panel president requests reconsideration of referee verdict",
+            "originalJudgeRefereeDecision",true);
+        api("POST",reviewPath,memberJwt,request,403);
+        var start=api("POST",reviewPath,ownerJwt,request,200);
+        assertEquals("REQUESTED",start.path("action").asText());
+        api("POST",reviewPath,ownerJwt,request,409);
+        assertEquals(1,api("GET",reviewPath,memberJwt,null,200).size());
+        var uphold=Map.of("outcome","UPHELD",
+            "presidentName","Synthetic Commissaires President",
+            "panelReviewReference","Synthetic panel review record 2026/73",
+            "presidentDecisionReference","Synthetic chair final decision 2026/74",
+            "reason","The panel formally reviewed the evidence and maintained the ruling");
+        assertEquals("UPHELD",api("PUT",reviewPath+"/decision",ownerJwt,uphold,200)
+                .path("action").asText());
+        api("PUT",reviewPath+"/decision",ownerJwt,uphold,409);
+        api("POST",reviewPath,ownerJwt,request,200);
+        var overturn=Map.of("outcome","OVERTURNED",
+            "presidentName","Synthetic Commissaires President",
+            "panelReviewReference","Synthetic panel review record 2026/75",
+            "presidentDecisionReference","Synthetic chair revocation 2026/76",
+            "reason","The panel reviewed and the president explicitly overturned the award");
+        assertEquals("OVERTURNED",
+            api("PUT",reviewPath+"/decision",ownerJwt,overturn,200).path("action").asText());
+        assertEquals(4,api("GET",reviewPath,memberJwt,null,200).size());
+        api("POST",reviewPath,ownerJwt,request,409);
+        JsonNode q2After=null;
+        for(JsonNode b:api("GET",brackets(activeSeason),ownerJwt,null,200))
+            if(b.path("id").asLong()==bo3Id)
+                for(JsonNode m:b.path("matches"))
+                    if("Q2".equals(m.path("slot").asText()))q2After=m;
+        assertNotNull(q2After);
+        assertTrue(q2After.path("winner").isNull(),
+            "Overturned BO3 award must not remain an effective qualification");
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+            group,activeSeason,seriesDq).isEmpty(),
+            "Review decisions cannot fabricate physical rounds");
+
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
     }
 }
