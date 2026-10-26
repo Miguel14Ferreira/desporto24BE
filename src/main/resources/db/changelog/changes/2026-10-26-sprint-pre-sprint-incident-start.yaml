@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-sprint-pre-sprint-incident-start
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column: { name: pre_sprint_incident_rider, type: VARCHAR(100) }
+              - column: { name: pre_sprint_non_fault_rider, type: VARCHAR(100) }
+              - column: { name: pre_sprint_start_position, type: VARCHAR(8) }
+              - column: { name: pre_sprint_before_start_confirmed, type: BOOLEAN }
+              - column: { name: pre_sprint_starter_stopped_confirmed, type: BOOLEAN }
