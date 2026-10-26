@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-session-play-format-v1
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: play_format
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: play_format
+                  type: VARCHAR(16)
+        - sql:
+            dbms: postgresql
+            sql: ALTER TABLE desporto24.session ADD CONSTRAINT ck_session_play_format CHECK (play_format IS NULL OR play_format IN ('INDIVIDUAL', 'PAIRS', 'TEAMS'))
