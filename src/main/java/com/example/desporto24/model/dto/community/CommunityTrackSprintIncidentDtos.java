@@ -26,6 +26,17 @@ public final class CommunityTrackSprintIncidentDtos {
 
 
     /**
+     * A second explicit panel instruction after a no-fault fall, puncture,
+     * or essential bicycle breakage. It cannot create a heat or winner.
+     */
+    public record NeutralRestart(
+            @NotBlank String cause,
+            @NotNull Boolean noFaultConfirmed,
+            @NotNull @Size(min=2,max=2) java.util.List<String> orderedRiders,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
+    /**
      * A separate signed authorization for a three-up rerun. Must explicitly
      * name and order exactly the two surviving riders; no winner is selected.
      */
