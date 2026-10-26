@@ -41,7 +41,7 @@ public class CommunityTrackSprintIncident {
     @Column(name="reported_at",nullable=false)
     private Instant reportedAt;
 
-    @Column(name="decision_type",length=24)
+    @Column(name="decision_type",length=32)
     private String decisionType;
 
     @Column(name="decision_reference",length=255)
