@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-sprint-incident-decision-type-length
+      author: desporto24
+      changes:
+        - modifyDataType:
+            tableName: community_track_sprint_incident
+            columnName: decision_type
+            newDataType: VARCHAR(32)

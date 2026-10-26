@@ -596,9 +596,10 @@ public class CommunityCompetitionService {
     private static final Set<String> SPRINT_DISCIPLINARY_SANCTIONS =
             Set.of("WARNING","RELEGATION","DISQUALIFICATION");
     private static final Set<String> SPRINT_UNRESOLVED_INCIDENT_STATUSES =
-            Set.of("PENDING","ADJUDICATION_REQUIRED");
+            Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_PENDING","POSITIONS_PENDING");
     private static final Set<String> SPRINT_OPEN_INCIDENT_STATUSES =
-            Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_AUTHORIZED");
+            Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_AUTHORIZED",
+                    "RESTART_PENDING","POSITIONS_PENDING");
 
     private static List<String> decodeRerunRiders(String json) {
         if(json==null || json.isBlank()) return List.of();
@@ -826,13 +827,111 @@ public class CommunityCompetitionService {
             if (request.sanctionType() != null || request.sanctionedUsername() != null)
                 throw new IllegalArgumentException(
                     "Uma decisão sem sanção não pode identificar um ciclista sancionado");
-            incident.setStatus("DECIDED");
+            // In a neutral mishap, a generic declaration is never enough to
+            // unlock a new heat or to ratify the race order automatically.
+            // Legacy DECIDED incidents remain readable and unchanged.
+            if (Set.of("FALL","PUNCTURE","BICYCLE_DEFECT").contains(
+                    incident.getIncidentType())) {
+                incident.setStatus("RESTART_REQUIRED".equals(request.decisionType())
+                        ? "RESTART_PENDING" : "POSITIONS_PENDING");
+            } else incident.setStatus("DECIDED");
         }
         incident.setDecisionType(request.decisionType());
         incident.setDecisionReason(request.reason().trim());
         incident.setDecisionReference(request.reference().trim());
         incident.setDecidedBy(username);
         incident.setDecidedAt(Instant.now());
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
+    /**
+     * UCI 3.2.048(1-2): a no-fault fall, puncture or essential mechanical
+     * breakage may be restarted only after an explicit, documentary decision.
+     * This narrow procedure retains the original order of exactly two riders
+     * and never creates a race result or replaces an already raced heat.
+     */
+    public CommunityTrackSprintIncidentDtos.View authorizeNeutralSprintRestart(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintIncidentDtos.NeutralRestart request) {
+        requireAdmin(communityId,profile(username));
+        CommunitySeason season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        var bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não pertence à época"));
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Reinício documentado limitado ao Sprint olímpico 24");
+        if(bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Evento definitivamente interrompido");
+        var incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
+        if(!"RESTART_PENDING".equals(incident.getStatus())
+                ||!"RESTART_REQUIRED".equals(incident.getDecisionType()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não existe decisão de repetição pendente para este incidente");
+        String cause=switch(incident.getIncidentType()) {
+            case "FALL" -> "NO_FAULT_FALL";
+            case "PUNCTURE" -> "PUNCTURE";
+            case "BICYCLE_DEFECT" -> "ESSENTIAL_BICYCLE_BREAKAGE";
+            default -> "";
+        };
+        if(request==null||!cause.equals(request.cause())
+                ||!Boolean.TRUE.equals(request.noFaultConfirmed())
+                ||request.orderedRiders()==null||request.orderedRiders().size()!=2
+                ||!validOfficialReference(request.reference())
+                ||!validOfficialReason(request.reason()))
+            throw new IllegalArgumentException(
+                    "Identifica a causa sem culpa, os ciclistas e a segunda ata do colégio");
+        String series=incident.getSeriesKey();
+        if(!series.matches("SP"+bracketId+"-(A(?:[1-9]|1[0-2])|C[1-8]|E[1-6]|Q[1-4]|S[1-2]|B|G)"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Repetição com mais participantes exige procedimento específico");
+        rejectReviewedSprintProgression(bracketId,series);
+        var related=roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+                communityId,seasonId).stream()
+                .filter(r->Set.of("TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE",
+                        "TRACK_SPRINT_5_8").contains(r.getEventType()))
+                .map(r->roundResponse(r,acceptedAliasProfiles(communityId))).toList();
+        var match=trackSprintBracketResponse(bracket,related).matches().stream()
+                .filter(m->series.equals(m.seriesKey())).findFirst()
+                .orElseThrow(()->new IllegalArgumentException("Confronto não encontrado"));
+        if(!Set.of("READY","IN_PROGRESS").contains(match.status())
+                ||match.riderA()==null||match.riderB()==null
+                ||match.riderC()!=null||match.riderD()!=null
+                ||match.winner()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Só uma manga incompleta com exatamente dois ciclistas pode recomeçar");
+        List<String> expected=List.of(match.riderA(),match.riderB());
+        List<String> actual=new ArrayList<>();
+        for(String rider:request.orderedRiders()) {
+            if(rider==null||rider.isBlank())
+                throw new IllegalArgumentException("Identifica ambos os ciclistas");
+            actual.add(rider.trim().toLowerCase(Locale.ROOT));
+        }
+        if(!actual.equals(expected))
+            throw new IllegalArgumentException(
+                    "Repetição neutra obriga aos dois ciclistas pela ordem original");
+        int previous= (int)related.stream().filter(r->series.equals(r.sprintSeriesKey())).count();
+        int awards=sprintBo3OfficialHeats(bracketId).getOrDefault(series,Map.of()).size();
+        if(incident.getHeatNumber()!=previous+awards+1
+                ||related.stream().anyMatch(r->series.equals(r.sprintSeriesKey())
+                        &&incident.getHeatNumber()==r.sprintHeatNumber()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Manga já disputada, adjudicada ou fora de sequência");
+        try {incident.setRerunRidersJson(SPRINT_TIE_MAPPER.writeValueAsString(expected));}
+        catch(com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("Não foi possível conservar a ordem oficial",ex);
+        }
+        incident.setRerunReference(request.reference().trim());
+        incident.setRerunReason(request.reason().trim());
+        incident.setRerunAuthorizedBy(username);
+        incident.setRerunAuthorizedAt(Instant.now());
+        incident.setStatus("NEUTRAL_RESTART_OK");
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
