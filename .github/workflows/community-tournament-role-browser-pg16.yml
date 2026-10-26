@@ -1,0 +1,99 @@
+name: Community tournaments real Angular Chromium JWT and disposable PG16
+
+# Isolated QA only. FE pinned to a verified branch SHA; all traffic loopback.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentRoleAuthenticatedPgIT.java'
+      - 'scripts/qa/community-tournament-role-browser-real.cjs'
+      - '.github/workflows/community-tournament-role-browser-pg16.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tournament-role-browser-pg16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    name: Real Angular 390/1440 PT/EN + signed JWT + local PG16
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 27
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: community_role_auth_qa
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: local_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d community_role_auth_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: 'true'
+      JYNLO_TOURNAMENT_ROLE_BROWSER_QA: 'true'
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/community_role_auth_qa
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: local_only
+      UI_APP_URL: http://127.0.0.1:4200
+      VERIFY_EMAIL_HOST: http://127.0.0.1:8080
+      AES_ENCRYPTION_KEY: ciKey1
+      JWT_SECRET: isolated_jynlo_community_roles_pg16_auth_contract_key_2026
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: community_role_auth_qa
+      POSTGRES_USERNAME: qa
+      POSTGRES_PASSWORD: local_only
+      POSTGRES_SCHEMA: desporto24
+      JYNLO_PLAYWRIGHT_QA_ROOT: /tmp/jynlo-tournament-roles-browser
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned production Angular frontend for real browser
+        uses: actions/checkout@v4
+        with:
+          repository: Miguel14Ferreira/desporto24FE
+          ref: 0aaad905cb35d0bd06205f62d9e244ff79f053fa
+          path: frontend
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked Angular frontend and isolated Playwright Chromium
+        run: |
+          npm --prefix frontend ci --no-audit --no-fund
+          mkdir -p "$JYNLO_PLAYWRIGHT_QA_ROOT"
+          printf '%s\n' '{"private":true,"dependencies":{"playwright":"1.56.1"}}' > "$JYNLO_PLAYWRIGHT_QA_ROOT/package.json"
+          npm install --prefix "$JYNLO_PLAYWRIGHT_QA_ROOT" --no-audit --no-fund
+          "$JYNLO_PLAYWRIGHT_QA_ROOT/node_modules/.bin/playwright" install chromium
+      - name: Start Angular on loopback and verify local-only frontend
+        run: |
+          (cd frontend && npm run start -- --host 127.0.0.1 --port 4200 --configuration development > "$RUNNER_TEMP/jynlo-roles-angular.log" 2>&1) &
+          for i in $(seq 1 120); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:4200; then exit 0; fi
+            sleep 2
+          done
+          tail -80 "$RUNNER_TEMP/jynlo-roles-angular.log"
+          exit 1
+      - name: Create disposable PostgreSQL schema
+        env:
+          PGPASSWORD: local_only
+        run: psql -h 127.0.0.1 -U qa -d community_role_auth_qa -v ON_ERROR_STOP=1 -c 'CREATE SCHEMA desporto24 AUTHORIZATION qa'
+      - name: Verify real Angular role separation against Spring and JWT/PG16
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentRoleAuthenticatedPgIT test
+      - name: Print bounded frontend diagnostics on failure
+        if: failure()
+        run: tail -70 "$RUNNER_TEMP/jynlo-roles-angular.log" || true
