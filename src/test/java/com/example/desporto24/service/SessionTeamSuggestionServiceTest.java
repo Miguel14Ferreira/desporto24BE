@@ -27,7 +27,8 @@ class SessionTeamSuggestionServiceTest {
         SessionParticipantRepository participants = mock(SessionParticipantRepository.class);
         CommunityRoundEntryRepository rounds = mock(CommunityRoundEntryRepository.class);
         SessionTeamSuggestionService service =
-                new SessionTeamSuggestionService(sessions, profiles, participants, rounds);
+                new SessionTeamSuggestionService(sessions, profiles, participants, rounds,
+                        mock(CommunityExcelTeamBalancer.class));
 
         Session session = new Session();
         session.setId(42L);
@@ -83,7 +84,8 @@ class SessionTeamSuggestionServiceTest {
         when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.empty());
 
         SessionTeamSuggestionService service =
-                new SessionTeamSuggestionService(sessions, profiles, participants, rounds);
+                new SessionTeamSuggestionService(sessions, profiles, participants, rounds,
+                        mock(CommunityExcelTeamBalancer.class));
 
         assertThrows(com.example.desporto24.exception.SessionNotFound.class,
                 () -> service.confirm(42L, "organizer"));
