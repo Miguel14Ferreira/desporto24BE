@@ -120,7 +120,8 @@ public class VenueService {
             throw new IllegalArgumentException("Localidade de pesquisa inválida");
         }
         String sportFilter = normalizeSearchFilter(sport).replace(" ", "");
-        Object[] origin = venueRepository.nearbyCityReference(normalizedCity);
+        var referenceRows = venueRepository.nearbyCityReference(normalizedCity);
+        Object[] origin = referenceRows.isEmpty() ? null : referenceRows.getFirst();
         if (origin == null || origin.length < 3 || origin[0] == null || origin[1] == null
                 || ((Number) origin[2]).longValue() < 1) {
             return new VenueNearbyCityPageResponse(city.trim(), radiusKm, false, List.of(), page, false);

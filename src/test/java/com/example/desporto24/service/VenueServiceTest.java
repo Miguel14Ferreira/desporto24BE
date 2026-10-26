@@ -159,7 +159,7 @@ class VenueServiceTest {
     @Test
     void nearbyCityFindsOtherLocalitiesInDistanceOrderWithoutGpsOrSameCityResults() {
         when(venueRepository.nearbyCityReference("cacem"))
-                .thenReturn(new Object[] { 38.72, -9.14, 2L });
+                .thenReturn(List.<Object[]>of(new Object[] { 38.72, -9.14, 2L }));
         Venue closest = Venue.builder().id(30L).name("Oeiras Centro").city("Oeiras")
                 .latitude(38.721).longitude(-9.14).sports("Padel").build();
         Venue next = Venue.builder().id(31L).name("Sintra").city("Sintra")
@@ -187,7 +187,7 @@ class VenueServiceTest {
     @Test
     void nearbyCityDoesNotGuessDistancesWithoutAValidSavedReference() {
         when(venueRepository.nearbyCityReference("cacem"))
-                .thenReturn(new Object[] { null, null, 0L });
+                .thenReturn(List.<Object[]>of(new Object[] { null, null, 0L }));
         var result = service.nearbyCity("Cacém", "Padel", 0, 25);
         assertFalse(result.referenceAvailable());
         assertTrue(result.venues().isEmpty());
@@ -208,7 +208,7 @@ class VenueServiceTest {
     @Test
     void nearbyCityUsesStablePaginationAndDoesNotMissOrDuplicateCandidateVenues() {
         when(venueRepository.nearbyCityReference("cacem"))
-                .thenReturn(new Object[] { 38.72, -9.14, 1L });
+                .thenReturn(List.<Object[]>of(new Object[] { 38.72, -9.14, 1L }));
         var candidates = java.util.stream.IntStream.rangeClosed(1, 37).mapToObj(id ->
                 Venue.builder().id((long) id).name("Campo " + id).city("Sintra")
                         .latitude(38.721).longitude(-9.14).sports("Padel").build()).toList();

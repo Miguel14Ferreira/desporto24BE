@@ -149,11 +149,11 @@ class VenuePagedSearchRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        Object[] origin = repository.nearbyCityReference("cacem");
+        Object[] origin = repository.nearbyCityReference("cacem").getFirst();
         assertEquals(2L, ((Number) origin[2]).longValue());
         assertEquals(38.77, ((Number) origin[0]).doubleValue(), 0.001);
         assertEquals(-9.35, ((Number) origin[1]).doubleValue(), 0.001);
-        Object[] missing = repository.nearbyCityReference("localidade inexistente");
+        Object[] missing = repository.nearbyCityReference("localidade inexistente").getFirst();
         assertEquals(0L, ((Number) missing[2]).longValue());
     }
 

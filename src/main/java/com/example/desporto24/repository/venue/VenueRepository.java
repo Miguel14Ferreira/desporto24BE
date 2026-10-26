@@ -90,7 +90,7 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
              AND v.latitude BETWEEN -90 AND 90
              AND v.longitude BETWEEN -180 AND 180
            """)
-    Object[] nearbyCityReference(@Param("city") String city);
+    List<Object[]> nearbyCityReference(@Param("city") String city);
 
     /** Only the fields needed for import deduplication, not complete Venue entities. */
     interface VenueDeduplicationView {
