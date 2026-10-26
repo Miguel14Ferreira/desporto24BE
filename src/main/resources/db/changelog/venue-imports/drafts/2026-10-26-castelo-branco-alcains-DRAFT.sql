@@ -36,14 +36,14 @@ ON CONFLICT DO NOTHING;
 -- https://www.albigec.pt/equipamentos/complexo-de-piscinas-de-alcains/
 -- Indoor and outdoor pools belong to SAME facility: one row.
 -- Outdoor pool closed for the season 2026-09-06. Do not claim year-round access.
--- No verified street, so address NULL.
+-- Postal address verified on ALBIGEC official page: Estrada de Santa, 6005-000 Alcains.
 INSERT INTO desporto24.venue
   (name, city, district, address, sports, venue_type, environment_type,
    latitude, longitude, information_source, source_reference, website, contact,
    indoor, changing_rooms, parking, lighting, created_at)
 SELECT
   'Complexo de Piscinas Municipais de Alcains', 'Alcains', 'Castelo Branco',
-  NULL, 'Natação', 'Complexo desportivo', 'BOTH',
+  'Estrada de Santa, 6005-000 Alcains', 'Natação', 'Complexo desportivo', 'BOTH',
   NULL, NULL, 'OFFICIAL', 'JYNLO:OFFICIAL:ALBIGEC:ALCAINS-POOLS',
   'https://www.albigec.pt/equipamentos/complexo-de-piscinas-de-alcains/', NULL,
   TRUE, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
@@ -59,7 +59,9 @@ WHERE NOT EXISTS (
      )
      OR (
        LOWER(BTRIM(existing.city)) = LOWER(BTRIM('Alcains'))
-       AND LOWER(COALESCE(existing.name, '')) LIKE '%piscin%'
+       AND (LOWER(COALESCE(existing.name, '')) LIKE '%piscin%'
+            OR LOWER(BTRIM(COALESCE(existing.address, ''))) =
+                 LOWER(BTRIM('Estrada de Santa, 6005-000 Alcains')))
      )
 )
 ON CONFLICT DO NOTHING;
