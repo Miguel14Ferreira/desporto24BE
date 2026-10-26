@@ -35,14 +35,20 @@ public class SessionTeamSuggestionService {
     private final ProfileRepository profileRepository;
     private final SessionParticipantRepository participantRepository;
     private final CommunityRoundEntryRepository roundEntryRepository;
+    private final CommunityExcelTeamBalancer excelBalancer;
 
     @Transactional
     public SessionTeamSuggestionResponse confirm(Long sessionId, String username) {
+        return confirm(sessionId, username, "FORM");
+    }
+
+    @Transactional
+    public SessionTeamSuggestionResponse confirm(Long sessionId, String username, String source) {
         // Serialise confirmation with joins, departures, removals and waitlist promotions.
         // Otherwise a confirmed assignment can be based on a stale participant roster.
         sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
-        SessionTeamSuggestionResponse suggestion = suggest(sessionId, username);
+        SessionTeamSuggestionResponse suggestion = suggest(sessionId, username, source);
 
         List<SessionParticipant> participants = participantRepository
                 .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE);
@@ -61,6 +67,15 @@ public class SessionTeamSuggestionService {
 
     @Transactional(readOnly = true)
     public SessionTeamSuggestionResponse suggest(Long sessionId, String username) {
+        return suggest(sessionId, username, "FORM");
+    }
+
+    @Transactional(readOnly = true)
+    public SessionTeamSuggestionResponse suggest(Long sessionId, String username, String source) {
+        if (!"FORM".equals(source) && !"EXCEL_POINTS".equals(source)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Origem de classificação inválida");
+        }
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile actor = profileRepository.findUserByUsername(username)
@@ -79,6 +94,10 @@ public class SessionTeamSuggestionService {
         int maxParticipants = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
         if (maxParticipants < 2 || participants.size() < maxParticipants) {
             throw new IllegalStateException("A sessão tem de estar cheia para gerar equipas");
+        }
+
+        if ("EXCEL_POINTS".equals(source)) {
+            return excelBalancer.suggest(session, participants);
         }
 
         Map<Long, PlayerStats> statsByProfile = new HashMap<>();

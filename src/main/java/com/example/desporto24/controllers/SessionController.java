@@ -106,15 +106,17 @@ public class SessionController {
     @GetMapping("/{id}/teams/suggestion")
     public SessionTeamSuggestionResponse teamSuggestion(
             @PathVariable Long id,
+            @RequestParam(defaultValue = "FORM") String source,
             Authentication authentication) {
-        return sessionTeamSuggestionService.suggest(id, authentication.getName());
+        return sessionTeamSuggestionService.suggest(id, authentication.getName(), source);
     }
 
     @PostMapping("/{id}/teams/confirm")
     public SessionTeamSuggestionResponse confirmTeams(
             @PathVariable Long id,
+            @RequestParam(defaultValue = "FORM") String source,
             Authentication authentication) {
-        return sessionTeamSuggestionService.confirm(id, authentication.getName());
+        return sessionTeamSuggestionService.confirm(id, authentication.getName(), source);
     }
 
     @PostMapping("/{id}/registration/open")
