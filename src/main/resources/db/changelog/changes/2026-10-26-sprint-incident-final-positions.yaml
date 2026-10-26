@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-sprint-incident-final-positions
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column: { name: official_positions_json, type: TEXT }
