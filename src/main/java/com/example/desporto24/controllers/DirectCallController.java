@@ -18,6 +18,11 @@ public class DirectCallController {
 
     public record StartRequest(@NotBlank String media) {}
 
+    @GetMapping("/availability")
+    public java.util.Map<String, Boolean> availability() {
+        return java.util.Map.of("enabled", service.available());
+    }
+
     @PostMapping("/{peer}")
     public DirectCallService.CallSession start(@PathVariable String peer,
             @RequestBody @Valid StartRequest request, Authentication auth) {
