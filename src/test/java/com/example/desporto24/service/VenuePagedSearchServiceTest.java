@@ -53,6 +53,19 @@ class VenuePagedSearchServiceTest {
     }
 
     @Test
+    void passesBothAutonomousRegionsToPaginatedRepositoryWithoutReadingAllVenues() {
+        when(repository.suggest("", "", "", "Açores", PageRequest.of(0, 40)))
+                .thenReturn(new SliceImpl<>(List.of()));
+        when(repository.suggest("", "", "", "Madeira", PageRequest.of(0, 40)))
+                .thenReturn(new SliceImpl<>(List.of()));
+        service.suggest(null, null, null, 0, "ACORES");
+        service.suggest(null, null, null, 0, "madeira");
+        verify(repository).suggest("", "", "", "Açores", PageRequest.of(0, 40));
+        verify(repository).suggest("", "", "", "Madeira", PageRequest.of(0, 40));
+        verify(repository, never()).findAllByOrderByNameAsc();
+    }
+
+    @Test
     void normalizesAccentedDistrictAndFiltersInTheDatabase() {
         when(repository.suggest("", "", "padel", "Évora", PageRequest.of(0, 40)))
                 .thenReturn(new SliceImpl<>(List.of()));
