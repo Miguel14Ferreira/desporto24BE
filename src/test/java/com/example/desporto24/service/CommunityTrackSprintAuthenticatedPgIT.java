@@ -923,19 +923,19 @@ class CommunityTrackSprintAuthenticatedPgIT {
             "orderedRiders",List.of(q2.path("riderA").asText(),q2.path("riderB").asText()),
             "nextHeatNumber",1);
         api("PUT",correctionPath,memberJwt,correct,403);
-        Map<String,Object> invalid=new HashMap<>(correct);
-        invalid.put("sanctionAnnulledByPresident",false);
-        api("PUT",correctionPath,ownerJwt,invalid,400);
-        invalid.put("sanctionAnnulledByPresident",true);
-        invalid.put("orderedRiders",
+        Map<String,Object> invalidCorrection=new HashMap<>(correct);
+        invalidCorrection.put("sanctionAnnulledByPresident",false);
+        api("PUT",correctionPath,ownerJwt,invalidCorrection,400);
+        invalidCorrection.put("sanctionAnnulledByPresident",true);
+        invalidCorrection.put("orderedRiders",
                 List.of(q2.path("riderB").asText(),q2.path("riderA").asText()));
-        api("PUT",correctionPath,ownerJwt,invalid,400);
-        invalid.put("orderedRiders",correct.get("orderedRiders"));
-        invalid.put("nextHeatNumber",2);
-        api("PUT",correctionPath,ownerJwt,invalid,409);
-        invalid.put("nextHeatNumber",1);
-        invalid.put("overturnedDecisionReference","Incorrect revocation document ref");
-        api("PUT",correctionPath,ownerJwt,invalid,400);
+        api("PUT",correctionPath,ownerJwt,invalidCorrection,400);
+        invalidCorrection.put("orderedRiders",correct.get("orderedRiders"));
+        invalidCorrection.put("nextHeatNumber",2);
+        api("PUT",correctionPath,ownerJwt,invalidCorrection,409);
+        invalidCorrection.put("nextHeatNumber",1);
+        invalidCorrection.put("overturnedDecisionReference","Incorrect revocation document ref");
+        api("PUT",correctionPath,ownerJwt,invalidCorrection,400);
         var continuation=api("PUT",correctionPath,ownerJwt,correct,200);
         assertEquals("RECTIFIED",continuation.path("action").asText());
         assertEquals("RESUME_SAME_RIDERS",continuation.path("remedyKind").asText());
