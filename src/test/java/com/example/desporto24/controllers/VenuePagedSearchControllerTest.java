@@ -30,6 +30,13 @@ class VenuePagedSearchControllerTest {
     }
 
     @Test
+    void routesNearbyCitySearchWithoutReinterpretingGpsOrDistrictFilters() {
+        controller.nearbyCity("Cacém", "Padel", 2, 25);
+        verify(service).nearbyCity("Cacém", "Padel", 2, 25);
+        verify(service, never()).search(any(), any(), any(), any(), any());
+    }
+
+    @Test
     void forwardsDistrictToBackendInsteadOfLoadingAllVenues() {
         controller.suggest("Campo", "", "Padel", 0, "Setúbal");
         verify(service).suggest("Campo", "", "Padel", 0, "Setúbal");

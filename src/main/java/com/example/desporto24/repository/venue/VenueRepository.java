@@ -77,6 +77,21 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
             @Param("district") String district,
             Pageable pageable);
 
+    /**
+     * Approximate reference for an exact registered locality. No external
+     * geocoding, and no guess if none of its venues have valid coordinates.
+     */
+    @Query("""
+           SELECT AVG(v.latitude), AVG(v.longitude), COUNT(v.id)
+           FROM Venue v
+           WHERE LOWER(FUNCTION('translate', v.city,
+                   'áàâãäéèêëíìîïóòôõöúùûüç',
+                   'aaaaaeeeeiiiiooooouuuuc')) = :city
+             AND v.latitude BETWEEN -90 AND 90
+             AND v.longitude BETWEEN -180 AND 180
+           """)
+    Object[] nearbyCityReference(@Param("city") String city);
+
     /** Only the fields needed for import deduplication, not complete Venue entities. */
     interface VenueDeduplicationView {
         String getName();
