@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,6 +75,48 @@ class AdminPlatformOverviewServiceTest {
         verify(profiles, never()).findAll();
         verify(sessions, never()).findAll();
         verify(onlinePresence).countOnlineAt(any());
+    }
+
+
+    @Test
+    void venueQualityCountsRealMissingFieldsWithoutLoadingEntities() {
+        when(venues.qualityByDistrict()).thenReturn(List.of(
+                new Object[]{"Lisboa", 100L, 12L, 25L, 38L, 4L},
+                new Object[]{null, 8L, 7L, 8L, 8L, 8L},
+                new Object[]{"Porto", 50L, 3L, 4L, 10L, 0L}
+        ));
+
+        var quality = service.venueQuality();
+
+        assertEquals(158L, quality.venues());
+        assertEquals(22L, quality.withoutSport());
+        assertEquals(37L, quality.withoutCoordinates());
+        assertEquals(56L, quality.withoutAddress());
+        assertEquals(12L, quality.withoutAddressAndCoordinates());
+        assertEquals(List.of("Lisboa", "Sem distrito", "Porto"),
+                quality.districts().stream()
+                        .map(AdminPlatformOverviewService.VenueDistrictCoverage::district).toList());
+        assertNotNull(quality.generatedAt());
+        verify(venues).qualityByDistrict();
+        verify(venues, never()).findAll();
+        verify(venues, never()).findAllByOrderByNameAsc();
+    }
+
+    @Test
+    void qualityEndpointInheritsAdminOnlyPolicyAndHasNoVenueIdentifiers() throws Exception {
+        var mapping = AdminPlatformOverviewController.class
+                .getMethod("venueQuality")
+                .getAnnotation(org.springframework.web.bind.annotation.GetMapping.class);
+        assertArrayEquals(new String[]{"/venue-quality"}, mapping.value());
+        assertEquals("hasAnyRole('ADMIN', 'SUPER_ADMIN')",
+                AdminPlatformOverviewController.class.getAnnotation(PreAuthorize.class).value());
+        var fields = java.util.Arrays.stream(
+                AdminPlatformOverviewService.VenueDistrictCoverage.class.getRecordComponents())
+                .map(java.lang.reflect.RecordComponent::getName).toList();
+        assertFalse(fields.contains("id"));
+        assertFalse(fields.contains("address"));
+        assertFalse(fields.contains("latitude"));
+        assertFalse(fields.contains("longitude"));
     }
 
     @Test

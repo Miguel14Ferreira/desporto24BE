@@ -16,6 +16,11 @@ public class AdminPlatformOverviewController {
     private final AdminPlatformOverviewService service;
     private final AdminGrowthTrendsService trendsService;
 
+    @GetMapping("/venue-quality")
+    public AdminPlatformOverviewService.VenueQualityCoverage venueQuality() {
+        return service.venueQuality();
+    }
+
     @GetMapping("/trends")
     public AdminGrowthTrendsService.GrowthTrends trends() {
         return trendsService.trends();
