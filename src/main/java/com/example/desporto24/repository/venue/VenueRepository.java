@@ -111,6 +111,22 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
            """)
     List<Object[]> coverageByDistrict();
 
+    /**
+     * Admin-only, paginated GPS verification queue. Real saved addresses and
+     * source references are clues for human review, never inferred coordinates.
+     * Deterministic order across pages; no loading the whole national catalogue.
+     */
+    @Query("""
+           SELECT v FROM Venue v
+           WHERE (v.latitude IS NULL OR v.longitude IS NULL)
+             AND (:district = '' OR v.district = :district)
+           ORDER BY
+             CASE WHEN v.address IS NOT NULL AND TRIM(v.address) <> '' THEN 0 ELSE 1 END,
+             CASE WHEN v.sourceReference IS NOT NULL AND TRIM(v.sourceReference) <> '' THEN 0 ELSE 1 END,
+             LOWER(v.name), LOWER(v.city), v.id
+           """)
+    Slice<Venue> missingGpsReview(@Param("district") String district, Pageable pageable);
+
     /** Admin-only quality coverage; counts, never personal data or full venue entities. */
     @Query("""
            SELECT v.district, COUNT(v),

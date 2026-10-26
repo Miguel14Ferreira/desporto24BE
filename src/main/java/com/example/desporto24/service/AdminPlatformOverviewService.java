@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
 import java.util.Comparator;
+import org.springframework.data.domain.PageRequest;
 
 /** Aggregated, database-backed operational counters. No personal data or full-table entity reads. */
 @Service
@@ -79,6 +80,27 @@ public class AdminPlatformOverviewService {
                 districts.stream().mapToLong(VenueDistrictCoverage::withoutAddressAndCoordinates).sum(),
                 districts, Instant.now());
     }
+
+    /** Read-only admin queue of existing venues without a complete GPS pair. */
+    @Transactional(readOnly = true)
+    public VenueGpsReviewPage missingGpsReview(String district, int page) {
+        if (page < 0 || page > 1000) throw new IllegalArgumentException("Página de revisão GPS inválida");
+        String filter = district == null ? "" : district.trim();
+        if (!filter.isEmpty() && (filter.length() > 120 || filter.equals("Sem distrito"))) {
+            throw new IllegalArgumentException("Filtro de distrito inválido");
+        }
+        var slice = venues.missingGpsReview(filter, PageRequest.of(page, 20));
+        return new VenueGpsReviewPage(slice.getContent().stream()
+                .map(v -> new VenueGpsReviewItem(
+                        v.getId(), v.getName(), v.getCity(), v.getDistrict(),
+                        v.getAddress(), v.getSourceReference(),
+                        v.getInformationSource() == null ? null : v.getInformationSource().name()))
+                .toList(), page, slice.hasNext());
+    }
+
+    public record VenueGpsReviewItem(long id, String name, String city, String district,
+                                     String address, String sourceReference, String informationSource) {}
+    public record VenueGpsReviewPage(List<VenueGpsReviewItem> venues, int page, boolean hasMore) {}
 
     public record VenueDistrictCoverage(
             String district, long venues, long withoutSport, long withoutCoordinates,
