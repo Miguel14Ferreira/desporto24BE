@@ -103,6 +103,7 @@ class VenuePreflightStartupProbeTest {
         verify(connection).setAutoCommit(true);
         verify(connection).setReadOnly(false);
         verify(connection).close();
+        verify(source).getConnection();
         verifyNoMoreInteractions(source);
     }
 
