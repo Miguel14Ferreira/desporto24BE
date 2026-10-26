@@ -86,6 +86,22 @@ public class CommunityTrackSprintIncident {
     @Column(name="pre_sprint_starter_stopped_confirmed")
     private Boolean preSprintStarterStoppedConfirmed;
 
+    // UCI 3.2.048(4): document a flagrant pre-bell/before-sprint stoppage.
+    @Column(name="flagrant_offending_rider",length=100)
+    private String flagrantOffendingRider;
+
+    @Column(name="flagrant_non_fault_rider",length=100)
+    private String flagrantNonFaultRider;
+
+    @Column(name="flagrant_chosen_start_position",length=8)
+    private String flagrantChosenStartPosition;
+
+    @Column(name="flagrant_before_cutoff_confirmed")
+    private Boolean flagrantBeforeCutoffConfirmed;
+
+    @Column(name="flagrant_starter_stopped_confirmed")
+    private Boolean flagrantStarterStoppedConfirmed;
+
     // Explicit subsequent restart order: never change the original ruling.
     @Column(name="rerun_riders_json",columnDefinition="TEXT")
     private String rerunRidersJson;

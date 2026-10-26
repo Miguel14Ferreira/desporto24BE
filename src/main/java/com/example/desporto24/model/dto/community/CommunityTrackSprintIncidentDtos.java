@@ -49,6 +49,23 @@ public final class CommunityTrackSprintIncidentDtos {
             @NotBlank @Size(min=12,max=255) String reference,
             @NotBlank @Size(min=12,max=500) String reason) {}
 
+    /** UCI 3.2.048(4) first official ruling; no auto-sanction/result. */
+    public record FlagrantRuling(
+            @NotBlank String offendingRider,
+            @NotBlank String sanction,
+            @NotNull Boolean beforeBellOrSprintConfirmed,
+            @NotNull Boolean starterStoppedConfirmed,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
+    /** UCI 3.2.048(4) only if the rider was NOT relegated or disqualified. */
+    public record FlagrantNoSanctionStart(
+            @NotBlank String nonFaultRider,
+            @NotBlank String nonFaultStartPosition,
+            @NotNull Boolean nonFaultChoiceConfirmed,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
     /**
      * A second explicit panel instruction after a no-fault fall, puncture,
      * or essential bicycle breakage. It cannot create a heat or winner.
@@ -104,7 +121,10 @@ public final class CommunityTrackSprintIncidentDtos {
                        String fallChosenStartPosition,
                        String preSprintIncidentRider, String preSprintNonFaultRider,
                        String preSprintStartPosition, Boolean preSprintBeforeStartConfirmed,
-                       Boolean preSprintStarterStoppedConfirmed) {
+                       Boolean preSprintStarterStoppedConfirmed,
+                       String flagrantOffendingRider, String flagrantNonFaultRider,
+                       String flagrantChosenStartPosition, Boolean flagrantBeforeCutoffConfirmed,
+                       Boolean flagrantStarterStoppedConfirmed) {
         public View(Long id, String seriesKey, int heatNumber,
                 String incidentType, String details, String status,
                 String reportedBy, Instant reportedAt, String decisionType,
@@ -113,7 +133,8 @@ public final class CommunityTrackSprintIncidentDtos {
             this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
                  reportedAt,decisionType,decisionReference,decisionReason,decidedBy,
                  decidedAt,null,null,java.util.List.of(),null,null,null,null,
-                 null,null,null,null,null,java.util.List.of(),null,null,null,null,null,null,null,null);
+                 null,null,null,null,null,java.util.List.of(),null,null,null,null,null,null,null,null,
+                 null,null,null,null,null);
         }
     }
 }

@@ -730,6 +730,101 @@ class CommunityTrackSprintAuthenticatedPgIT {
             api("POST",community()+"/rounds",ownerJwt,notYetRaced,200);
         }
 
+
+        // UCI 3.2.048(4): a flagrant infringement before the earlier of
+        // the final-lap bell / sprint start MUST stop the heat. A second
+        // document is needed ONLY if there was no relegation or DQ.
+        for(String sanction:List.of("NONE","RELEGATION","DISQUALIFICATION")) {
+            var flBracket=api("POST",brackets(activeSeason),ownerJwt,Map.of(
+                    "name","Fictional pre-bell flagrant "+sanction,
+                    "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+                    "qualifyingRoundId",qual),200);
+            long flId=flBracket.path("id").asLong();
+            String flSeries="SP"+flId+"-A1";
+            String offender=flBracket.path("matches").get(0).path("riderA").asText();
+            String innocent=flBracket.path("matches").get(0).path("riderB").asText();
+            String flReports=brackets(activeSeason)+"/"+flId+"/incidents";
+            var flReport=api("POST",flReports,ownerJwt,Map.of(
+                    "seriesKey",flSeries,"heatNumber",1,"incidentType","FLAGRANT_BEFORE_BELL",
+                    "details","Synthetic deliberate rule infringement before the earlier race cutoff"),200);
+            String flBase=flReports+"/"+flReport.path("id").asLong();
+            var oldDecision=Map.of("decisionType","RESTART_REQUIRED",
+                    "reference","Invalid generic report 2026-900",
+                    "reason","This is not the specific flagrant procedure");
+            api("PUT",flBase+"/decision",ownerJwt,oldDecision,400);
+            Map<String,Object> officialRuling=new HashMap<>(Map.of(
+                    "offendingRider",offender,"sanction",sanction,
+                    "beforeBellOrSprintConfirmed",true,"starterStoppedConfirmed",true,
+                    "reference","Synthetic flagrant panel ruling "+flId,
+                    "reason","Official panel confirms the flagrant act and the starter stop"));
+            api("PUT",flBase+"/flagrant-ruling",memberJwt,officialRuling,403);
+            Map<String,Object> invalidRuling=new HashMap<>(officialRuling);
+            invalidRuling.put("beforeBellOrSprintConfirmed",false);
+            api("PUT",flBase+"/flagrant-ruling",ownerJwt,invalidRuling,400);
+            invalidRuling.put("beforeBellOrSprintConfirmed",true);
+            invalidRuling.put("starterStoppedConfirmed",false);
+            api("PUT",flBase+"/flagrant-ruling",ownerJwt,invalidRuling,400);
+            invalidRuling.put("starterStoppedConfirmed",true);
+            invalidRuling.put("offendingRider","rider_not_competing");
+            api("PUT",flBase+"/flagrant-ruling",ownerJwt,invalidRuling,400);
+            invalidRuling.put("offendingRider",offender);
+            invalidRuling.put("sanction","WARNING");
+            api("PUT",flBase+"/flagrant-ruling",ownerJwt,invalidRuling,400);
+            var stopped=api("PUT",flBase+"/flagrant-ruling",ownerJwt,officialRuling,200);
+            assertEquals(offender,stopped.path("flagrantOffendingRider").asText());
+            assertTrue(stopped.path("flagrantBeforeCutoffConfirmed").asBoolean());
+            assertTrue(stopped.path("flagrantStarterStoppedConfirmed").asBoolean());
+            api("PUT",flBase+"/flagrant-ruling",ownerJwt,officialRuling,409);
+            var physical=Map.of("name","Synthetic heat only after clearance",
+                    "playedAt",Instant.now().toString(),"sport",sport,
+                    "eventType","TRACK_SPRINT_HEAT",
+                    "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+                    "sprintSeriesKey",flSeries,"sprintHeatNumber",1,
+                    "entries",List.of(rider(offender,"WIN"),rider(innocent,"LOSS")));
+            api("POST",community()+"/rounds",ownerJwt,physical,409);
+            String choose=flBase+"/flagrant-no-sanction-start";
+            Map<String,Object> choice=new HashMap<>(Map.of(
+                    "nonFaultRider",innocent,"nonFaultStartPosition","OUTSIDE",
+                    "nonFaultChoiceConfirmed",true,
+                    "reference","Separate no-sanction restart instruction "+flId,
+                    "reason","Non-fault opponent explicitly chooses the outside starting position"));
+            if(!"NONE".equals(sanction)) {
+                assertEquals("ADJUDICATION_REQUIRED",stopped.path("status").asText());
+                assertEquals(sanction,stopped.path("sanctionType").asText());
+                assertEquals(offender,stopped.path("sanctionedUsername").asText());
+                api("PUT",choose,ownerJwt,choice,409);
+            } else {
+                assertEquals("FLAGRANT_START_PENDING",stopped.path("status").asText());
+                api("PUT",choose,memberJwt,choice,403);
+                Map<String,Object> invalidChoice=new HashMap<>(choice);
+                invalidChoice.put("nonFaultChoiceConfirmed",false);
+                api("PUT",choose,ownerJwt,invalidChoice,400);
+                invalidChoice.put("nonFaultChoiceConfirmed",true);
+                invalidChoice.put("nonFaultStartPosition","MIDDLE");
+                api("PUT",choose,ownerJwt,invalidChoice,400);
+                invalidChoice.put("nonFaultStartPosition","INSIDE");
+                invalidChoice.put("nonFaultRider",offender);
+                api("PUT",choose,ownerJwt,invalidChoice,400);
+                invalidChoice.put("nonFaultRider","outside_competitor");
+                api("PUT",choose,ownerJwt,invalidChoice,400);
+                invalidChoice.put("nonFaultRider",innocent);
+                invalidChoice.put("reference","Synthetic flagrant panel ruling "+flId);
+                api("PUT",choose,ownerJwt,invalidChoice,400);
+                var authorized=api("PUT",choose,ownerJwt,choice,200);
+                assertEquals("FLAGRANT_START_OK",authorized.path("status").asText());
+                assertEquals(innocent,authorized.path("flagrantNonFaultRider").asText());
+                assertEquals("OUTSIDE",authorized.path("flagrantChosenStartPosition").asText());
+                assertEquals(offender,authorized.path("rerunRiders").get(0).asText());
+                assertEquals(innocent,authorized.path("rerunRiders").get(1).asText());
+                api("PUT",choose,ownerJwt,choice,409);
+            }
+            assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                    group,activeSeason,flSeries).isEmpty(),
+                    "No flagrant ruling may fabricate a raced heat");
+            if("NONE".equals(sanction))
+                api("POST",community()+"/rounds",ownerJwt,physical,200);
+        }
+
         // Official disciplinary documentation must NEVER create a winner.
         // A warning is auditable and allows manual result entry; DQ/relegation
         // stays blocked because the entrants/bracket composition can change.
