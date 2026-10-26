@@ -126,6 +126,58 @@ class CommunityTournamentTeamScheduleServiceTest {
     }
 
     @Test
+    void thirtyTwoTeamsAndSixtyFourPlayersGenerateValidLeagueWithoutDoubleBookings() {
+        manager(CommunityRole.OWNER);
+        locked();
+        roster(32); // two distinct community members in every team
+        var summary = service.generate(7L, 19L, "owner");
+        assertEquals(32, summary.teamCount());
+        assertEquals(31, summary.roundCount());
+        assertEquals(496, summary.matchCount());
+        var fixtures = captured();
+        Set<String> distinctPairs = new HashSet<>();
+        for (int round = 1; round <= 31; round++) {
+            Set<Long> roundTeams = new HashSet<>();
+            int count = 0;
+            for (var match : fixtures) {
+                if (match.getRoundNumber() != round) continue;
+                count++;
+                long a = match.getHomeTeam().getId();
+                long b = match.getAwayTeam().getId();
+                assertTrue(roundTeams.add(a), "Team double-booked in round " + round);
+                assertTrue(roundTeams.add(b), "Team double-booked in round " + round);
+                assertTrue(distinctPairs.add(Math.min(a,b) + ":" + Math.max(a,b)),
+                        "Repeated team pairing");
+            }
+            assertEquals(16, count);
+            assertEquals(32, roundTeams.size());
+        }
+        assertEquals(496, distinctPairs.size());
+    }
+
+    @Test
+    void sixteenTeamsWithTwoLegsGenerateAllHomeAndAwayFixturesExactlyOnce() {
+        tournament.setRoundRobinLegs(2);
+        manager(CommunityRole.ADMIN);
+        locked();
+        roster(16);
+        var summary = service.generate(7L, 19L, "owner");
+        assertEquals(30, summary.roundCount());
+        assertEquals(240, summary.matchCount());
+        var fixtures = captured();
+        Set<String> directedPairs = new HashSet<>();
+        for (var fixture : fixtures) {
+            assertTrue(directedPairs.add(fixture.getHomeTeam().getId() + ">"
+                    + fixture.getAwayTeam().getId()), "Home/away fixture duplicated");
+        }
+        assertEquals(240, directedPairs.size());
+        for (int round = 1; round <= 30; round++) {
+            final int current = round;
+            assertEquals(8, fixtures.stream().filter(m -> m.getRoundNumber() == current).count());
+        }
+    }
+
+    @Test
     void knockoutPublishesOnlyOpeningRoundWithValidatedFullSquads() {
         tournament.setFormat(TournamentFormat.KNOCKOUT);
         manager(CommunityRole.OWNER);
