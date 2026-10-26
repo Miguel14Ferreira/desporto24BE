@@ -252,6 +252,48 @@ class NationalVenueImportTests(unittest.TestCase):
         self.assertNotEqual(rows[2]["osmReference"], rows[3]["osmReference"],
                             "The two Campo 5 OSM ways must not be merged")
 
+    def test_eul_proposed_names_require_independent_admin_review(self):
+        import json
+        root = Path(__file__).resolve().parents[1]
+        review = json.loads((root / "docs/venue-imports/lisboa-eul-generic-names-review-20261026.json")
+                            .read_text(encoding="utf-8"))
+        self.assertEqual(2, review["schemaVersion"])
+        self.assertEqual("2026-04", review["mapEdition"])
+        self.assertTrue(review["officialLocationPlanUrl"].endswith("/2026-04/a3-mapa-reservas.pdf"))
+        self.assertTrue(review["reviewPolicy"]["noAutomaticWrites"])
+        self.assertTrue(review["reviewPolicy"]["noImplicitApproval"])
+        self.assertTrue(review["reviewPolicy"]["postalAddressRequiresSeparateEntranceEvidence"])
+        expected = {1965: ("Campo 3", "2.2"), 1966: ("Campo 4", "2.3"),
+                    1968: ("Campo 5", "2.4"), 1969: ("Campo 6", "2.5"),
+                    1970: ("Campo 7", "2.6")}
+        for row in review["venues"]:
+            self.assertIsNone(row["approvedName"])
+            self.assertIsNone(row["approvedPostalAddress"])
+            self.assertIsNone(row["proposedPostalAddress"])
+            self.assertEqual("PENDING_MANUAL_REVIEW", row["status"])
+            if row["venueId"] in expected:
+                label, map_number = expected[row["venueId"]]
+                self.assertEqual("Estádio Universitário de Lisboa — " + label,
+                                 row["proposedName"])
+                self.assertEqual(map_number, row["officialMapLabel"])
+                self.assertEqual("POSITIONAL_CONSISTENCY_NOT_POLYGON_PROOF",
+                                 row["geographicEvidence"])
+                self.assertEqual([review["officialLocationPlanUrl"],
+                                  review["officialFacilityUrl"]],
+                                 row["officialEvidenceUrls"])
+            else:
+                self.assertIsNone(row["proposedName"])
+                self.assertIsNone(row["officialMapLabel"])
+        southern = next(r for r in review["venues"] if r["venueId"] == 1967)
+        northern = next(r for r in review["venues"] if r["venueId"] == 1968)
+        self.assertNotEqual(southern["osmReference"], northern["osmReference"])
+        self.assertEqual("UNRESOLVED", southern["reviewConfidence"])
+        self.assertEqual("2.4", northern["officialMapLabel"])
+        ajuda = next(r for r in review["venues"] if r["venueId"] == 1972)
+        self.assertEqual("Rua Ildefonso Borges, Lisboa", ajuda["proposedStreetForReview"])
+        self.assertEqual(2, len(ajuda["streetEvidenceUrls"]))
+
+
     def test_unnamed_are_explicitly_tentative(self):
         venue, quality = national.build_venue(
             {"leisure": "swimming_pool"}, "node", 9,

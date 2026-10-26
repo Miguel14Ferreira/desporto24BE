@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatedAt": "2026-10-26",
   "scope": "READ_ONLY_REVIEW_NO_DATABASE_CHANGES",
   "note": "Precise OSM way IDs traced from the October 22 import SQL; coordinates read from public Jynlo API. Source pages do not alone prove the same named facility or a postal entrance. No row may be applied without independent map confirmation and admin review.",
   "sourceImportSql": "src/main/resources/db/changelog/venue-imports/drafts/national-20261022/sql/national-map-osm-lisboa-02.sql",
   "officialComplexName": "Estádio Universitário de Lisboa",
   "officialFacilityUrl": "https://www.estadio.ulisboa.pt/instalacoes/grandes-campos-de-jogos",
-  "officialLocationPlanUrl": "https://www.estadio.ulisboa.pt/sites/estadio.ulisboa.pt/files/basicpage/docs/reservas_-_mapa-a3.pdf",
+  "officialLocationPlanUrl": "https://www.estadio.ulisboa.pt/sites/default/files/documents/document/2026-04/a3-mapa-reservas.pdf",
   "officialComplexAddressUrl": "https://www.estadio.ulisboa.pt/info/contactos",
   "officialComplexAddress": "Av. Professor Egas Moniz, 1600-190 Lisboa (campus headquarters; field-specific access may also be Av. Professor Gama Pinto)",
   "venues": [
@@ -22,7 +22,16 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Likely EUL numbered field; verify official campus plan polygon before assigning complex name."
+      "reviewNote": "Likely EUL numbered field; verify official campus plan polygon before assigning complex name.",
+      "proposedName": "Estádio Universitário de Lisboa — Campo 3",
+      "officialMapLabel": "2.2",
+      "geographicEvidence": "POSITIONAL_CONSISTENCY_NOT_POLYGON_PROOF",
+      "reviewConfidence": "HIGH_POSITIONAL_PENDING_MODERATOR",
+      "officialEvidenceUrls": [
+        "https://www.estadio.ulisboa.pt/sites/default/files/documents/document/2026-04/a3-mapa-reservas.pdf",
+        "https://www.estadio.ulisboa.pt/instalacoes/grandes-campos-de-jogos"
+      ],
+      "proposedPostalAddress": null
     },
     {
       "venueId": 1966,
@@ -36,7 +45,16 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Likely EUL numbered field; official Campo 4 supports rugby and football; verify site polygon and sport first."
+      "reviewNote": "Likely EUL numbered field; official Campo 4 supports rugby and football; verify site polygon and sport first.",
+      "proposedName": "Estádio Universitário de Lisboa — Campo 4",
+      "officialMapLabel": "2.3",
+      "geographicEvidence": "POSITIONAL_CONSISTENCY_NOT_POLYGON_PROOF",
+      "reviewConfidence": "HIGH_POSITIONAL_PENDING_MODERATOR",
+      "officialEvidenceUrls": [
+        "https://www.estadio.ulisboa.pt/sites/default/files/documents/document/2026-04/a3-mapa-reservas.pdf",
+        "https://www.estadio.ulisboa.pt/instalacoes/grandes-campos-de-jogos"
+      ],
+      "proposedPostalAddress": null
     },
     {
       "venueId": 1967,
@@ -50,7 +68,12 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Southern Campo 5; NOT interchangeable with ID 1968. Must establish whether it is another facility or stale OSM name."
+      "reviewNote": "Southern Campo 5; NOT interchangeable with ID 1968. Must establish whether it is another facility or stale OSM name.",
+      "proposedName": null,
+      "officialMapLabel": null,
+      "geographicEvidence": "DISTINCT_SOUTHERN_CAMPO_5_NOT_MATCHING_OFFICIAL_LABEL_2_4",
+      "reviewConfidence": "UNRESOLVED",
+      "proposedPostalAddress": null
     },
     {
       "venueId": 1968,
@@ -64,7 +87,16 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Northern Campo 5; distinct from ID 1967. Do not merge or assign same postal entrance without verification."
+      "reviewNote": "Northern Campo 5; distinct from ID 1967. Do not merge or assign same postal entrance without verification.",
+      "proposedName": "Estádio Universitário de Lisboa — Campo 5",
+      "officialMapLabel": "2.4",
+      "geographicEvidence": "POSITIONAL_CONSISTENCY_NOT_POLYGON_PROOF",
+      "reviewConfidence": "HIGH_POSITIONAL_PENDING_MODERATOR",
+      "officialEvidenceUrls": [
+        "https://www.estadio.ulisboa.pt/sites/default/files/documents/document/2026-04/a3-mapa-reservas.pdf",
+        "https://www.estadio.ulisboa.pt/instalacoes/grandes-campos-de-jogos"
+      ],
+      "proposedPostalAddress": null
     },
     {
       "venueId": 1969,
@@ -78,7 +110,16 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Likely EUL numbered field; verify footprint against operator location plan."
+      "reviewNote": "Likely EUL numbered field; verify footprint against operator location plan.",
+      "proposedName": "Estádio Universitário de Lisboa — Campo 6",
+      "officialMapLabel": "2.5",
+      "geographicEvidence": "POSITIONAL_CONSISTENCY_NOT_POLYGON_PROOF",
+      "reviewConfidence": "HIGH_POSITIONAL_PENDING_MODERATOR",
+      "officialEvidenceUrls": [
+        "https://www.estadio.ulisboa.pt/sites/default/files/documents/document/2026-04/a3-mapa-reservas.pdf",
+        "https://www.estadio.ulisboa.pt/instalacoes/grandes-campos-de-jogos"
+      ],
+      "proposedPostalAddress": null
     },
     {
       "venueId": 1970,
@@ -92,7 +133,16 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Likely EUL numbered field; verify footprint against operator location plan."
+      "reviewNote": "Likely EUL numbered field; verify footprint against operator location plan.",
+      "proposedName": "Estádio Universitário de Lisboa — Campo 7",
+      "officialMapLabel": "2.6",
+      "geographicEvidence": "POSITIONAL_CONSISTENCY_NOT_POLYGON_PROOF",
+      "reviewConfidence": "HIGH_POSITIONAL_PENDING_MODERATOR",
+      "officialEvidenceUrls": [
+        "https://www.estadio.ulisboa.pt/sites/default/files/documents/document/2026-04/a3-mapa-reservas.pdf",
+        "https://www.estadio.ulisboa.pt/instalacoes/grandes-campos-de-jogos"
+      ],
+      "proposedPostalAddress": null
     },
     {
       "venueId": 1972,
@@ -106,7 +156,26 @@
       "status": "PENDING_MANUAL_REVIEW",
       "approvedName": null,
       "approvedPostalAddress": null,
-      "reviewNote": "Different campus/location. Do NOT assign EUL Cidade Universitaria address. Independently confirm public access and street."
+      "reviewNote": "Different campus/location. Do NOT assign EUL Cidade Universitaria address. Independently confirm public access and street.",
+      "proposedName": null,
+      "officialMapLabel": null,
+      "geographicEvidence": "IN_AJUDA_NOT_EUL_CIDADE_UNIVERSITARIA",
+      "reviewConfidence": "STREET_CANDIDATE_NEEDS_ACCESS_VALIDATION",
+      "proposedPostalAddress": null,
+      "proposedStreetForReview": "Rua Ildefonso Borges, Lisboa",
+      "streetEvidenceUrls": [
+        "https://www.lisboa.pt/fileadmin/informacao/publicacoes/revista_lisboa/Revista_Lisboa_34.pdf",
+        "https://www.timeout.pt/lisboa/pt/desporto/campo-da-mata"
+      ]
     }
-  ]
+  ],
+  "mapEdition": "2026-04",
+  "evidenceMethod": "Official 2026 diagram labels 2.2..2.6 matched to OSM way centroid's relative north/east spatial ordering; source IDs cross-checked against the immutable imported Lisboa SQL. Not a georeferenced polygon overlay; every proposal awaits moderator approval.",
+  "reviewPolicy": {
+    "noAutomaticWrites": true,
+    "noImplicitApproval": true,
+    "doNotMergeDuplicateNames": true,
+    "postalAddressRequiresSeparateEntranceEvidence": true,
+    "sourceAttribution": "OSM ODbL + EUL official campus map"
+  }
 }
