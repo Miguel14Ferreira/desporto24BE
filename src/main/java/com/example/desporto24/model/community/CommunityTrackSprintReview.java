@@ -21,7 +21,7 @@ public class CommunityTrackSprintReview {
     private CommunityTrackSprintIncident incident;
 
     @Column(name="action",nullable=false,length=16)
-    private String action; // REQUESTED, UPHELD, OVERTURNED
+    private String action; // REQUESTED, UPHELD, OVERTURNED, RECTIFIED
 
     @Column(name="official_name",nullable=false,length=120)
     private String officialName; // Declared president, NOT platform identity
@@ -31,6 +31,17 @@ public class CommunityTrackSprintReview {
 
     @Column(name="panel_reference",length=255)
     private String panelReference;
+
+    // Only the RECTIFIED event contains a documented restart instruction.
+    // Do not rewrite the original decision or any physically raced heat.
+    @Column(name="remedy_kind",length=32)
+    private String remedyKind;
+
+    @Column(name="ordered_riders_json",columnDefinition="TEXT")
+    private String orderedRidersJson;
+
+    @Column(name="next_heat_number")
+    private Integer nextHeatNumber;
 
     @Column(name="reason",nullable=false,length=500)
     private String reason;
