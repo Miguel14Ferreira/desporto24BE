@@ -181,6 +181,92 @@ class VenueEditSuggestionServiceTest {
     }
 
 
+
+    @Test
+    void gpsSuggestionRequiresPairedValidCoordinatesAndHttpsEvidence() {
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        var base = Map.of("latitude", "38.72", "longitude", "-9.14");
+        for (var changes : List.of(
+                Map.of("latitude", "38.72"),
+                Map.of("longitude", "-9.14"),
+                Map.of("latitude", "NaN", "longitude", "-9.14"),
+                Map.of("latitude", "38,72", "longitude", "-9.14"),
+                Map.of("latitude", "38.72", "longitude", "-32.1"),
+                Map.of("latitude", "0", "longitude", "0"),
+                Map.of("latitude", "38.72000000", "longitude", "-9.14"))) {
+            assertEquals(400, assertThrows(ResponseStatusException.class,
+                    () -> service.submit(5L, new VenueEditSuggestionRequest(
+                            changes, "Coordenadas verificadas na ficha oficial",
+                            "https://example.org/venue"), "player")).getStatusCode().value());
+        }
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.submit(5L, new VenueEditSuggestionRequest(
+                        base, "Coordenadas verificadas na ficha oficial"), "player")).getStatusCode().value());
+        verify(submissions, never()).save(any());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void gpsSubmissionIsPendingOnlyAndAuditsBothCoordinatesWithTheirSource() {
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        when(submissions.save(any())).thenAnswer(inv -> {
+            var value = (VenueEditSuggestion) inv.getArgument(0);
+            value.setId(70L);
+            return value;
+        });
+        var source = "https://example.org/venue";
+        var result = service.submit(5L, new VenueEditSuggestionRequest(
+                Map.of("latitude", "38.720", "longitude", "-9.140"),
+                "Coordenadas da entrada na ficha oficial", source), "player");
+        assertEquals("PENDING", result.status());
+        assertEquals("38.72", result.proposed().get("latitude"));
+        assertEquals("-9.14", result.proposed().get("longitude"));
+        assertTrue(result.before().containsKey("latitude"));
+        assertTrue(result.before().containsKey("longitude"));
+        assertNull(venue.getLatitude());
+        assertNull(venue.getLongitude());
+        assertEquals(source, result.sourceUrl());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void gpsApprovalRequiresModeratorSourceAttestationBeforePublishing() {
+        venue.setLatitude(38.71);
+        venue.setLongitude(-9.13);
+        var prior = submitted("Campo Original", "Campo Corrigido");
+        prior.setBeforeJson("{\"latitude\":\"38.71\",\"longitude\":\"-9.13\"}");
+        prior.setChangesJson("{\"latitude\":\"38.72\",\"longitude\":\"-9.14\"}");
+        prior.setSourceUrl("https://example.org/venue");
+        when(submissions.findForReview(44L)).thenReturn(Optional.of(prior));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        assertEquals(400, assertThrows(ResponseStatusException.class,
+                () -> service.approve(44L, "Verificado o ponto", "admin", false)).getStatusCode().value());
+        assertEquals(38.71, venue.getLatitude());
+        assertEquals(-9.13, venue.getLongitude());
+        when(submissions.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var approved = service.approve(44L, "Posição exata confirmada", "admin", true);
+        assertEquals("APPROVED", approved.status());
+        assertEquals(38.72, venue.getLatitude());
+        assertEquals(-9.14, venue.getLongitude());
+        assertNotNull(approved.sourceReviewConfirmedAt());
+        verify(venues).save(venue);
+    }
+
+    @Test
+    void gpsApprovalDoesNotOverwriteMoreRecentCoordinatesOrPartialProposals() {
+        venue.setLatitude(38.73);
+        venue.setLongitude(-9.13);
+        var proposal = submitted("Campo Original", "Campo Corrigido");
+        proposal.setBeforeJson("{\"latitude\":\"38.71\",\"longitude\":\"-9.13\"}");
+        proposal.setChangesJson("{\"latitude\":\"38.72\",\"longitude\":\"-9.14\"}");
+        proposal.setSourceUrl("https://example.org/venue");
+        when(submissions.findForReview(44L)).thenReturn(Optional.of(proposal));
+        when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
+        assertEquals(409, assertThrows(ResponseStatusException.class,
+                () -> service.approve(44L, "Verificado", "admin", true)).getStatusCode().value());
+        verify(venues, never()).save(any());
+    }
+
     @Test
     void contactAddRequiresExactHttpsPublicSourceBeforeAnySave() {
         when(venues.findForEditReview(5L)).thenReturn(Optional.of(venue));
