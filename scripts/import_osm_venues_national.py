@@ -94,8 +94,15 @@ def is_identifiable_name(name):
     value = unicodedata.normalize("NFKD", name.strip().casefold())
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
     value = re.sub(r"\s+", " ", value).strip()
+    # "Campo 5" is not globally identifiable: unrelated complexes can each
+    # have a Campo 5. Only a name with a distinguishing place can be imported.
+    # Preserve the original OSM label in the manual review queue.
+    numbered_facility = re.fullmatch(
+        r"(?:campo(?: de (?:futebol|jogos))?|pavilhao(?: desportivo)?|"
+        r"polidesportivo|piscina(?: municipal)?|ringue|estadio)"
+        r"\s+(?:(?:n\.?[oº]?|n\.o)\s*)?\d+[a-z]?", value)
     return bool(value) and value not in GENERIC_NAMES and not bool(
-        re.fullmatch(r"\d+(?:[\s./-]+\d+)*", value))
+        re.fullmatch(r"\d+(?:[\s./-]+\d+)*", value) or numbered_facility)
 
 
 def build_venue(tags, osm_type, osm_id, coords, district):
