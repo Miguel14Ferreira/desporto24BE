@@ -415,10 +415,40 @@ class CommunityTrackSprintAuthenticatedPgIT {
             "reason","Synthetic recognized tyre puncture; commissioners authorised a rerun");
         api("PUT",decisionPath,memberJwt,decision,403);
         JsonNode signed=api("PUT",decisionPath,ownerJwt,decision,200);
-        assertEquals("DECIDED",signed.path("status").asText());
+        assertEquals("RESTART_PENDING",signed.path("status").asText());
         assertEquals("RESTART_REQUIRED",signed.path("decisionType").asText());
         assertEquals("fixture_sprint_owner",signed.path("decidedBy").asText());
         api("PUT",decisionPath,ownerJwt,decision,409); // immutable audit
+        // An initial restart choice alone cannot open the heat.
+        api("POST",community()+"/rounds",ownerJwt,deniedHeat,409);
+        String neutralUrl=incidentPath+"/"+incidentId+"/neutral-restart";
+        JsonNode first=reported.path("matches").get(0);
+        var neutralRestart=Map.of(
+            "cause","PUNCTURE","noFaultConfirmed",true,
+            "orderedRiders",List.of(first.path("riderA").asText(),
+                                    first.path("riderB").asText()),
+            "reference","Second documented commissaires restart document 2026/42",
+            "reason","Panel expressly confirms a neutral puncture restart, same original order");
+        api("PUT",neutralUrl,memberJwt,neutralRestart,403);
+        Map<String,Object> neutralBad=new HashMap<>(neutralRestart);
+        neutralBad.put("cause","NO_FAULT_FALL");
+        api("PUT",neutralUrl,ownerJwt,neutralBad,400);
+        neutralBad.put("cause","PUNCTURE");
+        neutralBad.put("noFaultConfirmed",false);
+        api("PUT",neutralUrl,ownerJwt,neutralBad,400);
+        neutralBad.put("noFaultConfirmed",true);
+        neutralBad.put("orderedRiders",List.of(first.path("riderB").asText(),
+                    first.path("riderA").asText()));
+        api("PUT",neutralUrl,ownerJwt,neutralBad,400);
+        var approved=api("PUT",neutralUrl,ownerJwt,neutralRestart,200);
+        assertEquals("NEUTRAL_RESTART_AUTHORIZED",approved.path("status").asText());
+        assertEquals("fixture_sprint_owner",approved.path("rerunAuthorizedBy").asText());
+        assertEquals(2,approved.path("rerunRiders").size());
+        api("PUT",neutralUrl,ownerJwt,neutralRestart,409);
+        assertEquals("READY",reported.path("matches").get(0).path("status").asText());
+        // A restart never creates a result: only a subsequently raced heat does.
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+            group,activeSeason,key).isEmpty());
         api("POST",community()+"/rounds",ownerJwt,deniedHeat,200);
         JsonNode updated=api("GET",brackets(activeSeason),memberJwt,null,200);
         JsonNode recorded=null;
@@ -426,8 +456,70 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertNotNull(recorded);
         assertEquals("FINISHED",recorded.path("matches").get(0).path("status").asText());
         assertEquals(1,recorded.path("incidents").size());
-        assertEquals("DECIDED",recorded.path("incidents").get(0).path("status").asText());
+        assertEquals("NEUTRAL_RESTART_AUTHORIZED",
+                recorded.path("incidents").get(0).path("status").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
+
+        // A no-fault fall uses the same narrow documented restart contract;
+        // ratifying positions is still suspended until a separate contract.
+        for(String incidentKind:List.of("FALL","BICYCLE_DEFECT")) {
+            var nextBracket=api("POST",brackets(activeSeason),ownerJwt,Map.of(
+                    "name","Fictional no-fault incident "+incidentKind,
+                    "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+                    "qualifyingRoundId",qual),200);
+            long nextId=nextBracket.path("id").asLong();
+            String nextSeries="SP"+nextId+"-A1";
+            String nextPath=brackets(activeSeason)+"/"+nextId+"/incidents";
+            var reportedMishap=api("POST",nextPath,ownerJwt,Map.of(
+                    "seriesKey",nextSeries,"heatNumber",1,
+                    "incidentType",incidentKind,
+                    "details","Fictional no-fault or essential mechanical mishap in first heat"),200);
+            String mishapUrl=nextPath+"/"+reportedMishap.path("id").asLong();
+            var panelDecision=Map.of("decisionType","RESTART_REQUIRED",
+                    "reference","Synthetic panel first ruling "+incidentKind+" 2026/61",
+                    "reason","Commissaires expressly decide to restart after recognised mishap");
+            var declared=api("PUT",mishapUrl+"/decision",ownerJwt,panelDecision,200);
+            assertEquals("RESTART_PENDING",declared.path("status").asText());
+            String cause=incidentKind.equals("FALL")
+                    ?"NO_FAULT_FALL":"ESSENTIAL_BICYCLE_BREAKAGE";
+            var restart=Map.of("cause",cause,"noFaultConfirmed",true,
+                    "orderedRiders",List.of(
+                        nextBracket.path("matches").get(0).path("riderA").asText(),
+                        nextBracket.path("matches").get(0).path("riderB").asText()),
+                    "reference","Second signed no-fault restart instruction 2026/62",
+                    "reason","The same two riders and original order are expressly documented");
+            assertEquals("NEUTRAL_RESTART_AUTHORIZED",
+                    api("PUT",mishapUrl+"/neutral-restart",ownerJwt,restart,200)
+                    .path("status").asText());
+            assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                    group,activeSeason,nextSeries).isEmpty());
+            assertTrue(nextBracket.path("matches").get(0).path("winner").isNull());
+        }
+        var placementBracket=api("POST",brackets(activeSeason),ownerJwt,Map.of(
+                "name","Synthetic non-automatic final positions",
+                "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+                "qualifyingRoundId",qual),200);
+        long placementId=placementBracket.path("id").asLong();
+        String placementKey="SP"+placementId+"-A1";
+        String placementPath=brackets(activeSeason)+"/"+placementId+"/incidents";
+        var placementReport=api("POST",placementPath,ownerJwt,Map.of(
+                "seriesKey",placementKey,"heatNumber",1,"incidentType","PUNCTURE",
+                "details","Fictional puncture, panel opts for positions at moment of incident"),200);
+        String placementUrl=placementPath+"/"+placementReport.path("id").asLong();
+        var placement=api("PUT",placementUrl+"/decision",ownerJwt,Map.of(
+                "decisionType","OFFICIAL_RESULT_TO_RECORD",
+                "reference","Signed fictional final positions decision 2026/66",
+                "reason","Panel chose incident-time positions, not a physically disputed heat"),200);
+        assertEquals("POSITIONS_PENDING",placement.path("status").asText());
+        api("POST",community()+"/rounds",ownerJwt,Map.of(
+                "name","Invalid physical result in place of panel ratification",
+                "playedAt",Instant.now().toString(),"sport",sport,
+                "eventType","TRACK_SPRINT_HEAT",
+                "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+                "sprintSeriesKey",placementKey,"sprintHeatNumber",1,
+                "entries",List.of(
+                    rider(placementBracket.path("matches").get(0).path("riderA").asText(),"WIN"),
+                    rider(placementBracket.path("matches").get(0).path("riderB").asText(),"LOSS"))),409);
 
         // Official disciplinary documentation must NEVER create a winner.
         // A warning is auditable and allows manual result entry; DQ/relegation
