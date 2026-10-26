@@ -138,6 +138,25 @@ class VenuePagedSearchRepositoryTest {
         assertTrue(firstId < middleId && middleId < lastId);
     }
 
+
+    @Test
+    void computesCityReferenceFromExactAccentedLocalityAndValidCoordinatesOnly() {
+        persistWithInfo("GPS Cacém", "Cacém", "Padel", "Rua A", 38.765, -9.3, "Campo");
+        persistWithInfo("GPS Cacém B", "Cacém", "Padel", "Rua B", 38.775, -9.4, "Campo");
+        persistWithInfo("Without GPS", "Cacém", "Padel", "Rua C", null, null, "Campo");
+        persistWithInfo("GPS Agualva", "Agualva", "Padel", "Rua D", 40.0, -8.0, "Campo");
+        persistWithInfo("Invalid GPS", "Cacém", "Padel", "Rua E", 180.0, 0.0, "Campo");
+        entityManager.flush();
+        entityManager.clear();
+
+        Object[] origin = repository.nearbyCityReference("cacem").getFirst();
+        assertEquals(2L, ((Number) origin[2]).longValue());
+        assertEquals(38.77, ((Number) origin[0]).doubleValue(), 0.001);
+        assertEquals(-9.35, ((Number) origin[1]).doubleValue(), 0.001);
+        Object[] missing = repository.nearbyCityReference("localidade inexistente").getFirst();
+        assertEquals(0L, ((Number) missing[2]).longValue());
+    }
+
     private void persistWithInfo(String name, String city, String sports, String address,
                                  Double latitude, Double longitude, String type) {
         entityManager.persist(Venue.builder().name(name).city(city).sports(sports)

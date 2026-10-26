@@ -5,6 +5,7 @@ import com.example.desporto24.model.dto.venue.CreateVenueSportConditionRequest;
 import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
+import com.example.desporto24.model.dto.venue.VenueNearbyCityPageResponse;
 import com.example.desporto24.model.dto.venue.VenueSportConditionResponse;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkRequest;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkResponse;
@@ -56,6 +57,19 @@ public class VenueController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) String district) {
         return venueService.suggest(name, city, sport, page, district);
+    }
+
+    /**
+     * Opt-in nearby-locality search around the approximate reference derived
+     * from real saved GPS of venues in an exact city. No device location used.
+     */
+    @GetMapping("/nearby-city")
+    public VenueNearbyCityPageResponse nearbyCity(
+            @RequestParam String city,
+            @RequestParam(required = false) String sport,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") double radiusKm) {
+        return venueService.nearbyCity(city, sport, page, radiusKm);
     }
 
     /** Retain the old Java caller signature; HTTP clients use the district-aware endpoint. */

@@ -5,6 +5,7 @@ import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.venue.CreateVenueRequest;
 import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
+import com.example.desporto24.model.dto.venue.VenueNearbyCityPageResponse;
 import com.example.desporto24.model.dto.venue.OpenStreetMapVenueImportRequest;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.venue.Venue;
@@ -98,6 +99,63 @@ public class VenueService {
         return new VenueSearchPageResponse(
                 venues.getContent().stream().map(this::toResponse).toList(),
                 page, venues.hasNext());
+    }
+
+
+    /**
+     * Explicit opt-in: discover other localities from a coordinate reference
+     * computed using stored venue GPS in the exact queried locality.
+     * The returned distance is not a city-centre or driving distance.
+     */
+    @Transactional(readOnly = true)
+    public VenueNearbyCityPageResponse nearbyCity(String city, String sport, int page, double radiusKm) {
+        if (page < 0 || page > VENUE_SUGGEST_MAX_PAGE) {
+            throw new IllegalArgumentException("Página de pesquisa de recintos inválida");
+        }
+        if (!Double.isFinite(radiusKm) || radiusKm < 1 || radiusKm > 50) {
+            throw new IllegalArgumentException("Raio de pesquisa de recintos inválido");
+        }
+        String normalizedCity = normalizeSearchFilter(city);
+        if (normalizedCity.length() < 2) {
+            throw new IllegalArgumentException("Localidade de pesquisa inválida");
+        }
+        String sportFilter = normalizeSearchFilter(sport).replace(" ", "");
+        var referenceRows = venueRepository.nearbyCityReference(normalizedCity);
+        Object[] origin = referenceRows.isEmpty() ? null : referenceRows.getFirst();
+        if (origin == null || origin.length < 3 || origin[0] == null || origin[1] == null
+                || ((Number) origin[2]).longValue() < 1) {
+            return new VenueNearbyCityPageResponse(city.trim(), radiusKm, false, List.of(), page, false);
+        }
+        double latitude = ((Number) origin[0]).doubleValue();
+        double longitude = ((Number) origin[1]).doubleValue();
+        validateGeoSearch(latitude, longitude, radiusKm);
+        var candidates = nearbyCandidates(latitude, longitude, radiusKm).stream()
+                // Never present the reference locality as a neighbouring locality.
+                .filter(v -> !normalizeSearchFilter(v.getCity()).equals(normalizedCity))
+                .filter(v -> v.getLatitude() != null && v.getLongitude() != null
+                        && Double.isFinite(v.getLatitude()) && Double.isFinite(v.getLongitude()))
+                .filter(v -> sportFilter.isEmpty() ||
+                        (v.getSports() != null && java.util.Arrays.stream(v.getSports().split("[;,]"))
+                                .map(VenueService::normalizeSearchFilter)
+                                .map(s -> s.replace(" ", ""))
+                                .anyMatch(sportFilter::equals)))
+                .map(v -> new NearbyVenue(v, distanceCalculator.kilometres(
+                        latitude, longitude, v.getLatitude(), v.getLongitude())))
+                .filter(v -> Double.isFinite(v.distanceKm()) && v.distanceKm() <= radiusKm)
+                .sorted(Comparator.comparingDouble(NearbyVenue::distanceKm)
+                        .thenComparing(v -> v.venue().getName(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(v -> v.venue().getId()))
+                .toList();
+        long start = (long) page * VENUE_SUGGEST_PAGE_SIZE;
+        if (start >= candidates.size()) {
+            return new VenueNearbyCityPageResponse(city.trim(), radiusKm, true, List.of(), page, false);
+        }
+        int end = (int) Math.min(candidates.size(), start + VENUE_SUGGEST_PAGE_SIZE);
+        var results = candidates.subList((int) start, end).stream()
+                .map(v -> new VenueNearbyCityPageResponse.NearbyCityVenueResponse(
+                        toResponse(v.venue()), Math.round(v.distanceKm() * 10.0) / 10.0))
+                .toList();
+        return new VenueNearbyCityPageResponse(city.trim(), radiusKm, true, results, page, end < candidates.size());
     }
 
     private static String normalizeSearchFilter(String input) {

@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class VenueServiceTest {
@@ -152,6 +153,76 @@ class VenueServiceTest {
         assertTrue(response.parking());
         assertEquals(Boolean.TRUE, response.freeParking());
         assertTrue(response.lighting());
+    }
+
+
+    @Test
+    void nearbyCityFindsOtherLocalitiesInDistanceOrderWithoutGpsOrSameCityResults() {
+        when(venueRepository.nearbyCityReference("cacem"))
+                .thenReturn(List.<Object[]>of(new Object[] { 38.72, -9.14, 2L }));
+        Venue closest = Venue.builder().id(30L).name("Oeiras Centro").city("Oeiras")
+                .latitude(38.721).longitude(-9.14).sports("Padel").build();
+        Venue next = Venue.builder().id(31L).name("Sintra").city("Sintra")
+                .latitude(38.73).longitude(-9.14).sports("Padel;Futebol").build();
+        Venue sameCity = Venue.builder().id(32L).name("Cacém").city("Cacém")
+                .latitude(38.7202).longitude(-9.14).sports("Padel").build();
+        Venue otherSport = Venue.builder().id(33L).name("Futebol Americano").city("Oeiras")
+                .latitude(38.7201).longitude(-9.14).sports("Futebol Americano").build();
+        Venue noGps = Venue.builder().id(34L).name("Sem GPS").city("Sintra").sports("Padel").build();
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(List.of(next, otherSport, sameCity, noGps, closest));
+
+        var result = service.nearbyCity("Cacém", "Padel", 0, 25);
+
+        assertTrue(result.referenceAvailable());
+        assertEquals("Cacém", result.referenceCity());
+        assertEquals(List.of(30L, 31L),
+                result.venues().stream().map(v -> v.venue().id()).toList());
+        assertEquals("Oeiras", result.venues().getFirst().venue().city());
+        assertTrue(result.venues().getFirst().distanceKm() < result.venues().get(1).distanceKm());
+        verify(venueRepository, never()).findAllByOrderByNameAsc();
+    }
+
+    @Test
+    void nearbyCityDoesNotGuessDistancesWithoutAValidSavedReference() {
+        when(venueRepository.nearbyCityReference("cacem"))
+                .thenReturn(List.<Object[]>of(new Object[] { null, null, 0L }));
+        var result = service.nearbyCity("Cacém", "Padel", 0, 25);
+        assertFalse(result.referenceAvailable());
+        assertTrue(result.venues().isEmpty());
+        verify(venueRepository, never()).findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble());
+    }
+
+    @Test
+    void nearbyCityRejectsInvalidCityPageAndRadiusBeforeRepositoryAccess() {
+        assertThrows(IllegalArgumentException.class, () -> service.nearbyCity("", "Padel", 0, 25));
+        assertThrows(IllegalArgumentException.class, () -> service.nearbyCity("Cacém", "Padel", -1, 25));
+        assertThrows(IllegalArgumentException.class, () -> service.nearbyCity("Cacém", "Padel", 1001, 25));
+        assertThrows(IllegalArgumentException.class, () -> service.nearbyCity("Cacém", "Padel", 0, 51));
+        assertThrows(IllegalArgumentException.class, () -> service.nearbyCity("Cacém", "Padel", 0, Double.NaN));
+        verifyNoInteractions(venueRepository);
+    }
+
+    @Test
+    void nearbyCityUsesStablePaginationAndDoesNotMissOrDuplicateCandidateVenues() {
+        when(venueRepository.nearbyCityReference("cacem"))
+                .thenReturn(List.<Object[]>of(new Object[] { 38.72, -9.14, 1L }));
+        var candidates = java.util.stream.IntStream.rangeClosed(1, 37).mapToObj(id ->
+                Venue.builder().id((long) id).name("Campo " + id).city("Sintra")
+                        .latitude(38.721).longitude(-9.14).sports("Padel").build()).toList();
+        when(venueRepository.findByLatitudeBetweenAndLongitudeBetweenOrderByNameAsc(
+                anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(candidates);
+        var first = service.nearbyCity("Cacém", "Padel", 0, 25);
+        var second = service.nearbyCity("Cacém", "Padel", 1, 25);
+        assertEquals(36, first.venues().size());
+        assertTrue(first.hasMore());
+        assertEquals(1, second.venues().size());
+        assertFalse(second.hasMore());
+        var distinct = java.util.stream.Stream.concat(first.venues().stream(), second.venues().stream())
+                .map(v -> v.venue().id()).distinct().count();
+        assertEquals(37L, distinct);
     }
 
     @Test
