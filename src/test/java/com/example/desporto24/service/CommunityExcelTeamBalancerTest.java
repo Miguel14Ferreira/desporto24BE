@@ -140,7 +140,8 @@ class CommunityExcelTeamBalancerTest {
         CommunityStandingsArchiveRow rank(long id, String name, int points, int games) {
             CommunityStandingsArchiveRow row = new CommunityStandingsArchiveRow();
             row.setId(id);
-            row.setNormalizedName(name);
+            // The real Excel importer persists canonical lower-case names.
+            row.setNormalizedName(name.toLowerCase(java.util.Locale.ROOT));
             row.setPoints(points);
             row.setPlayed(games);
             return row;
