@@ -38,6 +38,10 @@ public class SessionTeamSuggestionService {
 
     @Transactional
     public SessionTeamSuggestionResponse confirm(Long sessionId, String username) {
+        // Serialise confirmation with joins, departures, removals and waitlist promotions.
+        // Otherwise a confirmed assignment can be based on a stale participant roster.
+        sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
         SessionTeamSuggestionResponse suggestion = suggest(sessionId, username);
 
         List<SessionParticipant> participants = participantRepository
