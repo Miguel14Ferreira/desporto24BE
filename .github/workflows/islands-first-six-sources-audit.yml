@@ -1,0 +1,40 @@
+name: Six official island venues sources and read-only Jynlo LIVE check
+
+on:
+  pull_request:
+    branches: ['feature/desporto24-preview-deploy']
+    paths:
+      - 'docs/venue-imports/islands-first-six-official-sources-20261026.json'
+      - 'scripts/audit_islands_official_pilot.py'
+      - 'scripts/test_audit_islands_official_pilot.py'
+      - '.github/workflows/islands-first-six-sources-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate six documentary candidates and sport catalogue without network
+        run: |
+          python3 -m py_compile scripts/audit_islands_official_pilot.py
+          python3 -m unittest discover -s scripts -p 'test_audit_islands_official_pilot.py' -v
+      - name: Read public Jynlo catalogue once, compare names and cities
+        run: |
+          mkdir -p /tmp/jynlo-island-venues
+          python3 scripts/audit_islands_official_pilot.py \
+            --live-public-api \
+            --output-json /tmp/jynlo-island-venues/first-six-readonly.json
+      - name: Publish only public IDs and names for review, no contact/GPS export
+        uses: actions/upload-artifact@v4
+        with:
+          name: islands-six-official-readonly-review
+          path: /tmp/jynlo-island-venues/first-six-readonly.json
+          retention-days: 7
