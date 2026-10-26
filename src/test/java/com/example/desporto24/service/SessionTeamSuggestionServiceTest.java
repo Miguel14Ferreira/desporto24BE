@@ -69,7 +69,7 @@ class SessionTeamSuggestionServiceTest {
         InOrder order = inOrder(sessions, participants);
         order.verify(sessions).findByIdForUpdate(42L);
         order.verify(sessions).findById(42L);
-        order.verify(participants).findBySessionIdAndStateOrderByJoinedAtAsc(
+        order.verify(participants, times(2)).findBySessionIdAndStateOrderByJoinedAtAsc(
                 42L, ParticipantState.ACTIVE);
         verify(participants).saveAll(List.of(one, two));
     }
