@@ -29,6 +29,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
@@ -248,4 +250,239 @@ class CommunityTournamentRoleAuthenticatedPgIT {
                     "Chromium must render authorized tournament read from real signed JWT and PG16");
         }
     }
+
+    /**
+     * All paths below are served by the real random-port HTTP server, using
+     * signed JWTs and the disposable localhost PostgreSQL 16 database.
+     * Every test creates its own community so the original role-matrix fixture
+     * and its exact tournament counts remain independent of JUnit test order.
+     */
+    private Community separateCompetition(String name) {
+        Profile owner = profiles.findUserByUsernameIgnoreCase("isolated_pg_owner").orElseThrow();
+        Profile admin = profiles.findUserByUsernameIgnoreCase("isolated_pg_admin").orElseThrow();
+        Community group = community(name, owner);
+        addMember(group, owner, CommunityRole.OWNER);
+        addMember(group, admin, CommunityRole.ADMIN);
+        return group;
+    }
+
+    private List<Profile> fictionalCompetitors(Community group, String prefix, int count) {
+        List<Profile> result = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Profile athlete = profile(prefix + i);
+            addMember(group, athlete, CommunityRole.MEMBER);
+            result.add(athlete);
+        }
+        return result;
+    }
+
+    @Test
+    void eightIndividualEntrantsCompleteActualHttpLeagueWithLockedChampion() throws Exception {
+        Community group = separateCompetition("Synthetic eight-player individual season");
+        List<Profile> athletes = fictionalCompetitors(group, "ind_full_pg_player_", 8);
+        String root = "/api/communities/" + group.getId() + "/tournaments";
+        JsonNode created = api("POST", root, ownerJwt,
+                Map.of("name", "Ténis de teste: oito individuais",
+                        "sport", "Ténis", "entryType", "INDIVIDUAL", "format", "LEAGUE"), 201);
+        String tournament = root + "/" + created.path("id").asLong();
+        assertEquals("DRAFT", created.path("status").asText());
+
+        String playerJwt = token(athletes.get(0));
+        api("GET", tournament, playerJwt, null, 200);
+        api("GET", tournament, outsiderJwt, null, 403);
+        api("GET", root, playerJwt, null, 200);
+        api("POST", root, playerJwt, Map.of("name", "Unauthorized"), 403);
+
+        // Registration is opt-in and not an organizer's unilateral enrollment.
+        for (Profile athlete : athletes) {
+            JsonNode pending = api("PUT", tournament + "/participants/me",
+                    token(athlete), null, 200);
+            assertEquals("PENDING", pending.path("status").asText());
+            api("PUT", tournament + "/participants/" + athlete.getId() + "/confirm",
+                    playerJwt, null, 403);
+            JsonNode confirmed = api("PUT",
+                    tournament + "/participants/" + athlete.getId() + "/confirm",
+                    adminJwt, null, 200);
+            assertEquals("CONFIRMED", confirmed.path("status").asText());
+        }
+        assertEquals(8, api("GET", tournament + "/participants",
+                playerJwt, null, 200).path("participants").size());
+        api("POST", tournament + "/schedule", playerJwt, null, 403);
+        JsonNode schedule = api("POST", tournament + "/schedule", ownerJwt, null, 200);
+        assertEquals(8, schedule.path("participantCount").asInt());
+        assertEquals(7, schedule.path("roundCount").asInt());
+        assertEquals(28, schedule.path("matchCount").asInt());
+        api("POST", tournament + "/schedule", ownerJwt, null, 409);
+        api("POST", tournament + "/complete", ownerJwt, null, 409);
+
+        JsonNode fixtures = api("GET", tournament + "/matches",
+                playerJwt, null, 200).path("matches");
+        assertEquals(28, fixtures.size());
+        long champion = athletes.get(0).getId();
+        for (JsonNode fixture : fixtures) {
+            long homeId = fixture.path("homeProfileId").asLong();
+            long awayId = fixture.path("awayProfileId").asLong();
+            int home = homeId == champion ? 2 : awayId == champion ? 0 : 1;
+            int away = awayId == champion ? 2 : 0;
+            String result = tournament + "/matches/" + fixture.path("id").asLong() + "/result";
+            api("PUT", result, playerJwt, Map.of("homeScore", home, "awayScore", away), 403);
+            assertEquals("COMPLETED", api("PUT", result, ownerJwt,
+                    Map.of("homeScore", home, "awayScore", away), 200)
+                    .path("status").asText());
+        }
+        JsonNode standings = api("GET", tournament + "/standings", playerJwt, null, 200);
+        assertEquals(28, standings.path("totalMatches").asInt());
+        assertEquals(28, standings.path("completedMatches").asInt());
+        assertEquals(8, standings.path("standings").size());
+        assertEquals(champion, standings.path("standings").get(0).path("profileId").asLong());
+
+        JsonNode finished = api("POST", tournament + "/complete", ownerJwt, null, 200);
+        assertEquals("COMPLETED", finished.path("status").asText());
+        assertEquals(champion, finished.path("championProfileId").asLong());
+        assertFalse(finished.path("championTied").asBoolean());
+        assertEquals(java.time.Instant.parse(finished.path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
+                java.time.Instant.parse(api("POST", tournament + "/complete", ownerJwt, null, 200)
+                        .path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
+        api("PUT", tournament + "/matches/" + fixtures.get(0).path("id").asLong()
+                + "/result", adminJwt, Map.of("homeScore", 5, "awayScore", 4), 409);
+    }
+
+    @Test
+    void fourRealTeamsCompleteHomeAwayLeagueWithResultAndChampionSnapshots() throws Exception {
+        Community group = separateCompetition("Synthetic four-team home-away league");
+        List<Profile> athletes = fictionalCompetitors(group, "team_league_pg_player_", 8);
+        String root = "/api/communities/" + group.getId() + "/tournaments";
+        JsonNode created = api("POST", root, ownerJwt,
+                Map.of("name", "Liga equipas HTTP", "sport", "Futebol",
+                        "entryType", "TEAM", "format", "LEAGUE", "roundRobinLegs", 2,
+                        "playersPerTeam", 2), 201);
+        String tournament = root + "/" + created.path("id").asLong();
+        String teamsPath = tournament + "/teams";
+        String memberJwt = token(athletes.get(0));
+        List<Long> teamIds = new ArrayList<>();
+        for (int team = 0; team < 4; team++) {
+            JsonNode added = api("POST", teamsPath, adminJwt,
+                    Map.of("name", "Equipa HTTP " + team), 201);
+            long teamId = added.path("id").asLong();
+            teamIds.add(teamId);
+            for (int slot = 0; slot < 2; slot++) {
+                Profile member = athletes.get(team * 2 + slot);
+                api("POST", teamsPath + "/" + teamId + "/players", ownerJwt,
+                        Map.of("profileId", member.getId()), 201);
+            }
+        }
+        assertEquals(4, api("GET", teamsPath, memberJwt, null, 200).size());
+        api("GET", teamsPath, outsiderJwt, null, 403);
+        api("POST", teamsPath, memberJwt, Map.of("name", "Unauthorized team"), 403);
+        api("POST", teamsPath + "/schedule", memberJwt, null, 403);
+        JsonNode schedule = api("POST", teamsPath + "/schedule", ownerJwt, null, 200);
+        assertEquals(4, schedule.path("teamCount").asInt());
+        assertEquals(6, schedule.path("roundCount").asInt());
+        assertEquals(12, schedule.path("matchCount").asInt());
+        api("POST", teamsPath + "/schedule", ownerJwt, null, 409);
+        api("POST", teamsPath + "/complete", ownerJwt, null, 409);
+
+        JsonNode fixtures = api("GET", teamsPath + "/matches",
+                memberJwt, null, 200).path("matches");
+        assertEquals(12, fixtures.size());
+        long champion = teamIds.get(0);
+        for (JsonNode fixture : fixtures) {
+            long homeId = fixture.path("homeTeamId").asLong();
+            long awayId = fixture.path("awayTeamId").asLong();
+            int home = homeId == champion ? 2 : awayId == champion ? 0 : 1;
+            int away = awayId == champion ? 2 : 0;
+            String resultPath = teamsPath + "/matches/" + fixture.path("id").asLong() + "/result";
+            api("POST", resultPath, memberJwt,
+                    Map.of("homeScore", home, "awayScore", away), 403);
+            api("POST", resultPath, adminJwt,
+                    Map.of("homeScore", home, "awayScore", away), 200);
+        }
+        JsonNode standings = api("GET", teamsPath + "/standings", memberJwt, null, 200);
+        assertEquals(12, standings.path("completedMatches").asInt());
+        assertEquals(4, standings.path("standings").size());
+        assertEquals(champion, standings.path("standings").get(0).path("teamId").asLong());
+
+        JsonNode completed = api("POST", teamsPath + "/complete", ownerJwt, null, 200);
+        assertEquals("COMPLETED", completed.path("status").asText());
+        assertEquals(champion, completed.path("championTeamId").asLong());
+        assertEquals(java.time.Instant.parse(completed.path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
+                java.time.Instant.parse(api("POST", teamsPath + "/complete", adminJwt, null, 200)
+                        .path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
+        api("POST", teamsPath + "/matches/" + fixtures.get(0).path("id").asLong()
+                + "/result", ownerJwt, Map.of("homeScore", 7, "awayScore", 3), 409);
+        api("GET", teamsPath + "/standings", outsiderJwt, null, 403);
+    }
+
+    @Test
+    void cupsAndGroupPlayoffsAdvanceOnlyFromRealSavedHttpMatchResults() throws Exception {
+        Community group = separateCompetition("Synthetic team cups and groups");
+        List<Profile> athletes = fictionalCompetitors(group, "team_cup_pg_player_", 4);
+        String root = "/api/communities/" + group.getId() + "/tournaments";
+        String memberJwt = token(athletes.get(0));
+        for (String format : List.of("KNOCKOUT", "GROUP_KNOCKOUT")) {
+            Map<String,Object> request = new java.util.LinkedHashMap<>();
+            request.put("name", "Taça HTTP " + format);
+            request.put("sport", "Futebol");
+            request.put("entryType", "TEAM");
+            request.put("format", format);
+            request.put("playersPerTeam", 1);
+            if ("GROUP_KNOCKOUT".equals(format)) request.put("groupCount", 2);
+            JsonNode created = api("POST", root, ownerJwt, request, 201);
+            String tournament = root + "/" + created.path("id").asLong();
+            String teamsPath = tournament + "/teams";
+            for (int i = 0; i < 4; i++) {
+                long teamId = api("POST", teamsPath, ownerJwt,
+                        Map.of("name", "Clube " + format + " " + i), 201).path("id").asLong();
+                api("POST", teamsPath + "/" + teamId + "/players", adminJwt,
+                        Map.of("profileId", athletes.get(i).getId()), 201);
+            }
+            api("POST", teamsPath + "/schedule", memberJwt, null, 403);
+            JsonNode started = api("POST", teamsPath + "/schedule", ownerJwt, null, 200);
+            assertEquals("IN_PROGRESS", started.path("status").asText());
+            if ("GROUP_KNOCKOUT".equals(format)) {
+                assertEquals(2, api("GET", teamsPath + "/groups",
+                        memberJwt, null, 200).path("groups").size());
+            }
+            int scored = 0;
+            int roundsObserved = 0;
+            for (int step = 0; step < 8; step++) {
+                JsonNode tournamentState = api("GET", tournament, memberJwt, null, 200);
+                if ("COMPLETED".equals(tournamentState.path("status").asText())) break;
+                JsonNode fixtures = api("GET", teamsPath + "/matches",
+                        memberJwt, null, 200).path("matches");
+                int pending = 0;
+                for (JsonNode fixture : fixtures) {
+                    if (!"SCHEDULED".equals(fixture.path("status").asText())) continue;
+                    pending++;
+                    String result = teamsPath + "/matches/" + fixture.path("id").asLong() + "/result";
+                    if ("KNOCKOUT".equals(format) || fixture.path("groupNumber").isNull()) {
+                        api("POST", result, ownerJwt,
+                                Map.of("homeScore", 1, "awayScore", 1), 422);
+                    }
+                    api("POST", result, adminJwt,
+                            Map.of("homeScore", 2, "awayScore", 0), 200);
+                    scored++;
+                }
+                assertTrue(pending > 0, format + " cannot stall before completion");
+                roundsObserved++;
+            }
+            JsonNode finished = api("GET", tournament, memberJwt, null, 200);
+            assertEquals("COMPLETED", finished.path("status").asText(), format);
+            assertTrue(finished.path("championTeamId").asLong() > 0, format);
+            assertFalse(finished.path("championTied").asBoolean(), format);
+            assertEquals("KNOCKOUT".equals(format) ? 3 : 5, scored, format);
+            assertTrue(roundsObserved >= 2);
+            assertEquals(scored, api("GET", teamsPath + "/matches",
+                    memberJwt, null, 200).path("matches").size());
+            api("POST", teamsPath + "/matches/" +
+                    api("GET", teamsPath + "/matches", memberJwt, null, 200)
+                            .path("matches").get(0).path("id").asLong() + "/result",
+                    ownerJwt, Map.of("homeScore", 8, "awayScore", 0), 409);
+        }
+    }
+
 }
