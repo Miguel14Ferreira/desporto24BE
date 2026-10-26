@@ -224,5 +224,28 @@ class CommunityTournamentRoleAuthenticatedPgIT {
         assertEquals(TournamentMatchStatus.COMPLETED, matches.findById(matchId).orElseThrow().getStatus());
         assertEquals(2, matches.findById(matchId).orElseThrow().getHomeScore());
         assertEquals(1, matches.findById(matchId).orElseThrow().getAwayScore());
+
+        // Opt-in real Angular on localhost, still reading these exact
+        // persisted JWT/PG16 fixtures while Spring's random-port server is up.
+        // The browser blocks ALL tournament mutations before they reach Spring.
+        if ("true".equals(System.getenv("JYNLO_TOURNAMENT_ROLE_BROWSER_QA"))) {
+            var process = new ProcessBuilder(
+                    "node", "scripts/qa/community-tournament-role-browser-real.cjs")
+                    .inheritIO();
+            var env = process.environment();
+            env.put("JYNLO_ROLES_SPRING_PORT", Integer.toString(port));
+            env.put("JYNLO_ROLES_COMMUNITY_ID", groupId.toString());
+            env.put("JYNLO_ROLES_TOURNAMENT_ID", activeId.toString());
+            env.put("JYNLO_ROLES_OWNER_JWT", ownerJwt);
+            env.put("JYNLO_ROLES_MEMBER_JWT", memberJwt);
+            env.put("JYNLO_ROLES_OUTSIDER_JWT", outsiderJwt);
+            var child = process.start();
+            if (!child.waitFor(175, java.util.concurrent.TimeUnit.SECONDS)) {
+                child.destroyForcibly();
+                fail("Real Angular tournament role browser exceeded its time budget");
+            }
+            assertEquals(0, child.exitValue(),
+                    "Chromium must render authorized tournament read from real signed JWT and PG16");
+        }
     }
 }
