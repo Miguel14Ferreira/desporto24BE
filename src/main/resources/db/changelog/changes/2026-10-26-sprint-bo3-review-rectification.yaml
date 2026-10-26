@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-sprint-bo3-review-rectification
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_review
+            columns:
+              - column: { name: remedy_kind, type: VARCHAR(32) }
+              - column: { name: ordered_riders_json, type: TEXT }
+              - column: { name: next_heat_number, type: INT }

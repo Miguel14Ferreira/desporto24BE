@@ -370,7 +370,9 @@ public class CommunityCompetitionService {
     private CommunityTrackSprintReviewDtos.View sprintReviewView(CommunityTrackSprintReview e) {
         return new CommunityTrackSprintReviewDtos.View(e.getId(),e.getIncident().getId(),
                 e.getAction(),e.getOfficialName(),e.getOfficialReference(),
-                e.getPanelReference(),e.getReason(),e.getRecordedBy(),e.getRecordedAt());
+                e.getPanelReference(),e.getReason(),e.getRecordedBy(),e.getRecordedAt(),
+                e.getRemedyKind(),decodeRerunRiders(e.getOrderedRidersJson()),
+                e.getNextHeatNumber());
     }
 
     private CommunityTrackSprintIncident sprintReviewedIncident(
@@ -440,7 +442,7 @@ public class CommunityCompetitionService {
                 ||!validOfficialReason(request.reason()))
             throw new IllegalArgumentException("Indica presidente, ata, motivo e origem no juiz-árbitro");
         var last=latestReviewAction(incidentId);
-        if("REQUESTED".equals(last)||"OVERTURNED".equals(last))
+        if("REQUESTED".equals(last)||"OVERTURNED".equals(last)||"RECTIFIED".equals(last))
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Já existe revisão pendente ou revogação sem retificação");
         String slot=incident.getSeriesKey().substring(incident.getSeriesKey().lastIndexOf('-')+1);
@@ -485,6 +487,96 @@ public class CommunityCompetitionService {
                 .panelReference(request.panelReviewReference().trim())
                 .reason(request.reason().trim()).recordedBy(username)
                 .recordedAt(Instant.now()).build()));
+    }
+
+    /**
+     * Records an explicit, post-revocation chair instruction allowing the same
+     * two riders to continue the original BO3. The prior disqualification must
+     * be expressly annulled. No heat is created, no previous heat is rewritten
+     * and no winner is inferred from the correction.
+     *
+     * Different riders, different start order, or a new official winner need a
+     * separate, regulation-specific procedure rather than this endpoint.
+     */
+    public CommunityTrackSprintReviewDtos.View rectifyOverturnedSprintVerdict(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintReviewDtos.Rectify request) {
+        requireAdmin(communityId,profile(username));
+        var season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        var incident=sprintReviewedIncident(communityId,seasonId,bracketId,incidentId);
+        if(incident.getBracket().getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Evento definitivamente interrompido");
+        var history=sprintReviewRepository.findByIncidentIdOrderByIdAsc(incidentId);
+        if(!"OVERTURNED".equals(CommunityTrackSprintReviewPolicy.latest(history)))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Só um veredito revogado e sem retificação admite continuação");
+        var overturned=history.get(history.size()-1);
+        if(request==null||!Boolean.TRUE.equals(request.sanctionAnnulledByPresident())
+                ||!validOfficialName(request.presidentName())
+                ||!validOfficialReference(request.instructionReference())
+                ||!validOfficialReference(request.overturnedDecisionReference())
+                ||!overturned.getOfficialReference().equals(
+                        request.overturnedDecisionReference().trim())
+                ||!validOfficialReason(request.reason())
+                ||request.nextHeatNumber()==null
+                ||request.nextHeatNumber()<1||request.nextHeatNumber()>3
+                ||request.orderedRiders()==null||request.orderedRiders().size()!=2
+                ||!"DISQUALIFICATION".equals(incident.getSanctionType()))
+            throw new IllegalArgumentException(
+                    "Ata de continuação, referência da revogação, anulação da sanção e dois ciclistas obrigatórios");
+        String slot=incident.getSeriesKey().substring(
+                incident.getSeriesKey().lastIndexOf('-')+1);
+        assertNoReviewedDescendants(communityId,seasonId,bracketId,slot);
+        var all=roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+                communityId,seasonId);
+        var rounds=all.stream().filter(r->Set.of(
+                "TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE","TRACK_SPRINT_5_8")
+                    .contains(r.getEventType()))
+                .map(r->roundResponse(r,acceptedAliasProfiles(communityId))).toList();
+        var match=trackSprintBracketResponse(incident.getBracket(),rounds)
+                .matches().stream().filter(m->incident.getSeriesKey().equals(m.seriesKey()))
+                .findFirst().orElseThrow(()->new IllegalArgumentException("Série não encontrada"));
+        if(!Set.of("READY","IN_PROGRESS").contains(match.status())
+                ||match.riderA()==null||match.riderB()==null
+                ||match.riderC()!=null||match.riderD()!=null||match.winner()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A série não está apta a continuar com dois ciclistas");
+        List<String> declared=new ArrayList<>();
+        for(String rider:request.orderedRiders()) {
+            if(rider==null||rider.isBlank())
+                throw new IllegalArgumentException("Identifica ambos os ciclistas");
+            declared.add(rider.trim().toLowerCase(Locale.ROOT));
+        }
+        List<String> required=List.of(match.riderA(),match.riderB());
+        if(!declared.equals(required)
+                ||!required.contains(incident.getSanctionedUsername()))
+            throw new IllegalArgumentException(
+                    "A continuação simples exige os mesmos dois ciclistas pela ordem original");
+        int existingHeats=(int)rounds.stream()
+                .filter(r->incident.getSeriesKey().equals(r.sprintSeriesKey())).count();
+        int awards=sprintBo3OfficialHeats(bracketId)
+                .getOrDefault(incident.getSeriesKey(),Map.of()).size();
+        int next=existingHeats+awards+1;
+        if(next!=request.nextHeatNumber()||next!=incident.getHeatNumber()||next>3)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A numeração da próxima manga deve preservar o histórico real");
+        String orderJson;
+        try { orderJson=SPRINT_TIE_MAPPER.writeValueAsString(required); }
+        catch(com.fasterxml.jackson.core.JsonProcessingException invalid) {
+            throw new IllegalStateException("Ordem oficial inválida",invalid);
+        }
+        var saved=sprintReviewRepository.save(CommunityTrackSprintReview.builder()
+                .incident(incident).action("RECTIFIED")
+                .officialName(request.presidentName().trim())
+                .officialReference(request.instructionReference().trim())
+                .panelReference(overturned.getOfficialReference())
+                .reason(request.reason().trim()).recordedBy(username)
+                .recordedAt(Instant.now()).remedyKind("RESUME_SAME_RIDERS")
+                .orderedRidersJson(orderJson).nextHeatNumber(next).build());
+        return sprintReviewView(saved);
     }
 
     private static boolean validOfficialName(String value) {
@@ -543,7 +635,9 @@ public class CommunityCompetitionService {
             boolean series="OFFICIAL_SERIES_AWARDED".equals(incident.getStatus())
                     &&incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")
                     &&"DISQUALIFICATION".equals(incident.getSanctionType())
-                    &&!"OVERTURNED".equals(latestReviewAction(incident.getId()));
+                    &&!Set.of("OVERTURNED","RECTIFIED").contains(
+                            latestReviewAction(incident.getId())==null ? ""
+                                    : latestReviewAction(incident.getId()));
             if (single||series) {
                 if(incident.getAwardWinner()==null
                         ||awarded.putIfAbsent(incident.getSeriesKey(),

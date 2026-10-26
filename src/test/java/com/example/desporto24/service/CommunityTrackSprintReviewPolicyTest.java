@@ -10,6 +10,7 @@ class CommunityTrackSprintReviewPolicyTest {
         assertTrue(CommunityTrackSprintReviewPolicy.blocks("REQUESTED"));
         assertTrue(CommunityTrackSprintReviewPolicy.blocks("OVERTURNED"));
         assertFalse(CommunityTrackSprintReviewPolicy.blocks("UPHELD"));
+        assertFalse(CommunityTrackSprintReviewPolicy.blocks("RECTIFIED"));
         assertTrue(CommunityTrackSprintReviewPolicy.affects("Q1","S1"));
         assertTrue(CommunityTrackSprintReviewPolicy.affects("Q1","G"));
         assertTrue(CommunityTrackSprintReviewPolicy.affects("Q1","F58"));
