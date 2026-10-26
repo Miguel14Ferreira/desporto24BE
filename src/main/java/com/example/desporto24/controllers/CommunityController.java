@@ -374,6 +374,36 @@ public class CommunityController {
         }
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/flagrant-ruling")
+    public ResponseEntity<CommunityTrackSprintIncidentDtos.View> ruleFlagrantSprintIncident(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintIncidentDtos.FlagrantRuling request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.ruleFlagrantSprintIncident(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/flagrant-no-sanction-start")
+    public ResponseEntity<CommunityTrackSprintIncidentDtos.View> confirmFlagrantNoSanctionStart(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintIncidentDtos.FlagrantNoSanctionStart request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.confirmFlagrantNoSanctionStart(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
     @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/neutral-restart")
     public ResponseEntity<CommunityTrackSprintIncidentDtos.View> authorizeNeutralSprintRestart(
             @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
