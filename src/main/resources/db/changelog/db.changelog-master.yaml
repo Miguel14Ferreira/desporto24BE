@@ -260,3 +260,6 @@ databaseChangeLog:
   # Official-source island expansion: Terceira, Pico and Porto Santo.
   - include:
       file: db/changelog/changes/2026-10-26-five-island-official-venues.yaml
+  # Official municipal sports venues: Seia, Mirandela and Belmonte/Caria.
+  - include:
+      file: db/changelog/changes/2026-10-26-five-interior-official-venues.yaml
