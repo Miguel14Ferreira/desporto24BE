@@ -30,7 +30,8 @@ import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_
 public class VenueService {
 
     private static final double EARTH_RADIUS_KM = 6371.0088;
-    private static final int VENUE_SUGGEST_PAGE_SIZE = 40;
+    // Three-column public venue catalogue: complete pages must not leave a lone card.
+    private static final int VENUE_SUGGEST_PAGE_SIZE = 39;
     private static final int VENUE_SUGGEST_MAX_PAGE = 1000;
 
     private final VenueRepository venueRepository;
