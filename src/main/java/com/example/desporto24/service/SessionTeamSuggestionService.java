@@ -88,11 +88,17 @@ public class SessionTeamSuggestionService {
             throw new IllegalStateException("A sessão tem de pertencer a uma comunidade");
         }
 
+        if (!TeamBalancingSportPolicy.isEligible(session)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "A modalidade ou o número de participantes não permite duas equipas equilibradas");
+        }
+
         List<SessionParticipant> participants = participantRepository
                 .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE);
 
         int maxParticipants = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
-        if (maxParticipants < 2 || participants.size() < maxParticipants) {
+        if (participants.size() != maxParticipants) {
             throw new IllegalStateException("A sessão tem de estar cheia para gerar equipas");
         }
 

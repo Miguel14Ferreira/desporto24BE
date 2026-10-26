@@ -159,7 +159,8 @@ public class SessionViewMapper {
                 session.getRegistrationOpeningMode() == null
                         ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
                         : session.getRegistrationOpeningMode(),
-                session.getRegistrationOpensAt()
+                session.getRegistrationOpensAt(),
+                TeamBalancingSportPolicy.isEligible(session)
         );
     }
 }
