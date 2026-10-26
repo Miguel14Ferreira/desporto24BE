@@ -592,14 +592,14 @@ public class CommunityCompetitionService {
     private static final Set<String> SPRINT_INCIDENT_TYPES =
             Set.of("FALL","PUNCTURE","BICYCLE_DEFECT","RULE_INFRINGEMENT","OTHER");
     private static final Set<String> SPRINT_INCIDENT_DECISIONS =
-            Set.of("RESTART_REQUIRED","OFFICIAL_RESULT_TO_RECORD","DISCIPLINARY_RULING");
+            Set.of("RESTART_REQUIRED","OFFICIAL_RESULT_TO_RECORD","DISCIPLINARY_RULING","UNINTENTIONAL_FALL");
     private static final Set<String> SPRINT_DISCIPLINARY_SANCTIONS =
             Set.of("WARNING","RELEGATION","DISQUALIFICATION");
     private static final Set<String> SPRINT_UNRESOLVED_INCIDENT_STATUSES =
-            Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_PENDING","POSITIONS_PENDING");
+            Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_PENDING","POSITIONS_PENDING","FAULT_START_PENDING");
     private static final Set<String> SPRINT_OPEN_INCIDENT_STATUSES =
             Set.of("PENDING","ADJUDICATION_REQUIRED","RESTART_AUTHORIZED",
-                    "RESTART_PENDING","POSITIONS_PENDING");
+                    "RESTART_PENDING","POSITIONS_PENDING","FAULT_START_PENDING");
 
     private static List<String> decodeRerunRiders(String json) {
         if(json==null || json.isBlank()) return List.of();
@@ -698,7 +698,8 @@ public class CommunityCompetitionService {
                 i.getRerunReason(),i.getRerunAuthorizedBy(),i.getRerunAuthorizedAt(),
                 i.getAwardWinner(),i.getAwardReference(),i.getAwardReason(),
                 i.getAwardConfirmedBy(),i.getAwardConfirmedAt(),
-                decodeRerunRiders(i.getOfficialPositionsJson()));
+                decodeRerunRiders(i.getOfficialPositionsJson()),
+                i.getFallFaultRider(),i.getFallNonFaultRider(),i.getFallChosenStartPosition());
     }
 
     /**
@@ -835,6 +836,13 @@ public class CommunityCompetitionService {
             if (request.sanctionType() != null || request.sanctionedUsername() != null)
                 throw new IllegalArgumentException(
                     "Uma decisão sem sanção não pode identificar um ciclista sancionado");
+            if ("UNINTENTIONAL_FALL".equals(request.decisionType())) {
+                if (!"FALL".equals(incident.getIncidentType())
+                        ||!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat()))
+                    throw new IllegalArgumentException(
+                            "Falta involuntária exige queda no Sprint olímpico 24");
+                incident.setStatus("FAULT_START_PENDING");
+            } else {
             // In a neutral mishap, a generic declaration is never enough to
             // unlock a new heat or to ratify the race order automatically.
             // Legacy DECIDED incidents remain readable and unchanged.
@@ -843,12 +851,103 @@ public class CommunityCompetitionService {
                 incident.setStatus("RESTART_REQUIRED".equals(request.decisionType())
                         ? "RESTART_PENDING" : "POSITIONS_PENDING");
             } else incident.setStatus("DECIDED");
+            }
         }
         incident.setDecisionType(request.decisionType());
         incident.setDecisionReason(request.reason().trim());
         incident.setDecisionReference(request.reference().trim());
         incident.setDecidedBy(username);
         incident.setDecidedAt(Instant.now());
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
+    /**
+     * UCI Track 3.2.048(1), unintentional rider-caused fall (two-up only):
+     * after an explicit ruling, the rider NOT at fault chooses their own
+     * starting position for a real restart. Neither sanctions nor a winner
+     * are inferred. The previous heat history remains unchanged.
+     */
+    public CommunityTrackSprintIncidentDtos.View confirmUnintentionalFallStart(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintIncidentDtos.UnintentionalFallRestart request) {
+        requireAdmin(communityId,profile(username));
+        var season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        var bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não pertence à época"));
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat())
+                ||bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Este procedimento só abrange Sprint olímpico 24 não interrompido");
+        var incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente fora do quadro"));
+        if(!"FAULT_START_PENDING".equals(incident.getStatus())
+                ||!"UNINTENTIONAL_FALL".equals(incident.getDecisionType())
+                ||!"FALL".equals(incident.getIncidentType()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não existe uma queda involuntária pendente de escolha de partida");
+        if(request==null
+                ||!Boolean.TRUE.equals(request.nonFaultChoiceConfirmed())
+                ||!Set.of("INSIDE","OUTSIDE").contains(
+                        request.nonFaultStartPosition()==null
+                            ? "" : request.nonFaultStartPosition())
+                ||!validOfficialReference(request.reference())
+                ||!validOfficialReason(request.reason())
+                ||request.reference().trim().equals(incident.getDecisionReference())
+                ||incident.getSanctionType()!=null||incident.getSanctionedUsername()!=null)
+            throw new IllegalArgumentException(
+                    "São obrigatórias a escolha da vítima e uma segunda ata independente");
+        String series=incident.getSeriesKey();
+        if(!series.matches("SP"+bracketId+"-(A(?:[1-9]|1[0-2])|C[1-8]|E[1-6]|Q[1-4]|S[1-2]|B|G)"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Escolha de partida de mais ciclistas exige procedimento específico");
+        rejectReviewedSprintProgression(bracketId,series);
+        var related=roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+                communityId,seasonId).stream()
+                .filter(r->Set.of("TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE",
+                        "TRACK_SPRINT_5_8").contains(r.getEventType()))
+                .map(r->roundResponse(r,acceptedAliasProfiles(communityId))).toList();
+        var match=trackSprintBracketResponse(bracket,related).matches().stream()
+                .filter(m->series.equals(m.seriesKey())).findFirst()
+                .orElseThrow(()->new IllegalArgumentException("Confronto não encontrado"));
+        if(!Set.of("READY","IN_PROGRESS").contains(match.status())
+                ||match.winner()!=null||match.riderA()==null||match.riderB()==null
+                ||match.riderC()!=null||match.riderD()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Confronto com mais de dois ciclistas ou já terminado");
+        String faulty=request.faultRider()==null?""
+                :request.faultRider().trim().toLowerCase(Locale.ROOT);
+        String nonFault=request.nonFaultRider()==null?""
+                :request.nonFaultRider().trim().toLowerCase(Locale.ROOT);
+        if(faulty.equals(nonFault)
+                ||!Set.of(faulty,nonFault).equals(Set.of(match.riderA(),match.riderB())))
+            throw new IllegalArgumentException(
+                    "A ata tem de identificar o responsável e o ciclista sem culpa deste confronto");
+        int count=(int)related.stream().filter(r->series.equals(r.sprintSeriesKey())).count();
+        int awards=sprintBo3OfficialHeats(bracketId).getOrDefault(series,Map.of()).size();
+        if(incident.getHeatNumber()!=count+awards+1
+                ||related.stream().anyMatch(r->series.equals(r.sprintSeriesKey())
+                        &&incident.getHeatNumber()==r.sprintHeatNumber()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Manga já disputada ou não é a próxima manga desta série");
+        List<String> positions="INSIDE".equals(request.nonFaultStartPosition())
+                ?List.of(nonFault,faulty):List.of(faulty,nonFault);
+        try {incident.setRerunRidersJson(SPRINT_TIE_MAPPER.writeValueAsString(positions));}
+        catch(com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("Ordem de partida inválida",e);
+        }
+        incident.setFallFaultRider(faulty);
+        incident.setFallNonFaultRider(nonFault);
+        incident.setFallChosenStartPosition(request.nonFaultStartPosition());
+        incident.setRerunReference(request.reference().trim());
+        incident.setRerunReason(request.reason().trim());
+        incident.setRerunAuthorizedBy(username);
+        incident.setRerunAuthorizedAt(Instant.now());
+        incident.setStatus("FAULT_START_OK");
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
