@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.List;
+import java.util.Comparator;
 
 /** Aggregated, database-backed operational counters. No personal data or full-table entity reads. */
 @Service
@@ -53,6 +55,39 @@ public class AdminPlatformOverviewService {
                 now
         );
     }
+
+    /** Missing postal address is not the same as missing usable location (GPS may exist). */
+    @Transactional(readOnly = true)
+    public VenueQualityCoverage venueQuality() {
+        List<VenueDistrictCoverage> districts = venues.qualityByDistrict().stream()
+                .map(row -> new VenueDistrictCoverage(
+                        row[0] == null || row[0].toString().isBlank()
+                                ? "Sem distrito" : row[0].toString(),
+                        ((Number) row[1]).longValue(),
+                        ((Number) row[2]).longValue(),
+                        ((Number) row[3]).longValue(),
+                        ((Number) row[4]).longValue(),
+                        ((Number) row[5]).longValue()))
+                .sorted(Comparator.comparingLong(VenueDistrictCoverage::withoutSport).reversed()
+                        .thenComparing(VenueDistrictCoverage::district))
+                .toList();
+        return new VenueQualityCoverage(
+                districts.stream().mapToLong(VenueDistrictCoverage::venues).sum(),
+                districts.stream().mapToLong(VenueDistrictCoverage::withoutSport).sum(),
+                districts.stream().mapToLong(VenueDistrictCoverage::withoutCoordinates).sum(),
+                districts.stream().mapToLong(VenueDistrictCoverage::withoutAddress).sum(),
+                districts.stream().mapToLong(VenueDistrictCoverage::withoutAddressAndCoordinates).sum(),
+                districts, Instant.now());
+    }
+
+    public record VenueDistrictCoverage(
+            String district, long venues, long withoutSport, long withoutCoordinates,
+            long withoutAddress, long withoutAddressAndCoordinates) {}
+
+    public record VenueQualityCoverage(
+            long venues, long withoutSport, long withoutCoordinates,
+            long withoutAddress, long withoutAddressAndCoordinates,
+            List<VenueDistrictCoverage> districts, Instant generatedAt) {}
 
     public record PlatformOverview(
             long registeredUsers, long enabledUsers, long registrationsLast7Days,
