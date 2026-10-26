@@ -70,6 +70,22 @@ public class CommunityTrackSprintIncident {
     @Column(name="fall_chosen_start_position",length=8)
     private String fallChosenStartPosition;
 
+    // UCI 3.2.048(3): pre-sprint balance or contact, not a fall.
+    @Column(name="pre_sprint_incident_rider",length=100)
+    private String preSprintIncidentRider;
+
+    @Column(name="pre_sprint_non_fault_rider",length=100)
+    private String preSprintNonFaultRider;
+
+    @Column(name="pre_sprint_start_position",length=8)
+    private String preSprintStartPosition;
+
+    @Column(name="pre_sprint_before_start_confirmed")
+    private Boolean preSprintBeforeStartConfirmed;
+
+    @Column(name="pre_sprint_starter_stopped_confirmed")
+    private Boolean preSprintStarterStoppedConfirmed;
+
     // Explicit subsequent restart order: never change the original ruling.
     @Column(name="rerun_riders_json",columnDefinition="TEXT")
     private String rerunRidersJson;

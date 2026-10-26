@@ -38,6 +38,17 @@ public final class CommunityTrackSprintIncidentDtos {
             @NotBlank @Size(min=12,max=255) String reference,
             @NotBlank @Size(min=12,max=500) String reason) {}
 
+    /** UCI 3.2.048(3): independent starter-stop and rider choice record. */
+    public record PreSprintRestart(
+            @NotBlank String incidentRider,
+            @NotBlank String nonFaultRider,
+            @NotBlank String nonFaultStartPosition,
+            @NotNull Boolean nonFaultChoiceConfirmed,
+            @NotNull Boolean beforeSprintConfirmed,
+            @NotNull Boolean starterStoppedConfirmed,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
     /**
      * A second explicit panel instruction after a no-fault fall, puncture,
      * or essential bicycle breakage. It cannot create a heat or winner.
@@ -90,7 +101,10 @@ public final class CommunityTrackSprintIncidentDtos {
                        String awardConfirmedBy, Instant awardConfirmedAt,
                        java.util.List<String> officialPositions,
                        String fallFaultRider, String fallNonFaultRider,
-                       String fallChosenStartPosition) {
+                       String fallChosenStartPosition,
+                       String preSprintIncidentRider, String preSprintNonFaultRider,
+                       String preSprintStartPosition, Boolean preSprintBeforeStartConfirmed,
+                       Boolean preSprintStarterStoppedConfirmed) {
         public View(Long id, String seriesKey, int heatNumber,
                 String incidentType, String details, String status,
                 String reportedBy, Instant reportedAt, String decisionType,
@@ -99,7 +113,7 @@ public final class CommunityTrackSprintIncidentDtos {
             this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
                  reportedAt,decisionType,decisionReference,decisionReason,decidedBy,
                  decidedAt,null,null,java.util.List.of(),null,null,null,null,
-                 null,null,null,null,null,java.util.List.of(),null,null,null);
+                 null,null,null,null,null,java.util.List.of(),null,null,null,null,null,null,null,null);
         }
     }
 }

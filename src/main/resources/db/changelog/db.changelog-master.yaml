@@ -249,6 +249,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-26-sprint-unintentional-fall-start.yaml
   - include:
+      file: db/changelog/changes/2026-10-26-sprint-pre-sprint-incident-start.yaml
+  - include:
       file: db/changelog/changes/2026-10-25-inline-speed-trial-order-audit-v1.yaml
   # Nine reviewed official sports facilities, Santarém / Castelo Branco / Açores / Madeira.
   - include:
