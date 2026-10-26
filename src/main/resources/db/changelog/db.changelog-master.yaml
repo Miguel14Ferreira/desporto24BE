@@ -255,3 +255,6 @@ databaseChangeLog:
   # Nine reviewed official sports facilities, Santarém / Castelo Branco / Açores / Madeira.
   - include:
       file: db/changelog/changes/2026-10-26-nine-official-venues.yaml
+  # Official-source island expansion: Terceira, Pico and Porto Santo.
+  - include:
+      file: db/changelog/changes/2026-10-26-five-island-official-venues.yaml
