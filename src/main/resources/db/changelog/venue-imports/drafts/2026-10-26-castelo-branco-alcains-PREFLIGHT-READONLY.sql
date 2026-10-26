@@ -18,6 +18,7 @@ OR (
 )
 OR (
  LOWER(COALESCE(city, '')) = 'alcains'
- AND LOWER(COALESCE(name, '')) LIKE '%piscin%'
+ AND (LOWER(COALESCE(name, '')) LIKE '%piscin%'
+      OR LOWER(COALESCE(address, '')) LIKE '%estrada de santa%')
 )
 ORDER BY city, name, id;
