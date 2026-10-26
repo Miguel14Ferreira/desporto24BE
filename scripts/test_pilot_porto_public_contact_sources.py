@@ -88,6 +88,38 @@ class PortoOfficialSourcesPilotTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_manifest(m)
 
+
+    def test_manifest_rejects_unexpected_contact_fields_at_every_level(self):
+        for field in ("telefone", "contact_phone", "contact:phone", "phone_number",
+                      "contactPhone", "venueId"):
+            m = manifest()
+            m["facilities"][0][field] = "not-to-be-stored"
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                verify_manifest(m)
+        m = manifest()
+        m["telephone"] = "not-to-be-stored"
+        with self.assertRaises(ValueError):
+            verify_manifest(m)
+
+    def test_secondary_source_requires_official_https_without_credentials(self):
+        m = manifest()
+        m["facilities"][0]["secondary_source_url"] = (
+            "https://desporto.agoraporto.pt/Desporto/Centers")
+        self.assertEqual(m["facilities"], verify_manifest(m))
+        for url in (
+            "http://desporto.agoraporto.pt/Desporto/Centers",
+            "https://desporto.agoraporto.pt.evil.test/Desporto/Centers",
+            "https://user:secret@desporto.agoraporto.pt/Desporto/Centers",
+            "https://desporto.agoraporto.pt:8443/Desporto/Centers",
+            "https://desporto.agoraporto.pt/Desporto/Centers?q=1",
+            "https://desporto.agoraporto.pt/Desporto/Centers#location",
+        ):
+            with self.subTest(url=url):
+                bad = copy.deepcopy(m)
+                bad["facilities"][0]["secondary_source_url"] = url
+                with self.assertRaises(ValueError):
+                    verify_manifest(bad)
+
     def test_phones_guessed_ids_bulk_or_duplicate_sources_rejected(self):
         for extra in ({"phone": "225073300"}, {"venueId": 261}):
             m = manifest()
