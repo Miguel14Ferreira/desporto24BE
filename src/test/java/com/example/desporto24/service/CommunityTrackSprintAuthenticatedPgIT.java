@@ -521,6 +521,62 @@ class CommunityTrackSprintAuthenticatedPgIT {
                     rider(placementBracket.path("matches").get(0).path("riderA").asText(),"WIN"),
                     rider(placementBracket.path("matches").get(0).path("riderB").asText(),"LOSS"))),409);
 
+        // UCI 3.2.048: the panel may instead declare incident-time positions
+        // final. A second official record, not a synthetic physical heat, is
+        // mandatory; exactly the two original riders must be ranked.
+        String positionsUrl=placementUrl+"/official-positions";
+        var originalPlacings=List.of(
+                placementBracket.path("matches").get(0).path("riderB").asText(),
+                placementBracket.path("matches").get(0).path("riderA").asText());
+        var finalPositions=Map.of(
+                "orderedRiders",originalPlacings,
+                "panelPositionsConfirmed",true,
+                "reference","Second distinct signed panel positions record 2026/67",
+                "reason","Commissaires attest B was ahead of A at instant of neutral puncture");
+        api("PUT",positionsUrl,memberJwt,finalPositions,403);
+        Map<String,Object> invalidPositions=new HashMap<>(finalPositions);
+        invalidPositions.put("panelPositionsConfirmed",false);
+        api("PUT",positionsUrl,ownerJwt,invalidPositions,400);
+        invalidPositions.put("panelPositionsConfirmed",true);
+        invalidPositions.put("orderedRiders",List.of(originalPlacings.get(0),
+                originalPlacings.get(0)));
+        api("PUT",positionsUrl,ownerJwt,invalidPositions,400);
+        invalidPositions.put("orderedRiders",List.of(originalPlacings.get(0),"not_participating"));
+        api("PUT",positionsUrl,ownerJwt,invalidPositions,400);
+        invalidPositions.put("orderedRiders",originalPlacings);
+        invalidPositions.put("reference","Signed fictional final positions decision 2026/66");
+        api("PUT",positionsUrl,ownerJwt,invalidPositions,400);
+        var documented=api("PUT",positionsUrl,ownerJwt,finalPositions,200);
+        assertEquals("OFFICIAL_POSITIONS",documented.path("status").asText());
+        assertEquals(originalPlacings.get(0),documented.path("awardWinner").asText());
+        assertEquals("fixture_sprint_owner",documented.path("awardConfirmedBy").asText());
+        assertEquals(originalPlacings.get(0),documented.path("officialPositions").get(0).asText());
+        assertEquals(originalPlacings.get(1),documented.path("officialPositions").get(1).asText());
+        assertEquals("OFFICIAL_RESULT_TO_RECORD",documented.path("decisionType").asText());
+        assertEquals("Signed fictional final positions decision 2026/66",
+                documented.path("decisionReference").asText());
+        api("PUT",positionsUrl,ownerJwt,finalPositions,409);
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                group,activeSeason,placementKey).isEmpty(),
+                "Final incident-time placing must not fabricate a raced heat");
+        JsonNode placementMatch=null;
+        for(JsonNode b:api("GET",brackets(activeSeason),memberJwt,null,200))
+            if(b.path("id").asLong()==placementId)
+                for(JsonNode m:b.path("matches"))
+                    if("A1".equals(m.path("slot").asText()))placementMatch=m;
+        assertNotNull(placementMatch);
+        assertEquals("FINISHED",placementMatch.path("status").asText());
+        assertEquals(originalPlacings.get(0),placementMatch.path("winner").asText());
+        api("POST",community()+"/rounds",ownerJwt,Map.of(
+                "name","Forbidden replacement heat after official placing",
+                "playedAt",Instant.now().toString(),"sport",sport,
+                "eventType","TRACK_SPRINT_HEAT",
+                "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+                "sprintSeriesKey",placementKey,"sprintHeatNumber",1,
+                "entries",List.of(
+                    rider(originalPlacings.get(1),"WIN"),
+                    rider(originalPlacings.get(0),"LOSS"))),400);
+
         // Official disciplinary documentation must NEVER create a winner.
         // A warning is auditable and allows manual result entry; DQ/relegation
         // stays blocked because the entrants/bracket composition can change.
