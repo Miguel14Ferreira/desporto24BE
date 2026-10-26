@@ -59,10 +59,17 @@ def valid_reference(url):
     if not isinstance(url, str):
         return False
     parsed = urlsplit(url)
+    approved_query = (
+        not parsed.query or (
+            parsed.hostname == "www.cm-castelobranco.pt"
+            and parsed.path == "/municipe/noticias/detalhe-noticia/"
+            and re.fullmatch(r"id=[1-9][0-9]{0,8}", parsed.query) is not None
+        )
+    )
     return (parsed.scheme == "https" and parsed.hostname in MANIFEST_URL_HOSTS
             and parsed.username is None and parsed.password is None
             and parsed.port is None and bool(parsed.path)
-            and not parsed.query and not parsed.fragment)
+            and approved_query and not parsed.fragment)
 
 
 def read_manifest(manifest):
