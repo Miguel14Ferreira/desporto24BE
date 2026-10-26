@@ -654,6 +654,82 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertEquals(1,rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
                 group,activeSeason,faultSeries).size());
 
+
+        // UCI 3.2.048(3): synthetic pre-sprint balance, opponent and barrier
+        // incidents. No race is recorded before a second documented choice.
+        for(String cause:List.of("PRE_SPRINT_BALANCE","PRE_SPRINT_OPPONENT_CONTACT",
+                "PRE_SPRINT_BARRIER_CONTACT")) {
+            var preBracket=api("POST",brackets(activeSeason),ownerJwt,Map.of(
+                    "name","Synthetic pre sprint "+cause,
+                    "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+                    "qualifyingRoundId",qual),200);
+            long preId=preBracket.path("id").asLong();
+            String preSeries="SP"+preId+"-A1";
+            String involvedRider=preBracket.path("matches").get(0).path("riderA").asText();
+            String innocentRider=preBracket.path("matches").get(0).path("riderB").asText();
+            String preIncidents=brackets(activeSeason)+"/"+preId+"/incidents";
+            var preReport=api("POST",preIncidents,ownerJwt,Map.of(
+                    "seriesKey",preSeries,"heatNumber",1,"incidentType",cause,
+                    "details","Fictional contact or balance before sprint, starter stops race"),200);
+            String preBase=preIncidents+"/"+preReport.path("id").asLong();
+            var preDecision=Map.of("decisionType","PRE_SPRINT_RESTART",
+                    "reference","First official pre sprint report "+preId,
+                    "reason","Starter stopped the race before sprint after a recorded incident");
+            api("PUT",preBase+"/decision",memberJwt,preDecision,403);
+            var prePending=api("PUT",preBase+"/decision",ownerJwt,preDecision,200);
+            assertEquals("FAULT_START_PENDING",prePending.path("status").asText());
+            var notYetRaced=Map.of("name","No synthetic pre-sprint result",
+                    "playedAt",Instant.now().toString(),"sport",sport,
+                    "eventType","TRACK_SPRINT_HEAT",
+                    "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+                    "sprintSeriesKey",preSeries,"sprintHeatNumber",1,
+                    "entries",List.of(rider(involvedRider,"WIN"),rider(innocentRider,"LOSS")));
+            api("POST",community()+"/rounds",ownerJwt,notYetRaced,409);
+            String preChoiceUrl=preBase+"/pre-sprint-start";
+            Map<String,Object> preChoice=new HashMap<>(Map.of(
+                    "incidentRider",involvedRider,"nonFaultRider",innocentRider,
+                    "nonFaultStartPosition","INSIDE","nonFaultChoiceConfirmed",true,
+                    "beforeSprintConfirmed",true,"starterStoppedConfirmed",true,
+                    "reference","Independent official pre sprint choice "+preId,
+                    "reason","Rider not at fault explicitly selects the inside starting place"));
+            api("PUT",preChoiceUrl,memberJwt,preChoice,403);
+            Map<String,Object> badPre=new HashMap<>(preChoice);
+            badPre.put("beforeSprintConfirmed",false);
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            badPre.put("beforeSprintConfirmed",true);
+            badPre.put("starterStoppedConfirmed",false);
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            badPre.put("starterStoppedConfirmed",true);
+            badPre.put("nonFaultChoiceConfirmed",false);
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            badPre.put("nonFaultChoiceConfirmed",true);
+            badPre.put("nonFaultStartPosition","CENTER");
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            badPre.put("nonFaultStartPosition","INSIDE");
+            badPre.put("nonFaultRider",involvedRider);
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            badPre.put("nonFaultRider",innocentRider);
+            badPre.put("incidentRider","unrelated_rider");
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            badPre.put("incidentRider",involvedRider);
+            badPre.put("reference","First official pre sprint report "+preId);
+            api("PUT",preChoiceUrl,ownerJwt,badPre,400);
+            var preAccepted=api("PUT",preChoiceUrl,ownerJwt,preChoice,200);
+            assertEquals("FAULT_START_OK",preAccepted.path("status").asText());
+            assertEquals(involvedRider,preAccepted.path("preSprintIncidentRider").asText());
+            assertEquals(innocentRider,preAccepted.path("preSprintNonFaultRider").asText());
+            assertEquals("INSIDE",preAccepted.path("preSprintStartPosition").asText());
+            assertTrue(preAccepted.path("preSprintBeforeStartConfirmed").asBoolean());
+            assertTrue(preAccepted.path("preSprintStarterStoppedConfirmed").asBoolean());
+            assertEquals(innocentRider,preAccepted.path("rerunRiders").get(0).asText());
+            assertEquals(involvedRider,preAccepted.path("rerunRiders").get(1).asText());
+            api("PUT",preChoiceUrl,ownerJwt,preChoice,409);
+            assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                    group,activeSeason,preSeries).isEmpty(),
+                    "Stoppage must not create a fictitious heat");
+            api("POST",community()+"/rounds",ownerJwt,notYetRaced,200);
+        }
+
         // Official disciplinary documentation must NEVER create a winner.
         // A warning is auditable and allows manual result entry; DQ/relegation
         // stays blocked because the entrants/bracket composition can change.
