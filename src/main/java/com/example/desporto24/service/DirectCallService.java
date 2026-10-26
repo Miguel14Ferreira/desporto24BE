@@ -52,6 +52,12 @@ public class DirectCallService {
     public record CallSession(UUID callId, String peer, String media,
                               String serverUrl, String token, Instant expiresAt) {}
 
+    public boolean available() {
+        return serverUrl != null && serverUrl.startsWith("wss://")
+                && apiKey != null && !apiKey.isBlank()
+                && apiSecret != null && apiSecret.length() >= 32;
+    }
+
     public synchronized CallSession start(String caller, String peer, String media) {
         configured();
         if (caller == null || caller.isBlank() || peer == null || peer.isBlank()
@@ -143,10 +149,7 @@ public class DirectCallService {
     }
 
     private void configured() {
-        if (serverUrl == null || serverUrl.isBlank()
-                || !serverUrl.startsWith("wss://")
-                || apiKey == null || apiKey.isBlank()
-                || apiSecret == null || apiSecret.length() < 32) {
+        if (!available()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Calling not configured");
         }
