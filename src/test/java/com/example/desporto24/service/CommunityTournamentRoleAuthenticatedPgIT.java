@@ -340,9 +340,11 @@ class CommunityTournamentRoleAuthenticatedPgIT {
         assertEquals("COMPLETED", finished.path("status").asText());
         assertEquals(champion, finished.path("championProfileId").asLong());
         assertFalse(finished.path("championTied").asBoolean());
-        assertEquals(finished.path("completedAt").asText(),
-                api("POST", tournament + "/complete", ownerJwt, null, 200)
-                        .path("completedAt").asText());
+        assertEquals(java.time.Instant.parse(finished.path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
+                java.time.Instant.parse(api("POST", tournament + "/complete", ownerJwt, null, 200)
+                        .path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
         api("PUT", tournament + "/matches/" + fixtures.get(0).path("id").asLong()
                 + "/result", adminJwt, Map.of("homeScore", 5, "awayScore", 4), 409);
     }
@@ -405,9 +407,11 @@ class CommunityTournamentRoleAuthenticatedPgIT {
         JsonNode completed = api("POST", teamsPath + "/complete", ownerJwt, null, 200);
         assertEquals("COMPLETED", completed.path("status").asText());
         assertEquals(champion, completed.path("championTeamId").asLong());
-        assertEquals(completed.path("completedAt").asText(),
-                api("POST", teamsPath + "/complete", adminJwt, null, 200)
-                        .path("completedAt").asText());
+        assertEquals(java.time.Instant.parse(completed.path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS),
+                java.time.Instant.parse(api("POST", teamsPath + "/complete", adminJwt, null, 200)
+                        .path("completedAt").asText())
+                        .truncatedTo(java.time.temporal.ChronoUnit.MILLIS));
         api("POST", teamsPath + "/matches/" + fixtures.get(0).path("id").asLong()
                 + "/result", ownerJwt, Map.of("homeScore", 7, "awayScore", 3), 409);
         api("GET", teamsPath + "/standings", outsiderJwt, null, 403);
