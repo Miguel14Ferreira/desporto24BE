@@ -23,6 +23,8 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
      * Filter and paginate in the database; never fetch the national catalog in memory.
      * Full modality tokens prevent Futebol matching Futebol Americano.
      * PostgreSQL and H2 both support translate for accent-insensitive search.
+     * Relevance is computed before the database applies the page boundary, so
+     * matches cannot be stranded on later pages. All ties end with immutable id.
      */
     @Query("""
            SELECT v FROM Venue v
@@ -41,7 +43,32 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
                     'áàâãäéèêëíìîïóòôõöúùûüç',
                     'aaaaaeeeeiiiiooooouuuuc'))
                     LIKE CONCAT('%;', :sport, ';%') ESCAPE '!')
-           ORDER BY LOWER(v.name), LOWER(v.city), v.id
+           ORDER BY
+             CASE
+               WHEN :name = '' THEN 0
+               WHEN LOWER(FUNCTION('translate', v.name,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) = :name THEN 0
+               WHEN LOWER(FUNCTION('translate', v.name,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT(:name, '%') ESCAPE '!' THEN 1
+               ELSE 2
+             END,
+             CASE
+               WHEN :city = '' THEN 0
+               WHEN LOWER(FUNCTION('translate', v.city,
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc')) = :city THEN 0
+               ELSE 1
+             END,
+             CASE WHEN v.sports IS NOT NULL AND TRIM(v.sports) <> '' THEN 0 ELSE 1 END,
+             CASE WHEN (v.address IS NOT NULL AND TRIM(v.address) <> '')
+                        AND v.latitude IS NOT NULL AND v.longitude IS NOT NULL THEN 0
+                  WHEN (v.address IS NOT NULL AND TRIM(v.address) <> '')
+                        OR (v.latitude IS NOT NULL AND v.longitude IS NOT NULL) THEN 1
+                  ELSE 2 END,
+             CASE WHEN v.venueType IS NOT NULL AND TRIM(v.venueType) <> '' THEN 0 ELSE 1 END,
+             LOWER(v.name), LOWER(v.city), v.id
            """)
     Slice<Venue> suggest(
             @Param("name") String name,
