@@ -19,6 +19,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
+import com.example.desporto24.model.venue.Venue;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -100,6 +103,43 @@ class AdminPlatformOverviewServiceTest {
         verify(venues).qualityByDistrict();
         verify(venues, never()).findAll();
         verify(venues, never()).findAllByOrderByNameAsc();
+    }
+
+    @Test
+    void missingGpsQueuePaginatesWithoutLeakingPersonalDataOrChangingVenues() throws Exception {
+        var candidate = Venue.builder().id(27L).name("Campo Municipal").city("Sintra")
+                .district("Lisboa").address("Rua do Campo")
+                .sourceReference("OSM:WAY:12345")
+                .informationSource(Venue.InformationSource.OPENSTREETMAP).build();
+        when(venues.missingGpsReview("Lisboa", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(candidate), PageRequest.of(0, 20), true));
+        var result = service.missingGpsReview("Lisboa", 0);
+        assertEquals(27L, result.venues().getFirst().id());
+        assertEquals("Rua do Campo", result.venues().getFirst().address());
+        assertEquals("OSM:WAY:12345", result.venues().getFirst().sourceReference());
+        assertTrue(result.hasMore());
+        verify(venues, never()).findAll();
+        verify(venues, never()).save(any());
+        var fields = java.util.Arrays.stream(AdminPlatformOverviewService.VenueGpsReviewItem.class
+                .getRecordComponents()).map(java.lang.reflect.RecordComponent::getName).toList();
+        assertFalse(fields.contains("contact"));
+        assertFalse(fields.contains("latitude"));
+        assertFalse(fields.contains("longitude"));
+        assertFalse(fields.contains("submittedByUsername"));
+        var method = AdminPlatformOverviewController.class
+                .getMethod("missingGpsReview", String.class, int.class);
+        assertArrayEquals(new String[]{"/venue-gps-review"},
+                method.getAnnotation(org.springframework.web.bind.annotation.GetMapping.class).value());
+        assertEquals("hasAnyRole('ADMIN', 'SUPER_ADMIN')",
+                AdminPlatformOverviewController.class.getAnnotation(PreAuthorize.class).value());
+    }
+
+    @Test
+    void missingGpsQueueRejectsUnsafePageBeforeDatabaseAccess() {
+        assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1));
+        assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001));
+        assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Sem distrito", 0));
+        verify(venues, never()).missingGpsReview(any(), any());
     }
 
     @Test

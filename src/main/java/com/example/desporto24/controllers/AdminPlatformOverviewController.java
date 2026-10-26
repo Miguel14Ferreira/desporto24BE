@@ -5,6 +5,7 @@ import com.example.desporto24.service.AdminGrowthTrendsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,6 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminPlatformOverviewController {
     private final AdminPlatformOverviewService service;
     private final AdminGrowthTrendsService trendsService;
+
+    @GetMapping("/venue-gps-review")
+    public AdminPlatformOverviewService.VenueGpsReviewPage missingGpsReview(
+            @RequestParam(required = false) String district,
+            @RequestParam(defaultValue = "0") int page) {
+        return service.missingGpsReview(district, page);
+    }
 
     @GetMapping("/venue-quality")
     public AdminPlatformOverviewService.VenueQualityCoverage venueQuality() {
