@@ -485,4 +485,139 @@ class CommunityTournamentRoleAuthenticatedPgIT {
         }
     }
 
+
+    @Test
+    void fourChessPlayersUseHalfPointsAndRejectFootballScoresOverRealHttp() throws Exception {
+        Community group = separateCompetition("Isolated chess club QA");
+        List<Profile> athletes = fictionalCompetitors(group, "chess_pg_qa_", 4);
+        String root = "/api/communities/" + group.getId() + "/tournaments";
+        JsonNode created = api("POST", root, ownerJwt, Map.of(
+                "name", "Liga Xadrez QA", "sport", "Xadrez",
+                "entryType", "INDIVIDUAL", "format", "LEAGUE",
+                "scoringMode", "CHESS_HALF_POINTS",
+                "winPoints", 2, "drawPoints", 1, "lossPoints", 0), 201);
+        String tournament = root + "/" + created.path("id").asLong();
+        String playerJwt = token(athletes.get(1));
+        for (Profile athlete : athletes) {
+            assertEquals("PENDING", api("PUT", tournament + "/participants/me",
+                    token(athlete), null, 200).path("status").asText());
+            api("PUT", tournament + "/participants/" + athlete.getId()
+                    + "/confirm", adminJwt, null, 200);
+        }
+        JsonNode generated = api("POST", tournament + "/schedule", ownerJwt, null, 200);
+        assertEquals(6, generated.path("matchCount").asInt());
+        JsonNode fixtures = api("GET", tournament + "/matches", playerJwt, null, 200)
+                .path("matches");
+        assertEquals(6, fixtures.size());
+        long championId = athletes.get(0).getId();
+        for (JsonNode match : fixtures) {
+            long home = match.path("homeProfileId").asLong();
+            long away = match.path("awayProfileId").asLong();
+            int homeScore = home == championId ? 1 : 0;
+            int awayScore = away == championId ? 1 : 0;
+            String endpoint = tournament + "/matches/" + match.path("id").asLong() + "/result";
+            api("PUT", endpoint, ownerJwt, Map.of("homeScore", 3, "awayScore", 1), 400);
+            api("PUT", endpoint, playerJwt,
+                    Map.of("homeScore", homeScore, "awayScore", awayScore), 403);
+            api("PUT", endpoint, adminJwt,
+                    Map.of("homeScore", homeScore, "awayScore", awayScore), 200);
+        }
+        JsonNode table = api("GET", tournament + "/standings", playerJwt, null, 200);
+        assertEquals(6, table.path("completedMatches").asInt());
+        assertEquals(4, table.path("standings").size());
+        assertEquals(championId, table.path("standings").get(0).path("profileId").asLong());
+        assertEquals(6L, table.path("standings").get(0).path("points").asLong(),
+                "Three chess wins equal six internal half-points");
+        assertEquals(2L, table.path("standings").get(1).path("points").asLong(),
+                "Two chess draws equal one full point");
+        JsonNode finished = api("POST", tournament + "/complete", ownerJwt, null, 200);
+        assertEquals("COMPLETED", finished.path("status").asText());
+        assertEquals(championId, finished.path("championProfileId").asLong());
+        api("PUT", tournament + "/matches/" + fixtures.get(0).path("id").asLong()
+                + "/result", ownerJwt, Map.of("homeScore", 1, "awayScore", 0), 409);
+    }
+
+    @Test
+    void kartingAndRoadCyclingRacePointsFreezeRealRecordedRoundsOnPg16() throws Exception {
+        for (String sport : List.of("Karting", "Ciclismo de Estrada")) {
+            Community group = separateCompetition("Isolated race championship " + sport);
+            group.setSport(sport);
+            communities.saveAndFlush(group);
+            List<Profile> athletes = fictionalCompetitors(group,
+                    "race_pg_" + ("Karting".equals(sport) ? "kart_" : "road_"), 3);
+            // Round entry identities are also displayed as community-player names.
+            // Use distinguishable names in this sporting-rules test; same-name
+            // collision receives its own dedicated regression test.
+            for (int i = 0; i < athletes.size(); i++) {
+                athletes.get(i).setFullName("Corredor QA " + sport + " " + (i + 1));
+                profiles.saveAndFlush(athletes.get(i));
+            }
+            String communityPath = "/api/communities/" + group.getId();
+            String root = communityPath + "/tournaments";
+            JsonNode season = api("POST", communityPath + "/seasons", ownerJwt,
+                    Map.of("name", "Epoca corrida de teste"), 200);
+            assertTrue(season.path("id").asLong() > 0);
+            JsonNode created = api("POST", root, ownerJwt, Map.of(
+                    "name", "Campeonato corridas QA " + sport, "sport", sport,
+                    "entryType", "INDIVIDUAL", "format", "LEAGUE",
+                    "scoringMode", "RACE_POINTS"), 201);
+            String tournament = root + "/" + created.path("id").asLong();
+            String racesPath = tournament + "/races";
+            String playerJwt = token(athletes.get(0));
+            api("GET", racesPath, outsiderJwt, null, 403);
+            JsonNode configured = api("PUT", racesPath + "/points", ownerJwt,
+                    Map.of("pointsByPlace", "10,6,3"), 200);
+            assertEquals(10, configured.path("pointsByPlace").get(0).asInt());
+
+            List<Map<String, Object>> entrants = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("username", athletes.get(i).getUsername());
+                entry.put("result", "DRAW");
+                entry.put("mvp", false);
+                entry.put("cleanSheet", false);
+                entry.put("finishPosition", i + 1);
+                entrants.add(entry);
+            }
+            Map<String,Object> race = new java.util.LinkedHashMap<>();
+            race.put("name", "Corrida QA " + sport);
+            race.put("playedAt", Instant.now().toString());
+            race.put("sport", sport);
+            race.put("entries", entrants);
+            if ("Ciclismo de Estrada".equals(sport)) {
+                race.put("eventType", "ROAD_RACE");
+            }
+            JsonNode saved = api("POST", communityPath + "/rounds", ownerJwt, race, 200);
+            long roundId = saved.path("id").asLong();
+            assertTrue(roundId > 0);
+            api("PUT", racesPath + "/" + roundId, playerJwt, null, 403);
+            JsonNode linked = api("PUT", racesPath + "/" + roundId, ownerJwt, null, 200);
+            assertEquals(1, linked.path("linkedRaces").size());
+            assertEquals(3, linked.path("standings").size());
+            assertEquals(10, linked.path("standings").get(0)
+                    .path("championshipPoints").asInt());
+            api("PUT", racesPath + "/points", ownerJwt,
+                    Map.of("pointsByPlace", "20,10,5"), 409);
+            api("POST", racesPath + "/complete", playerJwt, null, 403);
+            JsonNode completed = api("POST", racesPath + "/complete", adminJwt, null, 200);
+            assertEquals("COMPLETED", completed.path("status").asText());
+            assertFalse(completed.path("championTied").asBoolean());
+            assertEquals(10, completed.path("championPoints").asLong());
+            String snapshot = tournaments.findById(completed.path("id").asLong())
+                    .orElseThrow().getRaceFinalSnapshotJson();
+            assertTrue(snapshot != null && snapshot.contains("Corrida QA"),
+                    "Archived results must survive later edits to community rounds");
+
+            JsonNode archived = api("GET", racesPath, playerJwt, null, 200);
+            assertEquals(1, archived.path("linkedRaces").size());
+            assertEquals(0, archived.path("availableRaces").size());
+            assertEquals(3, archived.path("standings").size());
+            api("DELETE", racesPath + "/" + roundId, ownerJwt, null, 409);
+            api("PUT", racesPath + "/" + roundId, ownerJwt, null, 409);
+            api("POST", racesPath + "/complete", ownerJwt, null, 200);
+            assertEquals("COMPLETED", api("GET", tournament, playerJwt, null, 200)
+                    .path("status").asText());
+        }
+    }
+
 }
