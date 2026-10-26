@@ -374,6 +374,44 @@ public class CommunityController {
         }
     }
 
+    @GetMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/reviews")
+    public ResponseEntity<List<CommunityTrackSprintReviewDtos.View>> sprintVerdictReviews(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,Authentication auth) {
+        return ResponseEntity.ok(competitionService.sprintVerdictReviews(
+                id,seasonId,bracketId,incidentId,auth.getName()));
+    }
+
+    @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/reviews")
+    public ResponseEntity<CommunityTrackSprintReviewDtos.View> requestSprintVerdictReview(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintReviewDtos.Request request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.requestSprintVerdictReview(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/reviews/decision")
+    public ResponseEntity<CommunityTrackSprintReviewDtos.View> resolveSprintVerdictReview(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintReviewDtos.Resolve request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.resolveSprintVerdictReview(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
     @PostMapping("/{id}/seasons/{seasonId}/track-sprint-brackets")
     public ResponseEntity<CommunityTrackSprintBracketDtos.Overview> createTrackSprintBracket(
             @PathVariable Long id, @PathVariable Long seasonId,
