@@ -45,6 +45,10 @@ public class Session {
     private Boolean enabled;
     private Date created_at;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "play_format", length = 16)
+    private com.example.desporto24.enumeration.SessionPlayFormat playFormat;
+
     @Column(name = "max_participants")
     private Integer maxParticipants;
 

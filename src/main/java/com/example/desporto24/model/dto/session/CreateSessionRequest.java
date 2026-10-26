@@ -41,8 +41,26 @@ public record CreateSessionRequest(
         // First week's additional kickoffs. The first kickoff remains gameDate.
         @Size(max = 6) java.util.List<@NotNull Instant> additionalWeeklyGameDates,
         // IANA zone keeps the same local weekday/time across DST transitions.
-        @Size(max = 64) String recurrenceTimeZone
+        @Size(max = 64) String recurrenceTimeZone,
+        com.example.desporto24.enumeration.SessionPlayFormat playFormat
 ) {
+    // Preserve all 19-field callers of the former canonical record constructor.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId, venueId,
+                recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt,
+                additionalWeeklyGameDates, recurrenceTimeZone, null);
+    }
+
     // Keep all existing 17-field callers source-compatible.
     public CreateSessionRequest(
             String sport, Instant gameDate, String city, String address,

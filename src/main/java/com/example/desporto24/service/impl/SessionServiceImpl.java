@@ -122,6 +122,8 @@ public class SessionServiceImpl implements SessionService {
         if (!SportsCatalog.ALLOWED.contains(sport)) {
             throw new IllegalArgumentException("Desporto inválido");
         }
+        // Reject incompatible formats before recurring sessions are persisted.
+        com.example.desporto24.service.SessionPlayFormatPolicy.resolve(sport, request.playFormat());
 
         Venue linkedVenue = null;
         if (request.venueId() != null) {
@@ -222,6 +224,8 @@ public class SessionServiceImpl implements SessionService {
         session.setProfile(creator);
         session.setUserId(creator.getUserId());
         session.setSport(sport);
+        session.setPlayFormat(com.example.desporto24.service.SessionPlayFormatPolicy
+                .resolve(sport, request.playFormat()));
         session.setGameDate(Date.from(gameDate));
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());

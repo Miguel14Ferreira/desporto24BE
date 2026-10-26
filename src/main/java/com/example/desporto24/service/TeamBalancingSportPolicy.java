@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.constant.SportsCatalog;
 import com.example.desporto24.model.Session;
+import com.example.desporto24.enumeration.SessionPlayFormat;
 
 import java.util.Set;
 
@@ -22,6 +23,10 @@ public final class TeamBalancingSportPolicy {
 
     private TeamBalancingSportPolicy() {}
 
+    public static boolean isKnownTeamSport(String sport) {
+        return TEAM_SPORTS.contains(sport);
+    }
+
     public static boolean isEligible(Session session) {
         if (session == null || session.getCommunity() == null ||
                 session.getMaxParticipants() == null ||
@@ -29,6 +34,13 @@ public final class TeamBalancingSportPolicy {
                         session.getExternalConfirmedParticipants() > 0)) {
             return false;
         }
+        SessionPlayFormat mode = session.getPlayFormat();
+        if (mode == SessionPlayFormat.INDIVIDUAL) return false;
+        if (mode == SessionPlayFormat.PAIRS) {
+            return SessionPlayFormatPolicy.canPlayPairs(session.getSport())
+                    && session.getMaxParticipants() == 4;
+        }
+        // Null is a legacy record: retain conservative team-only behavior.
         return isEligible(session.getSport(), session.getMaxParticipants());
     }
 
