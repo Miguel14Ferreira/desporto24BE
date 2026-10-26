@@ -203,6 +203,55 @@ class NationalVenueImportTests(unittest.TestCase):
             "way", 455, (39.3, -7.4), "Portalegre")
         self.assertNotIn("name_to_verify", quality)
 
+    def test_numbered_pitches_do_not_enter_future_published_imports(self):
+        for name in ("Campo 3", "Campo 4", "Campo 5", "Campo 6", "Campo 7",
+                     "Campo de Futebol 5", "Campo de Jogos 12",
+                     "Polidesportivo 3", "Pavilhão n.º 2", "Piscina Municipal 4"):
+            with self.subTest(name=name):
+                venue, quality = national.build_venue(
+                    {"leisure": "pitch", "sport": "soccer", "name": name,
+                     "addr:city": "Lisboa", "addr:street": "Avenida Exemplo"},
+                    "way", 49290574, (38.755536, -9.1625579), "Lisboa")
+                self.assertEqual(name, venue["name"])
+                self.assertEqual("OSM:WAY:49290574", venue["sourceReference"])
+                self.assertIn("name_to_verify", quality)
+                self.assertFalse(national.is_import_ready(quality))
+
+    def test_distinct_venue_names_with_field_numbers_remain_importable(self):
+        for name in ("Estádio Universitário de Lisboa — Campo 3",
+                     "Campo da Mata", "Campo Municipal de Sousel",
+                     "Parque Desportivo do Seixal — Campo 2"):
+            with self.subTest(name=name):
+                venue, quality = national.build_venue(
+                    {"leisure": "pitch", "sport": "soccer", "name": name,
+                     "addr:city": "Lisboa", "addr:street": "Rua de Exemplo"},
+                    "way", 1234, (38.7555, -9.1625), "Lisboa")
+                self.assertNotIn("name_to_verify", quality)
+                self.assertTrue(national.is_import_ready(quality))
+
+    def test_lisbon_venue_review_manifest_matches_import_source_ids(self):
+        import json
+        root = Path(__file__).resolve().parents[1]
+        review = json.loads((root / "docs/venue-imports/lisboa-eul-generic-names-review-20261026.json")
+                            .read_text(encoding="utf-8"))
+        sql = (root / "src/main/resources/db/changelog/venue-imports/drafts/"
+               "national-20261022/sql/national-map-osm-lisboa-02.sql").read_text(
+               encoding="utf-8")
+        rows = review["venues"]
+        self.assertEqual(7, len(rows))
+        self.assertEqual(7, len(set(x["venueId"] for x in rows)))
+        self.assertEqual(7, len(set(x["osmReference"] for x in rows)))
+        for row in rows:
+            with self.subTest(id=row["venueId"]):
+                self.assertIn(row["osmReference"], sql)
+                self.assertIn(row["existingName"], sql)
+                self.assertIsNone(row["approvedName"])
+                self.assertIsNone(row["approvedPostalAddress"])
+                self.assertEqual("PENDING_MANUAL_REVIEW", row["status"])
+                self.assertTrue(row["osmUrl"].startswith("https://www.openstreetmap.org/way/"))
+        self.assertNotEqual(rows[2]["osmReference"], rows[3]["osmReference"],
+                            "The two Campo 5 OSM ways must not be merged")
+
     def test_unnamed_are_explicitly_tentative(self):
         venue, quality = national.build_venue(
             {"leisure": "swimming_pool"}, "node", 9,
