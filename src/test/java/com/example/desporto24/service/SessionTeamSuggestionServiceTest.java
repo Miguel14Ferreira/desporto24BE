@@ -38,7 +38,8 @@ class SessionTeamSuggestionServiceTest {
 
         Session session = new Session();
         session.setId(42L);
-        session.setMaxParticipants(2);
+        session.setMaxParticipants(4);
+        session.setSport("Futebol");
         Community community = mock(Community.class);
         when(community.getId()).thenReturn(11L);
         session.setCommunity(community);
@@ -58,27 +59,37 @@ class SessionTeamSuggestionServiceTest {
         SessionParticipant two = new SessionParticipant();
         two.setProfile(second);
         two.setState(ParticipantState.ACTIVE);
+        Profile third = mock(Profile.class);
+        Profile fourth = mock(Profile.class);
+        when(third.getUsername()).thenReturn("third");
+        when(fourth.getUsername()).thenReturn("fourth");
+        SessionParticipant three = new SessionParticipant();
+        three.setProfile(third);
+        three.setState(ParticipantState.ACTIVE);
+        SessionParticipant four = new SessionParticipant();
+        four.setProfile(fourth);
+        four.setState(ParticipantState.ACTIVE);
 
         when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(session));
         when(sessions.findById(42L)).thenReturn(Optional.of(session));
         when(participants.findBySessionIdAndStateOrderByJoinedAtAsc(
-                42L, ParticipantState.ACTIVE)).thenReturn(List.of(one, two));
+                42L, ParticipantState.ACTIVE)).thenReturn(List.of(one, two, three, four));
         when(rounds.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(11L))
                 .thenReturn(List.of());
 
         var result = service.confirm(42L, "organizer");
 
-        assertEquals(1, result.teamA().size());
-        assertEquals(1, result.teamB().size());
-        assertEquals("A", one.getTeamCode());
-        assertEquals("B", two.getTeamCode());
+        assertEquals(2, result.teamA().size());
+        assertEquals(2, result.teamB().size());
+        assertEquals(2, List.of(one, two, three, four).stream().filter(p -> "A".equals(p.getTeamCode())).count());
+        assertEquals(2, List.of(one, two, three, four).stream().filter(p -> "B".equals(p.getTeamCode())).count());
 
         InOrder order = inOrder(sessions, participants);
         order.verify(sessions).findByIdForUpdate(42L);
         order.verify(sessions).findById(42L);
         order.verify(participants, times(2)).findBySessionIdAndStateOrderByJoinedAtAsc(
                 42L, ParticipantState.ACTIVE);
-        verify(participants).saveAll(List.of(one, two));
+        verify(participants).saveAll(List.of(one, two, three, four));
     }
 
     @Test
@@ -114,6 +125,7 @@ class SessionTeamSuggestionServiceTest {
         Session session = new Session();
         session.setId(42L);
         session.setMaxParticipants(10);
+        session.setSport("Futebol");
         Community community = mock(Community.class);
         when(community.getId()).thenReturn(11L);
         session.setCommunity(community);
