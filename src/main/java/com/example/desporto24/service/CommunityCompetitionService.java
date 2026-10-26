@@ -931,7 +931,7 @@ public class CommunityCompetitionService {
         incident.setRerunReason(request.reason().trim());
         incident.setRerunAuthorizedBy(username);
         incident.setRerunAuthorizedAt(Instant.now());
-        incident.setStatus("NEUTRAL_RESTART_AUTHORIZED");
+        incident.setStatus("NEUTRAL_RESTART_OK");
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
