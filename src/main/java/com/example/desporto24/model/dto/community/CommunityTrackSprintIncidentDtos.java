@@ -37,6 +37,17 @@ public final class CommunityTrackSprintIncidentDtos {
             @NotBlank @Size(min=12,max=500) String reason) {}
 
     /**
+     * Separate signed panel ratification of the final positions at the
+     * moment of a neutral incident; first rider is the declared heat winner.
+     * No physical round, lap time or race result is fabricated.
+     */
+    public record RatifyIncidentPositions(
+            @NotNull @Size(min=2,max=2) java.util.List<String> orderedRiders,
+            @NotNull Boolean panelPositionsConfirmed,
+            @NotBlank @Size(min=12,max=255) String reference,
+            @NotBlank @Size(min=12,max=500) String reason) {}
+
+    /**
      * A separate signed authorization for a three-up rerun. Must explicitly
      * name and order exactly the two surviving riders; no winner is selected.
      */
@@ -63,7 +74,8 @@ public final class CommunityTrackSprintIncidentDtos {
                        String rerunReason, String rerunAuthorizedBy,
                        Instant rerunAuthorizedAt,
                        String awardWinner, String awardReference, String awardReason,
-                       String awardConfirmedBy, Instant awardConfirmedAt) {
+                       String awardConfirmedBy, Instant awardConfirmedAt,
+                       java.util.List<String> officialPositions) {
         public View(Long id, String seriesKey, int heatNumber,
                 String incidentType, String details, String status,
                 String reportedBy, Instant reportedAt, String decisionType,
@@ -72,7 +84,7 @@ public final class CommunityTrackSprintIncidentDtos {
             this(id,seriesKey,heatNumber,incidentType,details,status,reportedBy,
                  reportedAt,decisionType,decisionReference,decisionReason,decidedBy,
                  decidedAt,null,null,java.util.List.of(),null,null,null,null,
-                 null,null,null,null,null);
+                 null,null,null,null,null,java.util.List.of());
         }
     }
 }
