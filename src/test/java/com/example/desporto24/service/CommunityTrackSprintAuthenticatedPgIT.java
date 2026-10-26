@@ -441,7 +441,7 @@ class CommunityTrackSprintAuthenticatedPgIT {
                     first.path("riderA").asText()));
         api("PUT",neutralUrl,ownerJwt,neutralBad,400);
         var approved=api("PUT",neutralUrl,ownerJwt,neutralRestart,200);
-        assertEquals("NEUTRAL_RESTART_AUTHORIZED",approved.path("status").asText());
+        assertEquals("NEUTRAL_RESTART_OK",approved.path("status").asText());
         assertEquals("fixture_sprint_owner",approved.path("rerunAuthorizedBy").asText());
         assertEquals(2,approved.path("rerunRiders").size());
         api("PUT",neutralUrl,ownerJwt,neutralRestart,409);
@@ -456,7 +456,7 @@ class CommunityTrackSprintAuthenticatedPgIT {
         assertNotNull(recorded);
         assertEquals("FINISHED",recorded.path("matches").get(0).path("status").asText());
         assertEquals(1,recorded.path("incidents").size());
-        assertEquals("NEUTRAL_RESTART_AUTHORIZED",
+        assertEquals("NEUTRAL_RESTART_OK",
                 recorded.path("incidents").get(0).path("status").asText());
         assertEquals(0,api("GET",brackets(closedSeason),memberJwt,null,200).size());
 
@@ -488,7 +488,7 @@ class CommunityTrackSprintAuthenticatedPgIT {
                         nextBracket.path("matches").get(0).path("riderB").asText()),
                     "reference","Second signed no-fault restart instruction 2026/62",
                     "reason","The same two riders and original order are expressly documented");
-            assertEquals("NEUTRAL_RESTART_AUTHORIZED",
+            assertEquals("NEUTRAL_RESTART_OK",
                     api("PUT",mishapUrl+"/neutral-restart",ownerJwt,restart,200)
                     .path("status").asText());
             assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
