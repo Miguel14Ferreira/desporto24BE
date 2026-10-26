@@ -35,8 +35,8 @@ class DirectCallServiceTest {
         ReflectionTestUtils.setField(calls, "apiSecret", "only-for-tests-long-enough-livekit-secret");
         Profile caller = mock(Profile.class);
         Profile recipient = mock(Profile.class);
-        when(caller.getId()).thenReturn(12L);
-        when(recipient.getId()).thenReturn(13L);
+        lenient().when(caller.getId()).thenReturn(12L);
+        lenient().when(recipient.getId()).thenReturn(13L);
         lenient().when(profiles.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(caller));
         lenient().when(profiles.findUserByUsernameIgnoreCase("bea")).thenReturn(Optional.of(recipient));
     }
