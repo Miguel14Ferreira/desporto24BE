@@ -1,0 +1,152 @@
+{
+  "reviewedAt": "2026-10-26",
+  "purpose": "FIRST_ISLAND_VENUE_SOURCES_ONLY",
+  "reusableMaterial": "Names/addresses/sports facts only with source citations; do not copy protected material or assume license for bulk dataset",
+  "sourceCandidateCount": 6,
+  "livePublicDistrictCountsAtAudit": {
+    "Açores": 0,
+    "Madeira": 0,
+    "Total": 3595
+  },
+  "approvedForImport": false,
+  "backendBlockers": [
+    "ContinentalDistricts.normalizeFilter only lists 18 mainland districts",
+    "CreateVenueRequest.isValidVenueLocation rejects non-mainland coordinates",
+    "ck_venue_address_or_mainland_gps blocks GPS-only island addresses",
+    "OSM import DTO and import scripts assume mainland boundaries"
+  ],
+  "venues": [
+    {
+      "sourceId": "AZ-SM-LARANJEIRAS",
+      "name": "Complexo Desportivo das Laranjeiras",
+      "city": "Ponta Delgada",
+      "district": "Açores",
+      "address": "Rua José Maria Caetano de Matos, s/n, 9500-116 Ponta Delgada",
+      "sports": [
+        "Atletismo"
+      ],
+      "venueType": "Complexo desportivo",
+      "sourceUrls": [
+        "https://portal.azores.gov.pt/web/drd/servi%C3%A7os-de-desporto-de-ilha",
+        "https://jo.azores.gov.pt/api/public/jornal/pdfOriginal?ano=2026&numeroJornal=100&serieId=e5b1fb74-7a34-4d76-925a-10f088b27490&suplemento=0"
+      ],
+      "evidenceScope": "Government of Azores confirms complex and postal address; 2026 athletics event at complex. Does not identify precise track coordinates.",
+      "reviewNotes": "Complex includes pavilion/track; do not multiply facilities or promise free access.",
+      "latitude": null,
+      "longitude": null,
+      "contact": null,
+      "currentAccessConfirmed": false,
+      "approvedForImport": false
+    },
+    {
+      "sourceId": "AZ-SM-SIDONIO-SERPA",
+      "name": "Pavilhão Desportivo Sidónio Serpa",
+      "city": "Ponta Delgada",
+      "district": "Açores",
+      "address": "Rua da Juventude, 9500-211 Ponta Delgada",
+      "sports": [],
+      "venueType": "Pavilhão desportivo",
+      "sourceUrls": [
+        "https://www.cm-pontadelgada.pt/cmpontadelgada/uploads/writer_file/document/1434/plano_municipal_de_juventude_2022_2026_final.pdf",
+        "https://clubes.fpx.pt/provas/regulamentos/ACO_2025_CDE.pdf"
+      ],
+      "evidenceScope": "Municipal youth plan names pavilion; Portuguese Chess Federation competition identifies the postal location. Pavilions' full sport list unverified.",
+      "reviewNotes": "Check whether same complex as Lajedo and confirm independent searchable pavilion identity.",
+      "latitude": null,
+      "longitude": null,
+      "contact": null,
+      "currentAccessConfirmed": false,
+      "approvedForImport": false
+    },
+    {
+      "sourceId": "MD-FUNCHAL-PISCINAS-OLIMPICAS",
+      "name": "Complexo de Piscinas Olímpicas do Funchal",
+      "city": "Funchal",
+      "district": "Madeira",
+      "address": "Beco dos Álamos, Santo António, Funchal",
+      "sports": [
+        "Natação",
+        "Polo Aquático"
+      ],
+      "venueType": "Complexo desportivo",
+      "sourceUrls": [
+        "https://www.madeira.gov.pt/draescolar/pesquisar/ctl/ReadInformcao/mid/2173/InformacaoId/66482/UnidadeOrganicaId/30/LiveSearch/Levada%20Pico%20Castelo"
+      ],
+      "evidenceScope": "Madeira Regional Sports Directorate page (2020) identifies venue, address, swimming and water polo.",
+      "reviewNotes": "Official page is from 2020; current opening and access-by-booking require fresh checking.",
+      "latitude": null,
+      "longitude": null,
+      "contact": null,
+      "currentAccessConfirmed": false,
+      "approvedForImport": false
+    },
+    {
+      "sourceId": "MD-CAMARA-ESTREITO-MARCOS-FREITAS",
+      "name": "Pavilhão Gimnodesportivo do Estreito de Câmara de Lobos – Marcos Freitas",
+      "city": "Câmara de Lobos",
+      "district": "Madeira",
+      "address": "Rua das Vinhas, 9325-051 Estreito de Câmara de Lobos",
+      "sports": [
+        "Basquetebol",
+        "Voleibol",
+        "Andebol",
+        "Ténis de Mesa",
+        "Futsal"
+      ],
+      "venueType": "Pavilhão desportivo",
+      "sourceUrls": [
+        "https://www.madeira.gov.pt/srs/Pesquisar/ctl/ReadInformcao/mid/686/InformacaoId/246084/UnidadeOrganicaId/30/LiveSearch/tenente-coronel%20Marco%20Paulo%20Pereira%20Nunes",
+        "https://www.madeira.gov.pt/srfinancas/Pesquisar/ctl/ReadInformcao/mid/5325/InformacaoId/252017/UnidadeOrganicaId/50/LiveSearch/Pavilh%C3%A3o%20Gimnodesportivo"
+      ],
+      "evidenceScope": "Madeira DRD venue record (2025) confirms address/sports; regional government 2026 document confirms facility identity.",
+      "reviewNotes": "Subject to operator scheduling/fees; do not infer ability to book through Jynlo.",
+      "latitude": null,
+      "longitude": null,
+      "contact": null,
+      "currentAccessConfirmed": false,
+      "approvedForImport": false
+    },
+    {
+      "sourceId": "MD-CAMARA-RIBEIRO-REAL",
+      "name": "Campo de Futebol do Ribeiro Real",
+      "city": "Câmara de Lobos",
+      "district": "Madeira",
+      "address": "Caminho Doutor João Henrique Pereiro, Sítio do Ribeiro Real, Câmara de Lobos",
+      "sports": [
+        "Futebol"
+      ],
+      "venueType": "Campo de futebol",
+      "sourceUrls": [
+        "https://www.madeira.gov.pt/srtc/Pesquisar/ctl/ReadInformcao/mid/5346/InformacaoId/246085/UnidadeOrganicaId/30/LiveSearch/Ribeiro%20da%20Corujeira"
+      ],
+      "evidenceScope": "Madeira regional sports directory (2025) describes football pitch, synthetic surface and road.",
+      "reviewNotes": "Site may have restricted timetable and scheduled activities.",
+      "latitude": null,
+      "longitude": null,
+      "contact": null,
+      "currentAccessConfirmed": false,
+      "approvedForImport": false
+    },
+    {
+      "sourceId": "MD-CAMARA-CURRAL-POOL",
+      "name": "Piscina do Curral das Freiras",
+      "city": "Câmara de Lobos",
+      "district": "Madeira",
+      "address": "Sítio da Achada 56, Curral das Freiras, Câmara de Lobos",
+      "sports": [
+        "Natação"
+      ],
+      "venueType": "Piscina",
+      "sourceUrls": [
+        "https://www.madeira.gov.pt/gsre/pesquisar/ctl/ReadInformcao/mid/3298/InformacaoId/249661/UnidadeOrganicaId/30/LiveSearch/Curral%20da%20Freiras"
+      ],
+      "evidenceScope": "Madeira regional sports information updated September 2025 identifies pool, street/number and swimming.",
+      "reviewNotes": "Booking/fees may apply; users should not be promised free or automatic access.",
+      "latitude": null,
+      "longitude": null,
+      "contact": null,
+      "currentAccessConfirmed": false,
+      "approvedForImport": false
+    }
+  ]
+}
