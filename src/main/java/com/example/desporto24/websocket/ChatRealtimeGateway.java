@@ -324,6 +324,35 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         } catch (RuntimeException ignored) { }
     }
 
+    /** Server-side call state only: no LiveKit token or secret goes over the socket. */
+    public void publishDirectCallEvent(String caller, String peer, String callId,
+            String media, String state, String actor, java.time.Instant expiresAt) {
+        if (caller == null || peer == null || callId == null) return;
+        try {
+            var details = objectMapper.createObjectNode()
+                    .put("callId", callId)
+                    .put("caller", caller)
+                    .put("peer", peer)
+                    .put("media", media)
+                    .put("status", state)
+                    .put("actor", actor)
+                    .put("expiresAt", expiresAt.toString());
+            String wire = objectMapper.createObjectNode()
+                    .put("type", "DIRECT_CALL_EVENT")
+                    .set("call", details).toString();
+            for (String username : Set.of(caller, peer)) {
+                Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+                if (sockets == null) continue;
+                for (WebSocketSession socket : sockets) {
+                    if (!socket.isOpen()) continue;
+                    try { send(socket, wire); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // An unavailable recipient cannot fail the authenticated HTTP request.
+        }
+    }
+
     /**
      * Guard both outgoing private events and incoming chat control frames.
      * Authentication at handshake time alone does not revoke already-open sockets
