@@ -33,7 +33,7 @@ import java.util.Set;
 public class VenueEditSuggestionService {
     private static final Set<String> EDITABLE = Set.of(
             "name", "city", "district", "address", "sports",
-            "openingHours", "website", "contact");
+            "openingHours", "website", "contact", "latitude", "longitude");
     private static final Set<String> DISTRICTS = Set.of(
             "Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra",
             "Évora", "Faro", "Guarda", "Leiria", "Lisboa", "Portalegre",
@@ -66,6 +66,11 @@ public class VenueEditSuggestionService {
                 venueId, username, VenueEditSuggestion.Status.PENDING)) {
             throw bad(HttpStatus.CONFLICT, "Já tens uma alteração deste recinto em análise");
         }
+        boolean submittedLatitude = request.changes().containsKey("latitude");
+        boolean submittedLongitude = request.changes().containsKey("longitude");
+        if (submittedLatitude != submittedLongitude) {
+            throw bad(HttpStatus.BAD_REQUEST, "Latitude e longitude têm de ser propostas juntas");
+        }
         Map<String, String> before = new LinkedHashMap<>();
         Map<String, String> after = new LinkedHashMap<>();
         for (var entry : request.changes().entrySet()) {
@@ -80,8 +85,20 @@ public class VenueEditSuggestionService {
                 after.put(field, proposed);
             }
         }
+        // Retain BOTH members of an edited GPS point in the audit and optimistic
+        // concurrency check, even if just one numeric component actually changed.
+        boolean gpsChange = submittedLatitude && (after.containsKey("latitude") || after.containsKey("longitude"));
+        if (gpsChange) {
+            for (String field : Set.of("latitude", "longitude")) {
+                before.put(field, value(venue, field));
+                after.put(field, validate(field, request.changes().get(field)));
+            }
+        }
         if (after.isEmpty()) throw bad(HttpStatus.BAD_REQUEST, "Nenhuma alteração efetiva");
         String sourceUrl = validateSourceUrl(request.sourceUrl());
+        if (gpsChange && sourceUrl == null) {
+            throw bad(HttpStatus.BAD_REQUEST, "Indica a fonte HTTPS das coordenadas e confirma o recinto exato");
+        }
         if (after.containsKey("contact") && !after.get("contact").isBlank() && sourceUrl == null) {
             throw bad(HttpStatus.BAD_REQUEST, "Indica a ligação HTTPS da fonte pública do contacto");
         }
@@ -153,15 +170,19 @@ public class VenueEditSuggestionService {
             }
             validate(field, proposed.get(field));
         }
-        // Every contact publication needs BOTH an evidence link and an explicit
-        // server-side attestation by the authenticated ADMIN/SUPER_ADMIN.
-        // A browser checkbox alone is bypassable by a direct API call.
-        if (proposed.containsKey("contact") && !proposed.get("contact").isBlank()) {
+        // GPS points must be proposed as one atomic point, never only one axis.
+        boolean gpsChange = proposed.containsKey("latitude") || proposed.containsKey("longitude");
+        if (gpsChange && !(proposed.containsKey("latitude") && proposed.containsKey("longitude"))) {
+            throw bad(HttpStatus.BAD_REQUEST, "Proposta GPS incompleta");
+        }
+        // Every new contact or GPS point needs verifiable evidence plus an
+        // explicit authenticated moderator attestation; never trust a UI checkbox alone.
+        if ((proposed.containsKey("contact") && !proposed.get("contact").isBlank()) || gpsChange) {
             if (validateSourceUrl(proposal.getSourceUrl()) == null) {
-                throw bad(HttpStatus.BAD_REQUEST, "Contacto sem fonte HTTPS; rejeita e pede nova proposta");
+                throw bad(HttpStatus.BAD_REQUEST, "Fonte HTTPS em falta para contacto ou GPS");
             }
             if (!sourceReviewed) {
-                throw bad(HttpStatus.BAD_REQUEST, "Confirma a verificação da fonte antes de aprovar o contacto");
+                throw bad(HttpStatus.BAD_REQUEST, "Confirma a verificação da fonte antes de aprovar contacto ou GPS");
             }
         }
         proposed.forEach((field, value) -> setValue(venue, field, value));
@@ -171,9 +192,8 @@ public class VenueEditSuggestionService {
         Instant reviewInstant = Instant.now();
         proposal.setReviewedAt(reviewInstant);
         // Persist only a positive authenticated moderator declaration.
-        // Contact removals and approvals of unrelated fields do not claim
-        // that a contact source was reviewed.
-        if (proposed.containsKey("contact") && !proposed.get("contact").isBlank()) {
+        // Ordinary edits and contact removals never claim evidence verification.
+        if ((proposed.containsKey("contact") && !proposed.get("contact").isBlank()) || gpsChange) {
             proposal.setSourceReviewConfirmedAt(reviewInstant);
         }
         proposal.setDecisionNote(cleanNote(note));
@@ -219,6 +239,24 @@ public class VenueEditSuggestionService {
         if (value.length() > limit) throw bad(HttpStatus.BAD_REQUEST, "Valor demasiado longo");
         if (value.isBlank() && !Set.of("openingHours", "website", "contact").contains(field)) {
             throw bad(HttpStatus.BAD_REQUEST, "Este campo não pode ficar vazio");
+        }
+        if ("latitude".equals(field) || "longitude".equals(field)) {
+            // Seven decimals max, dot separator, finite and within a generous
+            // Portugal bounding envelope (includes Açores and Madeira).
+            if (!value.matches("-?(?:0|[1-9][0-9]{0,2})(?:\\.[0-9]{1,7})?")) {
+                throw bad(HttpStatus.BAD_REQUEST, "Coordenada decimal inválida");
+            }
+            double coordinate;
+            try { coordinate = Double.parseDouble(value); }
+            catch (NumberFormatException exception) {
+                throw bad(HttpStatus.BAD_REQUEST, "Coordenada decimal inválida");
+            }
+            if (!Double.isFinite(coordinate)
+                    || ("latitude".equals(field) && (coordinate < 32 || coordinate > 43))
+                    || ("longitude".equals(field) && (coordinate < -32 || coordinate > -6))) {
+                throw bad(HttpStatus.BAD_REQUEST, "Coordenada fora da área geográfica suportada");
+            }
+            return Double.toString(coordinate);
         }
         if ("district".equals(field) && !DISTRICTS.contains(value)) {
             throw bad(HttpStatus.BAD_REQUEST, "Distrito inválido");
@@ -275,6 +313,8 @@ public class VenueEditSuggestionService {
             case "openingHours" -> venue.getOpeningHours();
             case "website" -> venue.getWebsite();
             case "contact" -> venue.getContact();
+            case "latitude" -> venue.getLatitude() == null ? null : Double.toString(venue.getLatitude());
+            case "longitude" -> venue.getLongitude() == null ? null : Double.toString(venue.getLongitude());
             default -> throw bad(HttpStatus.BAD_REQUEST, "Campo não editável");
         };
     }
@@ -290,6 +330,8 @@ public class VenueEditSuggestionService {
             case "openingHours" -> venue.setOpeningHours(value);
             case "website" -> venue.setWebsite(value);
             case "contact" -> venue.setContact(value);
+            case "latitude" -> venue.setLatitude(Double.parseDouble(input));
+            case "longitude" -> venue.setLongitude(Double.parseDouble(input));
             default -> throw bad(HttpStatus.BAD_REQUEST, "Campo não editável");
         }
     }
