@@ -329,6 +329,21 @@ public class CommunityController {
         }
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/official-positions")
+    public ResponseEntity<CommunityTrackSprintIncidentDtos.View> ratifySprintIncidentPositions(
+            @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,
+            @PathVariable Long incidentId,
+            @RequestBody @Valid CommunityTrackSprintIncidentDtos.RatifyIncidentPositions request,
+            Authentication auth) {
+        try {
+            return ResponseEntity.ok(competitionService.ratifySprintIncidentPositions(
+                    id,seasonId,bracketId,incidentId,auth.getName(),request));
+        } catch(IllegalArgumentException invalid) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,invalid.getMessage(),invalid);
+        }
+    }
+
     @PutMapping("/{id}/seasons/{seasonId}/track-sprint-brackets/{bracketId}/incidents/{incidentId}/neutral-restart")
     public ResponseEntity<CommunityTrackSprintIncidentDtos.View> authorizeNeutralSprintRestart(
             @PathVariable Long id,@PathVariable Long seasonId,@PathVariable Long bracketId,

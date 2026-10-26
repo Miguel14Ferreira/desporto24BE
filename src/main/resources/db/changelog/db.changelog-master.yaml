@@ -245,4 +245,6 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-26-sprint-incident-decision-type-length.yaml
   - include:
+      file: db/changelog/changes/2026-10-26-sprint-incident-final-positions.yaml
+  - include:
       file: db/changelog/changes/2026-10-25-inline-speed-trial-order-audit-v1.yaml

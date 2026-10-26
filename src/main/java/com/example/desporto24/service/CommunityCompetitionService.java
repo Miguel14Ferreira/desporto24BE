@@ -631,7 +631,8 @@ public class CommunityCompetitionService {
         Map<String,String> awarded=new HashMap<>();
         for (CommunityTrackSprintIncident incident:
                 trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
-            boolean single="OFFICIAL_HEAT_AWARDED".equals(incident.getStatus())
+            boolean single=Set.of("OFFICIAL_HEAT_AWARDED","OFFICIAL_POSITIONS")
+                    .contains(incident.getStatus())
                     &&!incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)");
             boolean series="OFFICIAL_SERIES_AWARDED".equals(incident.getStatus())
                     &&incident.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)")
@@ -653,9 +654,15 @@ public class CommunityCompetitionService {
     private Map<String,Map<Integer,String>> sprintBo3OfficialHeats(Long bracketId) {
         Map<String,Map<Integer,String>> awardMap=new HashMap<>();
         for(var i:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId)) {
-            if(!"OFFICIAL_HEAT_AWARDED".equals(i.getStatus())
+            if(!Set.of("OFFICIAL_HEAT_AWARDED","OFFICIAL_POSITIONS")
+                    .contains(i.getStatus())
                     ||!i.getSeriesKey().matches("SP[0-9]+-(Q[1-4]|S[1-2]|B|G)"))continue;
-            if(!"RELEGATION".equals(i.getSanctionType())||i.getAwardWinner()==null
+            if(("OFFICIAL_HEAT_AWARDED".equals(i.getStatus())
+                        &&!"RELEGATION".equals(i.getSanctionType()))
+                    ||("OFFICIAL_POSITIONS".equals(i.getStatus())
+                        &&(i.getSanctionType()!=null
+                            ||decodeRerunRiders(i.getOfficialPositionsJson()).size()!=2))
+                    ||i.getAwardWinner()==null
                     ||i.getHeatNumber()<1||i.getHeatNumber()>3)
                 throw new IllegalStateException("Decisão BO3 sem evidência regulamentar");
             var values=awardMap.computeIfAbsent(i.getSeriesKey(),ignored->new HashMap<>());
@@ -690,7 +697,8 @@ public class CommunityCompetitionService {
                 decodeRerunRiders(i.getRerunRidersJson()),i.getRerunReference(),
                 i.getRerunReason(),i.getRerunAuthorizedBy(),i.getRerunAuthorizedAt(),
                 i.getAwardWinner(),i.getAwardReference(),i.getAwardReason(),
-                i.getAwardConfirmedBy(),i.getAwardConfirmedAt());
+                i.getAwardConfirmedBy(),i.getAwardConfirmedAt(),
+                decodeRerunRiders(i.getOfficialPositionsJson()));
     }
 
     /**
@@ -841,6 +849,104 @@ public class CommunityCompetitionService {
         incident.setDecisionReference(request.reference().trim());
         incident.setDecidedBy(username);
         incident.setDecidedAt(Instant.now());
+        return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
+    }
+
+    /**
+     * UCI 3.2.048(1-2). The panel may declare the riders' actual positions
+     * at the time of a neutral incident final. The organiser transcribes a
+     * second, independently referenced panel record; this is NOT a race and
+     * no CommunityRound or fictitious finishing time is inserted.
+     * All prior incident, decision, and raced-heat history is left intact.
+     */
+    public CommunityTrackSprintIncidentDtos.View ratifySprintIncidentPositions(
+            Long communityId,Long seasonId,Long bracketId,Long incidentId,
+            String username,CommunityTrackSprintIncidentDtos.RatifyIncidentPositions request) {
+        requireAdmin(communityId,profile(username));
+        var season=seasonRepository.lockByIdAndCommunityId(seasonId,communityId)
+                .orElseThrow(()->new IllegalArgumentException("Época não encontrada"));
+        if(!season.isActive())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Época encerrada");
+        var bracket=trackSprintBracketRepository
+                .findByIdAndCommunityIdAndSeasonId(bracketId,communityId,seasonId)
+                .orElseThrow(()->new IllegalArgumentException("Quadro não pertence à época"));
+        if(!"OLYMPIC_TWENTY_FOUR_REPECHAGE".equals(bracket.getFormat())
+                ||bracket.getInterruptionStage()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Homologação apenas no Sprint olímpico 24 não interrompido");
+        var incident=trackSprintIncidentRepository.findById(incidentId)
+                .filter(i->i.getBracket().getId().equals(bracketId))
+                .orElseThrow(()->new IllegalArgumentException("Incidente não pertence ao quadro"));
+        if(!"POSITIONS_PENDING".equals(incident.getStatus())
+                ||!"OFFICIAL_RESULT_TO_RECORD".equals(incident.getDecisionType())
+                ||!Set.of("FALL","PUNCTURE","BICYCLE_DEFECT")
+                    .contains(incident.getIncidentType()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Só posições decididas pelo colégio e ainda pendentes podem ser homologadas");
+        if(request==null||!Boolean.TRUE.equals(request.panelPositionsConfirmed())
+                ||request.orderedRiders()==null||request.orderedRiders().size()!=2
+                ||!validOfficialReference(request.reference())
+                ||!validOfficialReason(request.reason())
+                ||request.reference().trim().equals(incident.getDecisionReference())
+                ||incident.getSanctionType()!=null||incident.getSanctionedUsername()!=null)
+            throw new IllegalArgumentException(
+                    "Exige segunda ata distinta, confirmação e as posições oficiais dos dois ciclistas");
+        String series=incident.getSeriesKey();
+        if(!series.matches("SP"+bracketId+"-(A(?:[1-9]|1[0-2])|C[1-8]|E[1-6]|Q[1-4]|S[1-2]|B|G)"))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Homologação multi-ciclista exige procedimento separado");
+        rejectReviewedSprintProgression(bracketId,series);
+        String slot=series.substring(series.lastIndexOf('-')+1);
+        assertNoReviewedDescendants(communityId,seasonId,bracketId,slot);
+        var related=roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(
+                communityId,seasonId).stream()
+                .filter(r->Set.of("TRACK_SPRINT_HEAT","TRACK_SPRINT_REPECHAGE",
+                        "TRACK_SPRINT_5_8").contains(r.getEventType()))
+                .map(r->roundResponse(r,acceptedAliasProfiles(communityId))).toList();
+        var match=trackSprintBracketResponse(bracket,related).matches().stream()
+                .filter(m->series.equals(m.seriesKey())).findFirst()
+                .orElseThrow(()->new IllegalArgumentException("Confronto não encontrado"));
+        if(!Set.of("READY","IN_PROGRESS").contains(match.status())
+                ||match.winner()!=null||match.riderA()==null||match.riderB()==null
+                ||match.riderC()!=null||match.riderD()!=null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A homologação exige exatamente dois ciclistas e confronto incompleto");
+        List<String> official=new ArrayList<>();
+        for(var rider:request.orderedRiders()) {
+            if(rider==null||rider.isBlank())
+                throw new IllegalArgumentException("Identifica os dois ciclistas");
+            official.add(rider.trim().toLowerCase(Locale.ROOT));
+        }
+        if(official.get(0).equals(official.get(1))
+                ||!Set.copyOf(official).equals(Set.of(match.riderA(),match.riderB())))
+            throw new IllegalArgumentException(
+                    "A ata tem de ordenar apenas os dois ciclistas deste confronto");
+        int existing=(int)related.stream().filter(r->series.equals(r.sprintSeriesKey())).count();
+        int awarded=sprintBo3OfficialHeats(bracketId).getOrDefault(series,Map.of()).size();
+        if(incident.getHeatNumber()!=existing+awarded+1
+                ||incident.getHeatNumber()>3
+                ||related.stream().anyMatch(r->series.equals(r.sprintSeriesKey())
+                        &&incident.getHeatNumber()==r.sprintHeatNumber()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A posição oficial só pode substituir a próxima manga ainda não disputada");
+        for(var i:trackSprintIncidentRepository.findByBracketIdOrderByIdAsc(bracketId))
+            if(!i.getId().equals(incidentId)&&series.equals(i.getSeriesKey())
+                    &&i.getHeatNumber()==incident.getHeatNumber()
+                    &&Set.of("OFFICIAL_POSITIONS","OFFICIAL_HEAT_AWARDED",
+                            "OFFICIAL_SERIES_AWARDED").contains(i.getStatus()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Já existe resultado oficial para esta manga");
+        try {
+            incident.setOfficialPositionsJson(SPRINT_TIE_MAPPER.writeValueAsString(official));
+        } catch(com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("Não foi possível registar posições oficiais",e);
+        }
+        incident.setAwardWinner(official.get(0));
+        incident.setAwardReference(request.reference().trim());
+        incident.setAwardReason(request.reason().trim());
+        incident.setAwardConfirmedBy(username);
+        incident.setAwardConfirmedAt(Instant.now());
+        incident.setStatus("OFFICIAL_POSITIONS");
         return sprintIncidentResponse(trackSprintIncidentRepository.save(incident));
     }
 
