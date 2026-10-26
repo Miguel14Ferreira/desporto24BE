@@ -75,6 +75,11 @@ public class CommunityTrackSprintIncident {
     @Column(name="rerun_authorized_at")
     private Instant rerunAuthorizedAt;
 
+    // Declared panel placing at the instant of a no-fault incident, not
+    // a physical heat. Two ordered rider identities are stored separately.
+    @Column(name="official_positions_json",columnDefinition="TEXT")
+    private String officialPositionsJson;
+
     // A separate official award of a single two-up heat, never a raced result.
     @Column(name="award_winner", length=100)
     private String awardWinner;
