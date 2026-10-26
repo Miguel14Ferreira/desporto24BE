@@ -577,6 +577,83 @@ class CommunityTrackSprintAuthenticatedPgIT {
                     rider(originalPlacings.get(1),"WIN"),
                     rider(originalPlacings.get(0),"LOSS"))),400);
 
+        // Unintentional-fault fall under UCI 3.2.048(1): the rider NOT
+        // at fault chooses their own starting position. Neither the ruling
+        // nor the selected position can fabricate a raced result.
+        var faultBracket=api("POST",brackets(activeSeason),ownerJwt,Map.of(
+                "name","Fictional unintentional fall start choice",
+                "format","OLYMPIC_TWENTY_FOUR_REPECHAGE",
+                "qualifyingRoundId",qual),200);
+        long faultBracketId=faultBracket.path("id").asLong();
+        String faultSeries="SP"+faultBracketId+"-A1";
+        JsonNode faultMatch=faultBracket.path("matches").get(0);
+        String faultRider=faultMatch.path("riderA").asText();
+        String nonFaultRider=faultMatch.path("riderB").asText();
+        String faultIncidents=brackets(activeSeason)+"/"+faultBracketId+"/incidents";
+        var fallReported=api("POST",faultIncidents,ownerJwt,Map.of(
+                "seriesKey",faultSeries,"heatNumber",1,"incidentType","FALL",
+                "details","Fictional competitor unintentionally causes a fall during a bend"),200);
+        String faultBase=faultIncidents+"/"+fallReported.path("id").asLong();
+        var finding=Map.of("decisionType","UNINTENTIONAL_FALL",
+                "reference","First panel ruling on unintended fall #2026-901",
+                "reason","Panel documents accidental fault and orders a repeat of this two-up heat");
+        api("PUT",faultBase+"/decision",memberJwt,finding,403);
+        var faultDecided=api("PUT",faultBase+"/decision",ownerJwt,finding,200);
+        assertEquals("FAULT_START_PENDING",faultDecided.path("status").asText());
+        api("PUT",faultBase+"/decision",ownerJwt,finding,409);
+        Map<String,Object> physicalAfterFault=Map.of(
+            "name","Not yet authorized race after accidental fall",
+            "playedAt",Instant.now().toString(),
+            "sport",sport,"eventType","TRACK_SPRINT_HEAT",
+            "eventDiscipline","SPRINT_THIRTY_SECOND_FINAL",
+            "sprintSeriesKey",faultSeries,"sprintHeatNumber",1,
+            "entries",List.of(rider(faultRider,"WIN"),rider(nonFaultRider,"LOSS")));
+        api("POST",community()+"/rounds",ownerJwt,physicalAfterFault,409);
+        String faultStartUrl=faultBase+"/unintentional-fall-start";
+        Map<String,Object> startChoice=new HashMap<>(Map.of(
+                "faultRider",faultRider,"nonFaultRider",nonFaultRider,
+                "nonFaultStartPosition","OUTSIDE","nonFaultChoiceConfirmed",true,
+                "reference","Independent victim choice record #2026-902",
+                "reason","Rider not at fault expressly chooses outside starting position"));
+        api("PUT",faultStartUrl,memberJwt,startChoice,403);
+        Map<String,Object> badChoice=new HashMap<>(startChoice);
+        badChoice.put("nonFaultChoiceConfirmed",false);
+        api("PUT",faultStartUrl,ownerJwt,badChoice,400);
+        badChoice.put("nonFaultChoiceConfirmed",true);
+        badChoice.put("nonFaultStartPosition","MIDDLE");
+        api("PUT",faultStartUrl,ownerJwt,badChoice,400);
+        badChoice.put("nonFaultStartPosition","INSIDE");
+        badChoice.put("nonFaultRider",faultRider);
+        api("PUT",faultStartUrl,ownerJwt,badChoice,400);
+        badChoice.put("nonFaultRider",nonFaultRider);
+        badChoice.put("faultRider","not_a_participant");
+        api("PUT",faultStartUrl,ownerJwt,badChoice,400);
+        badChoice.put("faultRider",faultRider);
+        badChoice.put("reference","First panel ruling on unintended fall #2026-901");
+        api("PUT",faultStartUrl,ownerJwt,badChoice,400);
+        var authorised=api("PUT",faultStartUrl,ownerJwt,startChoice,200);
+        assertEquals("FAULT_START_OK",authorised.path("status").asText());
+        assertEquals(faultRider,authorised.path("fallFaultRider").asText());
+        assertEquals(nonFaultRider,authorised.path("fallNonFaultRider").asText());
+        assertEquals("OUTSIDE",authorised.path("fallChosenStartPosition").asText());
+        assertEquals(faultRider,authorised.path("rerunRiders").get(0).asText());
+        assertEquals(nonFaultRider,authorised.path("rerunRiders").get(1).asText());
+        assertEquals("fixture_sprint_owner",authorised.path("rerunAuthorizedBy").asText());
+        api("PUT",faultStartUrl,ownerJwt,startChoice,409);
+        assertTrue(rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                group,activeSeason,faultSeries).isEmpty());
+        JsonNode beforeFaultRace=null;
+        for(JsonNode b:api("GET",brackets(activeSeason),memberJwt,null,200))
+            if(b.path("id").asLong()==faultBracketId)
+                for(JsonNode m:b.path("matches"))
+                    if("A1".equals(m.path("slot").asText()))beforeFaultRace=m;
+        assertNotNull(beforeFaultRace);
+        assertEquals("READY",beforeFaultRace.path("status").asText());
+        assertTrue(beforeFaultRace.path("winner").isNull());
+        api("POST",community()+"/rounds",ownerJwt,physicalAfterFault,200);
+        assertEquals(1,rounds.findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
+                group,activeSeason,faultSeries).size());
+
         // Official disciplinary documentation must NEVER create a winner.
         // A warning is auditable and allows manual result entry; DQ/relegation
         // stays blocked because the entrants/bracket composition can change.

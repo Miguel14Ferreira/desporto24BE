@@ -59,6 +59,17 @@ public class CommunityTrackSprintIncident {
     private String sanctionedUsername;
 
 
+    // UCI 3.2.048(1): the rider not at fault chooses inside/outside.
+    // These are human-transcribed facts, not a race result.
+    @Column(name="fall_fault_rider",length=100)
+    private String fallFaultRider;
+
+    @Column(name="fall_non_fault_rider",length=100)
+    private String fallNonFaultRider;
+
+    @Column(name="fall_chosen_start_position",length=8)
+    private String fallChosenStartPosition;
+
     // Explicit subsequent restart order: never change the original ruling.
     @Column(name="rerun_riders_json",columnDefinition="TEXT")
     private String rerunRidersJson;
