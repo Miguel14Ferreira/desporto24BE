@@ -59,7 +59,13 @@ jobs:
             changing_rooms BOOLEAN NOT NULL DEFAULT FALSE,
             parking BOOLEAN NOT NULL DEFAULT FALSE, lighting BOOLEAN NOT NULL DEFAULT FALSE,
             created_at TIMESTAMPTZ NOT NULL,
-            CONSTRAINT uk_venue_source_reference UNIQUE (information_source, source_reference)
+            CONSTRAINT uk_venue_source_reference UNIQUE (information_source, source_reference),
+            CONSTRAINT ck_venue_address_or_mainland_gps CHECK (
+              NULLIF(BTRIM(address), '') IS NOT NULL
+              OR (latitude IS NOT NULL AND longitude IS NOT NULL
+                  AND latitude BETWEEN 36.8 AND 42.3
+                  AND longitude BETWEEN -9.6 AND -6.0)
+            )
           );
           SQL
       - name: Double-run SQL draft (idempotent and contact optional)
@@ -80,8 +86,9 @@ jobs:
             END IF;
             IF NOT EXISTS (SELECT 1 FROM desporto24.venue
                            WHERE name = 'Complexo de Piscinas Municipais de Alcains'
-                             AND address IS NULL AND environment_type='BOTH') THEN
-              RAISE EXCEPTION 'Unknown Alcains street must not be invented';
+                             AND address = 'Estrada de Santa, 6005-000 Alcains'
+                             AND environment_type='BOTH') THEN
+              RAISE EXCEPTION 'Official Alcains street must be retained';
             END IF;
           END $$;
           SQL
@@ -96,7 +103,7 @@ jobs:
             ('Pavilhão Municipal', 'Castelo Branco', 'Castelo Branco',
              'Avenida Rotary, 6000-087 Castelo Branco', 'COMMUNITY', CURRENT_TIMESTAMP),
             ('Piscina Praia de Alcains', 'Alcains', 'Castelo Branco',
-             NULL, 'OPENSTREETMAP', CURRENT_TIMESTAMP);
+             'Estrada de Santa, 6005-000 Alcains', 'OPENSTREETMAP', CURRENT_TIMESTAMP);
           SQL
           psql -X -v ON_ERROR_STOP=1 -f src/main/resources/db/changelog/venue-imports/drafts/2026-10-26-castelo-branco-alcains-DRAFT.sql
           test "$(psql -X -At -c 'SELECT COUNT(*) FROM desporto24.venue')" = "2"
