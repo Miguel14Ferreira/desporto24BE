@@ -20,8 +20,20 @@ public record SessionSummaryResponse(
         SessionAudience audience,
         boolean joinedByViewer,
         boolean waitlistedByViewer,
-        String recurrenceSeriesId
+        String recurrenceSeriesId,
+        Long communityId
 ) {
+    // Preserve older 13-field constructors from services and tests.
+    public SessionSummaryResponse(
+            Long id, String sport, String city, Instant gameDate,
+            Double distanceKm, int participantCount, int maxParticipants,
+            BigDecimal priceAmount, boolean privateGame, SessionStatus status,
+            SessionAudience audience, boolean joinedByViewer,
+            boolean waitlistedByViewer, String recurrenceSeriesId) {
+        this(id, sport, city, gameDate, distanceKm, participantCount, maxParticipants,
+             priceAmount, privateGame, status, audience, joinedByViewer,
+             waitlistedByViewer, recurrenceSeriesId, null);
+    }
     public SessionSummaryResponse(
             Long id,
             String sport,

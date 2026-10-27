@@ -10,6 +10,7 @@ import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.session.SessionCommunityShareRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class CommunitySessionServiceTest {
         ProfileRepository profiles = mock(ProfileRepository.class);
         SessionRepository sessions = mock(SessionRepository.class);
         SessionViewMapper mapper = mock(SessionViewMapper.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
 
         Profile viewer = new Profile();
         viewer.setId(7L);
@@ -47,9 +49,10 @@ class CommunitySessionServiceTest {
         when(communities.findById(10L)).thenReturn(Optional.of(community));
         when(sessions.findByCommunityIdOrderByGameDateDesc(10L))
                 .thenReturn(List.of(exclusiveSession, legacySession, publicSession));
+        when(shares.sessionsSharedWithCommunity(10L)).thenReturn(List.of());
 
         CommunitySessionService service = new CommunitySessionService(
-                communities, members, profiles, sessions, mapper);
+                communities, members, profiles, sessions, shares, mapper);
 
         assertEquals(1, service.sessions(10L, "viewer").size());
         verify(mapper).toSummary(same(publicSession), isNull(), same(viewer));
@@ -63,6 +66,7 @@ class CommunitySessionServiceTest {
         ProfileRepository profiles = mock(ProfileRepository.class);
         SessionRepository sessions = mock(SessionRepository.class);
         SessionViewMapper mapper = mock(SessionViewMapper.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
 
         Profile viewer = new Profile();
         viewer.setId(7L);
@@ -77,14 +81,43 @@ class CommunitySessionServiceTest {
         when(members.existsByCommunityIdAndProfileId(10L, 7L)).thenReturn(true);
         when(sessions.findByCommunityIdOrderByGameDateDesc(10L))
                 .thenReturn(List.of(exclusiveSession, legacySession));
+        when(shares.sessionsSharedWithCommunity(10L)).thenReturn(List.of());
 
         CommunitySessionService service = new CommunitySessionService(
-                communities, members, profiles, sessions, mapper);
+                communities, members, profiles, sessions, shares, mapper);
 
         assertEquals(2, service.sessions(10L, "viewer").size());
         verify(mapper).toSummary(same(exclusiveSession), isNull(), same(viewer));
         verify(mapper).toSummary(same(legacySession), isNull(), same(viewer));
         verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
+    void aPublicSessionSharedWithSeveralCommunitiesAppearsOncePerCommunity() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        SessionRepository sessions = mock(SessionRepository.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
+        SessionViewMapper mapper = mock(SessionViewMapper.class);
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        Community group = Community.builder().id(10L)
+                .visibility(CommunityVisibility.PRIVATE).build();
+        Session publicGame = new Session();
+        publicGame.setId(55L);
+        publicGame.setAudience(SessionAudience.PUBLIC);
+        publicGame.setPrivateGame(false);
+        publicGame.setGameDate(Date.from(Instant.now().plusSeconds(3600)));
+        when(profiles.findUserByUsernameIgnoreCase("viewer")).thenReturn(Optional.of(viewer));
+        when(communities.findById(10L)).thenReturn(Optional.of(group));
+        when(members.existsByCommunityIdAndProfileId(10L, 7L)).thenReturn(true);
+        when(sessions.findByCommunityIdOrderByGameDateDesc(10L)).thenReturn(List.of());
+        when(shares.sessionsSharedWithCommunity(10L)).thenReturn(List.of(publicGame));
+        var service = new CommunitySessionService(
+                communities, members, profiles, sessions, shares, mapper);
+        assertEquals(1,service.sessions(10L,"viewer").size());
+        verify(mapper).toSummary(publicGame,null,viewer);
     }
 
     @Test
@@ -97,6 +130,7 @@ class CommunitySessionServiceTest {
             ProfileRepository profiles = mock(ProfileRepository.class);
             SessionRepository sessions = mock(SessionRepository.class);
             SessionViewMapper mapper = mock(SessionViewMapper.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
 
             Profile actor = new Profile();
             actor.setId(1L);
@@ -117,7 +151,7 @@ class CommunitySessionServiceTest {
             when(sessions.findById(42L)).thenReturn(Optional.of(session));
 
             CommunitySessionService service = new CommunitySessionService(
-                    communities, members, profiles, sessions, mapper);
+                    communities, members, profiles, sessions, shares, mapper);
 
             assertThrows(IllegalStateException.class,
                     () -> service.openToPublic(10L, 42L, "owner"));
@@ -133,6 +167,7 @@ class CommunitySessionServiceTest {
         ProfileRepository profiles = mock(ProfileRepository.class);
         SessionRepository sessions = mock(SessionRepository.class);
         SessionViewMapper mapper = mock(SessionViewMapper.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
         Profile actor = new Profile();
         actor.setId(1L);
         Community group = Community.builder().id(10L).build();
@@ -148,7 +183,7 @@ class CommunitySessionServiceTest {
         when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(game));
         when(sessions.save(game)).thenReturn(game);
 
-        new CommunitySessionService(communities,members,profiles,sessions,mapper)
+        new CommunitySessionService(communities,members,profiles,sessions,shares,mapper)
                 .restrictToMembers(10L,42L,"admin");
 
         assertEquals(SessionAudience.COMMUNITY_ONLY,game.getAudience());
@@ -169,7 +204,7 @@ class CommunitySessionServiceTest {
         when(profiles.findUserByUsernameIgnoreCase("actor")).thenReturn(Optional.of(actor));
         when(members.findByCommunityIdAndProfileId(10L,1L)).thenReturn(Optional.of(membership));
         CommunitySessionService service = new CommunitySessionService(
-                mock(CommunityRepository.class),members,profiles,sessions,mock(SessionViewMapper.class));
+                mock(CommunityRepository.class),members,profiles,sessions,mock(SessionCommunityShareRepository.class),mock(SessionViewMapper.class));
         assertThrows(org.springframework.security.access.AccessDeniedException.class,
                 ()->service.restrictToMembers(10L,42L,"actor"));
         verify(sessions,never()).save(any());
@@ -203,7 +238,9 @@ class CommunitySessionServiceTest {
                     ? Instant.now().minusSeconds(60):Instant.now().plusSeconds(600)));
             when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(game));
             var service = new CommunitySessionService(
-                    mock(CommunityRepository.class),members,profiles,sessions,mock(SessionViewMapper.class));
+                    mock(CommunityRepository.class),members,profiles,sessions,
+                    mock(com.example.desporto24.repository.session.SessionCommunityShareRepository.class),
+                    mock(SessionViewMapper.class));
             assertThrows(IllegalStateException.class,
                     ()->service.restrictToMembers(10L,42L,"owner"));
             assertEquals(SessionAudience.PUBLIC,game.getAudience());

@@ -64,6 +64,7 @@ class SessionMineServiceTest {
                 profileRepository,
                 communityRepository,
                 communityMemberRepository,
+                mock(com.example.desporto24.repository.session.SessionCommunityShareRepository.class),
                 venueRepository,
                 participantRepository,
                 mock(com.example.desporto24.repository.session.SessionGuestRequestRepository.class),

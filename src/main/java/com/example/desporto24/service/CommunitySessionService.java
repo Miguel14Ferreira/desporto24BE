@@ -32,6 +32,7 @@ public class CommunitySessionService {
     private final CommunityMemberRepository memberRepository;
     private final ProfileRepository profileRepository;
     private final SessionRepository sessionRepository;
+    private final com.example.desporto24.repository.session.SessionCommunityShareRepository sessionCommunityShareRepository;
     private final SessionViewMapper sessionViewMapper;
 
     public List<SessionSummaryResponse> sessions(Long communityId, String username) {
@@ -47,9 +48,21 @@ public class CommunitySessionService {
             throw new AccessDeniedException("Não tens acesso a esta comunidade");
         }
 
-        return sessionRepository.findByCommunityIdOrderByGameDateDesc(communityId)
+        // Include cross-posted public sessions in the group's session list.
+        // Existing community-only sessions keep their independent ACL and ranking.
+        java.util.Map<Object, Session> visible = new java.util.LinkedHashMap<>();
+        sessionRepository.findByCommunityIdOrderByGameDateDesc(communityId)
                 .stream()
                 .filter(session -> member || session.getAudience() == SessionAudience.PUBLIC)
+                .forEach(session -> visible.put(session.getId() != null ? session.getId() : session, session));
+        sessionCommunityShareRepository.sessionsSharedWithCommunity(communityId)
+                .stream()
+                .filter(session -> session.getAudience() == SessionAudience.PUBLIC
+                        && !Boolean.TRUE.equals(session.getPrivateGame()))
+                .forEach(session -> visible.putIfAbsent(session.getId() != null ? session.getId() : session, session));
+        return visible.values().stream()
+                .sorted(java.util.Comparator.comparing(Session::getGameDate,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
                 .map(session -> sessionViewMapper.toSummary(session, null, viewer))
                 .toList();
     }

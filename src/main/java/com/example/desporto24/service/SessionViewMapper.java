@@ -64,7 +64,8 @@ public class SessionViewMapper {
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 joinedByViewer,
                 waitlistedByViewer,
-                session.getRecurrenceSeriesId()
+                session.getRecurrenceSeriesId(),
+                session.getCommunity() == null ? null : session.getCommunity().getId()
         );
     }
 
@@ -89,7 +90,8 @@ public class SessionViewMapper {
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 joinedSessionIds.contains(session.getId()),
                 waitlistedSessionIds.contains(session.getId()),
-                session.getRecurrenceSeriesId()
+                session.getRecurrenceSeriesId(),
+                session.getCommunity() == null ? null : session.getCommunity().getId()
         );
     }
 
