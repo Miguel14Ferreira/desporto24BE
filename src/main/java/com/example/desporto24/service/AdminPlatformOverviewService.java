@@ -105,8 +105,11 @@ public class AdminPlatformOverviewService {
             throw new IllegalArgumentException("Filtro de distrito inválido");
         }
         if (onlyWithEvidence) {
-            var ids = java.util.stream.Stream.concat(
-                    GPS_RESEARCH_LEADS.keySet().stream(), java.util.stream.Stream.of(280L, 284L))
+            var ids = java.util.stream.Stream.of(
+                    GPS_RESEARCH_LEADS.keySet().stream(),
+                    GPS_FACILITY_CONTEXT.keySet().stream(),
+                    java.util.stream.Stream.of(280L, 284L))
+                    .flatMap(java.util.function.Function.identity())
                     .distinct().sorted().toList();
             var items = new java.util.ArrayList<VenueGpsReviewItem>();
             for (Venue venue : venues.findAllById(ids)) {
@@ -114,7 +117,8 @@ public class AdminPlatformOverviewService {
                 if (!filter.isEmpty() && !filter.equals(venue.getDistrict())) continue;
                 var item = toGpsReviewItem(venue);
                 if (item.researchCandidate() != null || item.addressReview() != null
-                        || item.possibleDuplicateReview() != null) {
+                        || item.possibleDuplicateReview() != null
+                        || item.facilityContextReview() != null) {
                     items.add(item);
                 }
             }
@@ -137,7 +141,8 @@ public class AdminPlatformOverviewService {
                 venue.getInformationSource() == null ? null : venue.getInformationSource().name(),
                 venue.getInformationSource() == Venue.InformationSource.OFFICIAL
                         ? safeOfficialSourceWebsite(venue.getWebsite()) : null,
-                researchCandidate(venue), addressReview(venue), possibleDuplicateReview(venue));
+                researchCandidate(venue), addressReview(venue), possibleDuplicateReview(venue),
+                facilityContextReview(venue));
     }
 
     /** Source links are research clues only; never imply that the facility GPS was verified. */
@@ -203,6 +208,54 @@ public class AdminPlatformOverviewService {
                             41.17589, -8.59259,
                             "https://www.agoraporto.pt/grandes-campos-municipais/campo-municipal-do-outeiro",
                             "https://mapcarta.com/pt/W1298753441"));
+
+    /**
+     * Previously documented facilities whose identities are supported by primary
+     * municipal sources, but with NO point precise enough for a GPS proposal.
+     * These are strictly contextual review notes and never candidate coordinates.
+     */
+    private static final java.util.Map<Long, CuratedFacilityContext> GPS_FACILITY_CONTEXT =
+            java.util.Map.of(
+                    285L, new CuratedFacilityContext(
+                            "Polidesportivo Municipal do Paço", "Maia", "Porto",
+                            "Rua do Paço, Pedrouços, 4425-678 Maia",
+                            "https://www.cm-maia.pt/viver/desporto/instalacoes-desportivas-car/"
+                                    + "instalacoes-desportivas/poi-37/polidesportivo-municipal-do-paco",
+                            "DISTINCT_MUNICIPAL_SPORTS_VENUES_NO_POINT",
+                            "https://www.cm-maia.pt/viver/desporto/instalacoes-desportivas-car/"
+                                    + "instalacoes-desportivas/poi-37/polidesportivo-municipal-do-paco",
+                            "https://www.cm-maia.pt/desporto/instalacoes-desportivas?pois_list_14_page=4"),
+                    286L, new CuratedFacilityContext(
+                            "Campo de Padel do Fojo", "Mira", "Coimbra",
+                            "Fojo, Seixo de Mira, Mira",
+                            "https://www.cm-mira.pt/node/4084",
+                            "SHARED_COMPLEX_DIFFERENT_SPORTS_NO_POINT",
+                            "https://www.cm-mira.pt/node/4084",
+                            "https://www.cm-mira.pt/node/3308"));
+
+    private record CuratedFacilityContext(
+            String name, String city, String district, String address, String website,
+            String issueCode, String officialSourceUrl, String relatedSourceUrl) {}
+
+    /** No GPS point. Identifies separate facilities that must not share coordinates. */
+    static VenueFacilityContextReview facilityContextReview(Venue venue) {
+        if (venue == null || venue.getId() == null
+                || venue.getLatitude() != null || venue.getLongitude() != null
+                || venue.getInformationSource() != Venue.InformationSource.OFFICIAL) return null;
+        var lead = GPS_FACILITY_CONTEXT.get(venue.getId());
+        if (lead == null || !lead.name().equals(venue.getName())
+                || !lead.city().equals(venue.getCity())
+                || !lead.district().equals(venue.getDistrict())
+                || !lead.address().equals(venue.getAddress())
+                || !lead.website().equals(safeOfficialSourceWebsite(venue.getWebsite()))) {
+            return null;
+        }
+        return new VenueFacilityContextReview(
+                lead.issueCode(), lead.officialSourceUrl(), lead.relatedSourceUrl());
+    }
+
+    public record VenueFacilityContextReview(
+            String issueCode, String officialSourceUrl, String relatedSourceUrl) {}
 
     private record CuratedSiteEvidence(String name, String city, String district,
                                        String addressPart, String storedWebsite,
@@ -307,7 +360,8 @@ public class AdminPlatformOverviewService {
                                      String address, String sourceReference, String informationSource,
                                      String sourceWebsite, VenueGpsResearchCandidate researchCandidate,
                                      VenueAddressReview addressReview,
-                                     VenuePossibleDuplicateReview possibleDuplicateReview) {}
+                                     VenuePossibleDuplicateReview possibleDuplicateReview,
+                                     VenueFacilityContextReview facilityContextReview) {}
     public record VenueGpsReviewPage(List<VenueGpsReviewItem> venues, int page, boolean hasMore) {}
 
     public record VenueDistrictCoverage(
