@@ -58,8 +58,10 @@ public class VenueReverseGeocodeService {
         if (cached != null && cached.expiresAt > now) return cached.result;
         // A small per-process cap avoids turning this interactive UI into an
         // unlimited third-party proxy. Client receives a nonblocking warning.
-        if (nextAllowedMs.getAndUpdate(prev -> Math.max(prev, now) + 1000) > now) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Volta a tentar dentro de alguns segundos");
+        long previous = nextAllowedMs.get();
+        if (previous > now || !nextAllowedMs.compareAndSet(previous, now + 1000)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Volta a tentar dentro de alguns segundos");
         }
         String query = "?lat=" + URLEncoder.encode(Double.toString(latitude), StandardCharsets.UTF_8)
                 + "&lon=" + URLEncoder.encode(Double.toString(longitude), StandardCharsets.UTF_8)
