@@ -107,15 +107,24 @@ public class SessionInviteService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         return invites.findByInviteeIdAndStatusOrderByCreatedAtDesc(actor.getId(), SessionInviteStatus.PENDING)
                 .stream()
-                .map(invite -> new PendingSessionInvite(
-                        invite.getId(),
-                        invite.getSession().getId(),
-                        invite.getInviter().getUsername(),
-                        invite.getCreatedAt()))
-                .toList();
+                .map(invite -> {
+                    Session game = invite.getSession();
+                    // Metadata is scoped to the authenticated invitee; do not disclose
+                    // street addresses, passwords or the participant roster.
+                    int attending = SessionCapacity.totalConfirmed(game,
+                            participants.countBySessionIdAndState(game.getId(), ParticipantState.ACTIVE));
+                    return new PendingSessionInvite(
+                            invite.getId(), game.getId(), invite.getInviter().getUsername(),
+                            invite.getCreatedAt(), game.getSport(), game.getCity(),
+                            game.getGameDate() == null ? null : game.getGameDate().toInstant(),
+                            game.getMaxParticipants(), attending, game.getStatus());
+                }).toList();
     }
 
-    public record PendingSessionInvite(Long id, Long sessionId, String inviterUsername, Instant createdAt) {}
+    public record PendingSessionInvite(
+            Long id, Long sessionId, String inviterUsername, Instant createdAt,
+            String sport, String city, Instant gameDate,
+            Integer maxParticipants, Integer participantCount, SessionStatus status) {}
 
     @Transactional
     public JoinSessionResponse accept(Long sessionId, Long inviteId, String username) {
