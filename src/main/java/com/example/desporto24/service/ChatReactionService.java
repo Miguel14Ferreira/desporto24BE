@@ -7,6 +7,7 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.community.CommunityTimelineEntry;
 import com.example.desporto24.model.dto.chat.ChatReactionSummary;
+import com.example.desporto24.model.dto.chat.ChatReactionParticipant;
 import com.example.desporto24.model.session.SessionMessage;
 import com.example.desporto24.repository.*;
 import com.example.desporto24.repository.community.CommunityTimelineEntryRepository;
@@ -55,6 +56,44 @@ public class ChatReactionService {
         LinkedHashSet<Long> accepted = existingMessageIds(kind, conversationId,
                 actor.getUsername(), new LinkedHashSet<>(ids));
         return aggregates(actor.getId(), kind, accepted);
+    }
+
+    /**
+     * Names are fetched only when a conversation member opens the details
+     * dialog, never as part of bulk reaction loads or global websocket events.
+     */
+    @Transactional(readOnly = true)
+    public List<ChatReactionParticipant> participants(String username, String kind,
+            String conversationId, Long messageId) {
+        Profile actor = requireActor(username, kind, conversationId);
+        if (messageId == null || messageId <= 0) throw badRequest();
+        if (!existingMessageIds(kind, conversationId, actor.getUsername(),
+                Set.of(messageId)).contains(messageId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        var rows = reactions.findByConversationKindAndMessageIdIn(kind, List.of(messageId));
+        if (rows.isEmpty()) return List.of();
+        // Bounded names retrieval, without leaking passwords/email or the actor IDs.
+        if (rows.size() > 200) rows = rows.subList(0, 200);
+        LinkedHashSet<Long> profileIds = rows.stream()
+                .map(com.example.desporto24.model.ChatMessageReaction::getProfileId)
+                .filter(Objects::nonNull).collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, Profile> byId = new HashMap<>();
+        profiles.findAllById(profileIds).forEach(p -> byId.put(p.getId(), p));
+        return rows.stream().map(row -> {
+            Profile member = byId.get(row.getProfileId());
+            if (member == null || member.getUsername() == null) return null;
+            String name = member.getNickname();
+            if (name == null || name.isBlank()) name = member.getFullName();
+            if (name == null || name.isBlank()) name = member.getUsername();
+            return new ChatReactionParticipant(member.getUsername(), name,
+                    member.getProfilePicUrl(), row.getEmoji(),
+                    actor.getId().equals(member.getId()));
+        }).filter(Objects::nonNull)
+          .sorted(Comparator.comparing(ChatReactionParticipant::mine).reversed()
+                  .thenComparing(ChatReactionParticipant::displayName,
+                          String.CASE_INSENSITIVE_ORDER))
+          .toList();
     }
 
     @Transactional
