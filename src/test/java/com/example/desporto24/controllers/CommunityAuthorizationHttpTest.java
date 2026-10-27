@@ -50,7 +50,8 @@ class CommunityAuthorizationHttpTest {
                 mock(CommunityStandingsArchiveService.class),
                 mock(CommunityHistoricalMatchPreviewService.class),
                 mock(CommunityHistoricalMatchArchiveService.class),
-                mock(CommunitySessionService.class)
+                mock(CommunitySessionService.class),
+                mock(com.example.desporto24.service.CommunitySessionResultService.class)
         );
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ExceptionHandling())
