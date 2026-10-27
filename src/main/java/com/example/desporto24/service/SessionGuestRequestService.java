@@ -37,7 +37,7 @@ public class SessionGuestRequestService {
     private final SessionParticipantRepository participants;
 
     public record GuestPlayer(Long id,String name) {}
-    public record GuestRoster(Long sessionId,List<GuestPlayer> players) {}
+    public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
     public record GuestRequestInput(String linkToken,Long playerId,String newName,String note) {}
     public record ReceiptInput(String receipt) {}
     public record GuestReceipt(String receipt,String status) {}
@@ -59,7 +59,7 @@ public class SessionGuestRequestService {
     @Transactional(readOnly=true)
     public GuestRoster roster(Long sessionId,String token) {
         Session session=validLink(sessionId,token);
-        return new GuestRoster(sessionId,players.findByCommunityIdOrderByDisplayNameAsc(
+        return new GuestRoster(sessionId,session.getCommunity().getId(),players.findByCommunityIdOrderByDisplayNameAsc(
                 session.getCommunity().getId()).stream()
                 .filter(p->p.getProfile()==null)
                 .limit(150)
