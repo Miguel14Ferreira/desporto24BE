@@ -1,0 +1,39 @@
+{
+  "source": "Municipality of Évora exact facility map link + Turismo do Alentejo ERT independently published POI location, cross-checked 2026-10-27",
+  "approved_for_import": false,
+  "notes": "Existing venue ID 273 without GPS. 2 references ~22m apart represent the site only. They are human-review evidence, not GPS corrections or approved entrance pins. Admin-only researchCandidate must match live ID/name/city/district/website and be removed when GPS becomes available.",
+  "points": [
+    {
+      "source_reference": "JYNLO:MUNICIPAL:EVORA:PISCINAS:OFFICIAL_MAP",
+      "candidate_name": "Piscinas Municipais de Évora",
+      "expected_existing_venue_id": 273,
+      "expected_municipality": "Évora",
+      "expected_district": "Évora",
+      "latitude": 38.573234,
+      "longitude": -7.928876,
+      "match_kind": "MUNICIPAL_FACILITY_DIRECTIONS_SITE_POINT",
+      "location_source_url": "https://www.cm-evora.pt/municipe/equipamentos/equipamentos-desportivos/piscinas-municipais/contactos-e-localizacao-das-piscinas-municipais/",
+      "location_source_text": "Official facility contact/location page: Avenida Engenheiro Arantes de Oliveira 7000-758 Évora; 'ver no mapa' links to Google Maps place/38.573234,-7.928876.",
+      "confirmation_source_url": "https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/",
+      "point_precision": "MUNICIPAL_MAP_SITE_POINT_NOT_ENTRANCE",
+      "facility_verified_by_official_source": true,
+      "public_access_warning": "Site reference only, pedestrian entrance not confirmed; moderator must review source and location."
+    },
+    {
+      "source_reference": "JYNLO:TURISMO_ALENTEJO:EVORA:PISCINAS:OFFICIAL_POI",
+      "candidate_name": "Piscinas Municipais de Évora",
+      "expected_existing_venue_id": 273,
+      "expected_municipality": "Évora",
+      "expected_district": "Évora",
+      "latitude": 38.573425,
+      "longitude": -7.928949,
+      "match_kind": "REGIONAL_TOURISM_VERIFIED_PARTNER_SITE_POINT",
+      "location_source_url": "https://www.outdooractive.pt/pt/poi/evora/piscina-municipal/802361541/",
+      "location_source_text": "Turismo do Alentejo ERT verified-partner POI for Piscina Municipal Évora with explicit 38.573425,-7.928949.",
+      "confirmation_source_url": "https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/",
+      "point_precision": "REGIONAL_TOURISM_SITE_POINT_NOT_ENTRANCE",
+      "facility_verified_by_official_source": false,
+      "public_access_warning": "Corroborates municipal site, not an individual pedestrian entrance."
+    }
+  ]
+}
