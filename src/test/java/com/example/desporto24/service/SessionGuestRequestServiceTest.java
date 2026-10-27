@@ -23,8 +23,9 @@ class SessionGuestRequestServiceTest {
     private final SessionParticipantRepository participants=mock(SessionParticipantRepository.class);
     private final ProfileRepository profiles=mock(ProfileRepository.class);
     private final CommunityHistoricalPlayerLinkService historicalLinks=mock(CommunityHistoricalPlayerLinkService.class);
+    private final WaitlistPromotionService waitlistPromotionService=mock(WaitlistPromotionService.class);
     private final SessionGuestRequestService service=new SessionGuestRequestService(
-            sessions,players,requests,participants,profiles,historicalLinks);
+            sessions,players,requests,participants,profiles,historicalLinks,waitlistPromotionService);
     private final Session session=new Session();
     private final Community community=new Community();
     private final Profile organizer=new Profile();
@@ -152,6 +153,52 @@ class SessionGuestRequestServiceTest {
                 new SessionGuestRequestService.ReceiptInput(receipt),"intruso"));
         verifyNoInteractions(historicalLinks);
         verify(participants,never()).saveAndFlush(any());
+    }
+    @Test void organizerCancellationReleasesOneSeatAndClearsBothKindsOfTeam(){
+        var guest=new SessionGuestRequest();
+        guest.setId(20L);guest.setSession(session);
+        guest.setDisplayName("Afonso Salvador");
+        guest.setStatus(SessionGuestRequest.State.APPROVED);
+        guest.setTeamCode("A");
+        session.setExternalConfirmedParticipants(1);
+        session.setStatus(SessionStatus.FULL);
+        when(requests.findById(20L)).thenReturn(Optional.of(guest));
+        when(participants.countBySessionIdAndState(7L,ParticipantState.ACTIVE)).thenReturn(1L);
+
+        var registered=new SessionParticipant();registered.setTeamCode("B");
+        when(participants.findBySessionIdAndStateOrderByJoinedAtAsc(7L,ParticipantState.ACTIVE))
+                .thenReturn(List.of(registered));
+        var other=new SessionGuestRequest();other.setTeamCode("A");
+        when(requests.findBySessionIdAndStatusOrderByCreatedAtAsc(7L,SessionGuestRequest.State.APPROVED))
+                .thenReturn(List.of(other));
+        when(waitlistPromotionService.promoteNext(eq(session),any(Instant.class)))
+                .thenReturn(Optional.empty());
+
+        var result=service.cancel(7L,20L,"rui");
+        assertEquals("CANCELLED",result.status());
+        assertEquals(SessionGuestRequest.State.CANCELLED,guest.getStatus());
+        assertEquals(0,session.getExternalConfirmedParticipants());
+        assertEquals(SessionStatus.OPEN,session.getStatus());
+        assertNull(guest.getTeamCode());
+        assertNull(registered.getTeamCode());
+        assertNull(other.getTeamCode());
+        verify(participants).saveAll(List.of(registered));
+        verify(requests).saveAll(List.of(other));
+        verify(waitlistPromotionService).promoteNext(eq(session),any(Instant.class));
+        assertThrows(ResponseStatusException.class,()->service.cancel(7L,20L,"rui"));
+        assertEquals(0,session.getExternalConfirmedParticipants());
+    }
+    @Test void cannotCancelOthersReservationOrDoubleReleaseLinkedMember(){
+        var guest=new SessionGuestRequest();guest.setId(20L);guest.setSession(session);
+        guest.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findById(20L)).thenReturn(Optional.of(guest));
+        session.setExternalConfirmedParticipants(1);
+        assertThrows(AccessDeniedException.class,()->service.cancel(7L,20L,"outsider"));
+        assertEquals(1,session.getExternalConfirmedParticipants());
+        guest.setStatus(SessionGuestRequest.State.LINKED);
+        assertThrows(ResponseStatusException.class,()->service.cancel(7L,20L,"rui"));
+        assertEquals(1,session.getExternalConfirmedParticipants());
+        verifyNoInteractions(waitlistPromotionService);
     }
     @Test void rejectsStatusLookupWithoutPossessionOfReceipt(){
         assertThrows(ResponseStatusException.class,()->service.status(7L,
