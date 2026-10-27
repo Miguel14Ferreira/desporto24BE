@@ -59,6 +59,7 @@ public class SecurityConfiguration {
                         // Guest endpoints are narrowly POST-only; approval and viewing
                         // pending names remain authenticated organizer actions.
                         .requestMatchers(HttpMethod.POST,
+                                "/api/sessions/*/guest-preview",
                                 "/api/sessions/*/guest-roster",
                                 "/api/sessions/*/guest-requests",
                                 "/api/sessions/*/guest-requests/status").permitAll()
