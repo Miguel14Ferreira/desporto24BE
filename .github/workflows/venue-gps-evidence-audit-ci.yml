@@ -5,6 +5,9 @@ on:
     paths:
       - 'scripts/audit_live_venue_gps_evidence.py'
       - 'scripts/test_audit_live_venue_gps_evidence.py'
+      - 'scripts/audit_official_municipal_gis.py'
+      - 'scripts/test_audit_official_municipal_gis.py'
+      - 'docs/venue-imports/2026-10-27-municipal-gis-readonly-and-four-missing-gps.md'
       - 'docs/venue-imports/viseu-guarda-3-municipal-gps-pending-caop2025.json'
       - 'docs/venue-imports/braga-evora-2-official-site-gps-review-20261021.json'
       - 'docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json'
@@ -27,3 +30,6 @@ jobs:
           python-version: '3.12'
       - name: Validate fifteen GPS evidence points, Choupos identity and no approvals
         run: python3 -m unittest discover -s scripts -p test_audit_live_venue_gps_evidence.py -v
+
+      - name: Review official municipal GIS name ambiguities and reject GPS auto-approvals
+        run: python3 -m unittest discover -s scripts -p test_audit_official_municipal_gis.py -v
