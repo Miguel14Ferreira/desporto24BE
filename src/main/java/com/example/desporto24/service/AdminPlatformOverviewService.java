@@ -333,7 +333,12 @@ public class AdminPlatformOverviewService {
     /**
      * Municipality's 2020 guide separates the adjacent Parque Desportivo and
      * Complexo Desportivo; the OSM objects are a park-area geometry and sports
-     * building footprint, NOT numbered playing surfaces. Review ONLY.
+     * building footprint, NOT numbered playing surfaces. The 2025
+     * municipality report with coordinates 41.55296,-8.40345 is about
+     * a poplar tree next to sporting facilities, NOT a sports field.
+     * The municipal GeoPortal may support further investigation but its
+     * public landing page does not prove individual numbered pitches.
+     * Review ONLY; do not expose those tree coordinates as a candidate.
      */
     private static final RodoviaCartographyReview RODOVIA_CARTOGRAPHY_REVIEW =
             new RodoviaCartographyReview(
@@ -341,11 +346,14 @@ public class AdminPlatformOverviewService {
                     "https://juventude.cm-braga.pt/wp-content/uploads/2023/06/"
                             + "Roteiro-Desportivo-e-Lazer-2020.pdf",
                     "https://mapcarta.com/pt/W106454979",
-                    "https://mapcarta.com/pt/W884706818");
+                    "https://mapcarta.com/pt/W884706818",
+                    "https://www.cm-braga.pt/archive/doc/Parque_Desportivo_da_Rodovia_0.pdf",
+                    "https://sigportal.cm-braga.pt/WebSIGBraga/");
 
     public record RodoviaCartographyReview(
             String issueCode, String municipalGuideUrl, String parkAreaUrl,
-            String sportsBuildingUrl) {}
+            String sportsBuildingUrl, String nonPitchTreeReportUrl,
+            String officialGeoportalUrl) {}
 
     /**
      * A visitor-supplied photograph shows a numbered on-site overview sign.
