@@ -135,6 +135,36 @@ class AdminPlatformOverviewServiceTest {
     }
 
     @Test
+    void missingGpsReviewIncludesSafeOfficialWebsiteOnlyAsUnverifiedResearchLead() {
+        var good = Venue.builder().id(277L).name("Pavilhão Desportivo Municipal")
+                .city("Santarém").informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://viversantarem.pt/pavilhoes-desportivos/").build();
+        var insecure = Venue.builder().id(287L).name("Pista")
+                .city("Braga").informationSource(Venue.InformationSource.OFFICIAL)
+                .website("http://cm-braga.pt/").build();
+        var userInfo = Venue.builder().id(288L).name("Falso")
+                .city("Braga").informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://trusted.pt@attacker.test/").build();
+        var community = Venue.builder().id(289L).name("Comunitário")
+                .city("Braga").informationSource(Venue.InformationSource.COMMUNITY)
+                .website("https://example.org/").build();
+        when(venues.missingGpsReview("", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(good, insecure, userInfo, community),
+                        PageRequest.of(0, 20), false));
+        var rows = service.missingGpsReview(null, 0).venues();
+        assertEquals("https://viversantarem.pt/pavilhoes-desportivos/", rows.get(0).sourceWebsite());
+        assertNull(rows.get(1).sourceWebsite());
+        assertNull(rows.get(2).sourceWebsite());
+        assertNull(rows.get(3).sourceWebsite());
+        assertNull(AdminPlatformOverviewService.safeOfficialSourceWebsite("javascript:alert(1)"));
+        assertNull(AdminPlatformOverviewService.safeOfficialSourceWebsite("https://localhost/"));
+        assertNull(AdminPlatformOverviewService.safeOfficialSourceWebsite("https://127.0.0.1/"));
+        assertNull(AdminPlatformOverviewService.safeOfficialSourceWebsite("https://source.pt/#fragment"));
+        assertNull(AdminPlatformOverviewService.safeOfficialSourceWebsite("https://source.pt/\\nnext"));
+        verify(venues, never()).save(any());
+    }
+
+    @Test
     void missingGpsQueueRejectsUnsafePageBeforeDatabaseAccess() {
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1));
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001));
