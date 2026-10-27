@@ -16,7 +16,8 @@ import static org.mockito.Mockito.*;
 class VenuePagedSearchControllerTest {
     private final VenueService service = mock(VenueService.class);
     private final VenueController controller = new VenueController(
-            service, mock(VenueSuggestionService.class), mock(VenueMapLinkService.class), mock(VenuePhotoService.class),
+            service, mock(VenueSuggestionService.class), mock(VenueMapLinkService.class),
+            mock(com.example.desporto24.service.VenueReverseGeocodeService.class), mock(VenuePhotoService.class),
             mock(VenueSportConditionService.class));
 
     @Test
