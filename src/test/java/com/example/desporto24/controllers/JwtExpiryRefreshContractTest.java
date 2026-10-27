@@ -105,6 +105,7 @@ class JwtExpiryRefreshContractTest {
     @MockitoBean private CommunityHistoricalMatchPreviewService previews;
     @MockitoBean private CommunityHistoricalMatchArchiveService historicalMatches;
     @MockitoBean private CommunitySessionService sessions;
+    @MockitoBean private com.example.desporto24.service.CommunitySessionResultService sessionResults;
 
     private MockMvc mvc;
     private Profile profile;

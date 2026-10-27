@@ -26,6 +26,10 @@ public class CommunityRound {
     @JoinColumn(name = "season_id")
     private CommunitySeason season;
 
+    /** The source session can contribute to standings at most once. */
+    @Column(name = "source_session_id", unique = true)
+    private Long sourceSessionId;
+
     @Column(nullable = false, length = 100)
     private String name;
 

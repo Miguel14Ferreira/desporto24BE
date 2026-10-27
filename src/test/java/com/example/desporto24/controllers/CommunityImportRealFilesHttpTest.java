@@ -83,7 +83,8 @@ class CommunityImportRealFilesHttpTest {
                 mock(CommunityHistoricalPlayerLinkService.class),
                 mock(CommunityImportService.class),
                 standingArchive, matchPreview, matchArchive,
-                mock(CommunitySessionService.class));
+                mock(CommunitySessionService.class),
+                mock(com.example.desporto24.service.CommunitySessionResultService.class));
         mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ExceptionHandling())
                 .build();

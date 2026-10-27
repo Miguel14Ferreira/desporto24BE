@@ -157,7 +157,8 @@ class CommunityTournamentIsolatedRoleHttpH2Test {
                 mock(CommunityStandingsArchiveService.class),
                 mock(CommunityHistoricalMatchPreviewService.class),
                 mock(CommunityHistoricalMatchArchiveService.class),
-                mock(CommunitySessionService.class));
+                mock(CommunitySessionService.class),
+                mock(com.example.desporto24.service.CommunitySessionResultService.class));
         var tournamentController = new CommunityTournamentController(
                 tournamentService, schedule, result, standings,
                 mock(CommunityTournamentFinalizationService.class));
