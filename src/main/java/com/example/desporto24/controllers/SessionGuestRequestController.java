@@ -14,6 +14,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SessionGuestRequestController {
     private final SessionGuestRequestService guests;
+    private final com.example.desporto24.service.interfaces.SessionService sessionService;
+
+    @PostMapping("/guest-join-account")
+    public com.example.desporto24.model.dto.session.JoinSessionResponse joinWithAccount(
+            @PathVariable Long sessionId, @RequestBody Map<String,String> body, Authentication auth) {
+        return sessionService.joinWithGuestToken(
+                sessionId, body == null ? null : body.get("token"), auth.getName());
+    }
 
     @PostMapping("/guest-link")
     public Map<String,String> createLink(@PathVariable Long sessionId,Authentication auth){
