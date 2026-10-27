@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_ten_manifest_points_never_approved(self):
-        self.assertEqual(10, len(self.evidence))
+    def test_twelve_manifest_points_never_approved(self):
+        self.assertEqual(12, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -173,7 +173,7 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
 
     def test_evora_existing_272_two_source_types_require_manual_review(self):
-        points = [p for p in self.evidence if p["expected_municipality"] == "Évora"]
+        points = [p for p in self.evidence if p["candidate_name"] == "Complexo Desportivo de Évora"]
         self.assertEqual(2, len(points))
         self.assertTrue(all(p["expected_existing_venue_id"] == 272 for p in points))
         self.assertTrue(all(p.get("facility_verified_by_official_source") is not None for p in points))
@@ -202,7 +202,7 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertIn("RELATED_DISTINCT_VENUE_REVIEW", polygon["warnings"])
 
     def test_evora_matched_name_under_unexpected_id_fails_venue_identity(self):
-        points = [p for p in self.evidence if p["expected_municipality"] == "Évora"]
+        points = [p for p in self.evidence if p["candidate_name"] == "Complexo Desportivo de Évora"]
         wrong = [{"id": 999, "name": "Complexo Desportivo de Évora",
                   "city": "Évora", "district": "Évora",
                   "latitude": None, "longitude": None}]
@@ -210,6 +210,35 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertEqual(2, len(rows))
         self.assertTrue(all(r["status"] == "EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW"
                             for r in rows))
+
+    def test_evora_pools_both_sources_support_same_existing_venue_but_not_approval(self):
+        points = [p for p in self.evidence if p["candidate_name"] == "Piscinas Municipais de Évora"]
+        self.assertEqual(2, len(points))
+        self.assertTrue(all(p["expected_existing_venue_id"] == 273 for p in points))
+        gap = distance_m(points[0]["latitude"], points[0]["longitude"],
+                         points[1]["latitude"], points[1]["longitude"])
+        self.assertGreater(gap, 15)
+        self.assertLess(gap, 40)
+        venue = {"id": 273, "name": "Piscinas Municipais de Évora",
+                 "city": "Évora", "district": "Évora",
+                 "latitude": None, "longitude": None}
+        rows = analyze([venue], points)
+        self.assertEqual(2, len(rows))
+        self.assertTrue(all(r["status"] == "EXISTING_VENUE_WITHOUT_GPS" for r in rows))
+        self.assertTrue(all(r["existingVenueId"] == 273 for r in rows))
+        self.assertTrue(all(r["maxSourceSeparationMeters"] is None for r in rows))
+        for row in rows:
+            self.assertTrue(row["warnings"])
+            self.assertNotIn("latitude", row)
+            self.assertNotIn("longitude", row)
+
+    def test_evora_pools_bad_id_is_not_treated_as_correct_venue(self):
+        point = next(p for p in self.evidence
+                     if p["source_reference"] == "JYNLO:MUNICIPAL:EVORA:PISCINAS:OFFICIAL_MAP")
+        wrong = [{"id": 5273, "name": point["candidate_name"], "city": "Évora",
+                  "district": "Évora", "latitude": None, "longitude": None}]
+        row = analyze(wrong, [point])[0]
+        self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))

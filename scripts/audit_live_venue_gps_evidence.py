@@ -14,6 +14,7 @@ MANIFESTS = (
     "docs/venue-imports/braga-evora-2-official-site-gps-review-20261021.json",
     "docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json",
     "docs/venue-imports/porto-outeiro-osm-geometry-review-20261027.json",
+    "docs/venue-imports/evora-piscinas-municipais-site-gps-review-20261027.json",
 )
 
 def valid_gps(lat, lon):
@@ -119,7 +120,9 @@ def analyze(catalogue, evidence):
                          "EVENT_SITE_WAYPOINT_NOT_EXACT_BUILDING",
                          "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN",
                          "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
-                         "FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE"):
+                         "FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE",
+                         "MUNICIPAL_MAP_SITE_POINT_NOT_ENTRANCE",
+                         "REGIONAL_TOURISM_SITE_POINT_NOT_ENTRANCE"):
             warnings.append(precision)
         result.append({
             "sourceReference": point["source_reference"],

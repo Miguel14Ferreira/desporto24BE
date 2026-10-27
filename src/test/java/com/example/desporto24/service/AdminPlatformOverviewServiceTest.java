@@ -165,6 +165,61 @@ class AdminPlatformOverviewServiceTest {
     }
 
     @Test
+    void onlyExactExistingEvoraPoolsShowUnapprovedOfficialSiteResearchCandidate() {
+        var official = Venue.builder().id(273L).name("Piscinas Municipais de Évora")
+                .city("Évora").district("Évora")
+                .address("Avenida Engenheiro Arantes de Oliveira, 7000-758 Évora")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/")
+                .build();
+        var sameNameWrongId = Venue.builder().id(9999L).name("Piscinas Municipais de Évora")
+                .city("Évora").district("Évora").address(official.getAddress())
+                .informationSource(Venue.InformationSource.OFFICIAL).website(official.getWebsite())
+                .build();
+        var unrelatedMunicipal = Venue.builder().id(272L).name("Complexo Desportivo de Évora")
+                .city("Évora").district("Évora")
+                .informationSource(Venue.InformationSource.OFFICIAL).build();
+        when(venues.missingGpsReview("Évora", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(official, sameNameWrongId, unrelatedMunicipal)));
+        var rows = service.missingGpsReview("Évora", 0).venues();
+        var lead = rows.getFirst().researchCandidate();
+        assertNotNull(lead);
+        assertEquals(273, rows.getFirst().id());
+        assertEquals(38.573234, lead.latitude(), 0.0000001);
+        assertEquals(-7.928876, lead.longitude(), 0.0000001);
+        assertEquals("SITE_REFERENCE_NOT_VERIFIED_ENTRANCE", lead.precision());
+        assertTrue(lead.officialSourceUrl().startsWith("https://www.cm-evora.pt/"));
+        assertTrue(lead.secondarySourceUrl().startsWith("https://www.outdooractive.pt/"));
+        assertNull(rows.get(1).researchCandidate());
+        assertNull(rows.get(2).researchCandidate());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void candidateNeverAppearsIfExistingGpsIdentityOrSourceChanges() {
+        var good = Venue.builder().id(273L).name("Piscinas Municipais de Évora")
+                .city("Évora").district("Évora").address("Av. Engenheiro Arantes de Oliveira")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/")
+                .build();
+        assertNotNull(AdminPlatformOverviewService.researchCandidate(good));
+        good.setLatitude(38.573234);
+        assertNull(AdminPlatformOverviewService.researchCandidate(good));
+        good.setLatitude(null);
+        good.setLongitude(-7.928876);
+        assertNull(AdminPlatformOverviewService.researchCandidate(good));
+        good.setLongitude(null);
+        good.setName("Piscinas Municipais de outra localidade");
+        assertNull(AdminPlatformOverviewService.researchCandidate(good));
+        good.setName("Piscinas Municipais de Évora");
+        good.setWebsite("https://unknown.example/");
+        assertNull(AdminPlatformOverviewService.researchCandidate(good));
+        good.setWebsite("https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/");
+        good.setInformationSource(Venue.InformationSource.COMMUNITY);
+        assertNull(AdminPlatformOverviewService.researchCandidate(good));
+    }
+
+    @Test
     void missingGpsQueueRejectsUnsafePageBeforeDatabaseAccess() {
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1));
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001));
