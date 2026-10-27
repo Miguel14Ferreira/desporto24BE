@@ -106,7 +106,7 @@ public class SessionGuestRequestService {
             throw conflict("Este jogador já tem um pedido nesta sessão");
         if(requests.countBySessionIdAndStatus(sessionId,SessionGuestRequest.State.PENDING)>=40)
             throw conflict("Limite de pedidos pendentes atingido");
-        String note=input.note()==null?"":clean(input.note(),160);
+        String note=input.note()==null||input.note().isBlank()?"":clean(input.note(),160);
         byte[] bytes=new byte[32];RANDOM.nextBytes(bytes);
         String receipt=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         SessionGuestRequest request=new SessionGuestRequest();
