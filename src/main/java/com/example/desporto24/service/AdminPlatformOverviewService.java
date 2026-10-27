@@ -323,11 +323,31 @@ public class AdminPlatformOverviewService {
             return null;
         }
         return new VenueFacilityContextReview(
-                lead.issueCode(), lead.officialSourceUrl(), lead.relatedSourceUrl());
+                lead.issueCode(), lead.officialSourceUrl(), lead.relatedSourceUrl(),
+                venue.getId() >= 288L && venue.getId() <= 294L
+                        ? RODOVIA_CARTOGRAPHY_REVIEW : null);
     }
 
+    /**
+     * Municipality's 2020 guide separates the adjacent Parque Desportivo and
+     * Complexo Desportivo; the OSM objects are a park-area geometry and sports
+     * building footprint, NOT numbered playing surfaces. Review ONLY.
+     */
+    private static final RodoviaCartographyReview RODOVIA_CARTOGRAPHY_REVIEW =
+            new RodoviaCartographyReview(
+                    "ADJACENT_PARK_AND_SPORTS_BUILDING_NOT_NUMBERED_PITCH",
+                    "https://juventude.cm-braga.pt/wp-content/uploads/2023/06/"
+                            + "Roteiro-Desportivo-e-Lazer-2020.pdf",
+                    "https://mapcarta.com/pt/W106454979",
+                    "https://mapcarta.com/pt/W884706818");
+
+    public record RodoviaCartographyReview(
+            String issueCode, String municipalGuideUrl, String parkAreaUrl,
+            String sportsBuildingUrl) {}
+
     public record VenueFacilityContextReview(
-            String issueCode, String officialSourceUrl, String relatedSourceUrl) {}
+            String issueCode, String officialSourceUrl, String relatedSourceUrl,
+            RodoviaCartographyReview cartographyReview) {}
 
     private record CuratedSiteEvidence(String name, String city, String district,
                                        String addressPart, String storedWebsite,
