@@ -20,6 +20,12 @@ import java.util.List;
 @Transactional(readOnly = true)
 public interface SessionRepository extends JpaRepository<Session, Long> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Session s where s.id = :sessionId and s.community.id = :communityId")
+    java.util.Optional<Session> lockForCommunityResult(
+            @Param("communityId") Long communityId,
+            @Param("sessionId") Long sessionId);
+
     long countByStatus(SessionStatus status);
 
     @Query("""
