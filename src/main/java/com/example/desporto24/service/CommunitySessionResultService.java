@@ -45,6 +45,17 @@ public class CommunitySessionResultService {
     private final CommunityRoundRepository rounds;
     private final CommunityCompetitionService competition;
 
+    @Transactional(readOnly = true)
+    public List<Long> recordedSessionIds(Long communityId, String actorUsername) {
+        Profile actor = profiles.findUserByUsernameIgnoreCase(actorUsername)
+                .orElseThrow(() -> new AccessDeniedException("Utilizador desconhecido"));
+        var membership = memberships.findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
+        if (membership.getRole() != CommunityRole.OWNER && membership.getRole() != CommunityRole.ADMIN)
+            throw new AccessDeniedException("Só a administração pode consultar resultados por sessão");
+        return rounds.findRecordedSessionIds(communityId);
+    }
+
     /** A completed session has one independently editable, season-bound competition round.
      * Locking the session row serializes two simultaneous confirmations. The database
      * also enforces unique source_session_id in case another path is introduced later.
