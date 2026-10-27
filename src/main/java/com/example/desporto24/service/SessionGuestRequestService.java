@@ -6,6 +6,7 @@ import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.session.SessionParticipant;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.model.community.CommunityPlayer;
@@ -55,7 +56,7 @@ public class SessionGuestRequestService {
     public String issueLink(Long sessionId,String username) {
         Session session=locked(sessionId);
         requireCreator(session,username);
-        requirePublicEligible(session);
+        requireGuestEligible(session);
         byte[] bytes=new byte[32];
         RANDOM.nextBytes(bytes);
         String token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -79,7 +80,7 @@ public class SessionGuestRequestService {
     public GuestReceipt request(Long sessionId,GuestRequestInput input) {
         Session session=locked(sessionId);
         verifyToken(session,input==null?null:input.linkToken());
-        requirePublicEligible(session);
+        requireGuestEligible(session);
         if(!SessionRegistrationOpening.isOpen(session,Instant.now())) {
             throw conflict("A convocatória ainda não abriu");
         }
@@ -199,7 +200,7 @@ public class SessionGuestRequestService {
         if(request.getStatus()!=SessionGuestRequest.State.PENDING)
             throw conflict("Pedido já decidido");
         if(approve){
-            requirePublicEligible(session);
+            requireGuestEligible(session);
             if(!SessionRegistrationOpening.isOpen(session,Instant.now()))
                 throw conflict("A convocatória ainda não abriu");
             long active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
@@ -286,16 +287,29 @@ public class SessionGuestRequestService {
                 guest.getNote(),guest.getTeamCode());
     }
 
+    /** Safe preview visible only with an organizer-issued secret for members-only games. */
+    @Transactional(readOnly=true)
+    public SessionPublicPreviewResponse preview(Long sessionId,String token) {
+        Session session=validLink(sessionId,token);
+        return new SessionPublicPreviewResponse(
+                session.getId(),session.getSport(),session.getCity(),
+                session.getGameDate().toInstant(),session.getMaxParticipants(),
+                SessionCapacity.totalConfirmed(session,
+                    participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE)),
+                session.getPriceAmount(),session.getStatus(),session.getGamePhoto());
+    }
+
     private Session validLink(Long sessionId,String token) {
         Session session=sessions.findById(sessionId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Sessão não encontrada"));
         verifyToken(session,token);
-        requirePublicEligible(session);
+        requireGuestEligible(session);
         return session;
     }
 
-    private void requirePublicEligible(Session session){
-        if(session.getCommunity()==null || session.getAudience()!=SessionAudience.PUBLIC
+    private void requireGuestEligible(Session session){
+        if(session.getCommunity()==null || (session.getAudience()!=SessionAudience.PUBLIC
+                && session.getAudience()!=SessionAudience.COMMUNITY_ONLY)
                 || Boolean.TRUE.equals(session.getPrivateGame())
                 || Boolean.FALSE.equals(session.getEnabled())
                 || session.getGameDate()==null
