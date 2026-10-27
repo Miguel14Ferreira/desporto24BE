@@ -24,6 +24,14 @@ public class PrivateGroupController {
             @PathVariable Long id,@RequestBody PrivateGroupService.AddRequest input,Authentication auth){
         return service.add(auth.getName(),id,input);
     }
+    @PatchMapping("/{id}") public PrivateGroupService.GroupView rename(
+            @PathVariable Long id,@RequestBody PrivateGroupService.RenameRequest input,Authentication auth){
+        return service.rename(auth.getName(),id,input);
+    }
+    @DeleteMapping("/{id}/members/{username}") public PrivateGroupService.GroupView removeMember(
+            @PathVariable Long id,@PathVariable String username,Authentication auth){
+        return service.removeMember(auth.getName(),id,username);
+    }
     @GetMapping("/{id}/messages")
     public List<PrivateGroupService.MessageView> history(
             @PathVariable Long id,@RequestParam(required=false) Long beforeId,Authentication auth){
