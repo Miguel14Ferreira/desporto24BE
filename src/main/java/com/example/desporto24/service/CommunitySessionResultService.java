@@ -45,6 +45,34 @@ public class CommunitySessionResultService {
     private final CommunityRoundRepository rounds;
     private final CommunityCompetitionService competition;
 
+    /** Roster for admins: the generic session roster API intentionally requires
+     * session participation, but community admins may not have joined this match.
+     */
+    @Transactional(readOnly = true)
+    public List<com.example.desporto24.model.dto.session.SessionParticipantResponse> roster(
+            Long communityId, Long sessionId, String actorUsername) {
+        Profile actor = profiles.findUserByUsernameIgnoreCase(actorUsername)
+                .orElseThrow(() -> new AccessDeniedException("Utilizador desconhecido"));
+        var membership = memberships.findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
+        if (membership.getRole() != CommunityRole.OWNER && membership.getRole() != CommunityRole.ADMIN)
+            throw new AccessDeniedException("Só a administração pode registar resultados");
+        var community = communities.findById(communityId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comunidade inexistente"));
+        if (!community.isRankingsEnabled())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A classificação não está ativa");
+        if (sessions.findById(sessionId)
+                .filter(s -> s.getCommunity() != null && communityId.equals(s.getCommunity().getId()))
+                .isEmpty())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão fora desta comunidade");
+        return participants.findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE)
+                .stream()
+                .map(p -> new com.example.desporto24.model.dto.session.SessionParticipantResponse(
+                        p.getId(), p.getProfile().getUsername(),
+                        p.getAttendanceStatus(), p.getJoinedAt(), p.getTeamCode()))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<Long> recordedSessionIds(Long communityId, String actorUsername) {
         Profile actor = profiles.findUserByUsernameIgnoreCase(actorUsername)
