@@ -83,6 +83,7 @@ class CommunitySecurityFilterChainTest {
     @MockitoBean private CommunityHistoricalMatchPreviewService previews;
     @MockitoBean private CommunityHistoricalMatchArchiveService historicalMatches;
     @MockitoBean private CommunitySessionService sessions;
+    @MockitoBean private com.example.desporto24.service.CommunitySessionResultService sessionResults;
 
     @BeforeEach
     void configureAccounts() {
