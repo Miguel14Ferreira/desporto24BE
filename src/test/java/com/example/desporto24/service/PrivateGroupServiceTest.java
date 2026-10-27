@@ -3,6 +3,9 @@ package com.example.desporto24.service;
 import com.example.desporto24.model.*;
 import com.example.desporto24.repository.*;
 import com.example.desporto24.service.interfaces.ChatService;
+import com.example.desporto24.storage.MediaStorage;
+import org.springframework.mock.web.MockMultipartFile;
+import java.net.URI;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -23,6 +26,7 @@ class PrivateGroupServiceTest {
  @Mock PrivateGroupMessageRepository messages;
  @Mock ProfileRepository profiles;
  @Mock ChatService chats;
+ @Mock MediaStorage mediaStorage;
  @Mock ApplicationEventPublisher publisher;
  @InjectMocks PrivateGroupService service;
 
@@ -111,6 +115,61 @@ class PrivateGroupServiceTest {
    verify(publisher).publishEvent(event.capture());
    assertTrue(event.getValue().usernames().containsAll(Set.of("ana","bea")));
    assertNull(event.getValue().message());
+ }
+
+ @Test void creatorCanUpdateGroupPhotoUsingValidatedSharedMediaStorage(){
+   var ana=profile("ana");
+   when(profiles.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(ana));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"ana"))
+     .thenReturn(Optional.of(member("ana")));
+   var g=group();
+   when(groups.findById(42L)).thenReturn(Optional.of(g));
+   when(members.findByGroupIdOrderByJoinedAtAsc(42L)).thenReturn(List.of(member("ana")));
+   when(mediaStorage.storeCommunityPhoto(anyString(),any()))
+     .thenReturn(URI.create("https://cdn.example.test/groups/avatar.png"));
+   var photo=new MockMultipartFile("photo","avatar.png","image/png",new byte[]{1,2,3});
+   var updated=service.updatePhoto("ana",42L,photo);
+   assertEquals("https://cdn.example.test/groups/avatar.png",updated.photoUrl());
+   verify(mediaStorage).storeCommunityPhoto(startsWith("private-groups/42/"),same(photo));
+   verify(groups).save(g);
+   verify(publisher).publishEvent(any(PrivateGroupService.GroupEvent.class));
+ }
+ @Test void ordinaryMemberCannotChangeGroupPhoto(){
+   when(profiles.findUserByUsernameIgnoreCase("bea"))
+     .thenReturn(Optional.of(profile("bea")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"bea"))
+     .thenReturn(Optional.of(member("bea")));
+   when(groups.findById(42L)).thenReturn(Optional.of(group()));
+   var photo=new MockMultipartFile("photo","image.png","image/png",new byte[]{1});
+   assertThrows(AccessDeniedException.class,()->service.updatePhoto("bea",42L,photo));
+   verifyNoInteractions(mediaStorage);
+ }
+ @Test void emptyOrOversizedPhotoIsRejectedBeforeMediaStorage(){
+   when(profiles.findUserByUsernameIgnoreCase("ana"))
+     .thenReturn(Optional.of(profile("ana")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"ana"))
+     .thenReturn(Optional.of(member("ana")));
+   when(groups.findById(42L)).thenReturn(Optional.of(group()));
+   var empty=new MockMultipartFile("photo","x.png","image/png",new byte[0]);
+   assertThrows(org.springframework.web.server.ResponseStatusException.class,
+       ()->service.updatePhoto("ana",42L,empty));
+   var oversized=new MockMultipartFile("photo","x.png","image/png",new byte[5*1024*1024+1]);
+   assertThrows(org.springframework.web.server.ResponseStatusException.class,
+       ()->service.updatePhoto("ana",42L,oversized));
+   verifyNoInteractions(mediaStorage);
+ }
+ @Test void invalidImageTypeReturnsBadRequest(){
+   when(profiles.findUserByUsernameIgnoreCase("ana"))
+     .thenReturn(Optional.of(profile("ana")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"ana"))
+     .thenReturn(Optional.of(member("ana")));
+   when(groups.findById(42L)).thenReturn(Optional.of(group()));
+   var photo=new MockMultipartFile("photo","x.svg","image/svg+xml",new byte[]{1});
+   when(mediaStorage.storeCommunityPhoto(anyString(),same(photo)))
+      .thenThrow(new IllegalArgumentException("Invalid image"));
+   var failure=assertThrows(org.springframework.web.server.ResponseStatusException.class,
+       ()->service.updatePhoto("ana",42L,photo));
+   assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,failure.getStatusCode());
  }
  @Test void creatorCannotBeRemovedEvenByThemselves(){
    when(profiles.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(profile("ana")));
