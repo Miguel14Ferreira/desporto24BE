@@ -187,7 +187,7 @@ class AdminPlatformOverviewServiceTest {
         assertEquals(273, rows.getFirst().id());
         assertEquals(38.573234, lead.latitude(), 0.0000001);
         assertEquals(-7.928876, lead.longitude(), 0.0000001);
-        assertEquals("SITE_REFERENCE_NOT_VERIFIED_ENTRANCE", lead.precision());
+        assertEquals("MUNICIPAL_MAP_LINK_SITE_NOT_VERIFIED_ENTRANCE", lead.precision());
         assertTrue(lead.officialSourceUrl().startsWith("https://www.cm-evora.pt/"));
         assertTrue(lead.secondarySourceUrl().startsWith("https://www.outdooractive.pt/"));
         assertNull(rows.get(1).researchCandidate());
