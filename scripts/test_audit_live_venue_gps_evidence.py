@@ -6,15 +6,15 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from audit_live_venue_gps_evidence import analyze, load_evidence, MANIFESTS, ROOT
+from audit_live_venue_gps_evidence import analyze, load_evidence, distance_m, MANIFESTS, ROOT
 
 class GpsEvidenceAuditTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_eight_manifest_points_never_approved(self):
-        self.assertEqual(8, len(self.evidence))
+    def test_nine_manifest_points_never_approved(self):
+        self.assertEqual(9, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -48,10 +48,17 @@ class GpsEvidenceAuditTest(unittest.TestCase):
 
     def test_historical_conflicts_and_approximate_site_points_are_retained(self):
         rows = analyze([], self.evidence)
-        by_city = {r["municipality"]: r for r in rows}
-        self.assertIn("HISTORICAL_POSTAL_CONFLICT_REVIEW", by_city["Guarda"]["warnings"])
-        self.assertIn("STADIUM_SITE_NOT_TRACK_OR_ENTRANCE", by_city["Braga"]["warnings"])
-        self.assertIn("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE", by_city["Évora"]["warnings"])
+        by_city = {}
+        for row in rows:
+            by_city.setdefault(row["municipality"], []).append(row)
+        self.assertTrue(any("HISTORICAL_POSTAL_CONFLICT_REVIEW" in row["warnings"]
+                            for row in by_city["Guarda"]))
+        self.assertTrue(any("STADIUM_SITE_NOT_TRACK_OR_ENTRANCE" in row["warnings"]
+                            for row in by_city["Braga"]))
+        self.assertTrue(any("FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE"
+                            in row["warnings"] for row in by_city["Braga"]))
+        self.assertTrue(any("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE" in row["warnings"]
+                            for row in by_city["Évora"]))
 
     def test_two_santarem_sources_disagree_and_require_manual_resolution(self):
         fixture = [
@@ -134,6 +141,36 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
         self.assertEqual(9333, row["existingVenueId"])
         self.assertNotIn("latitude", row)
+
+    def test_braga_federation_pin_is_stadium_field_not_track_location(self):
+        points = [p for p in self.evidence if p["expected_municipality"] == "Braga"]
+        self.assertEqual(2, len(points))
+        gap = distance_m(points[0]["latitude"], points[0]["longitude"],
+                         points[1]["latitude"], points[1]["longitude"])
+        self.assertGreater(gap, 20.0)
+        self.assertLess(gap, 75.0)
+        self.assertEqual(287, points[1]["expected_existing_venue_id"])
+        assert points[1]["point_precision"] == "FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE"
+        fixture = [{"id": 287, "name": "Pista de Atletismo do Estádio 1.º de Maio",
+                    "city": "Braga", "district": "Braga",
+                    "latitude": None, "longitude": None}]
+        rows = analyze(fixture, points)
+        self.assertEqual(2, len(rows))
+        self.assertTrue(all(row["status"] == "EXISTING_VENUE_WITHOUT_GPS" for row in rows))
+        self.assertTrue(all(row["maxSourceSeparationMeters"] is None for row in rows))
+        fpa = next(row for row in rows if row["sourceReference"].startswith("JYNLO:FPA:"))
+        self.assertEqual(287, fpa["existingVenueId"])
+        self.assertIn("FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE", fpa["warnings"])
+        self.assertNotIn("latitude", fpa)
+        self.assertNotIn("longitude", fpa)
+
+    def test_braga_wrong_existing_id_requires_identity_review(self):
+        point = next(p for p in self.evidence if p["source_reference"].startswith("JYNLO:FPA:"))
+        wrong = [{"id": 999, "name": point["candidate_name"],
+                  "city": "Braga", "district": "Braga",
+                  "latitude": None, "longitude": None}]
+        row = analyze(wrong, [point])[0]
+        self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))

@@ -1,7 +1,7 @@
 {
-  "source": "Municipality of Evora athletics race regulation 2022 + Portuguese government cultural heritage inventory for Braga, crosschecked with Braga municipality facility register (21 October 2026)",
+  "source": "Municipality of Evora athletics race regulation 2022 + Portuguese government cultural heritage inventory for Braga, crosschecked with Braga municipality facility register (21 October 2026); Portuguese Athletics Federation competition technical location map (3 May 2025)",
   "approved_for_import": false,
-  "notes": "CAOP verifies municipality only. Evora GPS is a 2022 municipal race/track waypoint, not a confirmed entrance. Braga GPS is the listed stadium site, not a dedicated athletics-track point. Neither is an approved production venue GPS.",
+  "notes": "CAOP verifies municipality only. Evora GPS is a 2022 municipal race/track waypoint, not a confirmed entrance. Braga GPS is the listed stadium site, not a dedicated athletics-track point. Neither is an approved production venue GPS. FPA 2025 map pin is visually on the FOOTBALL PITCH inside the stadium, not the athletics track or an entrance; close agreement between venue site waypoints does not verify exact track GPS.",
   "points": [
     {
       "source_reference": "JYNLO:DOCUMENTED:EVORA:COMPLEXO_DESPORTIVO_DE_EVORA",
@@ -35,6 +35,24 @@
       "point_precision": "STADIUM_SITE_NOT_TRACK_OR_ENTRANCE",
       "facility_verified_by_official_source": false,
       "public_access_warning": "Site point does not establish specific athletics track position, opening or public permissions."
+    },
+    {
+      "source_reference": "JYNLO:FPA:BRAGA:ESTADIO_MAIO:CP_10000M_2025",
+      "candidate_name": "Pista de Atletismo do Estádio 1.º de Maio",
+      "expected_existing_venue_id": 287,
+      "expected_municipality": "Braga",
+      "expected_district": "Braga",
+      "snid_name": "N/A - federation stadium event map, not track-specific GPS",
+      "latitude": 41.53889462246087,
+      "longitude": -8.420265861123468,
+      "match_kind": "FEDERATION_EVENT_STADIUM_MAP_PIN",
+      "location_source_url": "https://fpaportalonline.blob.core.windows.net/portalfpa-public/2025/04/RTecnica_AL_2025_CPor-10000.pdf",
+      "location_source_text": "Federação Portuguesa de Atletismo, reunião técnica Campeonato de Portugal 10.000 m, 03 maio 2025; PDF page 3 (zero-index 2) map pin is on football field inside Estádio 1.º de Maio; printed location 41.53889462246087, -8.420265861123468.",
+      "confirmation_source_url": "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6214",
+      "point_precision": "FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE",
+      "facility_verified_by_official_source": false,
+      "public_access_warning": "Do not infer public availability from historical competition material. No confirmed running track entrance point.",
+      "source_date": "2025-05"
     }
   ]
 }

@@ -118,7 +118,8 @@ def analyze(catalogue, evidence):
                          "STADIUM_SITE_NOT_TRACK_OR_ENTRANCE",
                          "EVENT_SITE_WAYPOINT_NOT_EXACT_BUILDING",
                          "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN",
-                         "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE"):
+                         "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
+                         "FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE"):
             warnings.append(precision)
         result.append({
             "sourceReference": point["source_reference"],
