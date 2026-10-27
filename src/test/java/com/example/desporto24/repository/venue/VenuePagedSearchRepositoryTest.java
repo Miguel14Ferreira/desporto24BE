@@ -180,6 +180,49 @@ class VenuePagedSearchRepositoryTest {
         assertEquals(0, repository.missingGpsReview("Porto", PageRequest.of(0, 20)).getContent().size());
     }
 
+    @Test
+    void uppercaseAccentInVenueNameAndCityIsFoundAndPagedDeterministically() {
+        persistWithInfo("Complexo Desportivo de Évora", "Évora", "Atletismo;Futebol",
+                "Estrada das Alcáçovas", null, null, "Complexo desportivo");
+        persistWithInfo("Piscinas Municipais de Évora", "Évora", "Natação",
+                "Avenida X", null, null, "Piscina");
+        persistWithInfo("Complexo Desportivo de Évora", "Vendas Novas", "Atletismo",
+                "Rua Y", null, null, "Complexo desportivo");
+        entityManager.flush();
+        entityManager.clear();
+
+        var exact = repository.suggest("complexo desportivo de evora", "evora",
+                "atletismo", "", PageRequest.of(0, 36));
+        assertEquals(1, exact.getContent().size());
+        assertEquals("Complexo Desportivo de Évora", exact.getContent().getFirst().getName());
+        assertEquals("Évora", exact.getContent().getFirst().getCity());
+
+        var first = repository.suggest("evora", "evora", "", "", PageRequest.of(0, 1));
+        var second = repository.suggest("evora", "evora", "", "", PageRequest.of(1, 1));
+        assertEquals(1, first.getContent().size());
+        assertEquals(1, second.getContent().size());
+        assertNotEquals(first.getContent().getFirst().getId(), second.getContent().getFirst().getId());
+        assertTrue(first.hasNext());
+        assertFalse(second.hasNext());
+    }
+
+    @Test
+    void uppercaseAccentsInSportAndExactNearbyLocalityAlsoWork() {
+        persistWithInfo("Piscina de Évora", "Évora", "NATAÇÃO",
+                "Estrada Z", 38.561, -7.920, "Piscina");
+        entityManager.flush();
+        entityManager.clear();
+
+        var swim = repository.suggest("", "evora", "natacao", "", PageRequest.of(0, 36));
+        assertEquals(1, swim.getContent().size());
+        assertEquals("Piscina de Évora", swim.getContent().getFirst().getName());
+
+        Object[] nearby = repository.nearbyCityReference("evora").getFirst();
+        assertEquals(1L, ((Number) nearby[2]).longValue());
+        assertEquals(38.561, ((Number) nearby[0]).doubleValue(), 0.000001);
+        assertEquals(-7.920, ((Number) nearby[1]).doubleValue(), 0.000001);
+    }
+
     private void persistWithInfo(String name, String city, String sports, String address,
                                  Double latitude, Double longitude, String type) {
         entityManager.persist(Venue.builder().name(name).city(city).sports(sports)
