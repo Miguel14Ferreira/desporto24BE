@@ -75,6 +75,58 @@ class PrivateGroupServiceTest {
    verifyNoInteractions(messages);
    verify(publisher).publishEvent(any(PrivateGroupService.GroupEvent.class));
  }
+
+ @Test void creatorCanRenameButOtherMembersCannot(){
+   when(profiles.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(profile("ana")));
+   when(profiles.findUserByUsernameIgnoreCase("bea")).thenReturn(Optional.of(profile("bea")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"ana")).thenReturn(Optional.of(member("ana")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"bea")).thenReturn(Optional.of(member("bea")));
+   var saved=group();
+   when(groups.findById(42L)).thenReturn(Optional.of(saved));
+   assertThrows(AccessDeniedException.class,()->service.rename("bea",42L,
+       new PrivateGroupService.RenameRequest("Novo nome")));
+   assertEquals("Novo nome",service.rename("ana",42L,
+       new PrivateGroupService.RenameRequest(" Novo nome ")).title());
+   verify(groups).save(saved);
+ }
+ @Test void normalMemberCannotRemoveSomeoneElse(){
+   when(profiles.findUserByUsernameIgnoreCase("bea")).thenReturn(Optional.of(profile("bea")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"bea")).thenReturn(Optional.of(member("bea")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"carla")).thenReturn(Optional.of(member("carla")));
+   when(groups.findById(42L)).thenReturn(Optional.of(group()));
+   assertThrows(AccessDeniedException.class,()->service.removeMember("bea",42L,"carla"));
+   verify(members,never()).delete(any());
+ }
+ @Test void creatorRemovalRevokesMembershipAndNotifiesRemovedUser(){
+   when(profiles.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(profile("ana")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"ana")).thenReturn(Optional.of(member("ana")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"bea")).thenReturn(Optional.of(member("bea")));
+   when(groups.findById(42L)).thenReturn(Optional.of(group()));
+   when(members.findByGroupIdOrderByJoinedAtAsc(42L)).thenReturn(List.of(member("ana")));
+   var result=service.removeMember("ana",42L,"bea");
+   assertEquals(1,result.members().size());
+   verify(members).delete(any(PrivateGroupMember.class));
+   verify(members).flush();
+   ArgumentCaptor<PrivateGroupService.GroupEvent> event=ArgumentCaptor.forClass(PrivateGroupService.GroupEvent.class);
+   verify(publisher).publishEvent(event.capture());
+   assertTrue(event.getValue().usernames().containsAll(Set.of("ana","bea")));
+   assertNull(event.getValue().message());
+ }
+ @Test void creatorCannotBeRemovedEvenByThemselves(){
+   when(profiles.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(profile("ana")));
+   when(members.findByGroupIdAndUsernameIgnoreCase(42L,"ana")).thenReturn(Optional.of(member("ana")));
+   when(groups.findById(42L)).thenReturn(Optional.of(group()));
+   assertThrows(org.springframework.web.server.ResponseStatusException.class,
+       ()->service.removeMember("ana",42L,"ana"));
+   verify(members,never()).delete(any());
+ }
+ @Test void removedMemberCannotReadOrSendAfterRevocation(){
+   when(profiles.findUserByUsernameIgnoreCase("bea")).thenReturn(Optional.of(profile("bea")));
+   assertThrows(AccessDeniedException.class,()->service.history("bea",42L,null));
+   assertThrows(AccessDeniedException.class,
+       ()->service.send("bea",42L,new PrivateGroupService.SendRequest("Ainda aqui?")));
+   verifyNoInteractions(messages);
+ }
  @Test void sendingGroupMessageRequiresMembership(){
    when(profiles.findUserByUsernameIgnoreCase("eve")).thenReturn(Optional.of(profile("eve")));
    assertThrows(AccessDeniedException.class,
