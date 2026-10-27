@@ -15,6 +15,8 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.model.Session;
+import com.example.desporto24.model.session.SessionCommunityShare;
+import com.example.desporto24.repository.session.SessionCommunityShareRepository;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
@@ -77,6 +79,7 @@ public class SessionServiceImpl implements SessionService {
     private final ProfileRepository profileRepository;
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
+    private final SessionCommunityShareRepository sessionCommunityShareRepository;
     private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
     private final com.example.desporto24.repository.session.SessionGuestRequestRepository sessionGuestRequests;
@@ -116,6 +119,30 @@ public class SessionServiceImpl implements SessionService {
                 throw new AccessDeniedException(
                         "Só membros da comunidade podem criar sessões associadas"
                 );
+            }
+        }
+
+        // Cross-post ONE public session into multiple communities, never cloning
+        // attendance records or implicitly granting new membership.
+        List<Long> shareIds = request.communityShareIds() == null
+                ? List.of() : request.communityShareIds();
+        if (shareIds.size() > 5 || shareIds.stream().anyMatch(id -> id == null || id <= 0)
+                || new LinkedHashSet<>(shareIds).size() != shareIds.size()) {
+            throw new IllegalArgumentException("Seleciona até 5 comunidades distintas");
+        }
+        if (!shareIds.isEmpty() && (request.communityId() != null || request.privateGame())) {
+            throw new IllegalArgumentException(
+                    "A partilha com várias comunidades exige uma sessão pública independente");
+        }
+        List<Community> sharedCommunities = shareIds.isEmpty() ? List.of()
+                : communityRepository.findAllById(shareIds);
+        if (sharedCommunities.size() != shareIds.size()) {
+            throw new IllegalArgumentException("Uma das comunidades selecionadas não existe");
+        }
+        for (Community community : sharedCommunities) {
+            if (!communityMemberRepository.existsByCommunityIdAndProfileId(
+                    community.getId(), creator.getId())) {
+                throw new AccessDeniedException("Só podes partilhar em comunidades a que pertences");
             }
         }
 
@@ -203,6 +230,9 @@ public class SessionServiceImpl implements SessionService {
             );
             if (firstSaved == null) {
                 firstSaved = saved;
+                for (Community community : sharedCommunities) {
+                    sessionCommunityShareRepository.save(new SessionCommunityShare(saved, community));
+                }
             }
         }
 
