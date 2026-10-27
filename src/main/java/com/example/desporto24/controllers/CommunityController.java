@@ -226,6 +226,15 @@ public class CommunityController {
     }
 
 
+    @PostMapping("/{id}/sessions/{sessionId}/restrict-members")
+    public ResponseEntity<SessionSummaryResponse> restrictSessionToMembers(
+            @PathVariable Long id, @PathVariable Long sessionId,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                communitySessionService.restrictToMembers(id, sessionId, authentication.getName())
+        );
+    }
+
     @GetMapping("/{id}/competition")
     public ResponseEntity<CommunityCompetitionOverviewResponse> competitionOverview(
             @PathVariable Long id,
