@@ -48,10 +48,17 @@ class GpsEvidenceAuditTest(unittest.TestCase):
 
     def test_historical_conflicts_and_approximate_site_points_are_retained(self):
         rows = analyze([], self.evidence)
-        by_city = {r["municipality"]: r for r in rows}
-        self.assertIn("HISTORICAL_POSTAL_CONFLICT_REVIEW", by_city["Guarda"]["warnings"])
-        self.assertIn("STADIUM_SITE_NOT_TRACK_OR_ENTRANCE", by_city["Braga"]["warnings"])
-        self.assertIn("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE", by_city["Évora"]["warnings"])
+        by_city = {}
+        for row in rows:
+            by_city.setdefault(row["municipality"], []).append(row)
+        self.assertTrue(any("HISTORICAL_POSTAL_CONFLICT_REVIEW" in row["warnings"]
+                            for row in by_city["Guarda"]))
+        self.assertTrue(any("STADIUM_SITE_NOT_TRACK_OR_ENTRANCE" in row["warnings"]
+                            for row in by_city["Braga"]))
+        self.assertTrue(any("FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE"
+                            in row["warnings"] for row in by_city["Braga"]))
+        self.assertTrue(any("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE" in row["warnings"]
+                            for row in by_city["Évora"]))
 
     def test_two_santarem_sources_disagree_and_require_manual_resolution(self):
         fixture = [
