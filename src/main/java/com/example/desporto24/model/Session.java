@@ -57,6 +57,10 @@ public class Session {
     @Column(name = "external_confirmed_participants", nullable = false)
     private Integer externalConfirmedParticipants = 0;
 
+    /** SHA-256 digest of a one-time issued 256-bit WhatsApp sharing token. */
+    @Column(name="guest_link_hash",length=64)
+    private String guestLinkHash;
+
     @Column(name = "price_amount", precision = 10, scale = 2)
     private BigDecimal priceAmount;
 
