@@ -1,0 +1,23 @@
+{
+  "source": "Ágora Porto official Campo Municipal dos Choupos listing at Rua dos Plátanos, and OSM way 449975768 named Polidesportivo dos Choupos, checked 27 October 2026",
+  "approved_for_import": false,
+  "notes": "Existing Jynlo ID 281, OFFICIAL no GPS. Ágora confirms municipal 7-a-side pitch at Rua dos Plátanos; OSM mapped named sports-centre polygon ~41.17345,-8.65816, but does not provide authoritative entrance. Do not copy site-centre point to public venue without administrator verification. Existing alias/mapping checked via public name search (one Choupos result ID281). Separate possible duplicate review of Viso IDs 280/2623 documented, not included as an automatic GPS candidate.",
+  "points": [
+    {
+      "source_reference": "OSM:WAY:449975768",
+      "candidate_name": "Campo Municipal dos Choupos",
+      "expected_existing_venue_id": 281,
+      "expected_municipality": "Porto",
+      "expected_district": "Porto",
+      "latitude": 41.17345,
+      "longitude": -8.65816,
+      "match_kind": "NAMED_OSM_SPORTS_CENTRE_POLYGON_SITE_POINT",
+      "location_source_url": "https://mapcarta.com/pt/W449975768",
+      "location_source_text": "OpenStreetMap way 449975768 mapped as Polidesportivo dos Choupos, leisure=sports_centre, sport=multi, site centroid rounded 41.17345,-8.65816 in Ramalde, Porto, not verified 7-a-side pitch entrance.",
+      "confirmation_source_url": "https://www.agoraporto.pt/grandes-campos-municipais/polidesportivo-dos-choupos",
+      "point_precision": "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
+      "facility_verified_by_official_source": false,
+      "public_access_warning": "Site-level research waypoint, administrative validation required before submitting any GPS update."
+    }
+  ]
+}
