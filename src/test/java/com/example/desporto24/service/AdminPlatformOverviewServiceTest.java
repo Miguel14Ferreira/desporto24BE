@@ -278,6 +278,64 @@ class AdminPlatformOverviewServiceTest {
     }
 
     @Test
+    void arroiosAddressDiscrepancyIsReadOnlyForExactSavedIdAndIdentity() {
+        var original = Venue.builder().id(284L).name("Polidesportivo de Arroios — Joaquim Campos")
+                .city("Lisboa").district("Lisboa")
+                .address("Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/")
+                .build();
+        var duplicate = Venue.builder().id(9284L).name(original.getName())
+                .city("Lisboa").district("Lisboa").address(original.getAddress())
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website(original.getWebsite()).build();
+        when(venues.missingGpsReview("Lisboa", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(original, duplicate)));
+        var rows = service.missingGpsReview("Lisboa", 0).venues();
+        assertNotNull(rows.getFirst().addressReview());
+        var lead = rows.getFirst().addressReview();
+        assertEquals("ADMIN_OFFICE_ADDRESS_VS_VENUE_LOCATION_REVIEW", lead.issueCode());
+        assertTrue(lead.venueLocationToCheck().contains("Rua Maria da Fonte"));
+        assertTrue(lead.venueLocationToCheck().contains("entrada por confirmar"));
+        assertEquals("https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/",
+                lead.equipmentSourceUrl());
+        assertEquals("https://jfarroios.pt/equipamentos/mercados/mercado-do-forno-do-tijolo/",
+                lead.marketSourceUrl());
+        assertNull(rows.getFirst().researchCandidate());
+        assertNull(rows.get(1).addressReview());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void arroiosWarningDisappearsAfterAnyRelevantCorrectionOrIdentityChange() {
+        var venue = Venue.builder().id(284L).name("Polidesportivo de Arroios — Joaquim Campos")
+                .city("Lisboa").district("Lisboa")
+                .address("Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/")
+                .build();
+        assertNotNull(AdminPlatformOverviewService.addressReview(venue));
+        venue.setAddress("Mercado do Forno do Tijolo, Rua Maria da Fonte, Lisboa");
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        venue.setAddress("Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa");
+        venue.setLatitude(38.721);
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        venue.setLatitude(null);
+        venue.setLongitude(-9.132);
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        venue.setLongitude(null);
+        venue.setDistrict("Porto");
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        venue.setDistrict("Lisboa");
+        venue.setWebsite("https://example.org/evil");
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        venue.setWebsite("https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/");
+        venue.setInformationSource(Venue.InformationSource.COMMUNITY);
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        assertNull(AdminPlatformOverviewService.addressReview(null));
+    }
+
+    @Test
     void missingGpsQueueRejectsUnsafePageBeforeDatabaseAccess() {
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1));
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001));
