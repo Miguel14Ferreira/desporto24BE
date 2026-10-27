@@ -793,6 +793,13 @@ public class CommunityController {
      * Fast post-game result only for sessions owned by this community and with
      * community standings enabled. Never infer players, winners or score.
      */
+    @GetMapping("/{id}/sessions/competition-results")
+    public ResponseEntity<List<Long>> completedCommunitySessionResults(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(communitySessionResultService.recordedSessionIds(
+                id, authentication.getName()));
+    }
+
     @PostMapping("/{id}/sessions/{sessionId}/competition-result")
     public ResponseEntity<CommunityRoundResponse> recordCommunitySessionResult(
             @PathVariable Long id, @PathVariable Long sessionId,
