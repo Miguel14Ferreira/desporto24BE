@@ -35,6 +35,7 @@ public class PrivateGroupService {
     public record MessageView(Long id,Long groupId,String sender,String text,Instant createdAt) {}
     public record CreateRequest(String title,List<String> usernames) {}
     public record AddRequest(List<String> usernames) {}
+    public record RenameRequest(String title) {}
     public record SendRequest(String text) {}
     public record GroupEvent(Long groupId,Set<String> usernames,MessageView message) {}
 
@@ -88,6 +89,47 @@ public class PrivateGroupService {
         GroupView current=view(group);
         events.publishEvent(new GroupEvent(id,usernames(current),null));
         return current;
+    }
+
+
+    /** Only the creator can rename a group. No direct-chat data is touched. */
+    @Transactional
+    public GroupView rename(String actor, Long id, RenameRequest request) {
+        PrivateGroup group=authorized(actor,id);
+        if(!group.getCreatorUsername().equalsIgnoreCase(actor))
+            throw new AccessDeniedException("Only the group creator can rename the group");
+        group.setTitle(validTitle(request==null?null:request.title()));
+        groups.save(group);
+        GroupView updated=view(group);
+        events.publishEvent(new GroupEvent(id,usernames(updated),null));
+        return updated;
+    }
+
+    /** Creator removes other members; ordinary members can only leave themselves.
+     * The creator cannot leave without an ownership-transfer mechanism.
+     * A removed member's real-time subscription receives only an invalidation.
+     */
+    @Transactional
+    public GroupView removeMember(String actor, Long id, String targetUsername) {
+        PrivateGroup group=authorized(actor,id);
+        Profile self=actor(actor);
+        if(targetUsername==null||targetUsername.isBlank()||targetUsername.length()>128)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid participant");
+        PrivateGroupMember target=members.findByGroupIdAndUsernameIgnoreCase(id,targetUsername.trim())
+            .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Participant not found"));
+        boolean selfRemoval=target.getUsername().equalsIgnoreCase(self.getUsername());
+        boolean creator=group.getCreatorUsername().equalsIgnoreCase(self.getUsername());
+        if(!creator&&!selfRemoval)
+            throw new AccessDeniedException("Only the group creator can remove others");
+        if(target.getUsername().equalsIgnoreCase(group.getCreatorUsername()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Creator cannot leave without transferring ownership");
+        members.delete(target);
+        members.flush();
+        GroupView updated=view(group);
+        Set<String> audience=new HashSet<>(usernames(updated));
+        audience.add(target.getUsername()); // Invalidate the removed user's inbox.
+        events.publishEvent(new GroupEvent(id,Set.copyOf(audience),null));
+        return updated;
     }
 
     @Transactional(readOnly=true)
