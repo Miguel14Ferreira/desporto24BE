@@ -13,6 +13,7 @@ MANIFESTS = (
     "docs/venue-imports/viseu-guarda-3-municipal-gps-pending-caop2025.json",
     "docs/venue-imports/braga-evora-2-official-site-gps-review-20261021.json",
     "docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json",
+    "docs/venue-imports/porto-outeiro-osm-geometry-review-20261027.json",
 )
 
 def valid_gps(lat, lon):
@@ -43,6 +44,9 @@ def load_evidence(paths):
             url = point.get("location_source_url")
             if not isinstance(url, str) or not url.startswith("https://"):
                 raise ValueError("Invalid evidence URL")
+            expected_id = point.get("expected_existing_venue_id")
+            if expected_id is not None and (type(expected_id) is not int or expected_id <= 0):
+                raise ValueError("Invalid expected existing venue ID")
             points.append(point)
     return points
 
@@ -89,6 +93,9 @@ def analyze(catalogue, evidence):
                           else "EXISTING_DIFFERENT_GPS_REVIEW")
         if source_conflict and len(matches) == 1:
             status = "SOURCE_COORDINATE_CONFLICT_REVIEW"
+        expected_id = point.get("expected_existing_venue_id")
+        if venue is not None and expected_id is not None and venue["id"] != expected_id:
+            status = "EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW"
         warnings = []
         if source_conflict:
             warnings.append("CONFLICTING_DOCUMENTED_SITE_POINTS_REVIEW")
@@ -102,11 +109,16 @@ def analyze(catalogue, evidence):
                             else "RELATED_VENUE_IDENTITY_UNCONFIRMED_REVIEW")
         if point.get("source_address_conflict"):
             warnings.append("HISTORICAL_POSTAL_CONFLICT_REVIEW")
+        if point.get("source_location_conflict"):
+            warnings.append("MUNICIPAL_AND_CLUB_ADDRESS_REVIEW")
+        if point.get("source_boundary_conflict"):
+            warnings.append("MAP_NEIGHBORHOOD_DISCREPANCY_REVIEW")
         precision = point.get("point_precision")
         if precision in ("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE",
                          "STADIUM_SITE_NOT_TRACK_OR_ENTRANCE",
                          "EVENT_SITE_WAYPOINT_NOT_EXACT_BUILDING",
-                         "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN"):
+                         "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN",
+                         "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE"):
             warnings.append(precision)
         result.append({
             "sourceReference": point["source_reference"],
