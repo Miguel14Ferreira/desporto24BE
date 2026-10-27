@@ -108,6 +108,51 @@ class SessionGuestRequestServiceTest {
         assertEquals(0,session.getExternalConfirmedParticipants());
         verify(requests,never()).save(guest);
     }
+    @Test void approvedGuestExplicitlyAssociatesVerifiedProfileWithoutDoubleBooking(){
+        var person=historic();
+        var guest=new SessionGuestRequest();
+        guest.setId(25L);guest.setSession(session);guest.setCommunityPlayer(person);
+        guest.setDisplayName("Afonso Salvador");guest.setStatus(SessionGuestRequest.State.APPROVED);
+        var owner=new Profile();owner.setId(80L);owner.setUsername("afonso");
+        String receipt="B".repeat(43);
+        // The hash is only ever held server-side; an invalid secret never reaches linking.
+        String digest;
+        try{
+            byte[] raw=java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest=java.util.HexFormat.of().formatHex(raw);
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(guest));
+        when(profiles.findUserByUsernameIgnoreCase("afonso")).thenReturn(Optional.of(owner));
+        session.setExternalConfirmedParticipants(1);
+        var result=service.linkAccount(7L,new SessionGuestRequestService.ReceiptInput(receipt),"afonso");
+        assertEquals("LINKED",result.status());
+        assertEquals(0,session.getExternalConfirmedParticipants());
+        assertEquals(SessionGuestRequest.State.LINKED,guest.getStatus());
+        assertEquals(owner,guest.getLinkedProfile());
+        verify(participants).saveAndFlush(argThat(p->p.getProfile()==owner
+                && p.getState()==ParticipantState.ACTIVE
+                && p.getAttendanceStatus()==AttendanceStatus.PENDING));
+        verify(historicalLinks).claimOrganizerApprovedGuest(11L,"afonso",15L);
+        verify(sessions).save(session);
+    }
+    @Test void unapprovedGuestCannotLinkToSomebodyElsesAuthenticatedAccount(){
+        var guest=new SessionGuestRequest();guest.setId(25L);guest.setSession(session);
+        guest.setStatus(SessionGuestRequest.State.PENDING);
+        String receipt="C".repeat(43);
+        String digest;
+        try{digest=java.util.HexFormat.of().formatHex(
+                java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(guest));
+        var account=new Profile();account.setId(88L);account.setUsername("intruso");
+        when(profiles.findUserByUsernameIgnoreCase("intruso")).thenReturn(Optional.of(account));
+        assertThrows(ResponseStatusException.class,()->service.linkAccount(7L,
+                new SessionGuestRequestService.ReceiptInput(receipt),"intruso"));
+        verifyNoInteractions(historicalLinks);
+        verify(participants,never()).saveAndFlush(any());
+    }
     @Test void rejectsStatusLookupWithoutPossessionOfReceipt(){
         assertThrows(ResponseStatusException.class,()->service.status(7L,
                 new SessionGuestRequestService.ReceiptInput("name-only")));
