@@ -324,8 +324,15 @@ public class SessionServiceImpl implements SessionService {
                 || session.getAudience() == SessionAudience.PUBLIC) {
             return true;
         }
-        return communityMemberRepository.existsByCommunityIdAndProfileId(
-                session.getCommunity().getId(), viewer.getId());
+        if (communityMemberRepository.existsByCommunityIdAndProfileId(
+                session.getCommunity().getId(), viewer.getId())) return true;
+        // Changing a public session back to community-only cannot strand people
+        // who already joined or were waitlisted while it was publicly open.
+        // This does not grant new outside users the ability to enroll.
+        return participantRepository.existsBySessionIdAndProfileIdAndState(
+                    session.getId(), viewer.getId(), ParticipantState.ACTIVE)
+                || waitlistRepository.findBySessionIdAndProfileId(session.getId(), viewer.getId())
+                    .isPresent();
     }
 
     private void requireCommunitySessionAccess(Session session, Profile viewer) {

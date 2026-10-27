@@ -125,4 +125,90 @@ class CommunitySessionServiceTest {
             verify(sessions, never()).save(any(Session.class));
         }
     }
+
+    @Test
+    void adminCanRestoreMembersOnlyEvenWhenGameIsFull() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        SessionRepository sessions = mock(SessionRepository.class);
+        SessionViewMapper mapper = mock(SessionViewMapper.class);
+        Profile actor = new Profile();
+        actor.setId(1L);
+        Community group = Community.builder().id(10L).build();
+        CommunityMember membership = CommunityMember.builder()
+                .community(group).profile(actor).role(CommunityRole.ADMIN).build();
+        Session game = new Session();
+        game.setCommunity(group);
+        game.setAudience(SessionAudience.PUBLIC);
+        game.setStatus(SessionStatus.FULL);
+        game.setGameDate(Date.from(Instant.now().plusSeconds(3600)));
+        when(profiles.findUserByUsernameIgnoreCase("admin")).thenReturn(Optional.of(actor));
+        when(members.findByCommunityIdAndProfileId(10L,1L)).thenReturn(Optional.of(membership));
+        when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(game));
+        when(sessions.save(game)).thenReturn(game);
+
+        new CommunitySessionService(communities,members,profiles,sessions,mapper)
+                .restrictToMembers(10L,42L,"admin");
+
+        assertEquals(SessionAudience.COMMUNITY_ONLY,game.getAudience());
+        verify(mapper).toSummary(same(game),isNull());
+        verify(sessions).save(same(game));
+    }
+
+    @Test
+    void restrictionDeniesRegularMembersAndUnrelatedCommunity() {
+        Profile actor = new Profile();
+        actor.setId(1L);
+        Community group = Community.builder().id(10L).build();
+        CommunityMember membership = CommunityMember.builder()
+                .community(group).profile(actor).role(CommunityRole.MEMBER).build();
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        SessionRepository sessions = mock(SessionRepository.class);
+        when(profiles.findUserByUsernameIgnoreCase("actor")).thenReturn(Optional.of(actor));
+        when(members.findByCommunityIdAndProfileId(10L,1L)).thenReturn(Optional.of(membership));
+        CommunitySessionService service = new CommunitySessionService(
+                mock(CommunityRepository.class),members,profiles,sessions,mock(SessionViewMapper.class));
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                ()->service.restrictToMembers(10L,42L,"actor"));
+        verify(sessions,never()).save(any());
+
+        when(members.findByCommunityIdAndProfileId(10L,1L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(actor).role(CommunityRole.OWNER).build()));
+        Session other = new Session();
+        other.setCommunity(Community.builder().id(11L).build());
+        when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(other));
+        assertThrows(IllegalArgumentException.class,
+                ()->service.restrictToMembers(10L,42L,"actor"));
+        verify(sessions,never()).save(any());
+    }
+
+    @Test
+    void restrictionRejectsEndedAndPastSessions() {
+        for (SessionStatus status : new SessionStatus[]{SessionStatus.CANCELLED,SessionStatus.COMPLETED,SessionStatus.OPEN}) {
+            Profile actor = new Profile();actor.setId(2L);
+            Community group = Community.builder().id(10L).build();
+            CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+            ProfileRepository profiles = mock(ProfileRepository.class);
+            SessionRepository sessions = mock(SessionRepository.class);
+            when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(actor));
+            when(members.findByCommunityIdAndProfileId(10L,2L)).thenReturn(Optional.of(
+                    CommunityMember.builder().community(group).profile(actor).role(CommunityRole.OWNER).build()));
+            Session game = new Session();
+            game.setCommunity(group);
+            game.setAudience(SessionAudience.PUBLIC);
+            game.setStatus(status);
+            game.setGameDate(Date.from(status==SessionStatus.OPEN
+                    ? Instant.now().minusSeconds(60):Instant.now().plusSeconds(600)));
+            when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(game));
+            var service = new CommunitySessionService(
+                    mock(CommunityRepository.class),members,profiles,sessions,mock(SessionViewMapper.class));
+            assertThrows(IllegalStateException.class,
+                    ()->service.restrictToMembers(10L,42L,"owner"));
+            assertEquals(SessionAudience.PUBLIC,game.getAudience());
+            verify(sessions,never()).save(any());
+        }
+    }
+
 }
