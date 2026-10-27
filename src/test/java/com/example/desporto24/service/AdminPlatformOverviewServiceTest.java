@@ -127,7 +127,7 @@ class AdminPlatformOverviewServiceTest {
         assertFalse(fields.contains("longitude"));
         assertFalse(fields.contains("submittedByUsername"));
         var method = AdminPlatformOverviewController.class
-                .getMethod("missingGpsReview", String.class, int.class);
+                .getMethod("missingGpsReview", String.class, int.class, boolean.class);
         assertArrayEquals(new String[]{"/venue-gps-review"},
                 method.getAnnotation(org.springframework.web.bind.annotation.GetMapping.class).value());
         assertEquals("hasAnyRole('ADMIN', 'SUPER_ADMIN')",
