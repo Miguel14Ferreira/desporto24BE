@@ -166,6 +166,10 @@ public class AdminPlatformOverviewService {
      * do Alentejo 38.573425,-7.928949, ~22m apart.
      * 276 (Santarém): municipal tourism directions 39.2250178,-8.6886809
      * and a matching OSM building way 1172748137, both site-level only.
+     * 283 (Porto): the named OSM stadium polygon 1298753441 is independently
+     * documented against the municipal Campo Municipal do Outeiro and operator.
+     * Its Mapcarta coordinates (41.17589,-8.59259) are rounded, site-level only;
+     * Ágora and club describe different access streets. Never infer an entrance.
      * None of these proves a particular pedestrian entrance.
      */
     private static final java.util.Map<Long, CuratedSiteEvidence> GPS_RESEARCH_LEADS =
@@ -191,7 +195,14 @@ public class AdminPlatformOverviewService {
                             "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
                             41.17345, -8.65816,
                             "https://www.agoraporto.pt/grandes-campos-municipais/polidesportivo-dos-choupos",
-                            "https://www.openstreetmap.org/way/449975768"));
+                            "https://www.openstreetmap.org/way/449975768"),
+                    283L, new CuratedSiteEvidence(
+                            "Campo Municipal do Outeiro", "Porto", "Porto",
+                            "Rua D. Afonso Henriques, Paranhos",
+                            "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
+                            41.17589, -8.59259,
+                            "https://www.agoraporto.pt/grandes-campos-municipais/campo-municipal-do-outeiro",
+                            "https://mapcarta.com/pt/W1298753441"));
 
     private record CuratedSiteEvidence(String name, String city, String district,
                                        String addressPart, String storedWebsite,

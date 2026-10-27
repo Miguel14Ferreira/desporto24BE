@@ -23,3 +23,10 @@ python3 -m unittest discover -s scripts -p test_audit_live_venue_gps_evidence.py
 python3 scripts/audit_live_venue_gps_evidence.py --live-public-api --output /tmp/jynlo-venue-gps-review.json
 ```
 All audit execution uses public GET only or offline fixture. **Zero DB writes, zero deployment required.**
+
+## Revisão administrativa focada — aditamento
+A investigação já existente pode agora ser consultada na fila ADMIN de recintos com GPS em falta (`onlyWithEvidence=true`). Só o **ID 283** é elegível, e apenas enquanto o nome, município, distrito, morada, website da Ágora, tipo de fonte OFFICIAL e ausência de ambas as coordenadas coincidirem com a ficha verificada.
+
+O campo `researchCandidate` mostra **41.17589,-8.59259**, referência arredondada do *polígono do estádio*, acompanhada pela página municipal da Ágora e pela página cartográfica Mapcarta/OSM. O aviso genérico visível em PT/EN já esclarece que este **não é um ponto de entrada validado**. A morada Rua D. Afonso Henriques, as referências do clube à Rua Fonte do Outeiro 521 e a atribuição cartográfica a Campanhã são pistas de validação presencial, não erros de morada comprovados nem motivo para atualização automática.
+
+A vista normal sem o parâmetro mantém-se inalterada; os restantes recintos não entram automaticamente na fila. Não se efetuam alterações à base de dados, nem se cria um novo recinto, nem se aprova GPS ou morada. Qualquer edição futura tem de passar por proposta fundamentada e revisão ADMIN/SUPER_ADMIN.
