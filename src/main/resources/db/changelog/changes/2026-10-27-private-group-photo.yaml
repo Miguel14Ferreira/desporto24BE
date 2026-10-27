@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-27-private-group-photo
+      author: desporto24
+      comment: "Optional group avatar image stored via existing validated media infrastructure"
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: private_group
+            columns:
+              - column:
+                  name: photo_url
+                  type: VARCHAR(2048)
