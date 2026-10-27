@@ -37,7 +37,7 @@ public class VenueReverseGeocodeService {
     private record Cached(ReverseLocation result, long expiresAt) {}
 
     public VenueReverseGeocodeService() {
-        this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
+        this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build());
     }
     VenueReverseGeocodeService(HttpClient client) {
         this.client = client;
@@ -67,7 +67,7 @@ public class VenueReverseGeocodeService {
                 + "&lon=" + URLEncoder.encode(Double.toString(longitude), StandardCharsets.UTF_8)
                 + "&level=address&radius=1500&lang=pt";
         HttpRequest request = HttpRequest.newBuilder(URI.create(ENDPOINT + query))
-                .timeout(Duration.ofSeconds(5))
+                .timeout(Duration.ofSeconds(14))
                 .header("Accept", "application/json")
                 .header("User-Agent", "Jynlo/1.0 (https://d24sports.com)")
                 .GET().build();
@@ -85,7 +85,8 @@ public class VenueReverseGeocodeService {
             Thread.currentThread().interrupt();
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Pesquisa de morada interrompida");
         } catch (java.io.IOException ex) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Pesquisa de morada indisponível");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Serviço de localização temporariamente inacessível", ex);
         }
     }
 
@@ -93,8 +94,9 @@ public class VenueReverseGeocodeService {
         JsonNode result = mapper.readTree(json).path("result");
         if (!result.isObject()) return new ReverseLocation(null, null, null, "My Geocode");
         JsonNode fields = result.path("components");
-        String city = first(fields, "city", "town", "village", "municipality", "suburb", "county");
-        String road = first(fields, "road");
+        String city = first(fields, "city", "town", "village", "locality", "municipality",
+                "city_district", "suburb", "quarter", "county");
+        String road = first(fields, "road", "street", "pedestrian", "residential");
         String houseNumber = first(fields, "house_number");
         JsonNode distanceNode = result.path("distance_m");
         int distance = distanceNode.isNumber() ? Math.max(0, distanceNode.asInt()) : Integer.MAX_VALUE;
