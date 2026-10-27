@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class VenueReverseGeocodeService {
     private static final String ENDPOINT = "https://api.mygeocode.com/v1/reverse";
+    // Public Photon demo is for modest interactive use only; keep this endpoint
+    // server-side, cached, throttled and easy to replace with a managed provider.
+    private static final String STREET_ENDPOINT = "https://photon.komoot.io/reverse";
     private static final long CACHE_MS = 15 * 60_000L;
     private final HttpClient client;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -72,6 +75,31 @@ public class VenueReverseGeocodeService {
                 .header("User-Agent", "Jynlo/1.0 (https://d24sports.com)")
                 .GET().build();
         try {
+            // My Geocode often returns only municipality-level "Sintra" for
+            // urban Cacém. Photon/OSM street-layer data resolves the nearby
+            // Rua do Olival and the more useful locality "Cacém".
+            try {
+                String streetQuery = "?lat=" + latitude + "&lon=" + longitude
+                        + "&radius=0.5&layer=street&limit=1";
+                HttpRequest streetRequest = HttpRequest.newBuilder(
+                        URI.create(STREET_ENDPOINT + streetQuery))
+                        .timeout(Duration.ofSeconds(7))
+                        .header("Accept", "application/json")
+                        .header("User-Agent", "Jynlo/1.0 (https://d24sports.com)")
+                        .GET().build();
+                HttpResponse<String> streetResponse =
+                        client.send(streetRequest, HttpResponse.BodyHandlers.ofString());
+                if (streetResponse.statusCode() == 200) {
+                    ReverseLocation street = parsePhoton(streetResponse.body(), latitude, longitude);
+                    if (street.address() != null && street.city() != null) {
+                        if (cache.size() > 400) cache.clear();
+                        cache.put(locationKey, new Cached(street, now + CACHE_MS));
+                        return street;
+                    }
+                }
+            } catch (java.io.IOException ignored) {
+                // This optional street lookup must not break the old provider.
+            }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -88,6 +116,37 @@ public class VenueReverseGeocodeService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Serviço de localização temporariamente inacessível", ex);
         }
+    }
+
+    /**
+     * Read one street feature returned by Photon (OpenStreetMap-based).
+     * Do not turn the street's midpoint into a new session GPS coordinate.
+     */
+    ReverseLocation parsePhoton(String json, double latitude, double longitude) throws java.io.IOException {
+        JsonNode feature = mapper.readTree(json).path("features").path(0);
+        JsonNode details = feature.path("properties");
+        if (!details.isObject()) return new ReverseLocation(null, null, null, "OpenStreetMap / Photon");
+        String city = first(details, "district", "locality", "city", "county");
+        String road = first(details, "street");
+        if (road == null && "street".equals(details.path("type").asText())) {
+            road = first(details, "name");
+        }
+        JsonNode coordinates = feature.path("geometry").path("coordinates");
+        if (coordinates.size() < 2 || !coordinates.path(0).isNumber()
+                || !coordinates.path(1).isNumber()) {
+            return new ReverseLocation(city, null, null, "OpenStreetMap / Photon");
+        }
+        double roadLongitude = coordinates.path(0).asDouble();
+        double roadLatitude = coordinates.path(1).asDouble();
+        double dLat = Math.toRadians(roadLatitude - latitude);
+        double dLon = Math.toRadians(roadLongitude - longitude);
+        double arc = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(latitude)) * Math.cos(Math.toRadians(roadLatitude))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        int metres = (int) Math.round(2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(arc))));
+        String address = road == null || metres > 500 ? null
+                : metres > 160 ? "Perto de " + road : road;
+        return new ReverseLocation(city, address, metres, "OpenStreetMap / Photon");
     }
 
     ReverseLocation parse(String json, Double accuracyMeters) throws java.io.IOException {
