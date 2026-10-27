@@ -35,6 +35,8 @@ class SessionLegacyCommunityAuthorizationTest {
     @Mock private SessionRepository sessionRepository;
     @Mock private ProfileRepository profileRepository;
     @Mock private CommunityMemberRepository communityMemberRepository;
+    @Mock private com.example.desporto24.repository.session.SessionParticipantRepository participantRepository;
+    @Mock private com.example.desporto24.repository.session.SessionWaitlistRepository waitlistRepository;
     @Mock private SessionViewMapper sessionViewMapper;
     @InjectMocks private SessionServiceImpl sessionService;
 
@@ -99,6 +101,28 @@ class SessionLegacyCommunityAuthorizationTest {
 
         assertSame(expected, sessionService.getById(77L, "outsider"));
         verifyNoInteractions(communityMemberRepository);
+    }
+
+    @Test
+    void alreadyConfirmedPublicRegistrantRetainsDetailAccessAfterRestriction() {
+        legacy.setAudience(SessionAudience.COMMUNITY_ONLY);
+        when(sessionRepository.findById(77L)).thenReturn(Optional.of(legacy));
+        when(profileRepository.findUserByUsername("outsider")).thenReturn(Optional.of(outsider));
+        when(communityMemberRepository.existsByCommunityIdAndProfileId(88L,44L)).thenReturn(false);
+        when(participantRepository.existsBySessionIdAndProfileIdAndState(
+                77L,44L,com.example.desporto24.enumeration.ParticipantState.ACTIVE)).thenReturn(true);
+        SessionDetailResponse expected=mock(SessionDetailResponse.class);
+        when(sessionViewMapper.toDetail(legacy,outsider)).thenReturn(expected);
+        assertSame(expected,sessionService.getById(77L,"outsider"));
+    }
+
+    @Test
+    void outsidersWithoutExistingRegistrationStillCannotSeeRestrictedDetails() {
+        legacy.setAudience(SessionAudience.COMMUNITY_ONLY);
+        when(sessionRepository.findById(77L)).thenReturn(Optional.of(legacy));
+        when(profileRepository.findUserByUsername("outsider")).thenReturn(Optional.of(outsider));
+        assertThrows(AccessDeniedException.class,()->sessionService.getById(77L,"outsider"));
+        verifyNoInteractions(sessionViewMapper);
     }
 
     @Test
