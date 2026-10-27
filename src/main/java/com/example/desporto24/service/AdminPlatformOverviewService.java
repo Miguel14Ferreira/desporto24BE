@@ -167,7 +167,13 @@ public class AdminPlatformOverviewService {
      * Curated and immutable, not an import pipeline. Each lead must be documented
      * independently against a specific saved OFFICIAL venue identity.
      *
-     * 273 (Évora): municipal site map 38.573234,-7.928876, regional Turismo
+     * 273 (Évora): explicitly inspected municipal Contacts & Location
+     * "ver no mapa" link contains 38.573234,-7.928876 as site coordinates.
+     * The underlying municipal link is HTTP Google Maps and is NOT exposed
+     * as a trusted HTTPS source or evidence of entrance/portão GPS.
+     * This is official site evidence only. The municipal official HTTPS
+     * Contacts & Location page remains the audit reference.
+     * Previously: municipal site map 38.573234,-7.928876, regional Turismo
      * do Alentejo 38.573425,-7.928949, ~22m apart.
      * 276 (Santarém): municipal tourism directions 39.2250178,-8.6886809
      * and a matching OSM building way 1172748137, both site-level only.
@@ -400,7 +406,10 @@ public class AdminPlatformOverviewService {
         }
         return new VenueGpsResearchCandidate(
                 lead.latitude(), lead.longitude(), lead.officialSourceUrl(),
-                lead.secondarySourceUrl(), "SITE_REFERENCE_NOT_VERIFIED_ENTRANCE");
+                lead.secondarySourceUrl(),
+                Long.valueOf(273L).equals(venue.getId())
+                        ? "MUNICIPAL_MAP_LINK_SITE_NOT_VERIFIED_ENTRANCE"
+                        : "SITE_REFERENCE_NOT_VERIFIED_ENTRANCE");
     }
 
     /**
