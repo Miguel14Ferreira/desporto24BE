@@ -6,6 +6,7 @@ import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.session.SessionParticipant;
+import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.model.community.CommunityPlayer;
@@ -41,6 +42,7 @@ public class SessionGuestRequestService {
     private final SessionParticipantRepository participants;
     private final ProfileRepository profiles;
     private final CommunityHistoricalPlayerLinkService historicalLinks;
+    private final WaitlistPromotionService waitlistPromotionService;
 
     public record GuestPlayer(Long id,String name) {}
     public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
@@ -54,7 +56,7 @@ public class SessionGuestRequestService {
     public String issueLink(Long sessionId,String username) {
         Session session=locked(sessionId);
         requireCreator(session,username);
-        requirePublicEligible(session);
+        requireGuestEligible(session);
         byte[] bytes=new byte[32];
         RANDOM.nextBytes(bytes);
         String token=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -78,7 +80,7 @@ public class SessionGuestRequestService {
     public GuestReceipt request(Long sessionId,GuestRequestInput input) {
         Session session=locked(sessionId);
         verifyToken(session,input==null?null:input.linkToken());
-        requirePublicEligible(session);
+        requireGuestEligible(session);
         if(!SessionRegistrationOpening.isOpen(session,Instant.now())) {
             throw conflict("A convocatória ainda não abriu");
         }
@@ -104,7 +106,7 @@ public class SessionGuestRequestService {
             throw conflict("Este jogador já tem um pedido nesta sessão");
         if(requests.countBySessionIdAndStatus(sessionId,SessionGuestRequest.State.PENDING)>=40)
             throw conflict("Limite de pedidos pendentes atingido");
-        String note=input.note()==null?"":clean(input.note(),160);
+        String note=input.note()==null||input.note().isBlank()?"":clean(input.note(),160);
         byte[] bytes=new byte[32];RANDOM.nextBytes(bytes);
         String receipt=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         SessionGuestRequest request=new SessionGuestRequest();
@@ -198,7 +200,7 @@ public class SessionGuestRequestService {
         if(request.getStatus()!=SessionGuestRequest.State.PENDING)
             throw conflict("Pedido já decidido");
         if(approve){
-            requirePublicEligible(session);
+            requireGuestEligible(session);
             if(!SessionRegistrationOpening.isOpen(session,Instant.now()))
                 throw conflict("A convocatória ainda não abriu");
             long active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
@@ -221,16 +223,93 @@ public class SessionGuestRequestService {
                 request.getNote(),request.getTeamCode());
     }
 
+    /**
+     * Cancel only an approved external reservation, before kickoff.
+     * The existing session row lock serializes the seat release with joining,
+     * approvals and account linking. A linked account must use normal
+     * registered-participant removal, not decrement external capacity again.
+     */
+    @Transactional
+    public GuestView cancel(Long sessionId,Long guestId,String username) {
+        Session session=locked(sessionId);
+        requireCreator(session,username);
+        if(session.getStatus()==SessionStatus.CANCELLED
+                || session.getStatus()==SessionStatus.COMPLETED
+                || session.getGameDate()==null
+                || !session.getGameDate().toInstant().isAfter(Instant.now()))
+            throw conflict("Não é possível cancelar presenças após o início ou fecho do jogo");
+        SessionGuestRequest guest=requests.findById(guestId)
+                .filter(r->r.getSession().getId().equals(sessionId))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        if(guest.getStatus()!=SessionGuestRequest.State.APPROVED)
+            throw conflict("Apenas uma presença de convidado confirmada pode ser cancelada");
+        int external=session.getExternalConfirmedParticipants()==null?0:
+                session.getExternalConfirmedParticipants();
+        if(external<=0)throw conflict("A reserva do convidado já não existe");
+        Instant now=Instant.now();
+        guest.setStatus(SessionGuestRequest.State.CANCELLED);
+        guest.setTeamCode(null);
+        requests.save(guest);
+        session.setExternalConfirmedParticipants(external-1);
+        long active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
+        session.setStatus(SessionCapacity.remainingPlaces(session,active)==0
+                ? SessionStatus.FULL:SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessions.save(session);
+
+        // An old team assignment is no longer valid after changing the roster.
+        List<SessionParticipant> registered=participants
+                .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId,ParticipantState.ACTIVE);
+        boolean changed=false;
+        for(SessionParticipant member:registered){
+            if(member.getTeamCode()!=null){member.setTeamCode(null);changed=true;}
+        }
+        if(changed)participants.saveAll(registered);
+        List<SessionGuestRequest> stillApproved=requests
+                .findBySessionIdAndStatusOrderByCreatedAtAsc(sessionId,SessionGuestRequest.State.APPROVED);
+        boolean guestsChanged=false;
+        for(SessionGuestRequest other:stillApproved){
+            if(other.getTeamCode()!=null){other.setTeamCode(null);guestsChanged=true;}
+        }
+        if(guestsChanged)requests.saveAll(stillApproved);
+
+        // Never hand a freed place to a new guest ahead of the waitlist.
+        while(SessionCapacity.remainingPlaces(session,
+                participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE))>0) {
+            if(waitlistPromotionService.promoteNext(session,now).isEmpty())break;
+        }
+        active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
+        session.setStatus(SessionCapacity.remainingPlaces(session,active)==0
+                ? SessionStatus.FULL:SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessions.save(session);
+        return new GuestView(guest.getId(),guest.getDisplayName(),guest.getStatus().name(),
+                guest.getNote(),guest.getTeamCode());
+    }
+
+    /** Safe preview visible only with an organizer-issued secret for members-only games. */
+    @Transactional(readOnly=true)
+    public SessionPublicPreviewResponse preview(Long sessionId,String token) {
+        Session session=validLink(sessionId,token);
+        return new SessionPublicPreviewResponse(
+                session.getId(),session.getSport(),session.getCity(),
+                session.getGameDate().toInstant(),session.getMaxParticipants(),
+                SessionCapacity.totalConfirmed(session,
+                    participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE)),
+                session.getPriceAmount(),session.getStatus(),session.getGamePhoto());
+    }
+
     private Session validLink(Long sessionId,String token) {
         Session session=sessions.findById(sessionId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Sessão não encontrada"));
         verifyToken(session,token);
-        requirePublicEligible(session);
+        requireGuestEligible(session);
         return session;
     }
 
-    private void requirePublicEligible(Session session){
-        if(session.getCommunity()==null || session.getAudience()!=SessionAudience.PUBLIC
+    private void requireGuestEligible(Session session){
+        if(session.getCommunity()==null || (session.getAudience()!=SessionAudience.PUBLIC
+                && session.getAudience()!=SessionAudience.COMMUNITY_ONLY)
                 || Boolean.TRUE.equals(session.getPrivateGame())
                 || Boolean.FALSE.equals(session.getEnabled())
                 || session.getGameDate()==null

@@ -19,6 +19,11 @@ public class SessionGuestRequestController {
     public Map<String,String> createLink(@PathVariable Long sessionId,Authentication auth){
         return Map.of("token",guests.issueLink(sessionId,auth.getName()));
     }
+    @PostMapping("/guest-preview")
+    public com.example.desporto24.model.dto.session.SessionPublicPreviewResponse preview(
+            @PathVariable Long sessionId,@RequestBody Map<String,String> body){
+        return guests.preview(sessionId,body.get("token"));
+    }
     @PostMapping("/guest-roster")
     public SessionGuestRequestService.GuestRoster roster(
             @PathVariable Long sessionId,@RequestBody Map<String,String> body){
@@ -41,6 +46,12 @@ public class SessionGuestRequestController {
             @PathVariable Long sessionId,@RequestBody SessionGuestRequestService.ReceiptInput body,
             Authentication auth){
         return guests.linkAccount(sessionId,body,auth.getName());
+    }
+
+    @PostMapping("/guest-requests/{requestId}/cancel")
+    public SessionGuestRequestService.GuestView cancel(
+            @PathVariable Long sessionId,@PathVariable Long requestId,Authentication auth){
+        return guests.cancel(sessionId,requestId,auth.getName());
     }
 
     @GetMapping("/guest-requests")
