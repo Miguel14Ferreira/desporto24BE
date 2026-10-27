@@ -32,6 +32,7 @@ public class VenueController {
     private final VenueService venueService;
     private final com.example.desporto24.service.VenueSuggestionService suggestionService;
     private final VenueMapLinkService venueMapLinkService;
+    private final com.example.desporto24.service.VenueReverseGeocodeService reverseGeocodeService;
     private final VenuePhotoService venuePhotoService;
     private final VenueSportConditionService venueSportConditionService;
 
@@ -75,6 +76,17 @@ public class VenueController {
     /** Retain the old Java caller signature; HTTP clients use the district-aware endpoint. */
     public VenueSearchPageResponse suggest(String name, String city, String sport, int page) {
         return suggest(name, city, sport, page, null);
+    }
+
+    /**
+     * Interactive, authenticated GPS lookup; device coordinates are shared only
+     * after a user actively clicks "Use current location".
+     */
+    @GetMapping("/reverse-location")
+    public com.example.desporto24.service.VenueReverseGeocodeService.ReverseLocation reverseLocation(
+            @RequestParam double latitude, @RequestParam double longitude,
+            @RequestParam(required = false) Double accuracyMeters) {
+        return reverseGeocodeService.reverse(latitude, longitude, accuracyMeters);
     }
 
     @PostMapping("/resolve-map-link")
