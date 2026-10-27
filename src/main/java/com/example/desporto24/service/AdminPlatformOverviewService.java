@@ -100,7 +100,7 @@ public class AdminPlatformOverviewService {
                         v.getInformationSource() == null ? null : v.getInformationSource().name(),
                         v.getInformationSource() == Venue.InformationSource.OFFICIAL
                                 ? safeOfficialSourceWebsite(v.getWebsite()) : null,
-                        researchCandidate(v), addressReview(v)))
+                        researchCandidate(v), addressReview(v), possibleDuplicateReview(v)))
                 .toList(), page, slice.hasNext());
     }
 
@@ -148,7 +148,14 @@ public class AdminPlatformOverviewService {
                             "https://viversantarem.pt/instalacoes-desportivas/",
                             39.2250178, -8.6886809,
                             "https://www.visitesantarem.pt/lista/piscinas-municipais-do-sacapeito/",
-                            "https://www.openstreetmap.org/way/1172748137"));
+                            "https://www.openstreetmap.org/way/1172748137"),
+                    281L, new CuratedSiteEvidence(
+                            "Campo Municipal dos Choupos", "Porto", "Porto",
+                            "Rua dos Plátanos",
+                            "https://www.agoraporto.pt/noticias/desporto/desporto/rmid",
+                            41.17345, -8.65816,
+                            "https://www.agoraporto.pt/grandes-campos-municipais/polidesportivo-dos-choupos",
+                            "https://www.openstreetmap.org/way/449975768"));
 
     private record CuratedSiteEvidence(String name, String city, String district,
                                        String addressPart, String storedWebsite,
@@ -205,6 +212,46 @@ public class AdminPlatformOverviewService {
     public record VenueAddressReview(String issueCode, String venueLocationToCheck,
                                       String equipmentSourceUrl, String marketSourceUrl) {}
 
+    /**
+     * Viso is an alias-level potential duplicate, NOT an approved merge.
+     * Unlike the Choupos site lead, the already populated OSM venue 2623 may
+     * correspond to the municipal venue 280. Only report the relationship when
+     * both the exact saved municipal record and the live OSM record are intact.
+     * Never copy its coordinates or remove a venue.
+     */
+    static boolean visoDuplicateReviewEligible(Venue venue) {
+        return venue != null && Long.valueOf(280L).equals(venue.getId())
+                && venue.getLatitude() == null && venue.getLongitude() == null
+                && venue.getInformationSource() == Venue.InformationSource.OFFICIAL
+                && "Campo Municipal do Viso".equals(venue.getName())
+                && "Porto".equals(venue.getCity()) && "Porto".equals(venue.getDistrict())
+                && "Rua Direita do Viso, 4250 Porto".equals(venue.getAddress())
+                && "https://www.agoraporto.pt/noticias/desporto/desporto/rmid"
+                        .equals(safeOfficialSourceWebsite(venue.getWebsite()));
+    }
+
+    /** One bounded, read-only DB lookup only for the existing ID 280. */
+    private VenuePossibleDuplicateReview possibleDuplicateReview(Venue venue) {
+        if (!visoDuplicateReviewEligible(venue)) return null;
+        return venues.findById(2623L)
+                .filter(other -> "Campo Sintético do Viso".equals(other.getName())
+                        && "Porto".equals(other.getCity()) && "Porto".equals(other.getDistrict())
+                        && other.getInformationSource() == Venue.InformationSource.OPENSTREETMAP
+                        && other.getLatitude() != null && other.getLongitude() != null
+                        && Math.abs(other.getLatitude() - 41.1819461) < 0.0003
+                        && Math.abs(other.getLongitude() - (-8.6450944)) < 0.0003)
+                .map(other -> new VenuePossibleDuplicateReview(
+                        "POTENTIAL_SAME_FACILITY_REVIEW", other.getId(), other.getName(),
+                        "https://www.agoraporto.pt/grandes-campos-municipais/campo-sintetico-do-viso",
+                        "https://www.openstreetmap.org/way/334849388"))
+                .orElse(null);
+    }
+
+    /** Identity warning only, not an automatic merge, deletion, or GPS update. */
+    public record VenuePossibleDuplicateReview(String issueCode, long relatedVenueId,
+                                                String relatedVenueName, String officialSourceUrl,
+                                                String mapSourceUrl) {}
+
     /** Named as a research candidate to avoid implying approval or entrance precision. */
     public record VenueGpsResearchCandidate(double latitude, double longitude,
                                              String officialSourceUrl, String secondarySourceUrl,
@@ -212,7 +259,8 @@ public class AdminPlatformOverviewService {
     public record VenueGpsReviewItem(long id, String name, String city, String district,
                                      String address, String sourceReference, String informationSource,
                                      String sourceWebsite, VenueGpsResearchCandidate researchCandidate,
-                                     VenueAddressReview addressReview) {}
+                                     VenueAddressReview addressReview,
+                                     VenuePossibleDuplicateReview possibleDuplicateReview) {}
     public record VenueGpsReviewPage(List<VenueGpsReviewItem> venues, int page, boolean hasMore) {}
 
     public record VenueDistrictCoverage(
