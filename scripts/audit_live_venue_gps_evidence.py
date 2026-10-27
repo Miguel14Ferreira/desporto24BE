@@ -15,6 +15,7 @@ MANIFESTS = (
     "docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json",
     "docs/venue-imports/porto-outeiro-osm-geometry-review-20261027.json",
     "docs/venue-imports/evora-piscinas-municipais-site-gps-review-20261027.json",
+    "docs/venue-imports/santarem-sacapeito-2-site-gps-review-20261027.json",
 )
 
 def valid_gps(lat, lon):
