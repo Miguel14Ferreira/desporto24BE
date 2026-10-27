@@ -238,7 +238,9 @@ class CommunitySessionServiceTest {
                     ? Instant.now().minusSeconds(60):Instant.now().plusSeconds(600)));
             when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(game));
             var service = new CommunitySessionService(
-                    mock(CommunityRepository.class),members,profiles,sessions,mock(SessionViewMapper.class));
+                    mock(CommunityRepository.class),members,profiles,sessions,
+                    mock(com.example.desporto24.repository.session.SessionCommunityShareRepository.class),
+                    mock(SessionViewMapper.class));
             assertThrows(IllegalStateException.class,
                     ()->service.restrictToMembers(10L,42L,"owner"));
             assertEquals(SessionAudience.PUBLIC,game.getAudience());
