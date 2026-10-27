@@ -232,6 +232,28 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         }
     }
 
+    /** Private group notifications go only to the authenticated current members. */
+    public void publishPrivateGroupEvent(Set<String> recipients, Long groupId, Object message) {
+        if (recipients == null || recipients.isEmpty() || groupId == null) return;
+        try {
+            var payload = objectMapper.createObjectNode()
+                    .put("type", message == null ? "PRIVATE_GROUP_UPDATED" : "PRIVATE_GROUP_MESSAGE")
+                    .put("groupId", groupId);
+            if (message != null) payload.set("message", objectMapper.valueToTree(message));
+            var wire = payload.toString();
+            for (String member : recipients) {
+                var sockets = sessionsByUsername.get(member);
+                if (sockets == null) continue;
+                for (var socket : sockets) {
+                    if (!socket.isOpen()) continue;
+                    try { send(socket, wire); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Persisted group state wins; viewers can still poll on reconnect.
+        }
+    }
+
     public void publishSessionChatMessage(
             Set<String> usernames,
             SessionMessageResponse message) {
