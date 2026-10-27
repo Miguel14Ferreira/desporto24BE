@@ -13,6 +13,8 @@ public class PrivateGroup {
     private Long id;
     @Column(nullable=false, length=90)
     private String title;
+    @Column(name="photo_url",length=2048)
+    private String photoUrl;
     @Column(name="creator_username", nullable=false, length=128)
     private String creatorUsername;
     @Column(name="created_at", nullable=false)
