@@ -1,0 +1,27 @@
+{
+  "source": "Public Ágora municipal facility page, Sporting Clube da Cruz operator contact page, OpenStreetMap way 1298753441 and Mapcarta OSM-derived approximate site coordinate (27 October 2026)",
+  "approved_for_import": false,
+  "notes": "Existing Jynlo ID 283: site-level OSM polygon with matching name/operator (Sporting Clube da Cruz); Mapcarta displays 41.17589,-8.59259, rounded reference to site geometry rather than authenticated entrance or exact facility GPS. Municipal reference uses Rua D. Afonso Henriques / Paranhos; operator's Campo do Outeiro address Rua Fonte do Outeiro 521; OSM-based map lists Campanhã near the boundary. DO NOT import or approve GPS, or create duplicate.",
+  "points": [
+    {
+      "source_reference": "OSM:WAY:1298753441",
+      "expected_existing_venue_id": 283,
+      "candidate_name": "Campo Municipal do Outeiro",
+      "expected_municipality": "Porto",
+      "expected_district": "Porto",
+      "latitude": 41.17589,
+      "longitude": -8.59259,
+      "match_kind": "OSM_NAMED_VENUE_POLYGON_APPROXIMATE_REFERENCE",
+      "location_source_url": "https://mapcarta.com/pt/W1298753441",
+      "location_source_text": "OSM way 1298753441; displayed rounded reference latitude 41.17589, longitude -8.59259; tags leisure=stadium name=Campo Municipal do Outeiro operator=Sporting Clube da Cruz; NOT entrance",
+      "confirmation_source_url": "https://www.agoraporto.pt/grandes-campos-municipais/campo-municipal-do-outeiro",
+      "osm_object_url": "https://www.openstreetmap.org/way/1298753441",
+      "operator_source_url": "https://www.sportingclubdacruz.pt/contactos",
+      "point_precision": "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
+      "source_location_conflict": "Municipality gives Rua D. Afonso Henriques, Paranhos; Sporting Clube da Cruz lists Campo do Outeiro Rua Fonte do Outeiro 521. Could be adjacent access streets. Must distinguish entrance and field.",
+      "source_boundary_conflict": "The OSM-based cartographic listing calls the location Campanhã while Ágora describes Paranhos. Verify municipal boundary before assigning entrance.",
+      "facility_verified_by_official_source": false,
+      "public_access_warning": "Club management is not evidence that unscheduled public access or reservations are available."
+    }
+  ]
+}

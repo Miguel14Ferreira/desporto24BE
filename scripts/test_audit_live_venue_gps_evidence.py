@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_seven_manifest_points_never_approved(self):
-        self.assertEqual(7, len(self.evidence))
+    def test_eight_manifest_points_never_approved(self):
+        self.assertEqual(8, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -94,6 +94,47 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertTrue(all(row["status"] == "EXISTING_VENUE_WITHOUT_GPS"
                             for row in analyze([venue], [lead, secondary])))
 
+    def test_outeiro_osm_polygon_is_unapproved_existing_venue_research_only(self):
+        lead = next(p for p in self.evidence
+                    if p["source_reference"] == "OSM:WAY:1298753441")
+        self.assertEqual(283, lead["expected_existing_venue_id"])
+        self.assertFalse(lead["facility_verified_by_official_source"])
+        self.assertEqual("OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE", lead["point_precision"])
+        venue = {"id": 283, "name": "Campo Municipal do Outeiro",
+                 "city": "Porto", "district": "Porto",
+                 "address": "Rua D. Afonso Henriques, Paranhos, Porto",
+                 "latitude": None, "longitude": None}
+        row = analyze([venue], [lead])[0]
+        self.assertEqual(283, row["existingVenueId"])
+        self.assertEqual("EXISTING_VENUE_WITHOUT_GPS", row["status"])
+        self.assertIn("OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE", row["warnings"])
+        self.assertIn("MUNICIPAL_AND_CLUB_ADDRESS_REVIEW", row["warnings"])
+        self.assertIn("MAP_NEIGHBORHOOD_DISCREPANCY_REVIEW", row["warnings"])
+        self.assertNotIn("latitude", row)
+        self.assertNotIn("longitude", row)
+
+    def test_outeiro_previously_populated_gps_is_not_blindly_overwritten(self):
+        lead = next(p for p in self.evidence
+                    if p["source_reference"] == "OSM:WAY:1298753441")
+        live = {"id": 283, "name": "Campo Municipal do Outeiro",
+                "city": "Porto", "district": "Porto",
+                "latitude": lead["latitude"], "longitude": lead["longitude"]}
+        row = analyze([live], [lead])[0]
+        self.assertEqual("GPS_ALREADY_MATCHES_SOURCE", row["status"])
+        self.assertIn("OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE", row["warnings"])
+        self.assertNotIn("latitude", row)
+
+    def test_outeiro_expected_id_mismatch_cannot_be_approved(self):
+        lead = next(p for p in self.evidence
+                    if p["source_reference"] == "OSM:WAY:1298753441")
+        wrong = {"id": 9333, "name": "Campo Municipal do Outeiro",
+                 "city": "Porto", "district": "Porto",
+                 "latitude": None, "longitude": None}
+        row = analyze([wrong], [lead])[0]
+        self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
+        self.assertEqual(9333, row["existingVenueId"])
+        self.assertNotIn("latitude", row)
+
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))
         sample["approved_for_import"] = True
@@ -101,6 +142,15 @@ class GpsEvidenceAuditTest(unittest.TestCase):
             fp = Path(tmp) / "evidence.json"
             fp.write_text(json.dumps(sample), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "non-approved"):
+                load_evidence([fp])
+
+    def test_outeiro_expected_id_validation(self):
+        manifest = json.loads((ROOT / MANIFESTS[-1]).read_text(encoding="utf-8"))
+        manifest["points"][0]["expected_existing_venue_id"] = "283"
+        with tempfile.TemporaryDirectory() as tmp:
+            fp = Path(tmp) / "invalid-id.json"
+            fp.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "expected existing venue ID"):
                 load_evidence([fp])
 
 if __name__ == "__main__":
