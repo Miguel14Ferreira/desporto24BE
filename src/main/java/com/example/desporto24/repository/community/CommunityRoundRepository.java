@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface CommunityRoundRepository extends JpaRepository<CommunityRound, Long> {
     boolean existsByCommunityIdAndSeasonId(Long communityId, Long seasonId);
+    boolean existsByCommunityIdAndSourceSessionId(Long communityId, Long sourceSessionId);
     List<CommunityRound> findByCommunityIdAndSeasonIdAndSprintSeriesKeyOrderBySprintHeatNumberAsc(
             Long communityId, Long seasonId, String sprintSeriesKey);
     boolean existsByCommunityIdAndSeasonIdAndPlayedAt(Long communityId, Long seasonId, Instant playedAt);
