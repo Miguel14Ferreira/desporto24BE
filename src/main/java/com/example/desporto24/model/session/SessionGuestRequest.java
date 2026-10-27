@@ -15,7 +15,7 @@ import java.time.Instant;
 })
 @Getter @Setter
 public class SessionGuestRequest {
-    public enum State { PENDING, APPROVED, REJECTED, LINKED }
+    public enum State { PENDING, APPROVED, REJECTED, LINKED, CANCELLED }
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
     @ManyToOne(fetch=FetchType.LAZY,optional=false)
