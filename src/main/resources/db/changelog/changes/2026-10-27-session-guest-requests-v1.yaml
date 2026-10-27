@@ -24,6 +24,7 @@ databaseChangeLog:
               - column: {name: note, type: VARCHAR(160)}
               - column: {name: status, type: VARCHAR(16), constraints: {nullable: false}}
               - column: {name: team_code, type: VARCHAR(1)}
+              - column: {name: linked_profile_id, type: BIGINT}
               - column: {name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: {nullable: false}}
               - column: {name: reviewed_at, type: TIMESTAMP WITH TIME ZONE}
         - addForeignKeyConstraint:
@@ -43,6 +44,15 @@ databaseChangeLog:
             referencedTableName: community_player
             referencedColumnNames: id
             constraintName: fk_session_guest_community_player
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: session_guest_request
+            baseColumnNames: linked_profile_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_session_guest_linked_profile
             onDelete: SET NULL
         - addUniqueConstraint:
             schemaName: desporto24
