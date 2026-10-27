@@ -13,6 +13,8 @@ on:
       - 'mvnw'
       - '.mvn/**'
       - 'Dockerfile'
+      - 'scripts/audit_official_municipal_gis.py'
+      - 'scripts/test_audit_official_municipal_gis.py'
       - '.github/workflows/pr-validation.yml'
   workflow_dispatch:
 
