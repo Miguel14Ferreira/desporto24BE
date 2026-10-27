@@ -46,6 +46,44 @@ class VenueReverseGeocodeServiceTest {
         assertNull(loc.address());
     }
 
+    @Test void resolvesExactCacemStreetWhereMunicipalityProviderOnlyReturnsSintra() throws Exception {
+        // Both fixtures are live provider responses for the same public street
+        // near Rua do Olival, Cacém, and deliberately not a user's GPS.
+        var coarse = service.parse("""
+            {"status":"ok","result":{"distance_m":848,"precision":"city",
+              "components":{"suburb":"Paiões","city":"Sintra","country":"Portugal"}}}
+            """, 78d);
+        assertNull(coarse.address());
+        var detailed = service.parsePhoton("""
+            {"type":"FeatureCollection","features":[{"type":"Feature",
+              "properties":{"type":"street","name":"Rua do Olival","district":"Cacém",
+              "city":"Cacém e São Marcos","postcode":"2735-303"},
+              "geometry":{"type":"Point","coordinates":[-9.3104716,38.769178]}}]}
+            """, 38.7692039, -9.3103216);
+        assertEquals("Cacém", detailed.city());
+        assertEquals("Rua do Olival", detailed.address());
+        assertTrue(detailed.distanceMeters() < 25);
+        assertEquals("OpenStreetMap / Photon", detailed.provider());
+    }
+
+    @Test void labelsFartherStreetsApproximateInsteadOfInventingTheirNumber() throws Exception {
+        var detailed = service.parsePhoton("""
+            {"features":[{"properties":{"type":"street","name":"Rua do Campo",
+              "district":"Cacém"},"geometry":{"coordinates":[-9.313,38.7692]}}]}
+            """, 38.7692, -9.3103);
+        assertEquals("Cacém", detailed.city());
+        assertEquals("Perto de Rua do Campo", detailed.address());
+    }
+
+    @Test void unknownPhotonStreetDoesNotInventAnAddress() throws Exception {
+        var noStreet = service.parsePhoton("""
+            {"features":[{"properties":{"city":"Cacém","type":"city"},
+              "geometry":{"coordinates":[-9.31,38.77]}}]}
+            """, 38.7692,-9.3103);
+        assertEquals("Cacém", noStreet.city());
+        assertNull(noStreet.address());
+    }
+
     @Test void rejectsInvalidCoordinatesBeforeSendingToProvider() {
         assertThrows(ResponseStatusException.class, ()->service.reverse(91d,0d,10d));
         assertThrows(ResponseStatusException.class, ()->service.reverse(0d,181d,10d));
