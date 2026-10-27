@@ -1,0 +1,109 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-27-private-groups-v1
+      author: desporto24
+      comment: "Private group conversations have separate history: no direct-chat messages can be exposed to invitees."
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: private_group
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: {primaryKey: true, primaryKeyName: pk_private_group, nullable: false}
+              - column:
+                  name: title
+                  type: VARCHAR(90)
+                  constraints: {nullable: false}
+              - column:
+                  name: creator_username
+                  type: VARCHAR(128)
+                  constraints: {nullable: false}
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: {nullable: false}
+        - createTable:
+            schemaName: desporto24
+            tableName: private_group_member
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: {primaryKey: true, primaryKeyName: pk_private_group_member, nullable: false}
+              - column:
+                  name: group_id
+                  type: BIGINT
+                  constraints: {nullable: false}
+              - column:
+                  name: username
+                  type: VARCHAR(128)
+                  constraints: {nullable: false}
+              - column:
+                  name: joined_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: {nullable: false}
+        - createTable:
+            schemaName: desporto24
+            tableName: private_group_message
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints: {primaryKey: true, primaryKeyName: pk_private_group_message, nullable: false}
+              - column:
+                  name: group_id
+                  type: BIGINT
+                  constraints: {nullable: false}
+              - column:
+                  name: sender_username
+                  type: VARCHAR(128)
+                  constraints: {nullable: false}
+              - column:
+                  name: body
+                  type: VARCHAR(2000)
+                  constraints: {nullable: false}
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: {nullable: false}
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: private_group_member
+            baseColumnNames: group_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: private_group
+            referencedColumnNames: id
+            constraintName: fk_private_group_member_group
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: private_group_message
+            baseColumnNames: group_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: private_group
+            referencedColumnNames: id
+            constraintName: fk_private_group_message_group
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: private_group_member
+            columnNames: group_id, username
+            constraintName: uq_private_group_member
+        - createIndex:
+            schemaName: desporto24
+            tableName: private_group_member
+            indexName: ix_private_group_member_username
+            columns:
+              - column: {name: username}
+        - createIndex:
+            schemaName: desporto24
+            tableName: private_group_message
+            indexName: ix_private_group_message_history
+            columns:
+              - column: {name: group_id}
+              - column: {name: id}
