@@ -7,6 +7,7 @@ on:
       - 'scripts/test_audit_live_venue_gps_evidence.py'
       - 'docs/venue-imports/viseu-guarda-3-municipal-gps-pending-caop2025.json'
       - 'docs/venue-imports/braga-evora-2-official-site-gps-review-20261021.json'
+      - 'docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json'
       - '.github/workflows/venue-gps-evidence-audit-ci.yml'
   workflow_dispatch:
 permissions:
@@ -20,5 +21,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Validate five source GPS candidates, duplicate handling and no approvals
+      - name: Validate seven GPS evidence points, inter-source conflicts and no approvals
         run: python3 -m unittest discover -s scripts -p test_audit_live_venue_gps_evidence.py -v
