@@ -11,6 +11,7 @@ import com.example.desporto24.service.CommunityManagementService;
 import com.example.desporto24.service.CommunityCreationQuotaService;
 import com.example.desporto24.service.CommunityHistoricalPlayerLinkService;
 import com.example.desporto24.service.CommunitySessionService;
+import com.example.desporto24.service.CommunitySessionResultService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,7 @@ public class CommunityController {
     private final CommunityHistoricalMatchPreviewService historicalMatchPreviewService;
     private final CommunityHistoricalMatchArchiveService historicalMatchArchiveService;
     private final CommunitySessionService communitySessionService;
+    private final CommunitySessionResultService communitySessionResultService;
 
     @PostMapping
     public ResponseEntity<CommunityResponse> create(
@@ -785,6 +787,19 @@ public class CommunityController {
     public ResponseEntity<CommunityStandingsArchiveResponse> historicalStandingsArchive(
             @PathVariable Long id, @PathVariable Long archiveId, Authentication authentication) {
         return ResponseEntity.ok(historicalStandingsService.detail(id, archiveId, authentication.getName()));
+    }
+
+    /**
+     * Fast post-game result only for sessions owned by this community and with
+     * community standings enabled. Never infer players, winners or score.
+     */
+    @PostMapping("/{id}/sessions/{sessionId}/competition-result")
+    public ResponseEntity<CommunityRoundResponse> recordCommunitySessionResult(
+            @PathVariable Long id, @PathVariable Long sessionId,
+            @RequestBody @Valid CommunitySessionResultRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(communitySessionResultService.record(
+                id, sessionId, authentication.getName(), request));
     }
 
     @PostMapping("/{id}/rounds")
