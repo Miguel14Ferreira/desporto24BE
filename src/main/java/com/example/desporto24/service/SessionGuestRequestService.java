@@ -4,6 +4,10 @@ import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionAudience;
 import com.example.desporto24.enumeration.SessionStatus;
 import com.example.desporto24.model.Session;
+import com.example.desporto24.model.Profile;
+import com.example.desporto24.model.session.SessionParticipant;
+import com.example.desporto24.enumeration.AttendanceStatus;
+import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.session.SessionGuestRequest;
 import com.example.desporto24.repository.SessionRepository;
@@ -35,12 +39,15 @@ public class SessionGuestRequestService {
     private final CommunityPlayerRepository players;
     private final SessionGuestRequestRepository requests;
     private final SessionParticipantRepository participants;
+    private final ProfileRepository profiles;
+    private final CommunityHistoricalPlayerLinkService historicalLinks;
 
     public record GuestPlayer(Long id,String name) {}
     public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
     public record GuestRequestInput(String linkToken,Long playerId,String newName,String note) {}
     public record ReceiptInput(String receipt) {}
     public record GuestReceipt(String receipt,String status) {}
+    public record LinkedReceipt(String status,String username) {}
     public record GuestView(Long id,String name,String status,String note,String teamCode) {}
 
     @Transactional
@@ -121,6 +128,54 @@ public class SessionGuestRequestService {
         SessionGuestRequest request=requests.findBySessionIdAndReceiptHash(sessionId,hash(receipt))
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
         return new GuestReceipt(receipt,request.getStatus().name());
+    }
+
+    /**
+     * Explicit user consent, organizer approval and possession of an unguessable
+     * receipt are ALL required. Transfers the already reserved guest seat to the
+     * real registered profile instead of counting the same person twice.
+     * Imported statistics remain untouched; the existing claim service enforces
+     * historical identity collisions and overlapping-round integrity.
+     */
+    @Transactional
+    public LinkedReceipt linkAccount(Long sessionId,ReceiptInput input,String username) {
+        Session session=locked(sessionId);
+        String receipt=input==null?null:input.receipt();
+        if(receipt==null||!receipt.matches("[A-Za-z0-9_-]{43}"))
+            throw invalid("Comprovativo inválido");
+        SessionGuestRequest guest=requests.findBySessionIdAndReceiptHash(sessionId,hash(receipt))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        Profile owner=profiles.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(()->new AccessDeniedException("Conta não encontrada"));
+        if(guest.getStatus()==SessionGuestRequest.State.LINKED &&
+                guest.getLinkedProfile()!=null && owner.getId().equals(guest.getLinkedProfile().getId()))
+            return new LinkedReceipt("LINKED",owner.getUsername());
+        if(guest.getStatus()!=SessionGuestRequest.State.APPROVED)
+            throw conflict("A presença ainda não foi aprovada");
+        if(participants.findBySessionIdAndProfileId(sessionId,owner.getId()).isPresent())
+            throw conflict("Esta conta já tem uma inscrição nesta sessão");
+        int external=session.getExternalConfirmedParticipants()==null?0:
+                session.getExternalConfirmedParticipants();
+        if(external<=0)throw conflict("A reserva de convidado deixou de existir");
+        if(guest.getCommunityPlayer()!=null){
+            historicalLinks.claimOrganizerApprovedGuest(session.getCommunity().getId(),
+                    owner.getUsername(),guest.getCommunityPlayer().getId());
+        }
+        SessionParticipant member=new SessionParticipant();
+        member.setSession(session);
+        member.setProfile(owner);
+        member.setState(ParticipantState.ACTIVE);
+        member.setAttendanceStatus(AttendanceStatus.PENDING);
+        member.setJoinedAt(Instant.now());
+        member.setTeamCode(guest.getTeamCode());
+        participants.saveAndFlush(member);
+        session.setExternalConfirmedParticipants(external-1);
+        session.setUpdatedAt(Instant.now());
+        sessions.save(session);
+        guest.setLinkedProfile(owner);
+        guest.setStatus(SessionGuestRequest.State.LINKED);
+        requests.save(guest);
+        return new LinkedReceipt("LINKED",owner.getUsername());
     }
 
     @Transactional(readOnly=true)
