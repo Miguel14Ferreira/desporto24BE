@@ -542,13 +542,25 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional
     public JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username) {
+        return joinInternal(sessionId, request, username, null);
+    }
+
+    @Override
+    @Transactional
+    public JoinSessionResponse joinWithGuestToken(Long sessionId, String token, String username) {
+        return joinInternal(sessionId, new JoinSessionRequest(null), username, token);
+    }
+
+    private JoinSessionResponse joinInternal(
+            Long sessionId, JoinSessionRequest request, String username, String guestToken) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
-        requireCommunitySessionAccess(session, profile);
+        if (guestToken == null) requireCommunitySessionAccess(session, profile);
+        else requireValidGuestToken(session, guestToken);
         if (!com.example.desporto24.service.SessionRegistrationOpening.isOpen(session, Instant.now())) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.CONFLICT,
@@ -648,6 +660,37 @@ public class SessionServiceImpl implements SessionService {
         session.setUpdatedAt(Instant.now());
         sessionRepository.save(session);
         return sessionViewMapper.toDetail(session, actor);
+    }
+
+    /**
+     * Scoped 256-bit organizer invitation. It authorizes joining this session
+     * only, never community membership, browsing or roster access.
+     * All normal exclusion, reliability, capacity and waitlist checks still run.
+     */
+    private void requireValidGuestToken(Session session, String token) {
+        if (session.getCommunity() == null
+                || (session.getAudience() != SessionAudience.PUBLIC
+                    && session.getAudience() != SessionAudience.COMMUNITY_ONLY)
+                || Boolean.TRUE.equals(session.getPrivateGame())
+                || Boolean.FALSE.equals(session.getEnabled())
+                || session.getGuestLinkHash() == null
+                || token == null || !token.matches("[A-Za-z0-9_-]{43}")) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Convite indisponível");
+        }
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String encoded = java.util.HexFormat.of().formatHex(digest);
+            if (!java.security.MessageDigest.isEqual(
+                    session.getGuestLinkHash().getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                    encoded.getBytes(java.nio.charset.StandardCharsets.US_ASCII))) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Convite indisponível");
+            }
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     private void assertJoinable(Session session) {
