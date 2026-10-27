@@ -50,16 +50,16 @@ public class CommunitySessionService {
 
         // Include cross-posted public sessions in the group's session list.
         // Existing community-only sessions keep their independent ACL and ranking.
-        java.util.Map<Long, Session> visible = new java.util.LinkedHashMap<>();
+        java.util.Map<Object, Session> visible = new java.util.LinkedHashMap<>();
         sessionRepository.findByCommunityIdOrderByGameDateDesc(communityId)
                 .stream()
                 .filter(session -> member || session.getAudience() == SessionAudience.PUBLIC)
-                .forEach(session -> visible.put(session.getId(), session));
+                .forEach(session -> visible.put(session.getId() != null ? session.getId() : session, session));
         sessionCommunityShareRepository.sessionsSharedWithCommunity(communityId)
                 .stream()
                 .filter(session -> session.getAudience() == SessionAudience.PUBLIC
                         && !Boolean.TRUE.equals(session.getPrivateGame()))
-                .forEach(session -> visible.putIfAbsent(session.getId(), session));
+                .forEach(session -> visible.putIfAbsent(session.getId() != null ? session.getId() : session, session));
         return visible.values().stream()
                 .sorted(java.util.Comparator.comparing(Session::getGameDate,
                         java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
