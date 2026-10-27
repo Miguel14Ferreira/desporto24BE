@@ -81,4 +81,34 @@ public class CommunitySessionService {
         return sessionViewMapper.toSummary(sessionRepository.save(session), null);
     }
 
+    /**
+     * Reverse of openToPublic: remove public discovery and anonymous preview.
+     * Already-confirmed places are not deleted; normal session ACLs still govern access.
+     */
+    @Transactional
+    public SessionSummaryResponse restrictToMembers(Long communityId, Long sessionId, String username) {
+        Profile actor = profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        var membership = memberRepository.findByCommunityIdAndProfileId(communityId, actor.getId())
+                .orElseThrow(() -> new AccessDeniedException("Não pertences a esta comunidade"));
+        if (membership.getRole() != CommunityRole.OWNER && membership.getRole() != CommunityRole.ADMIN) {
+            throw new AccessDeniedException("Só owner ou admin pode restringir a sessão");
+        }
+        // Lock the session while changing its audience; new joins also lock this row.
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Sessão não encontrada"));
+        if (session.getCommunity() == null || !communityId.equals(session.getCommunity().getId())) {
+            throw new IllegalArgumentException("A sessão não pertence a esta comunidade");
+        }
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED
+                || session.getGameDate() == null
+                || !session.getGameDate().toInstant().isAfter(Instant.now())) {
+            throw new IllegalStateException("Esta sessão já não permite alterar a visibilidade");
+        }
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        session.setUpdatedAt(Instant.now());
+        return sessionViewMapper.toSummary(sessionRepository.save(session), null);
+    }
+
 }
