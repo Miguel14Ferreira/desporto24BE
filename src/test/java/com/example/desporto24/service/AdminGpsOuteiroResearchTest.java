@@ -32,6 +32,32 @@ class AdminGpsOuteiroResearchTest {
     }
 
     @Test
+    void investigatedQueueShowsOuteiroOnlyWhenStillValidAndInPorto() {
+        var venue = existing();
+        var repository = org.mockito.Mockito.mock(
+                com.example.desporto24.repository.venue.VenueRepository.class);
+        var service = new AdminPlatformOverviewService(
+                null, null, null, null, repository, null, null);
+        org.mockito.Mockito.when(repository.findAllById(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.List.of(venue));
+
+        var page = service.missingGpsReview("Porto", 0, true);
+        assertEquals(1, page.venues().size());
+        assertEquals(283L, page.venues().getFirst().id());
+        assertNotNull(page.venues().getFirst().researchCandidate());
+        assertTrue(service.missingGpsReview("Lisboa", 0, true).venues().isEmpty());
+        assertTrue(service.missingGpsReview("Porto", 1, true).venues().isEmpty());
+
+        venue.setLatitude(41.17589);
+        assertTrue(service.missingGpsReview("Porto", 0, true).venues().isEmpty());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+                .save(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never())
+                .missingGpsReview(org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void changesToIdentityOrCoordinatesInvalidateCandidate() {
         var venue = existing();
         venue.setLongitude(-8.59259);
