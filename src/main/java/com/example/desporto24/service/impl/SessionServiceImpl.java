@@ -79,6 +79,7 @@ public class SessionServiceImpl implements SessionService {
     private final CommunityMemberRepository communityMemberRepository;
     private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
+    private final com.example.desporto24.repository.session.SessionGuestRequestRepository sessionGuestRequests;
     private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionViewMapper sessionViewMapper;
@@ -683,6 +684,14 @@ public class SessionServiceImpl implements SessionService {
                 || active + externalConfirmed > max) {
             throw new IllegalArgumentException(
                     "Confirmed external players exceed available session capacity");
+        }
+
+        // Approved guest claims already occupy numbered external seats.
+        // The manual legacy counter must never silently evict those guests.
+        long approvedGuests = sessionGuestRequests.countBySessionIdAndStatus(
+                sessionId, com.example.desporto24.model.session.SessionGuestRequest.State.APPROVED);
+        if (externalConfirmed < approvedGuests) {
+            throw new IllegalArgumentException("External seats cannot be below approved guest requests");
         }
 
         int previous = session.getExternalConfirmedParticipants() == null

@@ -274,7 +274,37 @@ class SessionInviteServiceTest {
         assertEquals(55L, result.get(0).id());
         assertEquals(1L, result.get(0).sessionId());
         assertEquals("organizador", result.get(0).inviterUsername());
+        assertEquals(0, result.get(0).participantCount());
+        assertEquals(SessionStatus.OPEN, result.get(0).status());
+        assertNull(result.get(0).city());
+        verify(participants).countBySessionIdAndState(1L,ParticipantState.ACTIVE);
         verify(invites).findByInviteeIdAndStatusOrderByCreatedAtDesc(20L, SessionInviteStatus.PENDING);
+    }
+
+
+    @Test
+    void pendingInboxShowsGameMetadataWithoutPrivateAddressOrPlayerNames() {
+        when(profiles.findUserByUsername("jogador")).thenReturn(Optional.of(recipient));
+        SessionInvite invite=new SessionInvite();
+        invite.setId(15L);
+        invite.setInviter(owner);
+        invite.setSession(session);
+        invite.setCreatedAt(Instant.parse("2026-10-27T18:00:00Z"));
+        session.setCity("Lisboa");
+        session.setAddress("Rua Privada 123");
+        session.setSport("Futebol");
+        session.setMaxParticipants(10);
+        session.setExternalConfirmedParticipants(2);
+        when(participants.countBySessionIdAndState(1L,ParticipantState.ACTIVE)).thenReturn(5L);
+        when(invites.findByInviteeIdAndStatusOrderByCreatedAtDesc(
+                20L,SessionInviteStatus.PENDING)).thenReturn(java.util.List.of(invite));
+        var pending=service.pendingFor("jogador");
+        assertEquals(7,pending.getFirst().participantCount());
+        assertEquals(10,pending.getFirst().maxParticipants());
+        assertEquals("Futebol",pending.getFirst().sport());
+        assertEquals("Lisboa",pending.getFirst().city());
+        assertNotNull(pending.getFirst().gameDate());
+        assertEquals("organizador",pending.getFirst().inviterUsername());
     }
 
 }

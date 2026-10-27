@@ -59,6 +59,11 @@ public class CommunityHistoricalPlayerLinkService {
     @Transactional
     public HistoricalPlayerLinkResponse claimForMe(Long communityId, String username, Long playerId) {
         Profile owner = member(communityId, username);
+        return claimOwnedPlayer(communityId,username,playerId,owner);
+    }
+
+    private HistoricalPlayerLinkResponse claimOwnedPlayer(
+            Long communityId,String username,Long playerId,Profile owner) {
         if (playerId == null) throw new IllegalArgumentException("Seleciona um nome histórico");
         // Lock the authenticated profile first: two different aliases cannot be claimed in
         // overlapping rounds by this profile at the same time.
@@ -90,6 +95,20 @@ public class CommunityHistoricalPlayerLinkService {
         link.setCreatedAt(Instant.now());
         link.setConfirmedAt(Instant.now());
         return response(linkRepository.save(link));
+    }
+
+    /**
+     * Organizer-verified guest receipts are a second authorization route.
+     * The calling service must verify the 256-bit private receipt, organizer
+     * approval, session and exact historical-player ID before invoking this.
+     * All conflict checks stay identical to the ordinary self-claim.
+     */
+    @Transactional
+    public HistoricalPlayerLinkResponse claimOrganizerApprovedGuest(
+            Long communityId,String username,Long playerId){
+        Profile owner=profileRepository.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(()->new AccessDeniedException("Conta não encontrada"));
+        return claimOwnedPlayer(communityId,username,playerId,owner);
     }
 
     @Transactional(readOnly = true)

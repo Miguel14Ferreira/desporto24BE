@@ -10,6 +10,8 @@ import com.example.desporto24.model.community.CommunityRoundEntry;
 import com.example.desporto24.model.dto.session.SessionTeamPlayerResponse;
 import com.example.desporto24.model.dto.session.SessionTeamSuggestionResponse;
 import com.example.desporto24.model.session.SessionParticipant;
+import com.example.desporto24.model.session.SessionGuestRequest;
+import com.example.desporto24.repository.session.SessionGuestRequestRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
@@ -36,6 +38,8 @@ public class SessionTeamSuggestionService {
     private final SessionParticipantRepository participantRepository;
     private final CommunityRoundEntryRepository roundEntryRepository;
     private final CommunityExcelTeamBalancer excelBalancer;
+    private final SessionGuestRequestRepository guestRequests;
+    private final SessionGuestTeamBalancer guestBalancer;
 
     @Transactional
     public SessionTeamSuggestionResponse confirm(Long sessionId, String username) {
@@ -61,7 +65,18 @@ public class SessionTeamSuggestionService {
             participant.setTeamCode(teamByUsername.get(participant.getProfile().getUsername()));
         }
         participantRepository.saveAll(participants);
-
+        List<SessionGuestRequest> approved=guestRequests
+                .findBySessionIdAndStatusOrderByCreatedAtAsc(sessionId,
+                    SessionGuestRequest.State.APPROVED);
+        Map<String,String> assigned=new HashMap<>();
+        suggestion.teamA().stream().filter(SessionTeamPlayerResponse::guest)
+                .forEach(p->assigned.put(p.username(),"A"));
+        suggestion.teamB().stream().filter(SessionTeamPlayerResponse::guest)
+                .forEach(p->assigned.put(p.username(),"B"));
+        for(SessionGuestRequest g:approved){
+            g.setTeamCode(assigned.get("guest:"+g.getId()));
+        }
+        if(!approved.isEmpty())guestRequests.saveAll(approved);
         return suggestion;
     }
 
@@ -97,11 +112,23 @@ public class SessionTeamSuggestionService {
         List<SessionParticipant> participants = participantRepository
                 .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE);
 
+        List<SessionGuestRequest> guests=guestRequests
+                .findBySessionIdAndStatusOrderByCreatedAtAsc(sessionId,SessionGuestRequest.State.APPROVED);
         int maxParticipants = session.getMaxParticipants() == null ? 0 : session.getMaxParticipants();
-        if (participants.size() != maxParticipants) {
-            throw new IllegalStateException("A sessão tem de estar cheia para gerar equipas");
+        int external=session.getExternalConfirmedParticipants()==null?0:
+                session.getExternalConfirmedParticipants();
+        if (participants.size()+guests.size()!=maxParticipants ||
+                external!=guests.size()) {
+            throw new IllegalStateException("A sessão tem de estar cheia com participantes identificados para gerar equipas");
         }
-
+        if (!guests.isEmpty()) {
+            if (!"EXCEL_POINTS".equals(source)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.CONFLICT,
+                        "Para convidados usa Fazer equipas com base na classificação Excel");
+            }
+            return guestBalancer.suggest(session,participants,guests);
+        }
         if ("EXCEL_POINTS".equals(source)) {
             return excelBalancer.suggest(session, participants);
         }
