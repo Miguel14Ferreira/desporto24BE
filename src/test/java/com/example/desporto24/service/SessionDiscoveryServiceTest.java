@@ -66,6 +66,7 @@ class SessionDiscoveryServiceTest {
                 communityMemberRepository,
                 venueRepository,
                 participantRepository,
+                mock(com.example.desporto24.repository.session.SessionGuestRequestRepository.class),
                 exclusionRepository,
                 waitlistRepository,
                 sessionViewMapper,
