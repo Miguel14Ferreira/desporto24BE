@@ -29,36 +29,36 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     @Query("""
            SELECT v FROM Venue v
            WHERE (:name = '' OR
-                  LOWER(FUNCTION('translate', v.name,
+                  FUNCTION('translate', LOWER(v.name),
                     'áàâãäéèêëíìîïóòôõöúùûüç',
-                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :name, '%') ESCAPE '!')
+                    'aaaaaeeeeiiiiooooouuuuc') LIKE CONCAT('%', :name, '%') ESCAPE '!')
              AND (:city = '' OR
-                  LOWER(FUNCTION('translate', v.city,
+                  FUNCTION('translate', LOWER(v.city),
                     'áàâãäéèêëíìîïóòôõöúùûüç',
-                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT('%', :city, '%') ESCAPE '!')
+                    'aaaaaeeeeiiiiooooouuuuc') LIKE CONCAT('%', :city, '%') ESCAPE '!')
              AND (:district = '' OR v.district = :district)
              AND (:sport = '' OR
-                  LOWER(FUNCTION('translate',
-                    CONCAT(';', REPLACE(REPLACE(COALESCE(v.sports, ''), ' ', ''), ',', ';'), ';'),
+                  FUNCTION('translate',
+                    CONCAT(';', REPLACE(REPLACE(LOWER(COALESCE(v.sports, '')), ' ', ''), ',', ';'), ';'),
                     'áàâãäéèêëíìîïóòôõöúùûüç',
-                    'aaaaaeeeeiiiiooooouuuuc'))
+                    'aaaaaeeeeiiiiooooouuuuc')
                     LIKE CONCAT('%;', :sport, ';%') ESCAPE '!')
            ORDER BY
              CASE
                WHEN :name = '' THEN 0
-               WHEN LOWER(FUNCTION('translate', v.name,
+               WHEN FUNCTION('translate', LOWER(v.name),
                     'áàâãäéèêëíìîïóòôõöúùûüç',
-                    'aaaaaeeeeiiiiooooouuuuc')) = :name THEN 0
-               WHEN LOWER(FUNCTION('translate', v.name,
+                    'aaaaaeeeeiiiiooooouuuuc') = :name THEN 0
+               WHEN FUNCTION('translate', LOWER(v.name),
                     'áàâãäéèêëíìîïóòôõöúùûüç',
-                    'aaaaaeeeeiiiiooooouuuuc')) LIKE CONCAT(:name, '%') ESCAPE '!' THEN 1
+                    'aaaaaeeeeiiiiooooouuuuc') LIKE CONCAT(:name, '%') ESCAPE '!' THEN 1
                ELSE 2
              END,
              CASE
                WHEN :city = '' THEN 0
-               WHEN LOWER(FUNCTION('translate', v.city,
+               WHEN FUNCTION('translate', LOWER(v.city),
                     'áàâãäéèêëíìîïóòôõöúùûüç',
-                    'aaaaaeeeeiiiiooooouuuuc')) = :city THEN 0
+                    'aaaaaeeeeiiiiooooouuuuc') = :city THEN 0
                ELSE 1
              END,
              CASE WHEN v.sports IS NOT NULL AND TRIM(v.sports) <> '' THEN 0 ELSE 1 END,
@@ -84,9 +84,9 @@ public interface VenueRepository extends JpaRepository<Venue, Long> {
     @Query("""
            SELECT AVG(v.latitude), AVG(v.longitude), COUNT(v.id)
            FROM Venue v
-           WHERE LOWER(FUNCTION('translate', v.city,
-                   'áàâãäéèêëíìîïóòôõöúùûüç',
-                   'aaaaaeeeeiiiiooooouuuuc')) = :city
+           WHERE FUNCTION('translate', LOWER(v.city),
+                    'áàâãäéèêëíìîïóòôõöúùûüç',
+                    'aaaaaeeeeiiiiooooouuuuc') = :city
              AND v.latitude BETWEEN -90 AND 90
              AND v.longitude BETWEEN -180 AND 180
            """)
