@@ -56,6 +56,21 @@ class SessionGuestRequestServiceTest {
         assertEquals(1,result.players().size());
         assertEquals("Afonso Salvador",result.players().getFirst().name());
     }
+    @Test void signedLinkOpensCommunityOnlyGameWithoutPublicRosterPermission(){
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        String secret=token();
+        assertThrows(ResponseStatusException.class,()->service.preview(7L,"invalid"));
+        when(participants.countBySessionIdAndState(7L,ParticipantState.ACTIVE)).thenReturn(1L);
+        var preview=service.preview(7L,secret);
+        assertEquals(7L,preview.id());
+        assertEquals(1,preview.participantCount());
+        var person=historic();
+        when(players.findById(15L)).thenReturn(Optional.of(person));
+        assertEquals("PENDING",service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")).status());
+        session.setPrivateGame(true);
+        assertThrows(ResponseStatusException.class,()->service.preview(7L,secret));
+    }
     @Test void onlyUnlinkedCommunityPlayerCanRequestAndGetsPendingReceipt(){
         String token=token();var person=historic();
         when(players.findById(15L)).thenReturn(Optional.of(person));
