@@ -127,7 +127,7 @@ class AdminPlatformOverviewServiceTest {
         assertFalse(fields.contains("longitude"));
         assertFalse(fields.contains("submittedByUsername"));
         var method = AdminPlatformOverviewController.class
-                .getMethod("missingGpsReview", String.class, int.class);
+                .getMethod("missingGpsReview", String.class, int.class, boolean.class);
         assertArrayEquals(new String[]{"/venue-gps-review"},
                 method.getAnnotation(org.springframework.web.bind.annotation.GetMapping.class).value());
         assertEquals("hasAnyRole('ADMIN', 'SUPER_ADMIN')",
@@ -434,6 +434,82 @@ class AdminPlatformOverviewServiceTest {
                 .thenReturn(new SliceImpl<>(List.of(original)));
         assertNull(service.missingGpsReview("Porto", 0).venues().getFirst().possibleDuplicateReview());
         verify(venues, never()).save(any());
+    }
+
+    @Test
+    void evidenceOnlyReviewIsBoundedToCurrentVerifiedLeadsAndHasStableOrder() {
+        var evora = Venue.builder().id(273L).name("Piscinas Municipais de Évora")
+                .city("Évora").district("Évora")
+                .address("Avenida Engenheiro Arantes de Oliveira, 7000-758 Évora")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/").build();
+        var arroios = Venue.builder().id(284L).name("Polidesportivo de Arroios — Joaquim Campos")
+                .city("Lisboa").district("Lisboa")
+                .address("Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/").build();
+        var stale = Venue.builder().id(281L).name("Campo Municipal dos Choupos")
+                .city("Porto").district("Porto").latitude(41.17345).longitude(-8.65816)
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.agoraporto.pt/noticias/desporto/desporto/rmid").build();
+        var unrelated = Venue.builder().id(9999L).name("Qualquer espaço")
+                .city("Porto").district("Porto").build();
+        when(venues.findAllById(any())).thenReturn(List.of(arroios, stale, unrelated, evora));
+
+        var first = service.missingGpsReview("", 0, true);
+        assertEquals(2, first.venues().size());
+        assertEquals(List.of(273L, 284L), first.venues().stream()
+                .map(AdminPlatformOverviewService.VenueGpsReviewItem::id).toList());
+        assertNotNull(first.venues().getFirst().researchCandidate());
+        assertNotNull(first.venues().getLast().addressReview());
+        assertFalse(first.hasMore());
+
+        var lisboa = service.missingGpsReview("Lisboa", 0, true);
+        assertEquals(List.of(284L), lisboa.venues().stream()
+                .map(AdminPlatformOverviewService.VenueGpsReviewItem::id).toList());
+        assertEquals(0, lisboa.page());
+
+        var emptyPage = service.missingGpsReview("", 1, true);
+        assertTrue(emptyPage.venues().isEmpty());
+        assertFalse(emptyPage.hasMore());
+        verify(venues, never()).missingGpsReview(any(), any());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void evidenceOnlyVisoRequiresFreshMatchingOsmRecord() {
+        var viso = Venue.builder().id(280L).name("Campo Municipal do Viso")
+                .city("Porto").district("Porto")
+                .address("Rua Direita do Viso, 4250 Porto")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.agoraporto.pt/noticias/desporto/desporto/rmid").build();
+        var osm = Venue.builder().id(2623L).name("Campo Sintético do Viso")
+                .city("Porto").district("Porto").informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .latitude(41.1819461).longitude(-8.6450944).build();
+        when(venues.findAllById(any())).thenReturn(List.of(viso));
+        when(venues.findById(2623L)).thenReturn(java.util.Optional.of(osm),
+                java.util.Optional.empty());
+        var first = service.missingGpsReview("Porto", 0, true);
+        assertEquals(1, first.venues().size());
+        assertNotNull(first.venues().getFirst().possibleDuplicateReview());
+        assertNull(first.venues().getFirst().researchCandidate());
+        var second = service.missingGpsReview("Porto", 0, true);
+        assertTrue(second.venues().isEmpty());
+        assertNull(viso.getLatitude());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void focusModePreservesNormalQueueAndRejectsUnsafeRequestsBeforeDatabaseReads() {
+        when(venues.missingGpsReview("", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of()));
+        assertTrue(service.missingGpsReview(null, 0, false).venues().isEmpty());
+        verify(venues).missingGpsReview("", PageRequest.of(0, 20));
+        verify(venues, never()).findAllById(any());
+        assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1, true));
+        assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Sem distrito", 0, true));
+        assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001, true));
+        verifyNoMoreInteractions(venues);
     }
 
     @Test

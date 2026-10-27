@@ -84,24 +84,60 @@ public class AdminPlatformOverviewService {
                 districts, Instant.now());
     }
 
-    /** Read-only admin queue of existing venues without a complete GPS pair. */
+    /** Existing paginated review; no changes for callers that omit the focus flag. */
     @Transactional(readOnly = true)
     public VenueGpsReviewPage missingGpsReview(String district, int page) {
+        return missingGpsReview(district, page, false);
+    }
+
+    /**
+     * Focus mode reads only explicitly researched venue IDs, never a national
+     * catalogue scan. Re-check saved identity and current GPS status every time:
+     * stale candidates are excluded, not treated as valid evidence.
+     *
+     * The bounded fixed set is intentionally code-reviewed before expansion.
+     */
+    @Transactional(readOnly = true)
+    public VenueGpsReviewPage missingGpsReview(String district, int page, boolean onlyWithEvidence) {
         if (page < 0 || page > 1000) throw new IllegalArgumentException("Página de revisão GPS inválida");
         String filter = district == null ? "" : district.trim();
         if (!filter.isEmpty() && (filter.length() > 120 || filter.equals("Sem distrito"))) {
             throw new IllegalArgumentException("Filtro de distrito inválido");
         }
+        if (onlyWithEvidence) {
+            var ids = java.util.stream.Stream.concat(
+                    GPS_RESEARCH_LEADS.keySet().stream(), java.util.stream.Stream.of(280L, 284L))
+                    .distinct().sorted().toList();
+            var items = new java.util.ArrayList<VenueGpsReviewItem>();
+            for (Venue venue : venues.findAllById(ids)) {
+                if (venue.getLatitude() != null && venue.getLongitude() != null) continue;
+                if (!filter.isEmpty() && !filter.equals(venue.getDistrict())) continue;
+                var item = toGpsReviewItem(venue);
+                if (item.researchCandidate() != null || item.addressReview() != null
+                        || item.possibleDuplicateReview() != null) {
+                    items.add(item);
+                }
+            }
+            items.sort(java.util.Comparator.comparing(VenueGpsReviewItem::id));
+            int start = page * 20;
+            if (start >= items.size()) return new VenueGpsReviewPage(List.of(), page, false);
+            int end = Math.min(start + 20, items.size());
+            return new VenueGpsReviewPage(List.copyOf(items.subList(start, end)),
+                    page, end < items.size());
+        }
         var slice = venues.missingGpsReview(filter, PageRequest.of(page, 20));
-        return new VenueGpsReviewPage(slice.getContent().stream()
-                .map(v -> new VenueGpsReviewItem(
-                        v.getId(), v.getName(), v.getCity(), v.getDistrict(),
-                        v.getAddress(), v.getSourceReference(),
-                        v.getInformationSource() == null ? null : v.getInformationSource().name(),
-                        v.getInformationSource() == Venue.InformationSource.OFFICIAL
-                                ? safeOfficialSourceWebsite(v.getWebsite()) : null,
-                        researchCandidate(v), addressReview(v), possibleDuplicateReview(v)))
+        return new VenueGpsReviewPage(slice.getContent().stream().map(this::toGpsReviewItem)
                 .toList(), page, slice.hasNext());
+    }
+
+    private VenueGpsReviewItem toGpsReviewItem(Venue venue) {
+        return new VenueGpsReviewItem(
+                venue.getId(), venue.getName(), venue.getCity(), venue.getDistrict(),
+                venue.getAddress(), venue.getSourceReference(),
+                venue.getInformationSource() == null ? null : venue.getInformationSource().name(),
+                venue.getInformationSource() == Venue.InformationSource.OFFICIAL
+                        ? safeOfficialSourceWebsite(venue.getWebsite()) : null,
+                researchCandidate(venue), addressReview(venue), possibleDuplicateReview(venue));
     }
 
     /** Source links are research clues only; never imply that the facility GPS was verified. */

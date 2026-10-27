@@ -20,8 +20,9 @@ public class AdminPlatformOverviewController {
     @GetMapping("/venue-gps-review")
     public AdminPlatformOverviewService.VenueGpsReviewPage missingGpsReview(
             @RequestParam(required = false) String district,
-            @RequestParam(defaultValue = "0") int page) {
-        return service.missingGpsReview(district, page);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "false") boolean onlyWithEvidence) {
+        return service.missingGpsReview(district, page, onlyWithEvidence);
     }
 
     @GetMapping("/venue-quality")
