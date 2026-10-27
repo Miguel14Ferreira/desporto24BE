@@ -1,0 +1,63 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-27-session-guest-requests-v1
+      author: desporto24
+      comment: "Optional organiser-approved attendance from guests; no fake user profiles"
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: session
+            columns:
+              - column:
+                  name: guest_link_hash
+                  type: VARCHAR(64)
+        - createTable:
+            schemaName: desporto24
+            tableName: session_guest_request
+            columns:
+              - column: {name: id, type: BIGINT, autoIncrement: true, constraints: {primaryKey: true, primaryKeyName: pk_session_guest_request, nullable: false}}
+              - column: {name: session_id, type: BIGINT, constraints: {nullable: false}}
+              - column: {name: community_player_id, type: BIGINT}
+              - column: {name: display_name, type: VARCHAR(120), constraints: {nullable: false}}
+              - column: {name: normalized_name, type: VARCHAR(120), constraints: {nullable: false}}
+              - column: {name: receipt_hash, type: VARCHAR(64), constraints: {nullable: false}}
+              - column: {name: note, type: VARCHAR(160)}
+              - column: {name: status, type: VARCHAR(16), constraints: {nullable: false}}
+              - column: {name: team_code, type: VARCHAR(1)}
+              - column: {name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: {nullable: false}}
+              - column: {name: reviewed_at, type: TIMESTAMP WITH TIME ZONE}
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: session_guest_request
+            baseColumnNames: session_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: session
+            referencedColumnNames: id
+            constraintName: fk_session_guest_session
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: session_guest_request
+            baseColumnNames: community_player_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_player
+            referencedColumnNames: id
+            constraintName: fk_session_guest_community_player
+            onDelete: SET NULL
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: session_guest_request
+            columnNames: session_id, normalized_name
+            constraintName: uq_session_guest_name
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: session_guest_request
+            columnNames: receipt_hash
+            constraintName: uq_session_guest_receipt
+        - createIndex:
+            schemaName: desporto24
+            tableName: session_guest_request
+            indexName: ix_guest_request_session_status
+            columns:
+              - column: {name: session_id}
+              - column: {name: status}
