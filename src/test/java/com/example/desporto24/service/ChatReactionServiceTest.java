@@ -69,6 +69,72 @@ class ChatReactionServiceTest {
     }
 
     @Test
+    void participantsExposeOnlyProfileDisplayFieldsToAuthorizedConversationMember() {
+        actor();
+        Chat msg = new Chat();
+        msg.setId(17L);
+        msg.setUsername1("ana");
+        msg.setUsername2("bea");
+        when(direct.findAllById(any())).thenReturn(List.of(msg));
+        ChatMessageReaction own = new ChatMessageReaction();
+        own.setProfileId(8L);
+        own.setMessageId(17L);
+        own.setEmoji("❤️");
+        ChatMessageReaction other = new ChatMessageReaction();
+        other.setProfileId(9L);
+        other.setMessageId(17L);
+        other.setEmoji("👍");
+        when(reactions.findByConversationKindAndMessageIdIn(eq("direct"), any()))
+                .thenReturn(List.of(other, own));
+        Profile ana = new Profile();
+        ana.setId(8L);
+        ana.setUsername("ana");
+        ana.setNickname("Ana");
+        ana.setEmail("private@example.invalid");
+        Profile bea = new Profile();
+        bea.setId(9L);
+        bea.setUsername("bea");
+        bea.setFullName("Beatriz");
+        bea.setProfilePicUrl("https://example.invalid/avatar.png");
+        when(profiles.findAllById(any())).thenReturn(List.of(ana, bea));
+
+        var list = service.participants("ana", "direct", "bea", 17L);
+        assertEquals(2, list.size());
+        assertTrue(list.getFirst().mine());
+        assertEquals("ana", list.getFirst().username());
+        assertEquals("Ana", list.getFirst().displayName());
+        assertEquals("❤️", list.getFirst().emoji());
+        assertFalse(list.get(1).mine());
+        assertEquals("Beatriz", list.get(1).displayName());
+        assertEquals("https://example.invalid/avatar.png", list.get(1).profilePicUrl());
+        verify(authorization).requireConversationAccess("ana", "direct", "bea");
+        verify(profiles).findAllById(any());
+    }
+
+    @Test
+    void participantsNeverRevealUsersFromUnrelatedDirectMessage() {
+        actor();
+        Chat other = new Chat();
+        other.setId(99L);
+        other.setUsername1("ana");
+        other.setUsername2("carla");
+        when(direct.findAllById(any())).thenReturn(List.of(other));
+        assertEquals(404, assertThrows(ResponseStatusException.class,
+                () -> service.participants("ana", "direct", "bea", 99L))
+                .getStatusCode().value());
+        verifyNoInteractions(reactions);
+    }
+
+    @Test
+    void participantsCheckConversationAclBeforeAnyProfileOrReactionLookup() {
+        doThrow(new org.springframework.security.access.AccessDeniedException("Blocked"))
+                .when(authorization).requireConversationAccess("ana", "direct", "bea");
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.participants("ana", "direct", "bea", 12L));
+        verifyNoInteractions(profiles, direct, reactions);
+    }
+
+    @Test
     void inaccessibleDirectMessageIdsNeverReturnSomeoneElsesReactions() {
         actor();
         Chat other = new Chat();
