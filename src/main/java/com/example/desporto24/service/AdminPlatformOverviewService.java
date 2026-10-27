@@ -253,7 +253,57 @@ public class AdminPlatformOverviewService {
                             "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
                                     + "item/item-1-6224",
                             "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
-                                    + "item/item-1-6223"));
+                                    + "item/item-1-6223"),
+                    290L, new CuratedFacilityContext(
+                            "Campo de Futebol 7 N.º2 do Complexo Desportivo da Rodovia", "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6225",
+                            "SHARED_COMPLEX_NUMBERED_FIELDS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6225",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6226"),
+                    291L, new CuratedFacilityContext(
+                            "Campo de Futebol 7 N.º4 do Complexo Desportivo da Rodovia", "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6226",
+                            "SHARED_COMPLEX_NUMBERED_FIELDS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6226",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6225"),
+                    292L, new CuratedFacilityContext(
+                            "Campo de Futebol N.º 5 do Complexo Desportivo da Rodovia", "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6229",
+                            "SHARED_COMPLEX_NUMBERED_FIELDS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6229",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6230"),
+                    293L, new CuratedFacilityContext(
+                            "Campo de Futebol N.º 6 do Complexo Desportivo da Rodovia", "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6230",
+                            "SHARED_COMPLEX_NUMBERED_FIELDS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6230",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6229"),
+                    294L, new CuratedFacilityContext(
+                            "Campos de Basquetebol N.º 1 e 2 do Complexo Desportivo da Rodovia", "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6231",
+                            "GROUPED_BASKETBALL_COURTS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6231",
+                            "https://www.cm-braga.pt/pt/1201/viver/ambiente/espacos-verdes/"
+                                    + "item/item-1-722"));
 
     private record CuratedFacilityContext(
             String name, String city, String district, String address, String website,
