@@ -43,6 +43,12 @@ public class SessionGuestRequestController {
         return guests.linkAccount(sessionId,body,auth.getName());
     }
 
+    @PostMapping("/guest-requests/{requestId}/cancel")
+    public SessionGuestRequestService.GuestView cancel(
+            @PathVariable Long sessionId,@PathVariable Long requestId,Authentication auth){
+        return guests.cancel(sessionId,requestId,auth.getName());
+    }
+
     @GetMapping("/guest-requests")
     public List<SessionGuestRequestService.GuestView> list(
             @PathVariable Long sessionId,Authentication auth){
