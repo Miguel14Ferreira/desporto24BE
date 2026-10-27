@@ -1,0 +1,39 @@
+{
+  "source": "Viver Santarem operator & municipal tourism confirmation; SCALABISCUP venue organiser directions; 27 October 2026",
+  "approved_for_import": false,
+  "notes": "Venue 277 and distinct venue 278 share the same postal address; documented site waypoints ~379.5m apart. These are evidence leads only, not coordinates for database insert/update or moderated approval. Municipal tourism directions may refer to a different facility/point, while event point may be parking/site, not an entrance. Both require verification of exact building footprint.",
+  "points": [
+    {
+      "source_reference": "JYNLO:REVIEW:SANTAREM:PAVILHAO:SCALABISCUP",
+      "candidate_name": "Pavilhão Desportivo Municipal",
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "latitude": 39.234,
+      "longitude": -8.6935,
+      "match_kind": "EVENT_ORGANIZER_GPS_SITE",
+      "location_source_url": "https://scalabiscup.com/directions/",
+      "location_source_text": "39º14’02.4″N 8º41’36.6″W; refers to Pavilhão Municipal de Santarém",
+      "confirmation_source_url": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "point_precision": "EVENT_SITE_WAYPOINT_NOT_EXACT_BUILDING",
+      "related_venue_id": 278,
+      "related_venue_name": "Nave Desportiva Municipal",
+      "facility_verified_by_official_source": false
+    },
+    {
+      "source_reference": "JYNLO:REVIEW:SANTAREM:PAVILHAO:TOURISM_DIRECTIONS",
+      "candidate_name": "Pavilhão Desportivo Municipal",
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "latitude": 39.2350265,
+      "longitude": -8.6892978,
+      "match_kind": "MUNICIPAL_TOURISM_DIRECTIONS_POINT",
+      "location_source_url": "https://www.visitesantarem.pt/lista/pavilhao-desportivo-municipal/",
+      "location_source_text": "Linked Google Directions daddr=39.2350265,-8.6892978; not labelled as precise building GPS",
+      "confirmation_source_url": "https://viversantarem.pt/pavilhoes-desportivos/",
+      "point_precision": "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN",
+      "related_venue_id": 278,
+      "related_venue_name": "Nave Desportiva Municipal",
+      "facility_verified_by_official_source": false
+    }
+  ]
+}
