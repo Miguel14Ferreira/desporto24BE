@@ -25,7 +25,7 @@ class SessionGuestTeamBalancerTest {
         List<CommunityStandingsArchiveRow> standings=new ArrayList<>();
         for(int i=0;i<4;i++){
             var row=new CommunityStandingsArchiveRow();row.setId((long)i+1);
-            row.setNormalizedName(List.of("rui","ana","afonso salvador","beto")[i]);
+            row.setNormalizedName(List.of("rui","ana","afonso salvador","beto").get(i));
             row.setPoints((i+1)*10);row.setWins(i);row.setPlayed(6);
             standings.add(row);
         }
