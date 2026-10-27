@@ -19,6 +19,11 @@ public class SessionGuestRequestController {
     public Map<String,String> createLink(@PathVariable Long sessionId,Authentication auth){
         return Map.of("token",guests.issueLink(sessionId,auth.getName()));
     }
+    @PostMapping("/guest-preview")
+    public com.example.desporto24.model.dto.session.SessionPublicPreviewResponse preview(
+            @PathVariable Long sessionId,@RequestBody Map<String,String> body){
+        return guests.preview(sessionId,body.get("token"));
+    }
     @PostMapping("/guest-roster")
     public SessionGuestRequestService.GuestRoster roster(
             @PathVariable Long sessionId,@RequestBody Map<String,String> body){
