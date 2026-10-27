@@ -99,7 +99,8 @@ public class AdminPlatformOverviewService {
                         v.getAddress(), v.getSourceReference(),
                         v.getInformationSource() == null ? null : v.getInformationSource().name(),
                         v.getInformationSource() == Venue.InformationSource.OFFICIAL
-                                ? safeOfficialSourceWebsite(v.getWebsite()) : null))
+                                ? safeOfficialSourceWebsite(v.getWebsite()) : null,
+                        researchCandidate(v)))
                 .toList(), page, slice.hasNext());
     }
 
@@ -121,9 +122,42 @@ public class AdminPlatformOverviewService {
         }
     }
 
+    /**
+     * A narrowly curated SITE point for manual research, not a verified entrance
+     * and never a coordinate correction. This is returned only by the existing
+     * ADMIN/SUPER_ADMIN read-only endpoint, with strict saved-identity matching.
+     *
+     * Sources: municipal "Contactos e Localização" has a Google Maps link at
+     * 38.573234,-7.928876; regional Turismo do Alentejo independently locates
+     * the same swimming complex 22m away at 38.573425,-7.928949.
+     */
+    static VenueGpsResearchCandidate researchCandidate(Venue venue) {
+        if (!Long.valueOf(273L).equals(venue.getId())
+                || venue.getLatitude() != null || venue.getLongitude() != null
+                || venue.getInformationSource() != Venue.InformationSource.OFFICIAL
+                || !"Piscinas Municipais de Évora".equals(venue.getName())
+                || !"Évora".equals(venue.getCity())
+                || !"Évora".equals(venue.getDistrict())
+                || venue.getAddress() == null || !venue.getAddress().contains("Arantes de Oliveira")
+                || !"https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/"
+                        .equals(safeOfficialSourceWebsite(venue.getWebsite()))) {
+            return null;
+        }
+        return new VenueGpsResearchCandidate(
+                38.573234, -7.928876,
+                "https://www.cm-evora.pt/municipe/equipamentos/equipamentos-desportivos/"
+                        + "piscinas-municipais/contactos-e-localizacao-das-piscinas-municipais/",
+                "https://www.outdooractive.pt/pt/poi/evora/piscina-municipal/802361541/",
+                "SITE_REFERENCE_NOT_VERIFIED_ENTRANCE");
+    }
+
+    /** Named as a research candidate to avoid implying approval or entrance precision. */
+    public record VenueGpsResearchCandidate(double latitude, double longitude,
+                                             String officialSourceUrl, String secondarySourceUrl,
+                                             String precision) {}
     public record VenueGpsReviewItem(long id, String name, String city, String district,
                                      String address, String sourceReference, String informationSource,
-                                     String sourceWebsite) {}
+                                     String sourceWebsite, VenueGpsResearchCandidate researchCandidate) {}
     public record VenueGpsReviewPage(List<VenueGpsReviewItem> venues, int page, boolean hasMore) {}
 
     public record VenueDistrictCoverage(
