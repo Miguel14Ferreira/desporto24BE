@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_twelve_manifest_points_never_approved(self):
-        self.assertEqual(12, len(self.evidence))
+    def test_fourteen_manifest_points_never_approved(self):
+        self.assertEqual(14, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -69,7 +69,7 @@ class GpsEvidenceAuditTest(unittest.TestCase):
              "district": "Santarém", "address": "Largo Comendador Paulino da Cunha e Silva",
              "latitude": None, "longitude": None}
         ]
-        leads = [p for p in self.evidence if p["expected_municipality"] == "Santarém"]
+        leads = [p for p in self.evidence if p["candidate_name"] == "Pavilhão Desportivo Municipal"]
         self.assertEqual(2, len(leads))
         rows = analyze(fixture, leads)
         self.assertEqual(2, len(rows))
@@ -83,7 +83,7 @@ class GpsEvidenceAuditTest(unittest.TestCase):
             self.assertNotIn("longitude", row)
 
     def test_even_gps_matching_one_source_does_not_override_documentary_conflict(self):
-        leads = [p for p in self.evidence if p["expected_municipality"] == "Santarém"]
+        leads = [p for p in self.evidence if p["candidate_name"] == "Pavilhão Desportivo Municipal"]
         sample = leads[0]
         venue = {"id": 277, "name": sample["candidate_name"],
                  "city": "Santarém", "district": "Santarém",
@@ -239,6 +239,37 @@ class GpsEvidenceAuditTest(unittest.TestCase):
                   "district": "Évora", "latitude": None, "longitude": None}]
         row = analyze(wrong, [point])[0]
         self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
+
+    def test_sacapeito_sources_match_specific_existing_venue_without_suggesting_write(self):
+        sources = [p for p in self.evidence if p["candidate_name"] == "Piscinas Municipais do Sacapeito"]
+        self.assertEqual(2, len(sources))
+        self.assertTrue(all(p["expected_existing_venue_id"] == 276 for p in sources))
+        distance = distance_m(sources[0]["latitude"], sources[0]["longitude"],
+                              sources[1]["latitude"], sources[1]["longitude"])
+        self.assertGreater(distance, 2.0)
+        self.assertLess(distance, 6.0)
+        record = {"id": 276, "name": "Piscinas Municipais do Sacapeito",
+                  "city": "Santarém", "district": "Santarém",
+                  "latitude": None, "longitude": None}
+        rows = analyze([record], sources)
+        self.assertEqual(2, len(rows))
+        for row in rows:
+            self.assertEqual(276, row["existingVenueId"])
+            self.assertEqual("EXISTING_VENUE_WITHOUT_GPS", row["status"])
+            self.assertIsNone(row["maxSourceSeparationMeters"])
+            self.assertNotIn("latitude", row)
+            self.assertNotIn("longitude", row)
+            self.assertTrue(row["warnings"])
+
+    def test_sacapeito_wrong_id_can_never_inherit_this_lead(self):
+        points = [p for p in self.evidence if p["candidate_name"] == "Piscinas Municipais do Sacapeito"]
+        wrong = [{"id": 8276, "name": "Piscinas Municipais do Sacapeito",
+                  "city": "Santarém", "district": "Santarém",
+                  "latitude": None, "longitude": None}]
+        rows = analyze(wrong, points)
+        self.assertEqual(2, len(rows))
+        self.assertTrue(all(row["status"] == "EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW"
+                            for row in rows))
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))
