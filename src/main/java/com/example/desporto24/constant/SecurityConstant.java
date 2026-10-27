@@ -30,9 +30,6 @@ public final class SecurityConstant {
     };
 
     public static final String[] PUBLIC_URLS = {
-            "/api/sessions/*/guest-roster",
-            "/api/sessions/*/guest-requests",
-            "/api/sessions/*/guest-requests/status",
             "/api/auth/login",
             "/api/auth/google/**",
             "/api/auth/refresh",
