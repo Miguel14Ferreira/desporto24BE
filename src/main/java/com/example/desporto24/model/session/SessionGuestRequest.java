@@ -15,7 +15,7 @@ import java.time.Instant;
 })
 @Getter @Setter
 public class SessionGuestRequest {
-    public enum State { PENDING, APPROVED, REJECTED }
+    public enum State { PENDING, APPROVED, REJECTED, LINKED }
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
     @ManyToOne(fetch=FetchType.LAZY,optional=false)
@@ -35,6 +35,9 @@ public class SessionGuestRequest {
     @Enumerated(EnumType.STRING)
     @Column(nullable=false,length=16)
     private State status=State.PENDING;
+    @ManyToOne(fetch=FetchType.LAZY)
+    @JoinColumn(name="linked_profile_id")
+    private com.example.desporto24.model.Profile linkedProfile;
     @Column(name="team_code",length=1)
     private String teamCode;
     @Column(name="created_at",nullable=false)
