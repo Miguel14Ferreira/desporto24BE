@@ -267,3 +267,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-26-session-play-format-v1.yaml
   - include:
       file: db/changelog/changes/2026-10-27-private-groups-v1.yaml
+  - include:
+      file: db/changelog/changes/2026-10-27-private-group-photo.yaml
