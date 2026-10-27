@@ -21,8 +21,10 @@ class SessionGuestRequestServiceTest {
     private final CommunityPlayerRepository players=mock(CommunityPlayerRepository.class);
     private final SessionGuestRequestRepository requests=mock(SessionGuestRequestRepository.class);
     private final SessionParticipantRepository participants=mock(SessionParticipantRepository.class);
+    private final ProfileRepository profiles=mock(ProfileRepository.class);
+    private final CommunityHistoricalPlayerLinkService historicalLinks=mock(CommunityHistoricalPlayerLinkService.class);
     private final SessionGuestRequestService service=new SessionGuestRequestService(
-            sessions,players,requests,participants);
+            sessions,players,requests,participants,profiles,historicalLinks);
     private final Session session=new Session();
     private final Community community=new Community();
     private final Profile organizer=new Profile();
