@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_five_manifest_points_never_approved(self):
-        self.assertEqual(5, len(self.evidence))
+    def test_seven_manifest_points_never_approved(self):
+        self.assertEqual(7, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -52,6 +52,47 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertIn("HISTORICAL_POSTAL_CONFLICT_REVIEW", by_city["Guarda"]["warnings"])
         self.assertIn("STADIUM_SITE_NOT_TRACK_OR_ENTRANCE", by_city["Braga"]["warnings"])
         self.assertIn("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE", by_city["Évora"]["warnings"])
+
+    def test_two_santarem_sources_disagree_and_require_manual_resolution(self):
+        fixture = [
+            {"id": 277, "name": "Pavilhão Desportivo Municipal", "city": "Santarém",
+             "district": "Santarém", "address": "Largo Comendador Paulino da Cunha e Silva",
+             "latitude": None, "longitude": None},
+            {"id": 278, "name": "Nave Desportiva Municipal", "city": "Santarém",
+             "district": "Santarém", "address": "Largo Comendador Paulino da Cunha e Silva",
+             "latitude": None, "longitude": None}
+        ]
+        leads = [p for p in self.evidence if p["expected_municipality"] == "Santarém"]
+        self.assertEqual(2, len(leads))
+        rows = analyze(fixture, leads)
+        self.assertEqual(2, len(rows))
+        for row in rows:
+            self.assertEqual(277, row["existingVenueId"])
+            self.assertEqual("SOURCE_COORDINATE_CONFLICT_REVIEW", row["status"])
+            self.assertAlmostEqual(379.5, row["maxSourceSeparationMeters"], delta=2)
+            self.assertIn("CONFLICTING_DOCUMENTED_SITE_POINTS_REVIEW", row["warnings"])
+            self.assertIn("RELATED_DISTINCT_VENUE_REVIEW", row["warnings"])
+            self.assertNotIn("latitude", row)
+            self.assertNotIn("longitude", row)
+
+    def test_even_gps_matching_one_source_does_not_override_documentary_conflict(self):
+        leads = [p for p in self.evidence if p["expected_municipality"] == "Santarém"]
+        sample = leads[0]
+        venue = {"id": 277, "name": sample["candidate_name"],
+                 "city": "Santarém", "district": "Santarém",
+                 "latitude": sample["latitude"], "longitude": sample["longitude"]}
+        rows = analyze([venue], leads)
+        self.assertTrue(all(r["status"] == "SOURCE_COORDINATE_CONFLICT_REVIEW" for r in rows))
+
+    def test_compatible_secondary_points_do_not_force_false_conflict(self):
+        lead = self.evidence[0].copy()
+        secondary = {**lead, "source_reference": "INDEPENDENT:POINT",
+                     "latitude": lead["latitude"] + 0.00001}
+        venue = {"id": 296, "name": lead["candidate_name"],
+                 "city": lead["expected_municipality"], "district": lead["expected_district"],
+                 "latitude": None, "longitude": None}
+        self.assertTrue(all(row["status"] == "EXISTING_VENUE_WITHOUT_GPS"
+                            for row in analyze([venue], [lead, secondary])))
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))
