@@ -123,32 +123,55 @@ public class AdminPlatformOverviewService {
     }
 
     /**
-     * A narrowly curated SITE point for manual research, not a verified entrance
-     * and never a coordinate correction. This is returned only by the existing
-     * ADMIN/SUPER_ADMIN read-only endpoint, with strict saved-identity matching.
+     * Curated and immutable, not an import pipeline. Each lead must be documented
+     * independently against a specific saved OFFICIAL venue identity.
      *
-     * Sources: municipal "Contactos e Localização" has a Google Maps link at
-     * 38.573234,-7.928876; regional Turismo do Alentejo independently locates
-     * the same swimming complex 22m away at 38.573425,-7.928949.
+     * 273 (Évora): municipal site map 38.573234,-7.928876, regional Turismo
+     * do Alentejo 38.573425,-7.928949, ~22m apart.
+     * 276 (Santarém): municipal tourism directions 39.2250178,-8.6886809
+     * and a matching OSM building way 1172748137, both site-level only.
+     * None of these proves a particular pedestrian entrance.
      */
+    private static final java.util.Map<Long, CuratedSiteEvidence> GPS_RESEARCH_LEADS =
+            java.util.Map.of(
+                    273L, new CuratedSiteEvidence(
+                            "Piscinas Municipais de Évora", "Évora", "Évora",
+                            "Arantes de Oliveira",
+                            "https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/",
+                            38.573234, -7.928876,
+                            "https://www.cm-evora.pt/municipe/equipamentos/equipamentos-desportivos/"
+                                    + "piscinas-municipais/contactos-e-localizacao-das-piscinas-municipais/",
+                            "https://www.outdooractive.pt/pt/poi/evora/piscina-municipal/802361541/"),
+                    276L, new CuratedSiteEvidence(
+                            "Piscinas Municipais do Sacapeito", "Santarém", "Santarém",
+                            "Cidade de Badajoz",
+                            "https://viversantarem.pt/instalacoes-desportivas/",
+                            39.2250178, -8.6886809,
+                            "https://www.visitesantarem.pt/lista/piscinas-municipais-do-sacapeito/",
+                            "https://www.openstreetmap.org/way/1172748137"));
+
+    private record CuratedSiteEvidence(String name, String city, String district,
+                                       String addressPart, String storedWebsite,
+                                       double latitude, double longitude,
+                                       String officialSourceUrl, String secondarySourceUrl) {}
+
+    /** Administrator-only research clue. Never performs a venue write or GPS approval. */
     static VenueGpsResearchCandidate researchCandidate(Venue venue) {
-        if (!Long.valueOf(273L).equals(venue.getId())
+        if (venue == null || venue.getId() == null
                 || venue.getLatitude() != null || venue.getLongitude() != null
-                || venue.getInformationSource() != Venue.InformationSource.OFFICIAL
-                || !"Piscinas Municipais de Évora".equals(venue.getName())
-                || !"Évora".equals(venue.getCity())
-                || !"Évora".equals(venue.getDistrict())
-                || venue.getAddress() == null || !venue.getAddress().contains("Arantes de Oliveira")
-                || !"https://www.cm-evora.pt/visitante/lazer-visitar/piscinas-municipais/"
-                        .equals(safeOfficialSourceWebsite(venue.getWebsite()))) {
+                || venue.getInformationSource() != Venue.InformationSource.OFFICIAL) return null;
+        CuratedSiteEvidence lead = GPS_RESEARCH_LEADS.get(venue.getId());
+        if (lead == null || !lead.name().equals(venue.getName())
+                || !lead.city().equals(venue.getCity())
+                || !lead.district().equals(venue.getDistrict())
+                || venue.getAddress() == null
+                || !venue.getAddress().contains(lead.addressPart())
+                || !lead.storedWebsite().equals(safeOfficialSourceWebsite(venue.getWebsite()))) {
             return null;
         }
         return new VenueGpsResearchCandidate(
-                38.573234, -7.928876,
-                "https://www.cm-evora.pt/municipe/equipamentos/equipamentos-desportivos/"
-                        + "piscinas-municipais/contactos-e-localizacao-das-piscinas-municipais/",
-                "https://www.outdooractive.pt/pt/poi/evora/piscina-municipal/802361541/",
-                "SITE_REFERENCE_NOT_VERIFIED_ENTRANCE");
+                lead.latitude(), lead.longitude(), lead.officialSourceUrl(),
+                lead.secondarySourceUrl(), "SITE_REFERENCE_NOT_VERIFIED_ENTRANCE");
     }
 
     /** Named as a research candidate to avoid implying approval or entrance precision. */
