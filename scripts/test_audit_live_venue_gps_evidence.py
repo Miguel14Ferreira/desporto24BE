@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_nine_manifest_points_never_approved(self):
-        self.assertEqual(9, len(self.evidence))
+    def test_ten_manifest_points_never_approved(self):
+        self.assertEqual(10, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -171,6 +171,45 @@ class GpsEvidenceAuditTest(unittest.TestCase):
                   "latitude": None, "longitude": None}]
         row = analyze(wrong, [point])[0]
         self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
+
+    def test_evora_existing_272_two_source_types_require_manual_review(self):
+        points = [p for p in self.evidence if p["expected_municipality"] == "Évora"]
+        self.assertEqual(2, len(points))
+        self.assertTrue(all(p["expected_existing_venue_id"] == 272 for p in points))
+        self.assertTrue(all(p.get("facility_verified_by_official_source") is not None for p in points))
+        gap = distance_m(points[0]["latitude"], points[0]["longitude"],
+                         points[1]["latitude"], points[1]["longitude"])
+        self.assertGreater(gap, 125.0)
+        self.assertLess(gap, 200.0)
+        catalogue = [
+            {"id": 272, "name": "Complexo Desportivo de Évora", "city": "Évora",
+             "district": "Évora", "address": "Estrada das Alcáçovas (N380)",
+             "latitude": None, "longitude": None},
+            {"id": 3588, "name": "Campo Estrela", "city": "Évora", "district": "Évora",
+             "latitude": 38.562232, "longitude": -7.9178504}
+        ]
+        results = analyze(catalogue, points)
+        self.assertEqual(2, len(results))
+        for row in results:
+            self.assertEqual(272, row["existingVenueId"])
+            self.assertEqual("SOURCE_COORDINATE_CONFLICT_REVIEW", row["status"])
+            self.assertIn("CONFLICTING_DOCUMENTED_SITE_POINTS_REVIEW", row["warnings"])
+            self.assertAlmostEqual(gap, row["maxSourceSeparationMeters"], delta=0.1)
+            self.assertNotIn("latitude", row)
+            self.assertNotIn("longitude", row)
+        polygon = next(r for r in results if r["sourceReference"] == "OSM:WAY:1266229401")
+        self.assertIn("OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE", polygon["warnings"])
+        self.assertIn("RELATED_DISTINCT_VENUE_REVIEW", polygon["warnings"])
+
+    def test_evora_matched_name_under_unexpected_id_fails_venue_identity(self):
+        points = [p for p in self.evidence if p["expected_municipality"] == "Évora"]
+        wrong = [{"id": 999, "name": "Complexo Desportivo de Évora",
+                  "city": "Évora", "district": "Évora",
+                  "latitude": None, "longitude": None}]
+        rows = analyze(wrong, points)
+        self.assertEqual(2, len(rows))
+        self.assertTrue(all(r["status"] == "EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW"
+                            for r in rows))
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))
