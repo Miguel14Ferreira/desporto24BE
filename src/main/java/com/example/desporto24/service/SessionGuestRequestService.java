@@ -41,6 +41,7 @@ public class SessionGuestRequestService {
     private final SessionParticipantRepository participants;
     private final ProfileRepository profiles;
     private final CommunityHistoricalPlayerLinkService historicalLinks;
+    private final WaitlistPromotionService waitlistPromotionService;
 
     public record GuestPlayer(Long id,String name) {}
     public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
@@ -219,6 +220,70 @@ public class SessionGuestRequestService {
         requests.save(request);
         return new GuestView(request.getId(),request.getDisplayName(),request.getStatus().name(),
                 request.getNote(),request.getTeamCode());
+    }
+
+    /**
+     * Cancel only an approved external reservation, before kickoff.
+     * The existing session row lock serializes the seat release with joining,
+     * approvals and account linking. A linked account must use normal
+     * registered-participant removal, not decrement external capacity again.
+     */
+    @Transactional
+    public GuestView cancel(Long sessionId,Long guestId,String username) {
+        Session session=locked(sessionId);
+        requireCreator(session,username);
+        if(session.getStatus()==SessionStatus.CANCELLED
+                || session.getStatus()==SessionStatus.COMPLETED
+                || session.getGameDate()==null
+                || !session.getGameDate().toInstant().isAfter(Instant.now()))
+            throw conflict("Não é possível cancelar presenças após o início ou fecho do jogo");
+        SessionGuestRequest guest=requests.findById(guestId)
+                .filter(r->r.getSession().getId().equals(sessionId))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        if(guest.getStatus()!=SessionGuestRequest.State.APPROVED)
+            throw conflict("Apenas uma presença de convidado confirmada pode ser cancelada");
+        int external=session.getExternalConfirmedParticipants()==null?0:
+                session.getExternalConfirmedParticipants();
+        if(external<=0)throw conflict("A reserva do convidado já não existe");
+        Instant now=Instant.now();
+        guest.setStatus(SessionGuestRequest.State.CANCELLED);
+        guest.setTeamCode(null);
+        requests.save(guest);
+        session.setExternalConfirmedParticipants(external-1);
+        long active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
+        session.setStatus(SessionCapacity.remainingPlaces(session,active)==0
+                ? SessionStatus.FULL:SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessions.save(session);
+
+        // An old team assignment is no longer valid after changing the roster.
+        List<SessionParticipant> registered=participants
+                .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId,ParticipantState.ACTIVE);
+        boolean changed=false;
+        for(SessionParticipant member:registered){
+            if(member.getTeamCode()!=null){member.setTeamCode(null);changed=true;}
+        }
+        if(changed)participants.saveAll(registered);
+        List<SessionGuestRequest> stillApproved=requests
+                .findBySessionIdAndStatusOrderByCreatedAtAsc(sessionId,SessionGuestRequest.State.APPROVED);
+        boolean guestsChanged=false;
+        for(SessionGuestRequest other:stillApproved){
+            if(other.getTeamCode()!=null){other.setTeamCode(null);guestsChanged=true;}
+        }
+        if(guestsChanged)requests.saveAll(stillApproved);
+
+        // Never hand a freed place to a new guest ahead of the waitlist.
+        while(SessionCapacity.remainingPlaces(session,
+                participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE))>0) {
+            if(waitlistPromotionService.promoteNext(session,now).isEmpty())break;
+        }
+        active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
+        session.setStatus(SessionCapacity.remainingPlaces(session,active)==0
+                ? SessionStatus.FULL:SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessions.save(session);
+        return new GuestView(guest.getId(),guest.getDisplayName(),guest.getStatus().name(),
+                guest.getNote(),guest.getTeamCode());
     }
 
     private Session validLink(Long sessionId,String token) {
