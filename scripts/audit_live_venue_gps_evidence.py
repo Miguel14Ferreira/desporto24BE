@@ -17,6 +17,7 @@ MANIFESTS = (
     "docs/venue-imports/evora-piscinas-municipais-site-gps-review-20261027.json",
     "docs/venue-imports/santarem-sacapeito-2-site-gps-review-20261027.json",
     "docs/venue-imports/porto-choupos-site-gps-review-20261027.json",
+    "docs/venue-imports/lisboa-arroios-284-municipal-gis-pitch-review-20261027.json",
 )
 
 def valid_gps(lat, lon):
@@ -124,8 +125,13 @@ def analyze(catalogue, evidence):
                          "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
                          "FEDERATION_STADIUM_FOOTBALL_PITCH_PIN_NOT_TRACK_OR_ENTRANCE",
                          "MUNICIPAL_MAP_SITE_POINT_NOT_ENTRANCE",
-                         "REGIONAL_TOURISM_SITE_POINT_NOT_ENTRANCE"):
+                         "REGIONAL_TOURISM_SITE_POINT_NOT_ENTRANCE",
+                         "HISTORICAL_MUNICIPAL_FACILITY_POINT_NOT_CURRENT_ENTRANCE"):
             warnings.append(precision)
+        if point.get("source_name") and fold(point["source_name"]) != fold(point["candidate_name"]):
+            warnings.append("OFFICIAL_GIS_ALIAS_VS_JYNLO_NAME_REVIEW")
+        if point.get("source_data_date"):
+            warnings.append("SOURCE_OBSERVATION_DATE_MUST_BE_RECHECKED")
         result.append({
             "sourceReference": point["source_reference"],
             "name": point["candidate_name"],

@@ -1,0 +1,35 @@
+{
+  "source": "Câmara Municipal de Lisboa ArcGIS Instalações Desportivas (feature OBJECTID 2954) cross-checked with Junta de Freguesia de Arroios sports facility page; 27 October 2026",
+  "approved_for_import": false,
+  "notes": "READ-ONLY historical single-facility GIS point. CML feature DATA_INF 2016-07-06 and 2024 open-data metadata do not prove current exact pitch footprint or entrance. CML has a separate swimming pool OBJECTID 2955 approximately 22.1 m away, distinct Jynlo ID 1840 with existing GPS. Do NOT copy pool coordinates, use market centroid, repair the conflated Rua do Saco office postal address automatically, or apply GPS. Existing venue identity only: 284.",
+  "points": [
+    {
+      "source_reference": "JYNLO:CML:DESPORTO_INSTALACOES:OBJECTID:2954",
+      "expected_existing_venue_id": 284,
+      "candidate_name": "Polidesportivo de Arroios — Joaquim Campos",
+      "expected_municipality": "Lisboa",
+      "expected_district": "Lisboa",
+      "latitude": 38.7210189039736,
+      "longitude": -9.13265738281149,
+      "match_kind": "OFFICIAL_MUNICIPAL_GIS_POINT_HISTORICAL_PITCH",
+      "location_source_url": "https://services.arcgis.com/1dSrzEWVQn5kHHyK/arcgis/rest/services/Desporto_Instalacoes/FeatureServer/0",
+      "source_query_url": "https://services.arcgis.com/1dSrzEWVQn5kHHyK/arcgis/rest/services/Desporto_Instalacoes/FeatureServer/0/query?where=OBJECTID%3D2954&outFields=OBJECTID%2CDESIGNACAO%2CMORADA%2CTIPOLOGIA%2CDATA_INF&returnGeometry=true&outSR=4326&f=geojson",
+      "location_source_text": "Feature 2954; DESIGNACAO='Forno do Tijolo - Arroios'; TIPOLOGIA='Pequeno Campo de Jogos'; MORADA='Rua Maria da Fonte - Mercado Forno do Tijolo'; DATA_INF=1467763200000 (2016-07-06 UTC); point GeoJSON exported outSR=4326",
+      "source_name": "Forno do Tijolo - Arroios",
+      "source_feature_id": 2954,
+      "source_typology": "Pequeno Campo de Jogos",
+      "source_data_date": "2016-07-06",
+      "source_license_url": "https://dados.cm-lisboa.pt/dataset/instalacoes-desportivas-municipais-e-concessoes-dados-2015",
+      "confirmation_source_url": "https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/",
+      "point_precision": "HISTORICAL_MUNICIPAL_FACILITY_POINT_NOT_CURRENT_ENTRANCE",
+      "related_venue_id": 1840,
+      "related_venue_name": "Piscina de Arroios",
+      "related_municipal_feature_id": 2955,
+      "related_municipal_feature_typology": "Piscina",
+      "related_municipal_feature_latitude": 38.7209885110846,
+      "related_municipal_feature_longitude": -9.13240589722577,
+      "source_address_conflict": "Jynlo stored Rua do Saco 1A is Junta Polo da Pena administration address; field is at Mercado do Forno do Tijolo on Rua Maria da Fonte, not evidence of door number",
+      "facility_verified_by_official_source": false
+    }
+  ]
+}

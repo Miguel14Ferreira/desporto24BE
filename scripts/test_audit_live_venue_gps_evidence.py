@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_fifteen_manifest_points_never_approved(self):
-        self.assertEqual(15, len(self.evidence))
+    def test_sixteen_manifest_points_never_approved(self):
+        self.assertEqual(16, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -293,6 +293,67 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         row = analyze([false_match], [point])[0]
         self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
         self.assertNotIn("latitude", row)
+
+    def test_arroios_cml_2016_gis_is_an_unapproved_pitch_point_not_pool_or_current_entrance(self):
+        point = next(p for p in self.evidence
+                     if p["source_reference"] == "JYNLO:CML:DESPORTO_INSTALACOES:OBJECTID:2954")
+        self.assertEqual(284, point["expected_existing_venue_id"])
+        self.assertEqual(2954, point["source_feature_id"])
+        self.assertEqual("Pequeno Campo de Jogos", point["source_typology"])
+        self.assertEqual("2016-07-06", point["source_data_date"])
+        self.assertEqual("Forno do Tijolo - Arroios", point["source_name"])
+        self.assertEqual(2955, point["related_municipal_feature_id"])
+        self.assertEqual("Piscina", point["related_municipal_feature_typology"])
+        gap = distance_m(point["latitude"], point["longitude"],
+                         point["related_municipal_feature_latitude"],
+                         point["related_municipal_feature_longitude"])
+        self.assertGreater(gap, 20.0)
+        self.assertLess(gap, 25.0)
+        catalogue = [
+            {"id": 284, "name": "Polidesportivo de Arroios — Joaquim Campos",
+             "city": "Lisboa", "district": "Lisboa", "latitude": None, "longitude": None,
+             "address": "Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa"},
+            {"id": 1840, "name": "Piscina de Arroios",
+             "city": "Lisboa", "district": "Lisboa",
+             "latitude": 38.720942, "longitude": -9.1323798,
+             "contact": "not-to-export"}
+        ]
+        result = analyze(catalogue, [point])
+        self.assertEqual(1, len(result))
+        row = result[0]
+        self.assertEqual(284, row["existingVenueId"])
+        self.assertEqual("EXISTING_VENUE_WITHOUT_GPS", row["status"])
+        self.assertIn("HISTORICAL_MUNICIPAL_FACILITY_POINT_NOT_CURRENT_ENTRANCE", row["warnings"])
+        self.assertIn("SOURCE_OBSERVATION_DATE_MUST_BE_RECHECKED", row["warnings"])
+        self.assertIn("OFFICIAL_GIS_ALIAS_VS_JYNLO_NAME_REVIEW", row["warnings"])
+        self.assertIn("HISTORICAL_POSTAL_CONFLICT_REVIEW", row["warnings"])
+        self.assertIn("RELATED_DISTINCT_VENUE_REVIEW", row["warnings"])
+        self.assertNotIn("latitude", row)
+        self.assertNotIn("longitude", row)
+        self.assertNotIn("approved", json.dumps(row).lower())
+        self.assertNotIn("not-to-export", json.dumps(row))
+
+    def test_arroios_cml_field_wrong_jynlo_id_cannot_be_considered_verified(self):
+        point = next(p for p in self.evidence
+                     if p["source_reference"] == "JYNLO:CML:DESPORTO_INSTALACOES:OBJECTID:2954")
+        wrong = {"id": 1840, "name": point["candidate_name"],
+                 "city": "Lisboa", "district": "Lisboa", "latitude": None, "longitude": None}
+        row = analyze([wrong], [point])[0]
+        self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
+        self.assertEqual(1840, row["existingVenueId"])
+        self.assertIn("HISTORICAL_MUNICIPAL_FACILITY_POINT_NOT_CURRENT_ENTRANCE", row["warnings"])
+
+    def test_arroios_official_pool_cannot_inherit_field_evidence(self):
+        point = next(p for p in self.evidence
+                     if p["source_reference"] == "JYNLO:CML:DESPORTO_INSTALACOES:OBJECTID:2954")
+        pool = {"id": 1840, "name": "Piscina de Arroios",
+                "city": "Lisboa", "district": "Lisboa",
+                "latitude": 38.720942, "longitude": -9.1323798}
+        row = analyze([pool], [point])[0]
+        self.assertEqual("NO_EXACT_LIVE_MATCH_REVIEW", row["status"])
+        self.assertIsNone(row["existingVenueId"])
+        self.assertNotIn("latitude", row)
+        self.assertNotIn("longitude", row)
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))

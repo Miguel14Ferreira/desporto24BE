@@ -15,6 +15,9 @@ on:
       - 'Dockerfile'
       - 'scripts/audit_official_municipal_gis.py'
       - 'scripts/test_audit_official_municipal_gis.py'
+      - 'scripts/audit_live_venue_gps_evidence.py'
+      - 'scripts/test_audit_live_venue_gps_evidence.py'
+      - 'docs/venue-imports/lisboa-arroios-284-municipal-gis-pitch-review-20261027.json'
       - '.github/workflows/pr-validation.yml'
   workflow_dispatch:
 
