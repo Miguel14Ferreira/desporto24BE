@@ -231,7 +231,29 @@ public class AdminPlatformOverviewService {
                             "https://www.cm-mira.pt/node/4084",
                             "SHARED_COMPLEX_DIFFERENT_SPORTS_NO_POINT",
                             "https://www.cm-mira.pt/node/4084",
-                            "https://www.cm-mira.pt/node/3308"));
+                            "https://www.cm-mira.pt/node/3308"),
+                    288L, new CuratedFacilityContext(
+                            "Campo de Futebol N.º1 do Complexo Desportivo da Rodovia",
+                            "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6223",
+                            "SHARED_COMPLEX_NUMBERED_FIELDS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6223",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6224"),
+                    289L, new CuratedFacilityContext(
+                            "Campo de Futebol N.º3 do Complexo Desportivo da Rodovia",
+                            "Braga", "Braga",
+                            "Complexo Desportivo da Rodovia, 4710-294 Braga",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6224",
+                            "SHARED_COMPLEX_NUMBERED_FIELDS_NO_POINT",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6224",
+                            "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/"
+                                    + "item/item-1-6223"));
 
     private record CuratedFacilityContext(
             String name, String city, String district, String address, String website,
