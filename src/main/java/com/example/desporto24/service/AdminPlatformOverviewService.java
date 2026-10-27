@@ -14,6 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.net.URI;
+import java.net.URISyntaxException;
+import com.example.desporto24.model.venue.Venue;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
@@ -94,12 +97,33 @@ public class AdminPlatformOverviewService {
                 .map(v -> new VenueGpsReviewItem(
                         v.getId(), v.getName(), v.getCity(), v.getDistrict(),
                         v.getAddress(), v.getSourceReference(),
-                        v.getInformationSource() == null ? null : v.getInformationSource().name()))
+                        v.getInformationSource() == null ? null : v.getInformationSource().name(),
+                        v.getInformationSource() == Venue.InformationSource.OFFICIAL
+                                ? safeOfficialSourceWebsite(v.getWebsite()) : null))
                 .toList(), page, slice.hasNext());
     }
 
+    /** Source links are research clues only; never imply that the facility GPS was verified. */
+    static String safeOfficialSourceWebsite(String raw) {
+        if (raw == null || raw.isBlank() || raw.length() > 255) return null;
+        String value = raw.trim();
+        try {
+            URI uri = new URI(value);
+            String host = uri.getHost();
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
+                    || !host.contains(".") || uri.getRawUserInfo() != null
+                    || uri.getPort() != -1 || uri.getRawFragment() != null
+                    || host.equalsIgnoreCase("localhost") || host.toLowerCase(java.util.Locale.ROOT).endsWith(".local")
+                    || host.matches("[0-9.]+")) return null;
+            return value;
+        } catch (URISyntaxException ex) {
+            return null;
+        }
+    }
+
     public record VenueGpsReviewItem(long id, String name, String city, String district,
-                                     String address, String sourceReference, String informationSource) {}
+                                     String address, String sourceReference, String informationSource,
+                                     String sourceWebsite) {}
     public record VenueGpsReviewPage(List<VenueGpsReviewItem> venues, int page, boolean hasMore) {}
 
     public record VenueDistrictCoverage(
