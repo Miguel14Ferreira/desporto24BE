@@ -100,7 +100,7 @@ public class AdminPlatformOverviewService {
                         v.getInformationSource() == null ? null : v.getInformationSource().name(),
                         v.getInformationSource() == Venue.InformationSource.OFFICIAL
                                 ? safeOfficialSourceWebsite(v.getWebsite()) : null,
-                        researchCandidate(v)))
+                        researchCandidate(v), addressReview(v)))
                 .toList(), page, slice.hasNext());
     }
 
@@ -174,13 +174,45 @@ public class AdminPlatformOverviewService {
                 lead.secondarySourceUrl(), "SITE_REFERENCE_NOT_VERIFIED_ENTRANCE");
     }
 
+    /**
+     * A distinct address-quality warning for the EXISTING ID 284 only.
+     *
+     * The venue page places the court in Joaquim Campos at Mercado do Forno
+     * do Tijolo, which the parish locates at Rua Maria da Fonte. "Rua do Saco
+     * 1A" comes from the same page's common footer for Polo da Pena (office),
+     * not from the sports equipment's address. Do not imply an exact entrance.
+     * No venue edit, reverse geocoding, or geographic coordinates are generated.
+     */
+    static VenueAddressReview addressReview(Venue venue) {
+        if (venue == null || !Long.valueOf(284L).equals(venue.getId())
+                || venue.getLatitude() != null || venue.getLongitude() != null
+                || venue.getInformationSource() != Venue.InformationSource.OFFICIAL
+                || !"Polidesportivo de Arroios — Joaquim Campos".equals(venue.getName())
+                || !"Lisboa".equals(venue.getCity()) || !"Lisboa".equals(venue.getDistrict())
+                || !"Rua do Saco 1A, Mercado do Forno Tijolo, Lisboa".equals(venue.getAddress())
+                || !"https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/"
+                        .equals(safeOfficialSourceWebsite(venue.getWebsite()))) {
+            return null;
+        }
+        return new VenueAddressReview(
+                "ADMIN_OFFICE_ADDRESS_VS_VENUE_LOCATION_REVIEW",
+                "Mercado do Forno do Tijolo, Rua Maria da Fonte, Lisboa — entrada por confirmar",
+                "https://jfarroios.pt/equipamentos/polidesportivo-de-arroios/",
+                "https://jfarroios.pt/equipamentos/mercados/mercado-do-forno-do-tijolo/");
+    }
+
+    /** Read-only context, never a validated new postal address or edit proposal. */
+    public record VenueAddressReview(String issueCode, String venueLocationToCheck,
+                                      String equipmentSourceUrl, String marketSourceUrl) {}
+
     /** Named as a research candidate to avoid implying approval or entrance precision. */
     public record VenueGpsResearchCandidate(double latitude, double longitude,
                                              String officialSourceUrl, String secondarySourceUrl,
                                              String precision) {}
     public record VenueGpsReviewItem(long id, String name, String city, String district,
                                      String address, String sourceReference, String informationSource,
-                                     String sourceWebsite, VenueGpsResearchCandidate researchCandidate) {}
+                                     String sourceWebsite, VenueGpsResearchCandidate researchCandidate,
+                                     VenueAddressReview addressReview) {}
     public record VenueGpsReviewPage(List<VenueGpsReviewItem> venues, int page, boolean hasMore) {}
 
     public record VenueDistrictCoverage(
