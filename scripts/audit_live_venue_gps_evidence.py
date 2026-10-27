@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFESTS = (
     "docs/venue-imports/viseu-guarda-3-municipal-gps-pending-caop2025.json",
     "docs/venue-imports/braga-evora-2-official-site-gps-review-20261021.json",
+    "docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json",
 )
 
 def valid_gps(lat, lon):
@@ -49,7 +50,26 @@ def analyze(catalogue, evidence):
     """Only exact normalized name+city+district matching; aliases remain human review."""
     check_catalogue(catalogue)
     result = []
+    # Independent sources for the same named facility must not silently be treated
+    # as separate approved candidate coordinates. A 75 m gap triggers human review.
+    # This is a triage threshold, never a GPS accuracy certification.
+    groups = {}
     for point in evidence:
+        key = (fold(point["candidate_name"]),
+               fold(point["expected_municipality"]), fold(point["expected_district"]))
+        groups.setdefault(key, []).append(point)
+    separations = {}
+    for key, group in groups.items():
+        separations[key] = max(
+            (distance_m(a["latitude"], a["longitude"], b["latitude"], b["longitude"])
+             for index, a in enumerate(group) for b in group[index+1:]),
+            default=0.0
+        )
+    for point in evidence:
+        key = (fold(point["candidate_name"]),
+               fold(point["expected_municipality"]), fold(point["expected_district"]))
+        separation = separations[key]
+        source_conflict = separation > 75.0
         matches = [v for v in catalogue
                    if fold(v.get("name")) == fold(point["candidate_name"])
                    and fold(v.get("city")) == fold(point["expected_municipality"])
@@ -67,12 +87,26 @@ def analyze(catalogue, evidence):
                                        point["latitude"], point["longitude"]), 1)
                 status = ("GPS_ALREADY_MATCHES_SOURCE" if gap <= 15
                           else "EXISTING_DIFFERENT_GPS_REVIEW")
+        if source_conflict and len(matches) == 1:
+            status = "SOURCE_COORDINATE_CONFLICT_REVIEW"
         warnings = []
+        if source_conflict:
+            warnings.append("CONFLICTING_DOCUMENTED_SITE_POINTS_REVIEW")
+        related_name = point.get("related_venue_name")
+        related_id = point.get("related_venue_id")
+        if related_name:
+            other = [v for v in catalogue if v.get("id") == related_id
+                     and fold(v.get("name")) == fold(related_name)
+                     and fold(v.get("city")) == fold(point["expected_municipality"])]
+            warnings.append("RELATED_DISTINCT_VENUE_REVIEW" if other
+                            else "RELATED_VENUE_IDENTITY_UNCONFIRMED_REVIEW")
         if point.get("source_address_conflict"):
             warnings.append("HISTORICAL_POSTAL_CONFLICT_REVIEW")
         precision = point.get("point_precision")
         if precision in ("EVENT_TRACK_WAYPOINT_NOT_ENTRANCE",
-                         "STADIUM_SITE_NOT_TRACK_OR_ENTRANCE"):
+                         "STADIUM_SITE_NOT_TRACK_OR_ENTRANCE",
+                         "EVENT_SITE_WAYPOINT_NOT_EXACT_BUILDING",
+                         "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN"):
             warnings.append(precision)
         result.append({
             "sourceReference": point["source_reference"],
@@ -82,6 +116,7 @@ def analyze(catalogue, evidence):
             "existingVenueId": venue["id"] if venue is not None else None,
             "status": status,
             "distanceFromDocumentedPointMeters": gap,
+            "maxSourceSeparationMeters": round(separation, 1) if source_conflict else None,
             "warnings": warnings,
             "officialEvidenceUrl": point["location_source_url"],
             "note": "Read-only evidence triage, NOT approval or an insert/update instruction",
