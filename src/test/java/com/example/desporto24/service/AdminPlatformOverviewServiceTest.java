@@ -220,6 +220,64 @@ class AdminPlatformOverviewServiceTest {
     }
 
     @Test
+    void santaremSacapeitoShowsSiteLeadOnlyOnExactExistingUnlocatedVenue() {
+        var official = Venue.builder().id(276L).name("Piscinas Municipais do Sacapeito")
+                .city("Santarém").district("Santarém")
+                .address("Praceta Cidade de Badajoz, Urbanização do Sacapeito, 2005-213 Santarém")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://viversantarem.pt/instalacoes-desportivas/")
+                .build();
+        var duplicate = Venue.builder().id(9276L).name(official.getName())
+                .city(official.getCity()).district(official.getDistrict())
+                .address(official.getAddress())
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website(official.getWebsite()).build();
+        when(venues.missingGpsReview("Santarém", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(official, duplicate)));
+        var rows = service.missingGpsReview("Santarém", 0).venues();
+        var candidate = rows.getFirst().researchCandidate();
+        assertNotNull(candidate);
+        assertEquals(39.2250178, candidate.latitude(), 0.00000001);
+        assertEquals(-8.6886809, candidate.longitude(), 0.00000001);
+        assertEquals("SITE_REFERENCE_NOT_VERIFIED_ENTRANCE", candidate.precision());
+        assertEquals("https://www.visitesantarem.pt/lista/piscinas-municipais-do-sacapeito/",
+                candidate.officialSourceUrl());
+        assertEquals("https://www.openstreetmap.org/way/1172748137",
+                candidate.secondarySourceUrl());
+        assertNull(rows.get(1).researchCandidate());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void santaremSiteCandidateDisappearsWhenCoordinatesOrIdentityChanged() {
+        var venue = Venue.builder().id(276L).name("Piscinas Municipais do Sacapeito")
+                .city("Santarém").district("Santarém")
+                .address("Praceta Cidade de Badajoz, Urbanização do Sacapeito, 2005-213 Santarém")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://viversantarem.pt/instalacoes-desportivas/")
+                .build();
+        assertNotNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setLatitude(39.2250178);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setLatitude(null);
+        venue.setLongitude(-8.6886809);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setLongitude(null);
+        venue.setAddress("Rua diferente, Santarém");
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setAddress("Praceta Cidade de Badajoz, Santarém");
+        venue.setWebsite("http://viversantarem.pt/instalacoes-desportivas/");
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setWebsite("https://viversantarem.pt/instalacoes-desportivas/");
+        venue.setDistrict("Lisboa");
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setDistrict("Santarém");
+        venue.setInformationSource(Venue.InformationSource.COMMUNITY);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        assertNull(AdminPlatformOverviewService.researchCandidate(null));
+    }
+
+    @Test
     void missingGpsQueueRejectsUnsafePageBeforeDatabaseAccess() {
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1));
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001));
