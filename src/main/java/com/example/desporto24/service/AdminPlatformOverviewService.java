@@ -325,7 +325,9 @@ public class AdminPlatformOverviewService {
         return new VenueFacilityContextReview(
                 lead.issueCode(), lead.officialSourceUrl(), lead.relatedSourceUrl(),
                 venue.getId() >= 288L && venue.getId() <= 294L
-                        ? RODOVIA_CARTOGRAPHY_REVIEW : null);
+                        ? RODOVIA_CARTOGRAPHY_REVIEW : null,
+                venue.getId() >= 288L && venue.getId() <= 294L
+                        ? rodoviaNumberingPlanReview(venue.getId()) : null);
     }
 
     /**
@@ -345,9 +347,29 @@ public class AdminPlatformOverviewService {
             String issueCode, String municipalGuideUrl, String parkAreaUrl,
             String sportsBuildingUrl) {}
 
+    /**
+     * A visitor-supplied photograph shows a numbered on-site overview sign.
+     * Neither its date nor a geospatial transformation is verified. The
+     * regional federation's 2025/26 schedule independently identifies ONLY
+     * field number 1 (105 x 68 m), not the geolocation of any surface.
+     */
+    private static RodoviaNumberingPlanReview rodoviaNumberingPlanReview(long venueId) {
+        return new RodoviaNumberingPlanReview(
+                "NUMBERED_SIGN_SCHEMATIC_WITHOUT_GEOREFERENCE",
+                "https://fr.tripadvisor.ch/Attraction_Review-g189171-d19701352-Reviews-"
+                        + "Parque_Desportivo_da_Rodovia-Braga_Braga_District_Northern_Portugal.html",
+                venueId == 288L
+                        ? "https://afbraga.fpf.pt/DesktopModules/InstitutionalDocuments/"
+                                + "DownloadFiles.ashx?IdDoc=184789" : null);
+    }
+
+    public record RodoviaNumberingPlanReview(
+            String issueCode, String signageGalleryUrl, String fieldOneScheduleUrl) {}
+
     public record VenueFacilityContextReview(
             String issueCode, String officialSourceUrl, String relatedSourceUrl,
-            RodoviaCartographyReview cartographyReview) {}
+            RodoviaCartographyReview cartographyReview,
+            RodoviaNumberingPlanReview numberingPlanReview) {}
 
     private record CuratedSiteEvidence(String name, String city, String district,
                                        String addressPart, String storedWebsite,
