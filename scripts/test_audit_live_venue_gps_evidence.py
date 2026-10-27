@@ -13,8 +13,8 @@ class GpsEvidenceAuditTest(unittest.TestCase):
     def setUpClass(cls):
         cls.evidence = load_evidence(ROOT / name for name in MANIFESTS)
 
-    def test_fourteen_manifest_points_never_approved(self):
-        self.assertEqual(14, len(self.evidence))
+    def test_fifteen_manifest_points_never_approved(self):
+        self.assertEqual(15, len(self.evidence))
         self.assertTrue(all(p.get("latitude") is not None for p in self.evidence))
 
     def test_already_published_gps_is_not_flagged_for_update(self):
@@ -270,6 +270,29 @@ class GpsEvidenceAuditTest(unittest.TestCase):
         self.assertEqual(2, len(rows))
         self.assertTrue(all(row["status"] == "EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW"
                             for row in rows))
+
+    def test_porto_choupos_site_point_is_existing_unapproved_and_not_an_entrance(self):
+        source = next(p for p in self.evidence if p["source_reference"] == "OSM:WAY:449975768")
+        self.assertEqual(281, source["expected_existing_venue_id"])
+        self.assertEqual("OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE", source["point_precision"])
+        self.assertFalse(source["facility_verified_by_official_source"])
+        original = {"id": 281, "name": "Campo Municipal dos Choupos",
+                    "city": "Porto", "district": "Porto", "latitude": None, "longitude": None}
+        row = analyze([original], [source])[0]
+        self.assertEqual(281, row["existingVenueId"])
+        self.assertEqual("EXISTING_VENUE_WITHOUT_GPS", row["status"])
+        self.assertIn("OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE", row["warnings"])
+        self.assertNotIn("latitude", row)
+        self.assertNotIn("longitude", row)
+
+    def test_choupos_wrong_id_is_not_falsely_reconciled(self):
+        point = next(p for p in self.evidence if p["source_reference"] == "OSM:WAY:449975768")
+        false_match = {"id": 8281, "name": point["candidate_name"],
+                       "city": point["expected_municipality"], "district": point["expected_district"],
+                       "latitude": None, "longitude": None}
+        row = analyze([false_match], [point])[0]
+        self.assertEqual("EXISTING_VENUE_IDENTITY_MISMATCH_REVIEW", row["status"])
+        self.assertNotIn("latitude", row)
 
     def test_refuse_manifest_mislabelled_as_approved(self):
         sample = json.loads((ROOT / MANIFESTS[0]).read_text(encoding="utf-8"))

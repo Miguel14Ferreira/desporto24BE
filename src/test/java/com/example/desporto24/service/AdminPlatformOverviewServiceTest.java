@@ -336,6 +336,107 @@ class AdminPlatformOverviewServiceTest {
     }
 
     @Test
+    void choupalSiteHintUsesOnlyExactChouposId281AndOfficialSavedAddress() {
+        var venue = Venue.builder().id(281L).name("Campo Municipal dos Choupos")
+                .city("Porto").district("Porto").address("Rua dos Plátanos, 4100-414 Porto")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.agoraporto.pt/noticias/desporto/desporto/rmid").build();
+        var lead = AdminPlatformOverviewService.researchCandidate(venue);
+        assertNotNull(lead);
+        assertEquals(41.17345, lead.latitude(), 0.0000001);
+        assertEquals(-8.65816, lead.longitude(), 0.0000001);
+        assertEquals("SITE_REFERENCE_NOT_VERIFIED_ENTRANCE", lead.precision());
+        assertEquals("https://www.agoraporto.pt/grandes-campos-municipais/polidesportivo-dos-choupos",
+                lead.officialSourceUrl());
+        assertEquals("https://www.openstreetmap.org/way/449975768", lead.secondarySourceUrl());
+        assertNull(AdminPlatformOverviewService.addressReview(venue));
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(venue));
+
+        venue.setLatitude(41.17345);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setLatitude(null);
+        venue.setLongitude(-8.65816);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setLongitude(null);
+        venue.setAddress("Rua desconhecida");
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setAddress("Rua dos Plátanos, 4100-414 Porto");
+        venue.setId(8281L);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setId(281L);
+        venue.setWebsite("https://fake.example/");
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+        venue.setWebsite("https://www.agoraporto.pt/noticias/desporto/desporto/rmid");
+        venue.setInformationSource(Venue.InformationSource.COMMUNITY);
+        assertNull(AdminPlatformOverviewService.researchCandidate(venue));
+    }
+
+    @Test
+    void visoPotentialDuplicateRequiresBothLiveRecordsToMatchAndNeverCopiesGps() {
+        var official = Venue.builder().id(280L).name("Campo Municipal do Viso")
+                .city("Porto").district("Porto").address("Rua Direita do Viso, 4250 Porto")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.agoraporto.pt/noticias/desporto/desporto/rmid").build();
+        var imported = Venue.builder().id(2623L).name("Campo Sintético do Viso")
+                .city("Porto").district("Porto").informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .latitude(41.1819461).longitude(-8.6450944).build();
+        when(venues.findById(2623L)).thenReturn(java.util.Optional.of(imported));
+        when(venues.missingGpsReview("Porto", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(official)));
+        var row = service.missingGpsReview("Porto", 0).venues().getFirst();
+        assertNull(row.researchCandidate());
+        assertNull(row.addressReview());
+        assertNotNull(row.possibleDuplicateReview());
+        var potential = row.possibleDuplicateReview();
+        assertEquals("POTENTIAL_SAME_FACILITY_REVIEW", potential.issueCode());
+        assertEquals(2623L, potential.relatedVenueId());
+        assertEquals("Campo Sintético do Viso", potential.relatedVenueName());
+        assertTrue(potential.officialSourceUrl().startsWith("https://www.agoraporto.pt/"));
+        assertEquals("https://www.openstreetmap.org/way/334849388", potential.mapSourceUrl());
+        assertNull(official.getLatitude());
+        assertNull(official.getLongitude());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
+    void visoDuplicateReviewCannotBeMisappliedToOtherOrChangedRecords() {
+        var original = Venue.builder().id(280L).name("Campo Municipal do Viso")
+                .city("Porto").district("Porto").address("Rua Direita do Viso, 4250 Porto")
+                .informationSource(Venue.InformationSource.OFFICIAL)
+                .website("https://www.agoraporto.pt/noticias/desporto/desporto/rmid").build();
+        assertTrue(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        original.setId(999L);
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        original.setId(280L);
+        original.setLatitude(41.18);
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        original.setLatitude(null);
+        original.setLongitude(-8.645);
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        original.setLongitude(null);
+        original.setAddress("Rua errada");
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        original.setAddress("Rua Direita do Viso, 4250 Porto");
+        original.setWebsite("https://other.example/");
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        original.setWebsite("https://www.agoraporto.pt/noticias/desporto/desporto/rmid");
+        original.setInformationSource(Venue.InformationSource.COMMUNITY);
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(original));
+        assertFalse(AdminPlatformOverviewService.visoDuplicateReviewEligible(null));
+
+        // Correct official record but changed external OSM identity -> no warning.
+        original.setInformationSource(Venue.InformationSource.OFFICIAL);
+        var changed = Venue.builder().id(2623L).name("Campo de outro lugar")
+                .city("Porto").district("Porto").informationSource(Venue.InformationSource.OPENSTREETMAP)
+                .latitude(41.1819461).longitude(-8.6450944).build();
+        when(venues.findById(2623L)).thenReturn(java.util.Optional.of(changed));
+        when(venues.missingGpsReview("Porto", PageRequest.of(0, 20)))
+                .thenReturn(new SliceImpl<>(List.of(original)));
+        assertNull(service.missingGpsReview("Porto", 0).venues().getFirst().possibleDuplicateReview());
+        verify(venues, never()).save(any());
+    }
+
+    @Test
     void missingGpsQueueRejectsUnsafePageBeforeDatabaseAccess() {
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", -1));
         assertThrows(IllegalArgumentException.class, () -> service.missingGpsReview("Lisboa", 1001));
