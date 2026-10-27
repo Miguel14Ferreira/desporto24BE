@@ -36,6 +36,13 @@ public class SessionGuestRequestController {
             @RequestBody SessionGuestRequestService.ReceiptInput body){
         return guests.status(sessionId,body);
     }
+    @PostMapping("/guest-requests/link-account")
+    public SessionGuestRequestService.LinkedReceipt linkAccount(
+            @PathVariable Long sessionId,@RequestBody SessionGuestRequestService.ReceiptInput body,
+            Authentication auth){
+        return guests.linkAccount(sessionId,body,auth.getName());
+    }
+
     @GetMapping("/guest-requests")
     public List<SessionGuestRequestService.GuestView> list(
             @PathVariable Long sessionId,Authentication auth){
