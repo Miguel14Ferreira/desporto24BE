@@ -1,7 +1,7 @@
 {
-  "source": "Municipality of Evora athletics race regulation 2022 + Portuguese government cultural heritage inventory for Braga, crosschecked with Braga municipality facility register (21 October 2026); Portuguese Athletics Federation competition technical location map (3 May 2025)",
+  "source": "Municipality of Evora athletics race regulation 2022 + Portuguese government cultural heritage inventory for Braga, crosschecked with Braga municipality facility register (21 October 2026); Portuguese Athletics Federation competition technical location map (3 May 2025); OpenStreetMap site boundary way 1266229401/mapcarta site reference inspected 27 October 2026",
   "approved_for_import": false,
-  "notes": "CAOP verifies municipality only. Evora GPS is a 2022 municipal race/track waypoint, not a confirmed entrance. Braga GPS is the listed stadium site, not a dedicated athletics-track point. Neither is an approved production venue GPS. FPA 2025 map pin is visually on the FOOTBALL PITCH inside the stadium, not the athletics track or an entrance; close agreement between venue site waypoints does not verify exact track GPS.",
+  "notes": "CAOP verifies municipality only. Evora GPS is a 2022 municipal race/track waypoint, not a confirmed entrance. Braga GPS is the listed stadium site, not a dedicated athletics-track point. Neither is an approved production venue GPS. FPA 2025 map pin is visually on the FOOTBALL PITCH inside the stadium, not the athletics track or an entrance; close agreement between venue site waypoints does not verify exact track GPS. Évora has an existing live public venue (ID 272); original name-only/city-only API searches containing uppercase É incorrectly return no matches, despite district-scoped pagination returning ID 272. Official 2022 athletics event waypoint differs by ~144m from OSM named complex polygon centre. These are two different point TYPES and must not be averaged or used to approve GPS automatically.",
   "points": [
     {
       "source_reference": "JYNLO:DOCUMENTED:EVORA:COMPLEXO_DESPORTIVO_DE_EVORA",
@@ -18,7 +18,8 @@
       "point_precision": "EVENT_TRACK_WAYPOINT_NOT_ENTRANCE",
       "facility_verified_by_official_source": true,
       "public_access_warning": "Track and large field reserved for clubs/associations; general public access only for fitness circuit under official restrictions.",
-      "source_date": "2022-04"
+      "source_date": "2022-04",
+      "expected_existing_venue_id": 272
     },
     {
       "source_reference": "JYNLO:MUNICIPAL:BRAGA:ITEM-1-6214",
@@ -53,6 +54,25 @@
       "facility_verified_by_official_source": false,
       "public_access_warning": "Do not infer public availability from historical competition material. No confirmed running track entrance point.",
       "source_date": "2025-05"
+    },
+    {
+      "source_reference": "OSM:WAY:1266229401",
+      "candidate_name": "Complexo Desportivo de Évora",
+      "expected_existing_venue_id": 272,
+      "expected_municipality": "Évora",
+      "expected_district": "Évora",
+      "latitude": 38.56074,
+      "longitude": -7.91927,
+      "match_kind": "OSM_NAMED_SPORTS_CENTRE_POLYGON_APPROXIMATE_CENTRE",
+      "location_source_url": "https://mapcarta.com/W1266229401",
+      "location_source_text": "Mapcarta renders site-centre at 38.56074,-7.91927 for OpenStreetMap way 1266229401 (leisure=sports_centre, name=Complexo Desportivo de Évora); this is NOT an exact entrance or verified athletics lane reference.",
+      "osm_object_url": "https://www.openstreetmap.org/way/1266229401",
+      "confirmation_source_url": "https://www.cm-evora.pt/visitante/lazer-visitar/complexo-desportivo-de-evora/",
+      "point_precision": "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
+      "facility_verified_by_official_source": false,
+      "related_venue_id": 3588,
+      "related_venue_name": "Campo Estrela",
+      "public_access_warning": "Do not confuse nearby Campo Estrela (a different existing Jynlo venue, ID 3588) with the Complexo Desportivo de Évora. Track/field are reserved for clubs; only official authorized usage."
     }
   ]
 }
