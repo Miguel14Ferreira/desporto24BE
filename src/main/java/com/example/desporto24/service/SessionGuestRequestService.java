@@ -10,6 +10,8 @@ import com.example.desporto24.model.dto.session.SessionPublicPreviewResponse;
 import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.model.community.CommunityPlayer;
+import com.example.desporto24.model.community.Community;
+import com.example.desporto24.repository.session.SessionCommunityShareRepository;
 import com.example.desporto24.model.session.SessionGuestRequest;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
@@ -37,6 +39,7 @@ import java.util.Locale;
 public class SessionGuestRequestService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final SessionRepository sessions;
+    private final SessionCommunityShareRepository sharedCommunities;
     private final CommunityPlayerRepository players;
     private final SessionGuestRequestRepository requests;
     private final SessionParticipantRepository participants;
@@ -51,6 +54,17 @@ public class SessionGuestRequestService {
     public record GuestReceipt(String receipt,String status) {}
     public record LinkedReceipt(String status,String username) {}
     public record GuestView(Long id,String name,String status,String note,String teamCode) {}
+
+    /**
+     * A single crosspost retains the selected community historical roster.
+     * For crossposts to several groups we deliberately do not combine private
+     * historical player lists; invitees can still enter their own name.
+     */
+    private Community historicalCommunity(Session session) {
+        if (session.getCommunity() != null) return session.getCommunity();
+        var associations=sharedCommunities.findBySession_IdOrderByIdAsc(session.getId());
+        return associations.size()==1 ? associations.getFirst().getCommunity() : null;
+    }
 
     @Transactional
     public String issueLink(Long sessionId,String username) {
@@ -68,11 +82,10 @@ public class SessionGuestRequestService {
     @Transactional(readOnly=true)
     public GuestRoster roster(Long sessionId,String token) {
         Session session=validLink(sessionId,token);
-        // Historical names are community-scoped. A standalone or shared
-        // session still allows a new guest name without exposing any roster.
-        if (session.getCommunity() == null) return new GuestRoster(sessionId, null, List.of());
-        return new GuestRoster(sessionId,session.getCommunity().getId(),players.findByCommunityIdOrderByDisplayNameAsc(
-                session.getCommunity().getId()).stream()
+        Community group=historicalCommunity(session);
+        if (group == null) return new GuestRoster(sessionId, null, List.of());
+        return new GuestRoster(sessionId,group.getId(),players.findByCommunityIdOrderByDisplayNameAsc(
+                group.getId()).stream()
                 .filter(p->p.getProfile()==null)
                 .limit(150)
                 .map(p->new GuestPlayer(p.getId(),p.getDisplayName()))
@@ -91,18 +104,19 @@ public class SessionGuestRequestService {
         boolean typed=input.newName()!=null&&!input.newName().isBlank();
         if(picked==typed)throw invalid("Escolhe um jogador ou indica um nome novo");
         CommunityPlayer player=null;
+        Community group=historicalCommunity(session);
         String name;
         if(picked){
-            if(session.getCommunity()==null)throw invalid("Este jogo não tem uma lista histórica de jogadores");
+            if(group==null)throw invalid("Este jogo não tem uma lista histórica de jogadores");
             player=players.findById(input.playerId()).orElseThrow(()->invalid("Jogador não encontrado"));
-            if(player.getProfile()!=null||!session.getCommunity().getId().equals(player.getCommunity().getId()))
+            if(player.getProfile()!=null||!group.getId().equals(player.getCommunity().getId()))
                 throw invalid("Este nome não está disponível para convidados");
             name=player.getDisplayName();
         } else {
             name=clean(input.newName(),80);
             String normalized=normalized(name);
-            if(session.getCommunity()!=null){
-                boolean exists=players.findByCommunityIdOrderByDisplayNameAsc(session.getCommunity().getId())
+            if(group!=null){
+                boolean exists=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
                         .stream().anyMatch(p->normalized(p.getDisplayName()).equals(normalized));
                 if(exists)throw invalid("Este nome já existe. Seleciona-o na lista");
             }
