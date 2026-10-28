@@ -56,3 +56,21 @@ Testes Java:
 `BragancaPavilionPreflightStartupProbeTest` valida a flag,
 rejeição de SQL de escrita, controlo de tempo e registos,
 transação PostgreSQL read-only, rollback e tratamento de falhas.
+
+## Teste sintético do SQL read-only (28/10/2026)
+
+O workflow `Braganca pavilion DRAFT Liquibase PG16 safety` inclui
+agora a execução da consulta de pré-voo que a classe Java irá usar.
+Antes de qualquer ativação, a CI verifica em PostgreSQL 16 efémero:
+
+- Pavilhão Municipal histórico sem GPS nem distrito é sinalizado.
+- Polidesportivo da Coxa com nome alternativo, sem GPS, é sinalizado.
+- Pavilhão da Bancada é mostrado como vizinho distinto, não fundido.
+- Pavilhão Municipal de **Mirandela** sem distrito não é classificado
+  como parte dos dois recintos de Bragança.
+- O digest completo dos quatro registos antes e depois do SELECT é
+  idêntico, comprovando que a consulta não os modifica.
+
+O ambiente de teste é descartável e não usa qualquer ligação a Render
+ou base de dados de produção. O teste não autoriza publicação,
+deduplicação automática nem GPS de chegada.
