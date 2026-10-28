@@ -11,6 +11,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.Duration;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import org.springframework.context.event.EventListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Map;
@@ -31,6 +40,13 @@ public class DirectCallService {
     private static final int RING_SECONDS = 60;
     private static final int MAX_CALL_MINUTES = 120;
     private static final int START_COOLDOWN_SECONDS = 10;
+    private static final Logger log = LoggerFactory.getLogger(DirectCallService.class);
+    private static final Duration PROVIDER_CACHE = Duration.ofSeconds(60);
+    private static final HttpClient PROVIDER_HTTP = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .followRedirects(HttpClient.Redirect.NEVER).build();
+    private volatile Instant providerCheckedAt = Instant.EPOCH;
+    private volatile String providerState = "unknown";
 
     private final InboxSummaryService inbox;
     private final ProfileRepository profiles;
@@ -78,6 +94,56 @@ public class DirectCallService {
         return serverUrl != null && serverUrl.startsWith("wss://")
                 && apiKey != null && !apiKey.isBlank()
                 && apiSecret != null && apiSecret.length() >= 32;
+    }
+
+    /**
+     * Environment variables alone do not prove that LiveKit accepts the API
+     * key and secret. Probe the standard authenticated RoomService endpoint
+     * without creating a room, exposing credentials, or touching actual calls.
+     */
+    public synchronized String providerStatus() {
+        if (!available()) return "notConfigured";
+        Instant now = Instant.now();
+        if (now.isBefore(providerCheckedAt.plus(PROVIDER_CACHE))) return providerState;
+        String result;
+        try {
+            int status = probeProvider();
+            result = status == 200 ? "ready"
+                    : (status == 401 || status == 403) ? "invalidCredentials"
+                    : "providerUnavailable";
+        } catch (Exception e) {
+            result = "providerUnavailable";
+        }
+        if (!result.equals(providerState)) log.warn("LiveKit calling readiness: {}", result);
+        providerState = result;
+        providerCheckedAt = now;
+        return result;
+    }
+
+    protected int probeProvider() throws Exception {
+        String host = serverUrl.replaceFirst("^wss://", "https://").replaceAll("/+$", "");
+        String jwt = JWT.create()
+                .withIssuer(apiKey)
+                .withSubject("jynlo-readiness")
+                .withIssuedAt(new Date())
+                .withExpiresAt(Date.from(Instant.now().plusSeconds(45)))
+                .withClaim("video", Map.of("roomList", true))
+                .sign(Algorithm.HMAC256(apiSecret));
+        HttpRequest request = HttpRequest.newBuilder(
+                URI.create(host + "/twirp/livekit.RoomService/ListRooms"))
+                .timeout(Duration.ofSeconds(4))
+                .header("Authorization", "Bearer " + jwt)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                .build();
+        return PROVIDER_HTTP.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void checkProviderOnStartup() {
+        // The readiness log contains only a fixed result code, never URLs,
+        // credentials, room information, usernames or LiveKit tokens.
+        log.info("Direct calling provider startup check: {}", providerStatus());
     }
 
     public synchronized CallSession start(String caller, String peer, String media) {
