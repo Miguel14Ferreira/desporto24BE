@@ -37,6 +37,7 @@ class SessionLegacyCommunityAuthorizationTest {
     @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private com.example.desporto24.repository.session.SessionParticipantRepository participantRepository;
     @Mock private com.example.desporto24.repository.session.SessionWaitlistRepository waitlistRepository;
+    @Mock private com.example.desporto24.repository.session.SessionCommunityShareRepository sessionCommunityShareRepository;
     @Mock private SessionViewMapper sessionViewMapper;
     @InjectMocks private SessionServiceImpl sessionService;
 
