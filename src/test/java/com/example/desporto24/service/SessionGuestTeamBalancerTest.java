@@ -59,6 +59,61 @@ class SessionGuestTeamBalancerTest {
     }
 
     @Test
+    void tenHistoricalAndRegisteredPlayersMakeFiveAgainstFiveWithClosestExcelPoints() {
+        var session = new Session();
+        var community = new Community();
+        community.setId(71L);
+        session.setCommunity(community);
+        var archive = new CommunityStandingsArchive();
+        archive.setId(93L);
+        when(archives.findFirstByCommunityIdAndEntryTypeOrderByCreatedAtDescIdDesc(71L, "INDIVIDUAL"))
+                .thenReturn(Optional.of(archive));
+        List<CommunityStandingsArchiveRow> standings = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            var row = new CommunityStandingsArchiveRow();
+            row.setId((long) i);
+            row.setNormalizedName("jogador " + i);
+            row.setPoints(i);
+            row.setPlayed(8);
+            standings.add(row);
+        }
+        when(rows.findByArchiveIdOrderByPositionAscIdAsc(93L)).thenReturn(standings);
+        when(players.findByCommunityIdOrderByDisplayNameAsc(71L)).thenReturn(List.of());
+        List<SessionParticipant> registered = new ArrayList<>();
+        List<SessionGuestRequest> guests = new ArrayList<>();
+        for (int i = 1; i <= 10; i++) {
+            if (i <= 5) {
+                var profile = new Profile();
+                profile.setId((long) i);
+                profile.setUsername("jogador " + i);
+                var participant = new SessionParticipant();
+                participant.setProfile(profile);
+                registered.add(participant);
+            } else {
+                var guest = new SessionGuestRequest();
+                guest.setId((long) i + 100);
+                guest.setDisplayName("Jogador " + i);
+                guest.setNormalizedName("jogador " + i);
+                guest.setStatus(SessionGuestRequest.State.APPROVED);
+                guests.add(guest);
+            }
+        }
+        var result = balancer.suggest(session, registered, guests);
+        assertEquals(5, result.teamA().size());
+        assertEquals(5, result.teamB().size());
+        assertEquals(10, result.playersWithStats());
+        assertEquals(10, result.totalPlayers());
+        assertEquals(55.0, result.teamAScore() + result.teamBScore(), 0.0001);
+        assertEquals(1.0, Math.abs(result.teamAScore() - result.teamBScore()), 0.0001);
+        var all = new ArrayList<>(result.teamA());
+        all.addAll(result.teamB());
+        assertEquals(5, all.stream().filter(p -> p.guest()).count());
+        assertEquals(10, all.stream().map(p -> p.username()).distinct().count());
+        assertEquals(result, balancer.suggest(session, registered, guests),
+                "the same participants and Excel scores must produce identical teams");
+    }
+
+    @Test
     void unrankedGuestReceivesKnownAverageWithoutClaimingSomebodyElsesExcelPoints(){
         var session=new Session();var community=new Community();community.setId(71L);
         session.setCommunity(community);
