@@ -84,6 +84,47 @@ class BragancaTwoPavilionsTests(unittest.TestCase):
                           str(p["latitude"]), str(p["longitude"])):
             self.assertNotIn(sensitive, serialized)
 
+
+    def test_arnaldo_historic_name_without_gps_is_flagged(self):
+        report = analyze([
+            venue(4, "Pavilhão Municipal"),
+            venue(5, "Pavilhão da Bancada"),
+            venue(6, "Piscinas Municipais"),
+            venue(7, "Pavilhão Municipal", city="Mirandela"),
+            venue(8, "Pavilhão Municipal", district="Guarda"),
+        ], manifest())
+        arnaldo = report["candidates"][0]
+        self.assertEqual("POSSIBLE_ALIAS_REVIEW", arnaldo["status"])
+        self.assertEqual([4], [x["id"] for x in arnaldo["possibleAliases"]])
+        self.assertEqual(1, arnaldo["possibleAliasCount"])
+        self.assertEqual(0, arnaldo["nearbyCount"])
+        self.assertFalse(arnaldo["approvedForImport"])
+
+    def test_coxa_alias_in_parish_and_missing_district_are_flagged(self):
+        report = analyze([
+            venue(11, "Pavilhão da Coxa", city="Sé"),
+            venue(12, "Polidesportivo da Coxa", city="Bragança", district=None),
+            venue(13, "Piscinas da Coxa"),
+            venue(14, "Pavilhão da Coxa", district="Guarda"),
+        ], manifest())
+        coxa = report["candidates"][1]
+        self.assertEqual("POSSIBLE_ALIAS_REVIEW", coxa["status"])
+        self.assertEqual([11, 12], [v["id"] for v in coxa["possibleAliases"]])
+        self.assertEqual(2, coxa["possibleAliasCount"])
+        self.assertFalse(coxa["aliasResultsTruncated"])
+
+    def test_bounded_alias_report_does_not_export_private_fields(self):
+        catalogue = [
+            venue(i + 1, "Pavilhão Municipal") for i in range(MAX_RESULTS + 4)
+        ]
+        row = analyze(catalogue, manifest())["candidates"][0]
+        self.assertEqual(MAX_RESULTS + 4, row["possibleAliasCount"])
+        self.assertEqual(MAX_RESULTS, len(row["possibleAliases"]))
+        self.assertTrue(row["aliasResultsTruncated"])
+        serialized = json.dumps(row)
+        self.assertNotIn("Private address", serialized)
+        self.assertNotIn("private@example.test", serialized)
+
     def test_invalid_evidence_is_rejected(self):
         changes = [
             lambda d: d.update(approvedForImport=True),

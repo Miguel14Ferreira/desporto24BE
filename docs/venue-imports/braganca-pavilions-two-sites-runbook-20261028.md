@@ -64,3 +64,21 @@ garantia de backup/restore e avaliação do acesso ao recinto.
 
 Esta etapa guarda apenas o relatório de revisão durante três dias
 em GitHub Actions. Não precisa de deploy Render.
+
+## Pré-voo público: deteção de aliases sem GPS (28/10/2026)
+
+A auditoria `scripts/audit_braganca_two_pavilions_20261028.py` passou a
+identificar potenciais aliases com distrito Bragança (ou distrito ausente)
+e cidade/freguesia compatível, **mesmo quando o GPS está vazio**:
+
+- Arnaldo Pereira: `Pavilhão Municipal`, variantes de Bragança,
+  `Pavilhão Gimnodesportivo` e nomes que incluam `Arnaldo Pereira`.
+- Coxa: variantes contendo `Coxa` e pavilhão/polidesportivo/gimnodesportivo.
+- `Pavilhão da Bancada`, estádio e piscinas não são assimilados aos pavilhões.
+
+O resultado `POSSIBLE_ALIAS_REVIEW` exige revisão humana; não confirma
+duplicado e nunca autoriza importação. O relatório limita os candidatos a
+12 por recinto, preserva a contagem total e não publica contactos, moradas
+nem coordenadas individuais. O catálogo público não substitui o pré-voo
+SQL autorizado à base de dados. A alteração é só auditoria, sem endpoint de
+escrita ou execução da migração opt-in.

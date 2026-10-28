@@ -19,6 +19,16 @@ EVIDENCE = ROOT / "docs/venue-imports/braganca-pavilions-two-sites-review-202610
 NAMES = ("Pavilhão Municipal Arnaldo Pereira", "Pavilhão Polidesportivo da Coxa")
 RADIUS_METERS = 250
 MAX_RESULTS = 12
+# City/parish scope is essential: a generic "Pavilhão Municipal" in another
+# municipality of the Bragança district must not be treated as this pavilion.
+LOCAL_CITIES = frozenset((
+    "braganca", "se", "santa maria", "meixedo",
+    "uniao das freguesias de se, santa maria e meixedo",
+))
+ARNALDO_HISTORICAL_NAMES = frozenset((
+    "pavilhao municipal", "pavilhao municipal de braganca",
+    "pavilhao gimnodesportivo", "pavilhao gimnodesportivo de braganca",
+))
 URL_HOSTS = frozenset(("arquitecturaaqui.eu", "www.alnconstrucoes.com",
                        "diariodarepublica.pt", "estrelasbrigantinas.com"))
 EXPECTED_PRECISION = {
@@ -67,6 +77,23 @@ def validate(manifest):
     return venues
 
 
+def possible_alias(record, source_name):
+    """Flag only plausible city/parish aliases; evidence, never identity proof."""
+    district = fold(record.get("district"))
+    if district not in ("", "braganca") or fold(record.get("city")) not in LOCAL_CITIES:
+        return False
+    name = fold(record.get("name"))
+    if not name:
+        return False
+    # An exact name without district is also a candidate for human review.
+    if name == fold(source_name):
+        return district == ""
+    if source_name == NAMES[0]:
+        return name in ARNALDO_HISTORICAL_NAMES or "arnaldo pereira" in name
+    return ("coxa" in name
+            and any(term in name for term in ("pavilh", "polidesport", "gimnodesport")))
+
+
 def analyze(catalogue, manifest):
     check_catalogue(catalogue)
     sources = validate(manifest)
@@ -78,6 +105,12 @@ def analyze(catalogue, manifest):
              "city": str(v.get("city") or "")}
             for v in by_district
             if fold(v.get("name")) == fold(source["name"])]
+        aliases = [
+            {"id": v["id"], "name": str(v.get("name") or ""),
+             "city": str(v.get("city") or "")}
+            for v in catalogue if possible_alias(v, source["name"])
+        ]
+        aliases.sort(key=lambda item: item["id"])
         nearby = []
         for v in by_district:
             lat, lon = v.get("latitude"), v.get("longitude")
@@ -93,6 +126,7 @@ def analyze(catalogue, manifest):
              "distanceFromSourceSiteMeters": d}
             for d, v in nearby[:MAX_RESULTS]]
         status = ("EXACT_NAME_REVIEW" if same_name
+                  else "POSSIBLE_ALIAS_REVIEW" if aliases
                   else "NEARBY_DISTINCT_FACILITIES_REVIEW" if nearby
                   else "NO_NEARBY_GPS_NOT_PROOF_OF_ABSENCE")
         report.append({
@@ -101,6 +135,9 @@ def analyze(catalogue, manifest):
             "documentedSiteSource": source["coordinateSource"],
             "sourcePrecision": source["precision"],
             "sameNameInDistrict": sorted(same_name, key=lambda v: v["id"]),
+            "possibleAliasCount": len(aliases),
+            "possibleAliases": aliases[:MAX_RESULTS],
+            "aliasResultsTruncated": len(aliases) > MAX_RESULTS,
             "nearbyCount": len(nearby), "nearby": nearby_results,
             "resultsTruncated": len(nearby) > MAX_RESULTS,
             "radiusMeters": RADIUS_METERS, "status": status,
@@ -117,6 +154,7 @@ def analyze(catalogue, manifest):
                 "Research and contractor points are NOT certified entrances for Jynlo sessions.",
                 "Municipal emergency plan historic Arnaldo latitude conflicts with independent evidence.",
                 "Nearby venues may have incorrect/missing GPS or alternative names.",
+                "Potential aliases are review leads, not verified duplicate identities.",
                 "No individual coordinates, addresses, contacts or source points copied to output."
             ]}
 
@@ -144,6 +182,8 @@ def main(argv=None):
               "| nearby:", row["nearbyCount"])
         print("NEARBY:", json.dumps(row["nearby"], ensure_ascii=False))
         print("SAME_NAME:", json.dumps(row["sameNameInDistrict"], ensure_ascii=False))
+        print("POSSIBLE_ALIASES:", json.dumps(row["possibleAliases"], ensure_ascii=False))
+        print("POSSIBLE_ALIAS_COUNT:", row["possibleAliasCount"])
     print("Read only. No contacts, addresses or individual venue GPS exported.")
     return 0
 
