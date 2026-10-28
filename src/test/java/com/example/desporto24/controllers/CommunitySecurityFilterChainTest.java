@@ -145,6 +145,21 @@ class CommunitySecurityFilterChainTest {
     }
 
     @Test
+    void confirmedGuestsGetRequiresAuthenticationAndNeverExposesOrganizerNotes() throws Exception {
+        when(guests.confirmedGuestsForMember(42L,"fixture-member")).thenReturn(List.of(
+                new com.example.desporto24.service.SessionGuestRequestService.ConfirmedGuest(
+                        8L,"oal",null)));
+        mvc.perform(get("/api/sessions/42/guest-confirmed-guests"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/sessions/42/guest-confirmed-guests")
+                .header("Authorization","Bearer fixture-member-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("oal"))
+                .andExpect(jsonPath("$[0].note").doesNotExist());
+        verify(guests,times(1)).confirmedGuestsForMember(42L,"fixture-member");
+    }
+
+    @Test
     void ownGuestCorrectionsAreAnonymousPostOnlyWhileNameOwnershipIsReceiptChecked() throws Exception {
         String receipt="r".repeat(43);
         when(guests.changeGuestIdentity(eq(42L),any())).thenReturn(

@@ -122,6 +122,30 @@ public class SessionGuestRequestService {
                 .toList());
     }
 
+    /** Participant-only display identities. Never expose guest notes, receipts or contacts. */
+    public record ConfirmedGuest(Long id,String name,String teamCode) {}
+
+    @Transactional(readOnly=true)
+    public List<ConfirmedGuest> confirmedGuestsForMember(Long sessionId,String username) {
+        Session session=sessions.findById(sessionId)
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Sessão não encontrada"));
+        if(username==null||username.isBlank())
+            throw new AccessDeniedException("Acesso não autorizado");
+        boolean creator=session.getProfile()!=null
+                && username.equalsIgnoreCase(session.getProfile().getUsername());
+        if(!creator){
+            Profile viewer=profiles.findUserByUsernameIgnoreCase(username)
+                    .orElseThrow(()->new AccessDeniedException("Acesso não autorizado"));
+            if(!participants.existsBySessionIdAndProfileIdAndState(
+                    sessionId,viewer.getId(),ParticipantState.ACTIVE))
+                throw new AccessDeniedException("Apenas participantes confirmados podem consultar os convidados");
+        }
+        return requests.findBySessionIdAndStatusOrderByCreatedAtAsc(
+                sessionId,SessionGuestRequest.State.APPROVED).stream()
+                .map(guest->new ConfirmedGuest(guest.getId(),guest.getDisplayName(),guest.getTeamCode()))
+                .toList();
+    }
+
     /**
      * Session-only confirmed roster, available exclusively to people possessing
      * the organiser-issued signed link. No email, phone, IDs or private

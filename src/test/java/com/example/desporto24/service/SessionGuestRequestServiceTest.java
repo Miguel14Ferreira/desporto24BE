@@ -130,6 +130,43 @@ class SessionGuestRequestServiceTest {
         session.setPrivateGame(true);
         assertThrows(ResponseStatusException.class,()->service.preview(7L,secret));
     }
+    @Test void confirmedMemberSeesApprovedGuestsButNotPrivateNotesOrCancelledNames() {
+        Profile monica=new Profile();monica.setId(12L);monica.setUsername("monicagomes");
+        when(profiles.findUserByUsernameIgnoreCase("monicagomes")).thenReturn(Optional.of(monica));
+        when(participants.existsBySessionIdAndProfileIdAndState(
+                7L,12L,ParticipantState.ACTIVE)).thenReturn(true);
+        var guest=new SessionGuestRequest();guest.setId(41L);
+        guest.setDisplayName("oal");guest.setNote("Não divulgar");
+        guest.setTeamCode("A");guest.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findBySessionIdAndStatusOrderByCreatedAtAsc(
+                7L,SessionGuestRequest.State.APPROVED)).thenReturn(List.of(guest));
+        var visible=service.confirmedGuestsForMember(7L,"monicagomes");
+        assertEquals(1,visible.size());
+        assertEquals("oal",visible.getFirst().name());
+        assertEquals("A",visible.getFirst().teamCode());
+        assertEquals(41L,visible.getFirst().id());
+        assertEquals(3,SessionGuestRequestService.ConfirmedGuest.class.getRecordComponents().length);
+        verify(requests,never()).findBySessionIdOrderByCreatedAtAsc(7L);
+    }
+
+    @Test void creatorCanSeeApprovedGuestsWithoutJoiningAndStrangerCannot() {
+        var guest=new SessionGuestRequest();guest.setId(42L);
+        guest.setDisplayName("Fresco");guest.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findBySessionIdAndStatusOrderByCreatedAtAsc(
+                7L,SessionGuestRequest.State.APPROVED)).thenReturn(List.of(guest));
+        assertEquals("Fresco",service.confirmedGuestsForMember(7L,"RUI").getFirst().name());
+        Profile stranger=new Profile();stranger.setId(29L);
+        when(profiles.findUserByUsernameIgnoreCase("outsider")).thenReturn(Optional.of(stranger));
+        assertThrows(AccessDeniedException.class,
+                ()->service.confirmedGuestsForMember(7L,"outsider"));
+        assertThrows(AccessDeniedException.class,
+                ()->service.confirmedGuestsForMember(7L,null));
+        verify(participants).existsBySessionIdAndProfileIdAndState(
+                7L,29L,ParticipantState.ACTIVE);
+        verify(requests,times(1)).findBySessionIdAndStatusOrderByCreatedAtAsc(
+                7L,SessionGuestRequest.State.APPROVED);
+    }
+
     @Test void signedLinkShowsAllConfirmedPlayersWithoutExposingUnapprovedOrLinkedGuests(){
         String secret=token();
         var member=new SessionParticipant();member.setId(30L);member.setProfile(organizer);
