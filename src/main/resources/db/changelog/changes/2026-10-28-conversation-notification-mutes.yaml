@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-conversation-notification-mutes-v1
+      author: desporto24
+      comment: "Authenticated per-user, per-conversation notification muting"
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: conversation_notification_mute
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_kind
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_key
+                  type: varchar(128)
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: conversation_notification_mute
+            columnNames: username, conversation_kind, conversation_key
+            constraintName: uq_conversation_notification_mute
