@@ -58,6 +58,18 @@ class OfficialMunicipalPreflightTest(unittest.TestCase):
         by_name = {r["candidate"]: r for r in report["results"]}
         self.assertEqual(0, by_name["Pavilhão Gimnodesportivo do INATEL"]["possibleMatchCount"])
 
+    def test_identical_name_under_parish_is_a_review_flag_not_new_venue(self):
+        catalogue = venues() + [{
+            "id": 9, "name": "Pavilhão da Bancada",
+            "city": "Sé", "district": "Bragança"
+        }]
+        result = compare(catalogue, source())
+        match = next(row for row in result["results"]
+                     if row["candidate"] == "Pavilhão da Bancada")
+        self.assertEqual("DISTRICT_NAME_MATCH_REVIEW", match["status"])
+        self.assertEqual([9], [venue["id"] for venue in match["existing"]])
+        self.assertFalse(match["approvedForImport"])
+
     def test_blocks_malicious_unsupported_evidence_and_approvals(self):
         for address in (
             "http://www.cm-braganca.pt/venues", "https://evil.cm-braganca.pt/venue",
