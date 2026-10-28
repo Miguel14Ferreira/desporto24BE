@@ -1,0 +1,59 @@
+{
+  "reviewedAt": "2026-10-28",
+  "status": "THREE_DISTRICT_PAVILIONS_REVIEW_ONLY",
+  "authorization": "READ_ONLY_NO_IMPORT",
+  "guideSurveyPeriod": "2016",
+  "guideSourceUrl": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
+  "approvedForImport": false,
+  "sites": [
+    {
+      "name": "Pavilhão Gimnodesportivo Municipal de Freixo de Espada à Cinta",
+      "city": "Freixo de Espada à Cinta",
+      "latitude": 41.087873,
+      "longitude": -6.809408,
+      "guidePrintedPage": 46,
+      "independentSourceUrl": "https://www.canaln.tv/freixo-de-espada-a-cinta-homenageia-mulheres-na-luta-contra-o-cancro-da-mama/",
+      "independentSourceDate": "2026-10-18",
+      "evidenceKind": "RECENT_REPORTED_SPORTS_EVENT",
+      "district": "Bragança",
+      "coordinateSourceUrl": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
+      "coordinatePrecision": "2016_GUIDE_FACILITY_SITE_NOT_ENTRANCE",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão Municipal de Macedo de Cavaleiros",
+      "city": "Macedo de Cavaleiros",
+      "latitude": 41.5385759,
+      "longitude": -6.96886618,
+      "guidePrintedPage": 54,
+      "independentSourceUrl": "https://zerozero.football/noticias/fc-porto-perde-primeiros-pontos-da-epoca-em-macedo-de-cavaleiros/1238519",
+      "independentSourceDate": "2026-10-24",
+      "evidenceKind": "RECENT_REPORTED_SPORTS_EVENT",
+      "district": "Bragança",
+      "coordinateSourceUrl": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
+      "coordinatePrecision": "2016_GUIDE_FACILITY_SITE_NOT_ENTRANCE",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão Gimnodesportivo Municipal de Vila Flor",
+      "city": "Vila Flor",
+      "latitude": 41.307304,
+      "longitude": -7.152449,
+      "guidePrintedPage": 88,
+      "independentSourceUrl": "https://escolasvilaflor.net/sobre/",
+      "independentSourceDate": null,
+      "evidenceKind": "SCHOOL_MUNICIPAL_USE_PAGE_UNDATED",
+      "district": "Bragança",
+      "coordinateSourceUrl": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
+      "coordinatePrecision": "2016_GUIDE_FACILITY_SITE_NOT_ENTRANCE",
+      "approvedForImport": false
+    }
+  ],
+  "notes": [
+    "The 2016 public accessibility guide is historical, not live access or booking data.",
+    "Contemporary activity reports corroborate Freixo and Macedo facilities but do not certify 2026 arrival entrances or availability.",
+    "Vila Flor school page is undated; no 2026 use claim is made.",
+    "No historical GPS has been approved as a player navigation pin.",
+    "A public catalogue result cannot replace an authorized SQL preflight, licensing, municipal access check or rollback."
+  ]
+}
