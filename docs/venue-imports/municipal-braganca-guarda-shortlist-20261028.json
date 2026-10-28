@@ -1,0 +1,82 @@
+{
+  "reviewedAt": "2026-10-28",
+  "status": "SOURCE_CANDIDATES_ONLY_NOT_APPROVED",
+  "recordCount": 10,
+  "venues": [
+    {
+      "name": "Pavilhão Municipal Arnaldo Pereira",
+      "city": "Bragança",
+      "district": "Bragança",
+      "sourceUrl": "https://www.cm-braganca.pt/cmbraganca2020/uploads/document/file/5548/edital_n_o_292_2025.pdf",
+      "approvedForImport": false
+    },
+    {
+      "name": "Piscina Municipal",
+      "city": "Bragança",
+      "district": "Bragança",
+      "sourceUrl": "https://www.cm-braganca.pt/wire_paper/download/form_template/6/QVRFI0RFU1BPUlRPI0RFU1AwMSMx",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão da Bancada",
+      "city": "Bragança",
+      "district": "Bragança",
+      "sourceUrl": "https://www.cm-braganca.pt/wire_paper/download/form_template/6/QVRFI0RFU1BPUlRPI0RFU1AwMSMx",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão da Coxa",
+      "city": "Bragança",
+      "district": "Bragança",
+      "sourceUrl": "https://www.cm-braganca.pt/wire_paper/download/form_template/6/QVRFI0RFU1BPUlRPI0RFU1AwMSMx",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pista de Atletismo",
+      "city": "Bragança",
+      "district": "Bragança",
+      "sourceUrl": "https://www.cm-braganca.pt/wire_paper/download/form_template/6/QVRFI0RFU1BPUlRPI0RFU1AwMSMx",
+      "approvedForImport": false
+    },
+    {
+      "name": "Estádio Municipal da Guarda",
+      "city": "Guarda",
+      "district": "Guarda",
+      "sourceUrl": "https://www.mun-guarda.pt/intervencao/desporto/",
+      "approvedForImport": false
+    },
+    {
+      "name": "Campo de Jogos do Zambito",
+      "city": "Guarda",
+      "district": "Guarda",
+      "sourceUrl": "https://www.mun-guarda.pt/intervencao/desporto/",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão Desportivo Municipal de São Miguel",
+      "city": "Guarda",
+      "district": "Guarda",
+      "sourceUrl": "https://www.mun-guarda.pt/intervencao/desporto/",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão Gimnodesportivo do INATEL",
+      "city": "Guarda",
+      "district": "Guarda",
+      "sourceUrl": "https://www.mun-guarda.pt/intervencao/desporto/",
+      "approvedForImport": false
+    },
+    {
+      "name": "Piscinas Municipais da Guarda",
+      "city": "Guarda",
+      "district": "Guarda",
+      "sourceUrl": "https://www.mun-guarda.pt/informacoes-e-servicos/municipio-promove-ferias-ativas-pascoa-2026-com-atividades-para-jovens-dos-6-aos-16-anos/",
+      "approvedForImport": false
+    }
+  ],
+  "notes": [
+    "Nenhuma identidade nem disponibilidade pública presumidas.",
+    "A fonte atesta referência municipal, não prova que recintos não existam no catálogo.",
+    "Sem inferir GPS, morada, coordenadas, modalidades ou acesso."
+  ]
+}
