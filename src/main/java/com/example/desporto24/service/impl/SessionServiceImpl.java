@@ -99,6 +99,23 @@ public class SessionServiceImpl implements SessionService {
     @Autowired(required = false)
     private MediaStorage mediaStorage;
 
+    /**
+     * Enforce the community owner's choice server-side on all creation paths:
+     * direct, multi-community, multipart and recurring series.
+     */
+    private void requireCanCreateCommunitySession(Community community, Profile creator) {
+        var member = communityMemberRepository
+                .findByCommunityIdAndProfileId(community.getId(), creator.getId())
+                .orElseThrow(() -> new AccessDeniedException(
+                        "Só membros da comunidade podem criar sessões associadas"));
+        if (!community.isMembersCanCreateSessions()
+                && member.getRole() != com.example.desporto24.enumeration.CommunityRole.ADMIN
+                && member.getRole() != com.example.desporto24.enumeration.CommunityRole.OWNER) {
+            throw new AccessDeniedException(
+                    "Apenas administradores podem criar sessões nesta comunidade");
+        }
+    }
+
     @Override
     @Transactional
     public SessionDetailResponse create(CreateSessionRequest request, String username) {
@@ -116,12 +133,7 @@ public class SessionServiceImpl implements SessionService {
             linkedCommunity = communityRepository.findById(request.communityId())
                     .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
 
-            if (!communityMemberRepository.existsByCommunityIdAndProfileId(
-                    linkedCommunity.getId(), creator.getId())) {
-                throw new AccessDeniedException(
-                        "Só membros da comunidade podem criar sessões associadas"
-                );
-            }
+            requireCanCreateCommunitySession(linkedCommunity, creator);
         }
 
         // Publish one shared, members-only session across selected communities.
@@ -142,10 +154,7 @@ public class SessionServiceImpl implements SessionService {
             throw new IllegalArgumentException("Uma das comunidades selecionadas não existe");
         }
         for (Community community : sharedCommunities) {
-            if (!communityMemberRepository.existsByCommunityIdAndProfileId(
-                    community.getId(), creator.getId())) {
-                throw new AccessDeniedException("Só podes partilhar em comunidades a que pertences");
-            }
+            requireCanCreateCommunitySession(community, creator);
         }
 
         // A game counts for a season ONLY when exactly one community is selected.
