@@ -39,3 +39,31 @@ Para avançar com cada local: confirmar em fonte oficial recente identidade,
 entrada utilizável, disponibilidade e condições municipais, direitos de
 reutilização do ponto escolhido, comparação PostgreSQL autorizada,
 restauro de backup e aprovação separada para escrita.
+
+## Revisão municipal de Macedo e identidade de concelho
+
+O Município de Macedo de Cavaleiros disponibiliza um
+[Regulamento Municipal do Pavilhão Desportivo](https://www.cm-macedodecavaleiros.pt/cmmacedocavaleiros/uploads/document/file/13154/regulamento_municipal_do_pavilhao_desportivo.pdf),
+que descreve um equipamento no complexo escolar e estabelece
+autorização escrita da entidade gestora para utilização (artigo 17.º).
+O texto menciona regulamentos de 1993 e 2001, mas a data da
+versão consultada e a sua aplicabilidade em 2026 **não estão confirmadas**.
+Não inferir horários livres, reservas, preços nem a sua equivalência
+física ao Pavilhão Municipal do guia de 2016 sem evidência adicional.
+O manifesto identifica estas incertezas expressamente.
+
+A comparação com o catálogo público passou a distinguir:
+- `EXACT_LOCAL_NAME_REVIEW`: nome e município coincidem, mas falta revisão
+  humana de identidade.
+- `DISTRICT_NAME_COLLISION_REVIEW`: mesmo nome no distrito, mas outra
+  cidade ou freguesia; não se deve afirmar automaticamente que é o
+  mesmo pavilhão.
+- `LOCAL_PAVILION_ALIAS_REVIEW`: variantes de pavilhão no município,
+  incluindo linhas com distrito vazio.
+- Recintos próximos continuam a ser apenas pistas geográficas,
+  sem equivalência de identidade, GPS de entrada ou autorização.
+
+Não há alterações ao Liquibase, ao Render, aos recintos ou a qualquer
+registo de produção. O resultado do pré-voo é somente um relatório
+para investigação. A consulta PostgreSQL autorizada e verificação
+da entrada dos jogadores continuam pendentes.
