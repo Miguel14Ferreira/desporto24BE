@@ -1,0 +1,42 @@
+name: Braganca three rural pavilions historic-source audit (read-only)
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'docs/venue-imports/braganca-three-municipal-pavilions-review-20261028.json'
+      - 'docs/venue-imports/braganca-three-municipal-pavilions-20261028.md'
+      - 'scripts/audit_braganca_three_municipal_pavilions_20261028.py'
+      - 'scripts/test_audit_braganca_three_municipal_pavilions_20261028.py'
+      - '.github/workflows/braganca-three-rural-pavilions-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  three-rural-pavilions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate fixed evidence, boundaries, location and privacy offline
+        run: python3 -m unittest discover -s scripts -p 'test_audit_braganca_three_municipal_pavilions_20261028.py' -v
+      - name: Read fixed public Jynlo catalogue only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/three-rural-pavilions
+          python3 scripts/audit_braganca_three_municipal_pavilions_20261028.py \
+            --live-public-api --out .cache/three-rural-pavilions/review.json
+          echo "Read-only three-district-pavilion audit $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_STEP_SUMMARY"
+          echo "No licence, site entrance, access or import approved." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-braganca-three-rural-pavilions-review
+          path: .cache/three-rural-pavilions/review.json
+          retention-days: 3
+          if-no-files-found: error
