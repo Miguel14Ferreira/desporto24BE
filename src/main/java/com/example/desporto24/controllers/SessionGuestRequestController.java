@@ -56,6 +56,13 @@ public class SessionGuestRequestController {
             @RequestBody SessionGuestRequestService.ReceiptInput body){
         return guests.status(sessionId,body);
     }
+    /** Receipt proves ownership; the shared invitation does not. */
+    @PostMapping("/guest-requests/cancel-self")
+    public SessionGuestRequestService.GuestReceipt cancelSelf(
+            @PathVariable Long sessionId,@RequestBody SessionGuestRequestService.ReceiptInput body){
+        return guests.cancelByReceipt(sessionId,body);
+    }
+
     @PostMapping("/guest-requests/link-account")
     public SessionGuestRequestService.LinkedReceipt linkAccount(
             @PathVariable Long sessionId,@RequestBody SessionGuestRequestService.ReceiptInput body,
