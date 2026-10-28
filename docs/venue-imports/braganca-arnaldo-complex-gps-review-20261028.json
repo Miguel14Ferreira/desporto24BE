@@ -1,0 +1,26 @@
+{
+  "reviewedAt": "2026-10-28",
+  "approvedForImport": false,
+  "precision": "DOCUMENTED_COMPLEX_POINT_NOT_ENTRANCE",
+  "points": [
+    {
+      "name": "Pavilhão Municipal Arnaldo Pereira",
+      "city": "Bragança",
+      "district": "Bragança",
+      "latitude": 41.804841855561804,
+      "longitude": -6.770163826983646,
+      "locationSourceUrl": "https://arquitecturaaqui.eu/pt/obras/4824/pavilhao-municipal-arnaldo-pereira-braganca",
+      "municipalSourceUrl": "https://www.cm-braganca.pt/cmbraganca2020/uploads/document/file/5548/edital_n_o_292_2025.pdf",
+      "sourceDescription": "Arquitectura Aqui research site pin (2025), not an entrance coordinate",
+      "documentedAddress": "Avenida D. Sancho I, Zona Desportiva, 5300-125 Bragança",
+      "approvedForImport": false
+    }
+  ],
+  "warnings": [
+    "Pavilhão Arnaldo Pereira and municipal pool belong to a historical shared complex; individual facilities must not be merged automatically.",
+    "The municipal accessibility guide published historical coordinates with a nonstandard numeric format; do not reinterpret them into GPS without manual source validation.",
+    "Use only the independent research pin as a proximity search centre, never as an approved Jynlo pin.",
+    "The nearby venue catalogue can be incomplete or contain wrong coordinates; absence within 250m does not prove a facility is new.",
+    "Municipal cartography reuse must be checked; no GIS dataset copied, mapped or published."
+  ]
+}
