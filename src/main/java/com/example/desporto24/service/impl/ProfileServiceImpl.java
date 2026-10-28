@@ -51,9 +51,6 @@ import static org.springframework.http.MediaType.*;
 @RequiredArgsConstructor
 public class ProfileServiceImpl implements ProfileService {
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
-
     private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
     private final EmailService emailService;
@@ -196,9 +193,8 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         String previousEmail = profile.getEmail();
-        String previousAddress = decryptSafely(profile.getAddress(), profile.getUserId());
-        String previousPhone = decryptSafely(profile.getPhone(), profile.getUserId());
-        List<String> changedFields = detectProfileChanges(profile, request, previousAddress, previousPhone);
+        // Ordinary profile changes are acknowledged in the editing screen,
+        // not in the inbox. Only an actual email change is security-sensitive.
         boolean emailChanged = !Objects.equals(previousEmail, request.email());
 
         profile.setFullName(request.fullName());
@@ -221,18 +217,14 @@ public class ProfileServiceImpl implements ProfileService {
         ProfileDTO updated = profileMapper.toDto(saved);
         updated.setOldEmail(previousEmail);
 
-        if (!changedFields.isEmpty()) {
-            if (emailChanged) {
-                sendEmailChangedEmail(previousEmail, updated.getEmail(), updated.getUsername());
-                createSecurityNotification(
-                        updated.getUsername(),
-                        "Alteração de email",
-                        "O endereço de email associado à tua conta foi alterado. "
-                                + "Se não foste tu, redefine imediatamente a tua palavra-passe."
-                );
-            } else {
-                createProfileUpdateNotification(updated.getUsername(), changedFields);
-            }
+        if (emailChanged) {
+            sendEmailChangedEmail(previousEmail, updated.getEmail(), updated.getUsername());
+            createSecurityNotification(
+                    updated.getUsername(),
+                    "Alteração de email",
+                    "O endereço de email associado à tua conta foi alterado. "
+                            + "Se não foste tu, redefine imediatamente a tua palavra-passe."
+            );
         }
 
         return updated;
@@ -298,20 +290,10 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         saveProfileImage(profile, photo);
-        createProfileUpdateNotification(profile.getUsername(), List.of("Fotografia de perfil"));
-    }
-    private void createProfileUpdateNotification(String username, List<String> changedFields) {
-        String fields = String.join(", ", changedFields);
-        String subject = "Perfil atualizado";
-        String message = "Foram atualizados os seguintes dados do teu perfil: " + fields + ".";
-        createNotification(username, subject, message, false);
     }
 
+    /** Only actual account-security events belong in the notification inbox. */
     private void createSecurityNotification(String username, String subject, String message) {
-        createNotification(username, subject, message, true);
-    }
-
-    private void createNotification(String username, String subject, String message, boolean security) {
         String greeting = "Cumprimentos,";
         String signature = "JYNLO MANAGEMENT TEAM";
         String displayDate = java.time.Instant.now().toString();
@@ -329,10 +311,9 @@ public class ProfileServiceImpl implements ProfileService {
                 null,
                 username
         );
-        if (preferenceService == null ||
-                preferenceService.allowsInApp(notification.getUsername(), notification)) {
-            notificationsRepository.save(notification);
-        }
+        // Account security alerts must not be hidden by optional notification
+        // preferences. Recovery emails are also sent independently.
+        notificationsRepository.save(notification);
     }
 
     private void sendEmailChangedEmail(String oldEmail, String currentEmail, String username) {
@@ -348,38 +329,6 @@ public class ProfileServiceImpl implements ProfileService {
                 && !currentEmail.isBlank()
                 && !Objects.equals(oldEmail, currentEmail)) {
             emailService.send(currentEmail, subject, emailBody);
-        }
-    }
-
-    private List<String> detectProfileChanges(
-            Profile profile,
-            UpdateProfileRequest request,
-            String previousAddress,
-            String previousPhone) {
-        List<String> changed = new ArrayList<>();
-
-        addChanged(changed, "Nome", profile.getFullName(), request.fullName());
-        addChanged(changed, "Alcunha", profile.getNickname(), request.nickname());
-        addChanged(changed, "Data de nascimento", profile.getDateOfBirth(), request.dateOfBirth());
-        addChanged(changed, "Morada", previousAddress, request.address());
-        addChanged(changed, "País", profile.getCountry(), request.country());
-        addChanged(changed, "Localização", profile.getLocation(), request.location());
-        addChanged(changed, "Código postal", profile.getPostalCode(), request.postalCode());
-        addChanged(changed, "Indicativo telefónico", profile.getIndicativePhone(), request.indicativePhone());
-        addChanged(changed, "Telefone", previousPhone, request.phone());
-        addChanged(changed, "Género", profile.getGender(), request.gender());
-        addChanged(changed, "Email", profile.getEmail(), request.email());
-        addChanged(changed, "Desportos favoritos", profile.getFavoriteSports(), request.favoriteSports());
-        addChanged(changed, "Bio desportiva", profile.getBio(), request.bio());
-        addChanged(changed, "Nível", profile.getSkillLevel(), request.skillLevel());
-        addChanged(changed, "Disponibilidade", profile.getAvailability(), request.availability());
-
-        return changed;
-    }
-
-    private void addChanged(List<String> changed, String label, Object before, Object after) {
-        if (!Objects.equals(before, after)) {
-            changed.add(label);
         }
     }
 
