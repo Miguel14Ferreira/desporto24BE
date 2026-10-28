@@ -1,0 +1,56 @@
+name: Jynlo live public venue coverage snapshot (read-only)
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - '.github/workflows/public-venue-coverage-snapshot.yml'
+      - 'scripts/audit_live_venue_district_coverage.py'
+      - 'scripts/plan_national_venue_coverage.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-venue-coverage:
+    name: Public catalogue aggregate baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify offline report contracts
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_audit_live_venue_district_coverage.py' -v
+          python3 -m unittest discover -s scripts -p 'test_plan_national_venue_coverage.py' -v
+      - name: Read fixed public Jynlo venue endpoint and write only aggregates
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/jynlo-public-coverage
+          python3 scripts/audit_live_venue_district_coverage.py --live-public-api --output-json .cache/jynlo-public-coverage/coverage.json
+          python3 scripts/plan_national_venue_coverage.py --coverage .cache/jynlo-public-coverage/coverage.json --out .cache/jynlo-public-coverage/plan.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('.cache/jynlo-public-coverage/plan.json').read_text())
+          print('PUBLIC_CATALOGUE_TOTAL:', p['catalogueTotal'])
+          print('LOWEST_MAINLAND:', json.dumps(p['lowestMainlandCatalogueCounts'], ensure_ascii=False))
+          print('DATA_QUALITY:', json.dumps(p['dataQualityReview'], ensure_ascii=False))
+          print('UNCONFIRMED_DISTRICT:', next(row['catalogueCount'] for row in p['regions'] if row['district'] == '(por confirmar)'))
+          print('Read-only public GET. No venue records, contacts, or GPS written to artifacts.')
+          PY
+          echo "Snapshot UTC: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Read-only /api/venues catalogue; counts are not national coverage percentages.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve only aggregate JSON (3 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-public-venue-coverage
+          path: |
+            .cache/jynlo-public-coverage/coverage.json
+            .cache/jynlo-public-coverage/plan.json
+          retention-days: 3
+          if-no-files-found: error
