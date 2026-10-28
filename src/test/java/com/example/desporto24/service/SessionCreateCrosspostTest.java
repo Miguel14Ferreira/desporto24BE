@@ -145,7 +145,9 @@ class SessionCreateCrosspostTest {
         assertThrows(AccessDeniedException.class, () ->
                 service.join(42L, new com.example.desporto24.model.dto.session.JoinSessionRequest(null),
                         "outsider"));
-        assertThrows(AccessDeniedException.class, () ->
+        // An arbitrary string is never an invitation. Without an organizer-issued
+        // signed token, membership protections remain intact.
+        assertThrows(org.springframework.web.server.ResponseStatusException.class, () ->
                 service.joinWithGuestToken(42L, "a".repeat(43), "outsider"));
         verify(participants, never()).save(any());
     }
