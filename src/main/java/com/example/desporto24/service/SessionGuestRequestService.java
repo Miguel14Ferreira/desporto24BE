@@ -109,6 +109,8 @@ public class SessionGuestRequestService {
         // Previously submitted names cannot be reserved a second time.
         // Keep them visible in confirmedPlayers(), not in the identity picker.
         var alreadyUsedNames = requests.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
+                .filter(r -> r.getStatus()!=SessionGuestRequest.State.CANCELLED
+                        && r.getStatus()!=SessionGuestRequest.State.REJECTED)
                 .map(SessionGuestRequest::getNormalizedName)
                 .collect(java.util.stream.Collectors.toSet());
         return new GuestRoster(sessionId,group.getId(),players.findByCommunityIdOrderByDisplayNameAsc(
@@ -181,15 +183,22 @@ public class SessionGuestRequestService {
             }
         }
         String normalized=normalized(name);
-        if(requests.findBySessionIdAndNormalizedName(sessionId,normalized).isPresent())
+        // A cancelled person may return later; reuse the unique reservation
+        // row with a brand-new secret receipt. Existing active/linked seats
+        // remain protected against duplicates.
+        SessionGuestRequest previous=requests.findBySessionIdAndNormalizedName(sessionId,normalized)
+                .orElse(null);
+        if(previous!=null && previous.getStatus()!=SessionGuestRequest.State.CANCELLED)
             throw conflict("Este jogador já tem um pedido nesta sessão");
 
         String note=input.note()==null||input.note().isBlank()?"":clean(input.note(),160);
         byte[] bytes=new byte[32];RANDOM.nextBytes(bytes);
         String receipt=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        SessionGuestRequest request=new SessionGuestRequest();
+        SessionGuestRequest request=previous==null?new SessionGuestRequest():previous;
         request.setSession(session);
         request.setCommunityPlayer(player);
+        request.setLinkedProfile(null);
+        request.setTeamCode(null);
         request.setDisplayName(name);
         request.setNormalizedName(normalized);
         request.setReceiptHash(hash(receipt));
@@ -359,6 +368,36 @@ public class SessionGuestRequestService {
         SessionGuestRequest guest=requests.findById(guestId)
                 .filter(r->r.getSession().getId().equals(sessionId))
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        cancelApprovedLocked(sessionId,session,guest);
+        return new GuestView(guest.getId(),guest.getDisplayName(),guest.getStatus().name(),
+                guest.getNote(),guest.getTeamCode());
+    }
+
+    /**
+     * A guest may cancel ONLY the reservation proven by its private receipt.
+     * A shared invite token and a display name alone never authorize deletion.
+     */
+    @Transactional
+    public GuestReceipt cancelByReceipt(Long sessionId,ReceiptInput input) {
+        String receipt=input==null?null:input.receipt();
+        if(receipt==null||!receipt.matches("[A-Za-z0-9_-]{43}"))
+            throw invalid("Comprovativo inválido");
+        Session session=locked(sessionId);
+        SessionGuestRequest guest=requests.findBySessionIdAndReceiptHash(sessionId,hash(receipt))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        if(guest.getStatus()==SessionGuestRequest.State.CANCELLED)
+            return new GuestReceipt(receipt,"CANCELLED",guest.getDisplayName(),null);
+        if(guest.getStatus()!=SessionGuestRequest.State.APPROVED)
+            throw conflict("A presença já não pode ser anulada pelo convite");
+        if(session.getStatus()==SessionStatus.CANCELLED||session.getStatus()==SessionStatus.COMPLETED
+                || session.getGameDate()==null
+                || !session.getGameDate().toInstant().isAfter(Instant.now()))
+            throw conflict("Já não é possível cancelar esta presença");
+        cancelApprovedLocked(sessionId,session,guest);
+        return new GuestReceipt(receipt,"CANCELLED",guest.getDisplayName(),null);
+    }
+
+    private void cancelApprovedLocked(Long sessionId,Session session,SessionGuestRequest guest) {
         if(guest.getStatus()!=SessionGuestRequest.State.APPROVED)
             throw conflict("Apenas uma presença de convidado confirmada pode ser cancelada");
         int external=session.getExternalConfirmedParticipants()==null?0:
@@ -401,8 +440,6 @@ public class SessionGuestRequestService {
                 ? SessionStatus.FULL:SessionStatus.OPEN);
         session.setUpdatedAt(now);
         sessions.save(session);
-        return new GuestView(guest.getId(),guest.getDisplayName(),guest.getStatus().name(),
-                guest.getNote(),guest.getTeamCode());
     }
 
     /** Safe preview visible only with an organizer-issued secret for members-only games. */
