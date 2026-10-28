@@ -155,7 +155,9 @@ class NotificationPreferencesAuthenticatedHttpJpaTest {
                 mock(PostGameReminderService.class));
         ReflectionTestUtils.setField(service, "preferenceService", preferencesService);
         return MockMvcBuilders.standaloneSetup(
-                new NotificationController(service, preferencesService)).build();
+                new NotificationController(service, preferencesService,
+                    mock(ConversationNotificationMuteService.class), mock(InboxSummaryService.class),
+                    mock(PrivateGroupService.class))).build();
     }
 
     private UsernamePasswordAuthenticationToken principal(String username) {
