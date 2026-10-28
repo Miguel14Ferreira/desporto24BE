@@ -133,3 +133,28 @@ e a um modelo genérico, não a uma exceção codificada pelo nome do pavilhão.
 Estas verificações não eliminam a necessidade de confirmar localização exata
 de acesso, aliases e documentação de reutilização antes de publicar os dois
 recintos. Os dois `INSERT` continuam desativados no master e não autorizados.
+
+## Pré-voo com distrito em falta e equipamento Bancada — 28/10/2026
+
+O DRAFT passa a considerar registos com `district` vazio/NULL e sem
+coordenadas apenas quando cidade/freguesia ou morada apontam para
+Bragança, evitando bloquear pavilhões genéricos de outros concelhos.
+Reconhece também `Polidesportivo da Coxa` como possível alias.
+A guard GPS não confunde o **Pavilhão da Bancada**, distinto dos dois
+equipamentos. O pré-voo read-only foi alinhado com estes critérios,
+mantendo os recintos vizinhos visíveis para revisão.
+
+O workflow testa três novos cenários em PostgreSQL 16 isolado, além
+dos anteriores: aliases sem GPS/distrito, Bancada a coincidir
+artificialmente com o GPS do Arnaldo, e nome genérico de Mirandela.
+
+**Direitos de reutilização:** o Regulamento n.º 977/2026, art. B-3/7.º,
+exige autorização escrita em certas situações de divulgação/cedência
+de cartografia digital municipal:
+https://diariodarepublica.pt/dr/detalhe/regulamento/977-2026-1151247864 .
+Não copiar/redistribuir cartografia do Geoportal como se fosse aberta.
+Pontos de localização de sítio de fontes independentes continuam a
+não ser entradas certificadas dos jogadores.
+
+Nenhum destes ajustes ativa o DRAFT no master, escreve em produção,
+altera o GPS ou efetua deploy.
