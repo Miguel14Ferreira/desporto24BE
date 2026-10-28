@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController @RequiredArgsConstructor
@@ -27,6 +29,11 @@ public class PrivateGroupController {
     @PatchMapping("/{id}") public PrivateGroupService.GroupView rename(
             @PathVariable Long id,@RequestBody PrivateGroupService.RenameRequest input,Authentication auth){
         return service.rename(auth.getName(),id,input);
+    }
+    @PostMapping(value="/{id}/photo",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PrivateGroupService.GroupView updatePhoto(
+            @PathVariable Long id,@RequestPart("photo") MultipartFile photo,Authentication auth){
+        return service.updatePhoto(auth.getName(),id,photo);
     }
     @DeleteMapping("/{id}/members/{username}") public PrivateGroupService.GroupView removeMember(
             @PathVariable Long id,@PathVariable String username,Authentication auth){
