@@ -22,9 +22,28 @@
       },
       "sourceUrls": [
         "https://www.cm-aveiro.pt/visitantes/piscina-municipal-de-sao-jacinto",
-        "https://api.d24sports.com/api/venues/447"
+        "https://api.d24sports.com/api/venues/447",
+        "https://www.cm-aveiro.pt/municipio/comunicacao/noticias?news_list_82_page=8",
+        "https://cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao",
+        "https://www.jf-saojacinto.pt/ver_conteudo/4",
+        "https://www.openstreetmap.org/way/152241544"
       ],
-      "reviewReason": "Possibly the same physical pool under differing names and city/locality labels; municipal 2025 requalification altered pool basins and surrounding facilities. A pre-existing OSM GPS-only venue does not verify a current entrance nor justify duplicating or merging records."
+      "reviewReason": "Possibly the same physical pool under differing names and city/locality labels; municipal 2025 requalification altered pool basins and surrounding facilities. A pre-existing OSM GPS-only venue does not verify a current entrance nor justify duplicating or merging records. Additional independently published clues: municipality used singular and plural naming in 2026; parish locates pools inside the Ria-Mar sports complex; OSM way 152241544 is a historic Bing-derived pool area, not a current entrance. HIGH-PRIORITY HUMAN identity review only.",
+      "identityEvidence": {
+        "officialSingularName": "Piscina Municipal de São Jacinto",
+        "officialSingularSourceUrl": "https://cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao",
+        "officialPluralName": "Piscinas Municipais de São Jacinto",
+        "officialPluralSourceUrl": "https://www.cm-aveiro.pt/municipio/comunicacao/noticias?news_list_82_page=8",
+        "officialPluralPublicationDate": "2026-07-24",
+        "parishStreet": "Avenida Ria-Mar",
+        "parishSourceUrl": "https://www.jf-saojacinto.pt/ver_conteudo/4",
+        "osmWayId": 152241544,
+        "osmWayUrl": "https://www.openstreetmap.org/way/152241544",
+        "osmGeometry": "LEISURE_SWIMMING_POOL_POLYGON_NOT_ENTRANCE",
+        "osmMappedFrom": "Bing imagery (as described by OSM way source tag), last edit more than 3 years before review",
+        "sourceDoesNotProveCurrentEntrance": true,
+        "sourceDoesNotProveSamePhysicalFacility": true
+      }
     },
     {
       "caseId": "BRAGA-MAXIMINOS-POOL-295-912",

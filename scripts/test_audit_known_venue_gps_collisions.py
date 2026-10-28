@@ -35,6 +35,77 @@ class KnownGpsCollisionsTest(unittest.TestCase):
     def setUpClass(cls):
         cls.manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
 
+    def test_official_alias_and_osm_way_increase_priority_without_approving_duplicate(self):
+        result = audit(fixture(), self.manifest)
+        review = {row["targetVenueId"]: row for row in result["reviewCases"]}
+        sao_jacinto = review[299]
+        self.assertEqual("HIGH_OFFICIAL_ALIAS_PLUS_OSM_AREA", sao_jacinto["reviewPriority"])
+        self.assertEqual("OFFICIAL_NAMES_AND_HISTORIC_OSM_POLYGON_STILL_UNVERIFIED",
+                         sao_jacinto["identityEvidenceStatus"])
+        self.assertEqual(152241544, sao_jacinto["osmWayIdForHumanReview"])
+        self.assertFalse(sao_jacinto["samePhysicalFacilityVerified"])
+        self.assertFalse(sao_jacinto["currentEntranceVerified"])
+        self.assertFalse(sao_jacinto["approvedForGps"])
+        self.assertFalse(sao_jacinto["approvedForMerge"])
+        self.assertEqual("NORMAL", review[295]["reviewPriority"])
+        self.assertEqual("NORMAL", review[286]["reviewPriority"])
+        self.assertIsNone(review[295]["osmWayIdForHumanReview"])
+        self.assertNotIn("latitude", json.dumps(result))
+        self.assertNotIn("longitude", json.dumps(result))
+        self.assertNotIn("private-data-not-in-report", json.dumps(result))
+
+    def test_alias_evidence_cannot_survive_a_changed_venue_identity_as_high_priority(self):
+        original = fixture()
+        original[1]["name"] = "A different pool"
+        rows = audit(original, self.manifest)["reviewCases"]
+        row = next(x for x in rows if x["targetVenueId"] == 299)
+        self.assertEqual("KNOWN_ID_IDENTITY_CHANGED_REVIEW", row["status"])
+        self.assertEqual("NORMAL", row["reviewPriority"])
+        self.assertEqual("SOURCE_IDENTITY_CHANGED_RECHECK", row["identityEvidenceStatus"])
+        self.assertFalse(row["samePhysicalFacilityVerified"])
+        original = fixture()
+        original[0]["latitude"], original[0]["longitude"] = 40.67, -8.73
+        row = next(x for x in audit(original, self.manifest)["reviewCases"]
+                   if x["targetVenueId"] == 299)
+        self.assertEqual("TARGET_GPS_CHANGED_RECHECK_REQUIRED", row["status"])
+        self.assertEqual("NORMAL", row["reviewPriority"])
+
+    def test_provenance_requires_unapproved_geometry_both_review_guards_and_matching_osm_url(self):
+        for key, badvalue in (
+                ("sourceDoesNotProveCurrentEntrance", False),
+                ("sourceDoesNotProveSamePhysicalFacility", False),
+                ("osmWayId", 152241545),
+                ("osmWayUrl", "https://www.openstreetmap.org/way/152241545"),
+                ("osmGeometry", "ENTRANCE_COORDINATE_VERIFIED"),
+                ("officialPluralName", "Piscinas Municipais de Ílhavo"),
+                ("officialPluralPublicationDate", "2027-01-01"),
+                ("parishStreet", "Praia de São Jacinto"),
+                ("osmMappedFrom", "Authoritative municipal 2026 GPS"),
+        ):
+            invalid = copy.deepcopy(self.manifest)
+            invalid["cases"][0]["identityEvidence"][key] = badvalue
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                audit(fixture(), invalid)
+
+    def test_provenance_cannot_be_attached_to_unrelated_facility_or_removed_from_sources(self):
+        unrelated = copy.deepcopy(self.manifest)
+        unrelated["cases"][1]["identityEvidence"] = copy.deepcopy(
+            unrelated["cases"][0]["identityEvidence"])
+        with self.assertRaises(ValueError):
+            audit(fixture(), unrelated)
+        bad = copy.deepcopy(self.manifest)
+        bad["cases"][0]["sourceUrls"].remove(
+            bad["cases"][0]["identityEvidence"]["osmWayUrl"])
+        with self.assertRaises(ValueError):
+            audit(fixture(), bad)
+        no_evidence = copy.deepcopy(self.manifest)
+        no_evidence["cases"][0].pop("identityEvidence")
+        result = audit(fixture(), no_evidence)
+        row = next(x for x in result["reviewCases"] if x["targetVenueId"] == 299)
+        self.assertEqual("NORMAL", row["reviewPriority"])
+        self.assertEqual("NO_CURATED_IDENTITY_EVIDENCE", row["identityEvidenceStatus"])
+        self.assertFalse(row["samePhysicalFacilityVerified"])
+
     def test_three_actual_live_identity_collisions_remain_review_only(self):
         result = audit(fixture(), self.manifest)
         actual = {row["targetVenueId"]: row for row in result["reviewCases"]}
