@@ -70,6 +70,26 @@ class NotificationPreferencesServiceTest {
     }
 
     @Test
+    void accountSecurityIsMandatoryButOldProfileUpdatesRemainOptional() {
+        when(preferences.findById("ana")).thenReturn(Optional.of(saved(
+                false, true, "PROFILE_UPDATE", "")));
+        Notifications routine = notification(null);
+        routine.setUpdateProfile(true);
+        routine.setSubject("Perfil atualizado");
+        Notifications email = notification(null);
+        email.setUpdateProfile(true);
+        email.setSubject("Alteração de email");
+        Notifications password = notification(null);
+        password.setSubject("Palavra-passe alterada");
+
+        assertFalse(NotificationPreferencesService.isAccountSecurityAlert(routine));
+        assertFalse(service.allowsInApp("ana", routine));
+        assertTrue(NotificationPreferencesService.isAccountSecurityAlert(email));
+        assertTrue(service.allowsInApp("ana", email));
+        assertTrue(service.allowsInApp("ana", password));
+    }
+
+    @Test
     void globalOptOutOverridesIndividualChoices() {
         when(preferences.findById("ana")).thenReturn(Optional.of(saved(
                 false, true, "", "")));
