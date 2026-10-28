@@ -20,13 +20,14 @@ class SessionGuestRequestServiceTest {
     private final SessionRepository sessions=mock(SessionRepository.class);
     private final SessionCommunityShareRepository sharedCommunities=mock(SessionCommunityShareRepository.class);
     private final CommunityPlayerRepository players=mock(CommunityPlayerRepository.class);
+    private final CommunityHistoricalPlayerLinkRepository links=mock(CommunityHistoricalPlayerLinkRepository.class);
     private final SessionGuestRequestRepository requests=mock(SessionGuestRequestRepository.class);
     private final SessionParticipantRepository participants=mock(SessionParticipantRepository.class);
     private final ProfileRepository profiles=mock(ProfileRepository.class);
     private final CommunityHistoricalPlayerLinkService historicalLinks=mock(CommunityHistoricalPlayerLinkService.class);
     private final WaitlistPromotionService waitlistPromotionService=mock(WaitlistPromotionService.class);
     private final SessionGuestRequestService service=new SessionGuestRequestService(
-            sessions,sharedCommunities,players,requests,participants,profiles,historicalLinks,waitlistPromotionService);
+            sessions,sharedCommunities,players,links,requests,participants,profiles,historicalLinks,waitlistPromotionService);
     private final Session session=new Session();
     private final Community community=new Community();
     private final Profile organizer=new Profile();
@@ -57,7 +58,7 @@ class SessionGuestRequestServiceTest {
                 .thenThrow(new AssertionError("No historical roster for standalone games"));
         var receipt=service.request(7L,
                 new SessionGuestRequestService.GuestRequestInput(secret,null,"Primeiro Convidado",""));
-        assertEquals("PENDING",receipt.status());
+        assertEquals("APPROVED",receipt.status());
         assertThrows(ResponseStatusException.class,()->service.request(7L,
                 new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")));
     }
@@ -68,7 +69,7 @@ class SessionGuestRequestServiceTest {
         String secret=token();
         assertEquals(7L,service.preview(7L,secret).id());
         assertTrue(service.roster(7L,secret).players().isEmpty());
-        assertEquals("PENDING",service.request(7L,
+        assertEquals("APPROVED",service.request(7L,
                 new SessionGuestRequestService.GuestRequestInput(secret,null,"Segundo Jogador","")).status());
         assertThrows(ResponseStatusException.class,()->service.preview(7L,"b".repeat(43)));
     }
@@ -86,7 +87,7 @@ class SessionGuestRequestServiceTest {
         var roster=service.roster(7L,secret);
         assertEquals(11L,roster.communityId());
         assertEquals("Afonso Salvador",roster.players().getFirst().name());
-        assertEquals("PENDING",service.request(7L,
+        assertEquals("APPROVED",service.request(7L,
                 new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")).status());
     }
 
@@ -123,12 +124,12 @@ class SessionGuestRequestServiceTest {
         assertEquals(1,preview.participantCount());
         var person=historic();
         when(players.findById(15L)).thenReturn(Optional.of(person));
-        assertEquals("PENDING",service.request(7L,
+        assertEquals("APPROVED",service.request(7L,
                 new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")).status());
         session.setPrivateGame(true);
         assertThrows(ResponseStatusException.class,()->service.preview(7L,secret));
     }
-    @Test void onlyUnlinkedCommunityPlayerCanRequestAndGetsPendingReceipt(){
+    @Test void signedInviteReservesSeatImmediatelyAndReturnsApprovedReceipt(){
         String token=token();var person=historic();
         when(players.findById(15L)).thenReturn(Optional.of(person));
         var receipt=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
@@ -139,7 +140,10 @@ class SessionGuestRequestServiceTest {
         verify(requests).saveAndFlush(captor.capture());
         assertEquals("Afonso Salvador",captor.getValue().getDisplayName());
         assertNotEquals(receipt.receipt(),captor.getValue().getReceiptHash());
-        assertEquals(SessionGuestRequest.State.PENDING,captor.getValue().getStatus());
+        assertEquals(SessionGuestRequest.State.APPROVED,captor.getValue().getStatus());
+        assertEquals(1,session.getExternalConfirmedParticipants());
+        assertNotNull(captor.getValue().getReviewedAt());
+        verify(sessions,atLeastOnce()).save(session);
         assertNull(captor.getValue().getTeamCode());
     }
     @Test void linkedProfilesCannotBeImpersonatedByGuestRequest(){
@@ -158,6 +162,37 @@ class SessionGuestRequestServiceTest {
                 new SessionGuestRequestService.GuestRequestInput(token,15L,null,"")));
         verify(requests,never()).saveAndFlush(any());
     }
+    @Test void lastAvailableSeatIsConfirmedAndNoFurtherGuestCanOverbook() {
+        when(participants.countBySessionIdAndState(7L,ParticipantState.ACTIVE)).thenReturn(9L);
+        String secret=token();
+        var first=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
+                secret,null,"Novo Convidado",""));
+        assertEquals("APPROVED",first.status());
+        assertEquals(1,session.getExternalConfirmedParticipants());
+        assertEquals(SessionStatus.FULL,session.getStatus());
+        assertThrows(ResponseStatusException.class,()->service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,null,"Outro Convidado","")));
+        verify(requests,times(1)).saveAndFlush(any(SessionGuestRequest.class));
+    }
+
+    @Test void linkedHistoricalNamesAreAbsentFromRosterAndCannotClaimGuestSeats() {
+        var reserved=historic();
+        var available=historic();available.setId(16L);available.setDisplayName("Outro Jogador");
+        var claim=CommunityHistoricalPlayerLink.builder().player(reserved).community(community)
+                .status("ACCEPTED").build();
+        when(links.findByCommunityIdAndStatus(11L,"ACCEPTED")).thenReturn(List.of(claim));
+        when(links.existsByCommunityIdAndPlayerIdAndStatus(11L,15L,"ACCEPTED")).thenReturn(true);
+        when(players.findByCommunityIdOrderByDisplayNameAsc(11L)).thenReturn(List.of(reserved,available));
+        when(players.findById(15L)).thenReturn(Optional.of(reserved));
+        String secret=token();
+        var roster=service.roster(7L,secret);
+        assertEquals(List.of(16L),roster.players().stream().map(
+                SessionGuestRequestService.GuestPlayer::id).toList());
+        assertThrows(ResponseStatusException.class,()->service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")));
+        verify(requests,never()).saveAndFlush(any());
+    }
+
     @Test void organizerApprovalReservesExactlyOneSeatWithoutCreatingUser(){
         var guest=new SessionGuestRequest();guest.setId(20L);guest.setSession(session);
         guest.setDisplayName("Afonso Salvador");guest.setStatus(SessionGuestRequest.State.PENDING);
