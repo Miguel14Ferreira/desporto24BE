@@ -296,6 +296,40 @@ jobs:
             END IF;
           END $check$;
           SQL
+      - name: Execute Braganca read-only preflight against synthetic PG16 records
+        shell: bash
+        run: |
+          set -euo pipefail
+          preflight=src/main/resources/db/changelog/venue-imports/preflight-braganca-two-pavilions-READONLY.sql
+          # Supply realistic false-positive and no-GPS cases, never user data.
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE desporto24.venue RESTART IDENTITY;
+          INSERT INTO desporto24.venue
+            (name,city,district,address,information_source,contact,latitude,longitude,created_at)
+          VALUES
+            ('Pavilhão Municipal','Bragança',NULL,'Zona Desportiva',
+             'COMMUNITY','KEEP-ARNALDO',NULL,NULL,NOW()),
+            ('Polidesportivo da Coxa','Sé',NULL,'Bairro da Coxa',
+             'COMMUNITY','KEEP-COXA',NULL,NULL,NOW()),
+            ('Pavilhão da Bancada','Bragança','Bragança','Estádio Municipal',
+             'COMMUNITY','KEEP-DISTINCT-BANCADA',41.804841855561804,-6.770163826983646,NOW()),
+            ('Pavilhão Municipal','Mirandela',NULL,'Outro município',
+             'COMMUNITY','KEEP-OTHER-MUNICIPALITY',NULL,NULL,NOW());
+          SQL
+          before="$(psql -X -v ON_ERROR_STOP=1 -At -c \
+            "SELECT md5(string_agg(row_to_json(v)::text,'|' ORDER BY v.id)) FROM desporto24.venue v")"
+          # SQL is an existing SELECT, run through psql without credentials
+          # beyond the disposable PG16 service already used by this workflow.
+          report="$(psql -X -v ON_ERROR_STOP=1 -At -F '|' -f "$preflight")"
+          test "$(printf '%s\n' "$report" | grep -c .)" = 3
+          grep -Fq '|Pavilhão Municipal|Bragança|' <<< "$report"
+          grep -Fq '|Polidesportivo da Coxa|Sé|' <<< "$report"
+          grep -Fq '|Pavilhão da Bancada|Bragança|' <<< "$report"
+          ! grep -Fq '|Mirandela|' <<< "$report"
+          after="$(psql -X -v ON_ERROR_STOP=1 -At -c \
+            "SELECT md5(string_agg(row_to_json(v)::text,'|' ORDER BY v.id)) FROM desporto24.venue v")"
+          test "$before" = "$after"
+          echo 'PASS: preflight returns 3 review leads, no cross-municipality alias, no DB changes'
       - name: Existing venue aliases must block inserts, preserving community rows
         shell: bash
         run: |
