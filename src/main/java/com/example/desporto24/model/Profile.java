@@ -1,7 +1,6 @@
 package com.example.desporto24.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
-import org.checkerframework.common.aliasing.qual.Unique;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
@@ -36,7 +35,6 @@ public class Profile implements Serializable {
     private String indicativePhone;
     private String phone;
     private String gender;
-    @Unique
     private String email;
     private String favoriteSports;
 
