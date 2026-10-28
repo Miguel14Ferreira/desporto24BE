@@ -37,6 +37,13 @@ public class SessionGuestRequestController {
             @PathVariable Long sessionId,@RequestBody Map<String,String> body){
         return guests.roster(sessionId,body.get("token"));
     }
+    /** Participant display roster only, never the organizer's guest administration DTO. */
+    @GetMapping("/guest-confirmed-guests")
+    public List<SessionGuestRequestService.ConfirmedGuest> confirmedGuestsForParticipant(
+            @PathVariable Long sessionId, Authentication auth) {
+        return guests.confirmedGuestsForMember(sessionId,auth==null?null:auth.getName());
+    }
+
     /** Invitation bearer only; never exposed by the anonymous public preview. */
     @PostMapping("/guest-confirmed-players")
     public List<SessionGuestRequestService.ConfirmedPlayer> confirmedPlayers(
