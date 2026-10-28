@@ -5,6 +5,7 @@ on:
     branches: [feature/desporto24-preview-deploy]
     paths:
       - 'docs/venue-imports/braganca-arnaldo-complex-gps-review-20261028.json'
+      - 'docs/venue-imports/braganca-arnaldo-neighbour-review-20261028.md'
       - 'scripts/audit_braganca_arnaldo_nearby_20261028.py'
       - 'scripts/test_audit_braganca_arnaldo_nearby_20261028.py'
       - '.github/workflows/braganca-venue-neighbors-readonly.yml'
