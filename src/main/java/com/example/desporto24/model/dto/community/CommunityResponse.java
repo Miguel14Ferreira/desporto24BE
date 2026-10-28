@@ -32,8 +32,27 @@ public record CommunityResponse(
         Double habitualLatitude,
         Double habitualLongitude,
         String habitualCity,
-        String habitualAddress
+        String habitualAddress,
+        boolean membersCanCreateSessions
 ) {
+    // Preserve the former canonical response constructor for existing tests and consumers.
+    public CommunityResponse(Long id, String name, String description, String sport,
+                             String photoUrl, CommunityVisibility visibility,
+                             boolean rankingsEnabled, String ownerUsername,
+                             CommunityRole myRole, int memberCount, Instant createdAt,
+                             List<CommunityMemberResponse> members, List<String> sports,
+                             boolean individualTournamentsEnabled, boolean teamTournamentsEnabled,
+                             Double photoZoom, Double photoFocusX, Double photoFocusY,
+                             String photoFitMode, Long defaultVenueId, String defaultVenueName,
+                             String habitualLocationSource, Double habitualLatitude,
+                             Double habitualLongitude, String habitualCity, String habitualAddress) {
+        this(id, name, description, sport, photoUrl, visibility, rankingsEnabled,
+                ownerUsername, myRole, memberCount, createdAt, members, sports,
+                individualTournamentsEnabled, teamTournamentsEnabled, photoZoom,
+                photoFocusX, photoFocusY, photoFitMode, defaultVenueId,
+                defaultVenueName, habitualLocationSource, habitualLatitude,
+                habitualLongitude, habitualCity, habitualAddress, true);
+    }
     // Existing full 21-field constructions remain source-compatible.
     public CommunityResponse(Long id, String name, String description, String sport,
                              String photoUrl, CommunityVisibility visibility,
