@@ -18,6 +18,7 @@ import static org.mockito.Mockito.*;
 
 class SessionGuestRequestServiceTest {
     private final SessionRepository sessions=mock(SessionRepository.class);
+    private final SessionCommunityShareRepository sharedCommunities=mock(SessionCommunityShareRepository.class);
     private final CommunityPlayerRepository players=mock(CommunityPlayerRepository.class);
     private final SessionGuestRequestRepository requests=mock(SessionGuestRequestRepository.class);
     private final SessionParticipantRepository participants=mock(SessionParticipantRepository.class);
@@ -25,7 +26,7 @@ class SessionGuestRequestServiceTest {
     private final CommunityHistoricalPlayerLinkService historicalLinks=mock(CommunityHistoricalPlayerLinkService.class);
     private final WaitlistPromotionService waitlistPromotionService=mock(WaitlistPromotionService.class);
     private final SessionGuestRequestService service=new SessionGuestRequestService(
-            sessions,players,requests,participants,profiles,historicalLinks,waitlistPromotionService);
+            sessions,sharedCommunities,players,requests,participants,profiles,historicalLinks,waitlistPromotionService);
     private final Session session=new Session();
     private final Community community=new Community();
     private final Profile organizer=new Profile();
@@ -70,6 +71,36 @@ class SessionGuestRequestServiceTest {
         assertEquals("PENDING",service.request(7L,
                 new SessionGuestRequestService.GuestRequestInput(secret,null,"Segundo Jogador","")).status());
         assertThrows(ResponseStatusException.class,()->service.preview(7L,"b".repeat(43)));
+    }
+
+    @Test void oneCommunityCrosspostAllowsHistoricalPlayerChoiceWithoutAccount(){
+        session.setCommunity(null);
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        when(sharedCommunities.findBySession_IdOrderByIdAsc(7L))
+                .thenReturn(List.of(new SessionCommunityShare(session,community)));
+        when(players.findByCommunityIdOrderByDisplayNameAsc(11L))
+                .thenReturn(List.of(historic()));
+        var person=historic();
+        when(players.findById(15L)).thenReturn(Optional.of(person));
+        String secret=token();
+        var roster=service.roster(7L,secret);
+        assertEquals(11L,roster.communityId());
+        assertEquals("Afonso Salvador",roster.players().getFirst().name());
+        assertEquals("PENDING",service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")).status());
+    }
+
+    @Test void multiCommunityCrosspostDoesNotExposeCombinedHistoricalPlayers(){
+        session.setCommunity(null);
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        Community other=new Community();other.setId(22L);
+        when(sharedCommunities.findBySession_IdOrderByIdAsc(7L)).thenReturn(List.of(
+                new SessionCommunityShare(session,community),
+                new SessionCommunityShare(session,other)));
+        var roster=service.roster(7L,token());
+        assertNull(roster.communityId());
+        assertTrue(roster.players().isEmpty());
+        verify(players,never()).findByCommunityIdOrderByDisplayNameAsc(anyLong());
     }
 
     @Test void publicLinkIsOpaqueAndCannotExposeRosterWithoutToken(){
