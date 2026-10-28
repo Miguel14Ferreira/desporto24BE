@@ -64,7 +64,8 @@ public class SecurityConfiguration {
                                 "/api/sessions/*/guest-confirmed-players",
                                 "/api/sessions/*/guest-requests",
                                 "/api/sessions/*/guest-requests/status",
-                                "/api/sessions/*/guest-requests/cancel-self").permitAll()
+                                "/api/sessions/*/guest-requests/cancel-self",
+                                "/api/sessions/*/guest-requests/change-player").permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/ws/chat/**").permitAll()
