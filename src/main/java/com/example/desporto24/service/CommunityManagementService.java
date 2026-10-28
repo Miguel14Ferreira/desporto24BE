@@ -115,6 +115,14 @@ public class CommunityManagementService {
      * Stores the organizer's choice of modules without deleting seasons, scores or
      * tournaments. Sessions remain available for every community.
      */
+    public CommunityResponse updateSessionCreationPolicy(Long communityId, String username,
+            boolean membersCanCreateSessions) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        community.setMembersCanCreateSessions(membersCanCreateSessions);
+        return toResponse(communityRepository.save(community), actor);
+    }
+
     public CommunityResponse updateFeatures(Long communityId, String username,
             UpdateCommunityFeaturesRequest request) {
         Profile actor = profile(username);
@@ -779,7 +787,8 @@ public class CommunityManagementService {
                 community.getDefaultVenue() == null ? null : community.getDefaultVenue().getName(),
                 community.getHabitualLocationSource(),
                 community.getHabitualLatitude(), community.getHabitualLongitude(),
-                community.getHabitualCity(), community.getHabitualAddress()
+                community.getHabitualCity(), community.getHabitualAddress(),
+                community.isMembersCanCreateSessions()
         );
     }
 
