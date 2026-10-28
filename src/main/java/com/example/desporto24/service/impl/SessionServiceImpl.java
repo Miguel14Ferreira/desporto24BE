@@ -122,8 +122,8 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
-        // Cross-post ONE public session into multiple communities, never cloning
-        // attendance records or implicitly granting new membership.
+        // Publish one shared, members-only session across selected communities.
+        // Every game in a recurring series shares its own memberships and attendance.
         List<Long> shareIds = request.communityShareIds() == null
                 ? List.of() : request.communityShareIds();
         if (shareIds.size() > 5 || shareIds.stream().anyMatch(id -> id == null || id <= 0)
@@ -132,7 +132,7 @@ public class SessionServiceImpl implements SessionService {
         }
         if (!shareIds.isEmpty() && (request.communityId() != null || request.privateGame())) {
             throw new IllegalArgumentException(
-                    "A partilha com várias comunidades exige uma sessão pública independente");
+                    "As sessões partilhadas entre comunidades não utilizam palavra-passe");
         }
         List<Community> sharedCommunities = shareIds.isEmpty() ? List.of()
                 : communityRepository.findAllById(shareIds);
@@ -186,7 +186,7 @@ public class SessionServiceImpl implements SessionService {
         SessionRecurrence recurrence = request.recurrence() == null
                 ? SessionRecurrence.NONE
                 : request.recurrence();
-        if (recurrence != SessionRecurrence.NONE && linkedCommunity == null) {
+        if (recurrence != SessionRecurrence.NONE && linkedCommunity == null && sharedCommunities.isEmpty()) {
             throw new IllegalArgumentException(
                     "Recurring sessions must belong to a community");
         }
@@ -200,7 +200,7 @@ public class SessionServiceImpl implements SessionService {
                 ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
                 : request.registrationOpeningMode();
         if (openingMode != com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
-                && linkedCommunity == null) {
+                && linkedCommunity == null && sharedCommunities.isEmpty()) {
             throw new IllegalArgumentException("Só sessões de comunidades podem ter convocatórias");
         }
         if (openingMode == com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED
@@ -221,6 +221,7 @@ public class SessionServiceImpl implements SessionService {
                     photo,
                     creator,
                     linkedCommunity,
+                    !sharedCommunities.isEmpty(),
                     linkedVenue,
                     sport,
                     occurrence.kickoff(),
@@ -228,11 +229,11 @@ public class SessionServiceImpl implements SessionService {
                     openingMode,
                     occurrence.registrationOpensAt()
             );
-            if (firstSaved == null) {
-                firstSaved = saved;
-                for (Community community : sharedCommunities) {
-                    sessionCommunityShareRepository.save(new SessionCommunityShare(saved, community));
-                }
+            if (firstSaved == null) firstSaved = saved;
+            // Every occurrence is visible in each selected community, not just
+            // the first game of a recurring series.
+            for (Community community : sharedCommunities) {
+                sessionCommunityShareRepository.save(new SessionCommunityShare(saved, community));
             }
         }
 
@@ -244,6 +245,7 @@ public class SessionServiceImpl implements SessionService {
             MultipartFile photo,
             Profile creator,
             Community linkedCommunity,
+            boolean memberOnlyCrosspost,
             Venue linkedVenue,
             String sport,
             Instant gameDate,
@@ -282,7 +284,8 @@ public class SessionServiceImpl implements SessionService {
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
         session.setCommunity(linkedCommunity);
-        session.setAudience(linkedCommunity == null ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
+        session.setAudience(linkedCommunity == null && !memberOnlyCrosspost
+                ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
         session.setRecurrenceSeriesId(recurrenceSeriesId);
         session.setRegistrationOpeningMode(openingMode);
@@ -348,7 +351,15 @@ public class SessionServiceImpl implements SessionService {
         // without an explicit PUBLIC audience is still members-only.
         if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
                 && session.getCommunity() == null) {
-            return false;
+            // Membership of ANY selected community grants access, not a public link.
+            if (sessionCommunityShareRepository.isMemberOfSharedCommunity(
+                    session.getId(), viewer.getId())) return true;
+            // Keep an existing participant's details accessible if the user
+            // has since left the community; do not grant a new registration.
+            return participantRepository.existsBySessionIdAndProfileIdAndState(
+                    session.getId(), viewer.getId(), ParticipantState.ACTIVE)
+                    || waitlistRepository.findBySessionIdAndProfileId(
+                            session.getId(), viewer.getId()).isPresent();
         }
         if (session.getCommunity() == null
                 || session.getAudience() == SessionAudience.PUBLIC) {
@@ -589,6 +600,13 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() == null
+                && !sessionCommunityShareRepository.isMemberOfSharedCommunity(
+                        sessionId, profile.getId())) {
+            // Signed guest links cannot bypass a multi-community member-only session.
+            throw new AccessDeniedException("Esta sessão está reservada aos membros das comunidades");
+        }
         if (guestToken == null) requireCommunitySessionAccess(session, profile);
         else requireValidGuestToken(session, guestToken);
         if (!com.example.desporto24.service.SessionRegistrationOpening.isOpen(session, Instant.now())) {
