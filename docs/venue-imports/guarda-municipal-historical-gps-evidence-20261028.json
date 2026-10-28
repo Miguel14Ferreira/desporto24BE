@@ -1,0 +1,48 @@
+{
+  "reviewedAt": "2026-10-28",
+  "sourceMeetingDate": "2017-07-10",
+  "sourceUrl": "https://cdn.mun-guarda.pt/WS/03-154889474611829",
+  "sourceKind": "OFFICIAL_MUNICIPAL_SURVEILLANCE_ROUNDS_2017",
+  "status": "HISTORICAL_SITE_LOCATION_EVIDENCE_ONLY",
+  "approvedForImport": false,
+  "coordinatesAreEntrances": false,
+  "venues": [
+    {
+      "name": "Piscinas Municipais da Guarda",
+      "latitude": 40.531324,
+      "longitude": -7.254329,
+      "precision": "2017_MUNICIPAL_ROUND_SITE_NOT_ENTRANCE",
+      "relatedCatalogueStatus": "EXACT_EXISTING",
+      "independentTourismLocation": {
+        "url": "https://www.visitguarda.pt/en/ponto_de_interesse/piscina-municipal-da-guarda/",
+        "latitude": 40.531141,
+        "longitude": -7.253715,
+        "distanceMetersApprox": 55.7
+      }
+    },
+    {
+      "name": "Estádio Municipal da Guarda",
+      "latitude": 40.536435,
+      "longitude": -7.266712,
+      "precision": "2017_MUNICIPAL_ROUND_SITE_NOT_ENTRANCE",
+      "relatedCatalogueStatus": "NO_LOCAL_MATCH_REVIEW"
+    },
+    {
+      "name": "Pavilhão Desportivo Municipal de São Miguel",
+      "latitude": 40.548919,
+      "longitude": -7.252073,
+      "precision": "2017_MUNICIPAL_ROUND_SITE_NOT_ENTRANCE",
+      "relatedCatalogueStatus": "NO_LOCAL_MATCH_REVIEW"
+    }
+  ],
+  "unlocatedInSource": [
+    "Campo de Jogos do Zambito",
+    "Pavilhão Gimnodesportivo do INATEL"
+  ],
+  "notes": [
+    "These are municipal security-round locations in a 2017 document, not individually verified player entrances or 2026 navigation targets.",
+    "The 55.7 m pool coordinate disagreement requires human map/site investigation; neither coordinate is automatically corrected.",
+    "The public catalogue exact/alias results are from the official shortlist CI in October 2026, not a direct PostgreSQL check.",
+    "No change to database, official migration, public GPS, access or reservations is authorized."
+  ]
+}
