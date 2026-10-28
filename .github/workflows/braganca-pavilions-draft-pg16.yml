@@ -217,6 +217,85 @@ jobs:
           END $check$;
           SQL
           echo 'PASS: no-GPS historic alias blocks Arnaldo alone'
+      - name: Missing district and GPS historic aliases must not duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql=src/main/resources/db/changelog/venue-imports/drafts/2026-10-28-braganca-two-pavilions-OPT-IN.sql
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE desporto24.venue RESTART IDENTITY;
+          INSERT INTO desporto24.venue
+            (name,city,district,address,information_source,contact,created_at)
+          VALUES
+            ('Pavilhão Municipal','Bragança',NULL,'Histórico sem GPS',
+             'COMMUNITY','KEEP-ARNALDO',NOW()),
+            ('Polidesportivo da Coxa','Sé',NULL,'Bairro da Coxa',
+             'COMMUNITY','KEEP-COXA',NOW());
+          SQL
+          psql -X -v ON_ERROR_STOP=1 -f "$sql"
+          psql -X -v ON_ERROR_STOP=1 -f "$sql"
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $check$
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.venue) <> 2
+              OR (SELECT COUNT(*) FROM desporto24.venue
+                  WHERE contact LIKE 'KEEP-%') <> 2
+              OR (SELECT COUNT(*) FROM desporto24.venue
+                  WHERE information_source='OFFICIAL') <> 0 THEN
+              RAISE EXCEPTION 'No-district historic aliases were duplicated';
+            END IF;
+          END $check$;
+          SQL
+      - name: Bancada in same GPS area must not block two separate pavilions
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql=src/main/resources/db/changelog/venue-imports/drafts/2026-10-28-braganca-two-pavilions-OPT-IN.sql
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE desporto24.venue RESTART IDENTITY;
+          INSERT INTO desporto24.venue
+            (name,city,district,address,information_source,contact,latitude,longitude,created_at)
+          VALUES
+            ('Pavilhão da Bancada','Bragança','Bragança','Estádio Municipal',
+             'COMMUNITY','KEEP-BANCADA',41.804841855561804,-6.770163826983646,NOW());
+          SQL
+          psql -X -v ON_ERROR_STOP=1 -f "$sql"
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $check$
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.venue) <> 3
+              OR (SELECT COUNT(*) FROM desporto24.venue
+                  WHERE contact='KEEP-BANCADA') <> 1
+              OR (SELECT COUNT(*) FROM desporto24.venue
+                  WHERE information_source='OFFICIAL') <> 2 THEN
+              RAISE EXCEPTION 'Separate Bancada pavilion caused false dedup';
+            END IF;
+          END $check$;
+          SQL
+      - name: Other city without district must not create false duplicate
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql=src/main/resources/db/changelog/venue-imports/drafts/2026-10-28-braganca-two-pavilions-OPT-IN.sql
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE desporto24.venue RESTART IDENTITY;
+          INSERT INTO desporto24.venue
+            (name,city,district,address,information_source,contact,created_at)
+          VALUES
+            ('Pavilhão Municipal','Mirandela',NULL,'Rua Desconhecida',
+             'COMMUNITY','KEEP-MIRANDELA',NOW());
+          SQL
+          psql -X -v ON_ERROR_STOP=1 -f "$sql"
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $check$
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.venue) <> 3
+              OR (SELECT COUNT(*) FROM desporto24.venue
+                  WHERE information_source='OFFICIAL') <> 2 THEN
+              RAISE EXCEPTION 'Other municipality caused false dedup';
+            END IF;
+          END $check$;
+          SQL
       - name: Existing venue aliases must block inserts, preserving community rows
         shell: bash
         run: |

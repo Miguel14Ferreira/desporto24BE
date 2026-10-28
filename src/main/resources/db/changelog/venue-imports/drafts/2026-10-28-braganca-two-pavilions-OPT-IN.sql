@@ -10,6 +10,8 @@
 -- Coxa contractor 2019 building site point, NOT entrance: https://www.alnconstrucoes.com/obras/2019/pavilhao-polidesportivo-da-coxa-braganca
 -- Sports used by clubs: https://estrelasbrigantinas.com/contactos
 -- No contacts, prices, opening hours, reservations or exact-entrance claims.
+-- Legacy records with empty district are guarded only when city/address indicates Braganca.
+-- Pavilhao da Bancada is a separate facility: never dedup on its location alone.
 
 INSERT INTO desporto24.venue
 (name,city,district,address,sports,venue_type,environment_type,
@@ -26,7 +28,15 @@ SELECT
 WHERE NOT EXISTS (
  SELECT 1 FROM desporto24.venue v
  WHERE v.source_reference='JYNLO:OFFICIAL:BRAGANCA:ARNALDO-PEREIRA'
- OR (LOWER(BTRIM(COALESCE(v.district,'')))=LOWER('Bragança')
+ OR ((LOWER(BTRIM(COALESCE(v.district,'')))=LOWER('Bragança')
+     OR (BTRIM(COALESCE(v.district,''))=''
+       AND (LOWER(BTRIM(COALESCE(v.city,''))) IN
+             ('bragança','braganca','sé','se','santa maria','meixedo',
+              'união das freguesias de sé, santa maria e meixedo')
+         OR LOWER(COALESCE(v.address,'')) LIKE '%sancho i%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%zona desportiva%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%padre benjamim videira pires%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%bairro da coxa%')))
    AND (LOWER(COALESCE(v.name,'')) LIKE '%arnaldo pereira%'
    -- The municipality RENAMED the old "Pavilhão Municipal" on 2015-02-09.
    -- Without this check, a legacy COMMUNITY row without GPS would be duplicated.
@@ -42,6 +52,7 @@ WHERE NOT EXISTS (
          OR LOWER(COALESCE(v.address,'')) LIKE '%sancho i%'
          OR LOWER(COALESCE(v.address,'')) LIKE '%zona desportiva%'))
    OR (v.latitude IS NOT NULL AND v.longitude IS NOT NULL
+     AND LOWER(COALESCE(v.name,'')) NOT LIKE '%bancada%'
      AND ABS(v.latitude-41.804841855561804)<=0.0006
      AND ABS(v.longitude-(-6.770163826983646))<=0.00075
      AND (LOWER(COALESCE(v.name,'')) LIKE '%pavilh%'
@@ -63,11 +74,21 @@ SELECT
 WHERE NOT EXISTS (
  SELECT 1 FROM desporto24.venue v
  WHERE v.source_reference='JYNLO:OFFICIAL:BRAGANCA:COXA'
- OR (LOWER(BTRIM(COALESCE(v.district,'')))=LOWER('Bragança')
+ OR ((LOWER(BTRIM(COALESCE(v.district,'')))=LOWER('Bragança')
+     OR (BTRIM(COALESCE(v.district,''))=''
+       AND (LOWER(BTRIM(COALESCE(v.city,''))) IN
+             ('bragança','braganca','sé','se','santa maria','meixedo',
+              'união das freguesias de sé, santa maria e meixedo')
+         OR LOWER(COALESCE(v.address,'')) LIKE '%sancho i%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%zona desportiva%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%padre benjamim videira pires%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%bairro da coxa%')))
    AND ((LOWER(COALESCE(v.name,'')) LIKE '%coxa%'
         AND (LOWER(COALESCE(v.name,'')) LIKE '%pavilh%'
-          OR LOWER(COALESCE(v.name,'')) LIKE '%gimnodesport%'))
+          OR LOWER(COALESCE(v.name,'')) LIKE '%gimnodesport%'
+          OR LOWER(COALESCE(v.name,'')) LIKE '%polidesport%'))
    OR (v.latitude IS NOT NULL AND v.longitude IS NOT NULL
+     AND LOWER(COALESCE(v.name,'')) NOT LIKE '%bancada%'
      AND ABS(v.latitude-41.801816342807)<=0.0006
      AND ABS(v.longitude-(-6.7712549306452))<=0.00075
      AND (LOWER(COALESCE(v.name,'')) LIKE '%pavilh%'
