@@ -170,6 +170,33 @@ class SessionGuestRequestServiceTest {
         verify(sessions,atLeastOnce()).save(session);
         assertNull(captor.getValue().getTeamCode());
     }
+    @Test void privateMeetingPointRequiresConfirmedGuestReceiptAndReflectsLatestEdit(){
+        session.setMeetingPointInstructions("Portão 2");
+        String secret=token();
+        var receipt=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
+                secret,null,"Convidado Confirmado",""));
+        assertEquals("APPROVED",receipt.status());
+        assertEquals("Portão 2",receipt.meetingPointInstructions());
+        assertThrows(ResponseStatusException.class,()->service.status(7L,
+                new SessionGuestRequestService.ReceiptInput("invalid")));
+
+        var saved=org.mockito.ArgumentCaptor.forClass(SessionGuestRequest.class);
+        verify(requests).saveAndFlush(saved.capture());
+        when(requests.findBySessionIdAndReceiptHash(eq(7L),anyString()))
+                .thenReturn(Optional.of(saved.getValue()));
+
+        session.setMeetingPointInstructions("Entrada norte");
+        var refreshed=service.status(7L,new SessionGuestRequestService.ReceiptInput(receipt.receipt()));
+        assertEquals("Entrada norte",refreshed.meetingPointInstructions());
+        saved.getValue().setStatus(SessionGuestRequest.State.CANCELLED);
+        assertNull(service.status(7L,new SessionGuestRequestService.ReceiptInput(
+                receipt.receipt())).meetingPointInstructions());
+        saved.getValue().setStatus(SessionGuestRequest.State.APPROVED);
+        session.setStatus(SessionStatus.CANCELLED);
+        assertNull(service.status(7L,new SessionGuestRequestService.ReceiptInput(
+                receipt.receipt())).meetingPointInstructions());
+    }
+
     @Test void linkedProfilesCannotBeImpersonatedByGuestRequest(){
         String token=token();var person=historic();person.setProfile(organizer);
         when(players.findById(15L)).thenReturn(Optional.of(person));
