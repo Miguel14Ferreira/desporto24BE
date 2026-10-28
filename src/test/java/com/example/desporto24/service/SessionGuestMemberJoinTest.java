@@ -94,6 +94,22 @@ class SessionGuestMemberJoinTest {
     }
 
     @Test
+    void signedCrosspostedInviteLetsAccountHolderJoinWithoutMembership() throws Exception {
+        Session session=session();
+        session.setCommunity(null);
+        Profile user=new Profile();user.setId(44L);user.setUsername("invited");
+        when(sessions.findByIdForUpdate(77L)).thenReturn(Optional.of(session));
+        when(profiles.findUserByUsername("invited")).thenReturn(Optional.of(user));
+        when(participants.countBySessionIdAndState(77L,ParticipantState.ACTIVE)).thenReturn(1L);
+        when(participants.findBySessionIdAndProfileId(77L,44L)).thenReturn(Optional.empty());
+        when(participants.findBySessionIdAndStateOrderByJoinedAtAsc(77L,ParticipantState.ACTIVE))
+                .thenReturn(List.of());
+        assertEquals(JoinState.PARTICIPANT,
+                service.joinWithGuestToken(77L,TOKEN,"invited").state());
+        verify(participants).save(argThat(p->p.getProfile()==user));
+    }
+
+    @Test
     void invalidGuestTokenDoesNotBypassRestrictedCommunityAccess() throws Exception {
         Session session=session();
         Profile user=new Profile();user.setId(44L);
