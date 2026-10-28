@@ -70,6 +70,43 @@ class SessionNotificationServiceTest {
     }
 
     @Test
+    void meetingPointChangeNotifiesOnlyActivePlayersWithoutLeakingPrivateInstructions() {
+        Profile creator = profile(1L, "creator");
+        Profile active = profile(2L, "active");
+        Profile waiting = profile(3L, "waitlisted");
+        Session session = session(10L, creator);
+        session.setMeetingPointInstructions("Entrada lateral do Pavilhão às 20h");
+
+        when(participantRepository.findBySessionIdAndStateOrderByJoinedAtAsc(
+                10L, ParticipantState.ACTIVE)).thenReturn(List.of(
+                        participant(session, creator),
+                        participant(session, active),
+                        participant(session, active)));
+        service.notifyMeetingPointUpdated(session);
+
+        ArgumentCaptor<Notifications> captor = ArgumentCaptor.forClass(Notifications.class);
+        verify(notificationsRepository, times(1)).save(captor.capture());
+        Notifications saved = captor.getValue();
+        assertEquals("active", saved.getUsername());
+        assertEquals(10L, saved.getSessionId());
+        assertEquals(NotificationType.SESSION_MEETING_POINT_UPDATED, saved.getType());
+        assertFalse(saved.isRead());
+        assertFalse(saved.getMessage().contains("Entrada lateral"));
+        assertFalse(saved.getSubject().contains("Pavilhão"));
+        verify(waitlistRepository, never()).findBySessionIdOrderByPriorityTierAscCreatedAtAsc(anyLong());
+    }
+
+    @Test
+    void meetingPointChangeWithOnlyCreatorDoesNotNotifyAnyone() {
+        Profile creator = profile(1L, "creator");
+        Session session = session(10L, creator);
+        when(participantRepository.findBySessionIdAndStateOrderByJoinedAtAsc(
+                10L, ParticipantState.ACTIVE)).thenReturn(List.of(participant(session, creator)));
+        service.notifyMeetingPointUpdated(session);
+        verify(notificationsRepository, never()).save(any());
+    }
+
+    @Test
     void cancellationNotifiesActiveParticipantsAndWaitlistOnceButNotCreator() {
         Profile creator = profile(1L, "creator");
         Profile active = profile(2L, "active");

@@ -71,6 +71,34 @@ public class SessionNotificationService {
         ));
     }
 
+    /**
+     * Notify active registered players when arrival instructions actually
+     * change. Never include the private note or exact address in the alert:
+     * permissions may change between delivery and opening the session.
+     * The recipient must open the server-authorised detail view to read it.
+     */
+    @Transactional
+    public void notifyMeetingPointUpdated(Session session) {
+        Map<String, Profile> affected = new LinkedHashMap<>();
+        participantRepository.findBySessionIdAndStateOrderByJoinedAtAsc(
+                        session.getId(), ParticipantState.ACTIVE)
+                .stream()
+                .map(p -> p.getProfile())
+                .filter(p -> p != null && p.getUsername() != null
+                        && !p.getUsername().isBlank())
+                .forEach(p -> affected.putIfAbsent(p.getUsername(), p));
+        if (session.getProfile() != null && session.getProfile().getUsername() != null) {
+            affected.remove(session.getProfile().getUsername());
+        }
+        affected.values().forEach(profile -> save(
+                profile,
+                session,
+                NotificationType.SESSION_MEETING_POINT_UPDATED,
+                "Ponto de encontro atualizado",
+                "O organizador alterou as indicações de chegada. Abre a sessão para consultares a informação atual."
+        ));
+    }
+
     private void save(
             Profile profile,
             Session session,
