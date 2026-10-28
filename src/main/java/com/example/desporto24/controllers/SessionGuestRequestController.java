@@ -37,6 +37,13 @@ public class SessionGuestRequestController {
             @PathVariable Long sessionId,@RequestBody Map<String,String> body){
         return guests.roster(sessionId,body.get("token"));
     }
+    /** Invitation bearer only; never exposed by the anonymous public preview. */
+    @PostMapping("/guest-confirmed-players")
+    public List<SessionGuestRequestService.ConfirmedPlayer> confirmedPlayers(
+            @PathVariable Long sessionId,@RequestBody Map<String,String> body){
+        return guests.confirmedPlayers(sessionId,body==null?null:body.get("token"));
+    }
+
     @PostMapping("/guest-requests")
     public SessionGuestRequestService.GuestReceipt request(
             @PathVariable Long sessionId,
