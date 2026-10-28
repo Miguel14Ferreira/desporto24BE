@@ -25,7 +25,10 @@ Os nomes nas fontes municipais não garantem que estejam em falta.
 A execução Github Actions para esta shortlist consulta o catálogo
 público atual em GET e mostra:
 - EXACT_EXISTING: o nome e a cidade coincidem exatamente;
-- POSSIBLE_ALIAS_REVIEW: possíveis outros nomes/instalações do mesmo tipo;
+- DISTRICT_NAME_MATCH_REVIEW: nome igual no mesmo distrito mas
+  outra localidade (possivelmente freguesia catalogada como cidade);
+- POSSIBLE_ALIAS_REVIEW: sobreposição de palavras distintivas no mesmo
+  concelho, não apenas o mesmo tipo de instalação;
 - NO_LOCAL_MATCH_REVIEW: nenhum candidato local óbvio, ainda sem
   aprovação para importação.
 
