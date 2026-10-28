@@ -156,14 +156,12 @@ class SessionCreateCrosspostTest {
     }
 
     @Test
-    void creatingASeasonGameActivatesStandingsOnlyWithExplicitAdminConfirmation() {
+    void anyMemberCanEnableStandingsWithExplicitConsentAndCreateDefaultSeason() {
         Profile organizer = new Profile(); organizer.setId(7L);
         Community group = Community.builder().id(11L).rankingsEnabled(false).build();
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
         when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
-        when(members.findByCommunityIdAndProfileId(11L, 7L))
-                .thenReturn(Optional.of(CommunityMember.builder().role(CommunityRole.ADMIN).build()));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.create(seasonRequest(List.of(11L), 11L, false), "organizer"));
@@ -196,19 +194,12 @@ class SessionCreateCrosspostTest {
     }
 
     @Test
-    void regularMemberCannotEnableStandingsButMayChooseAnExistingActiveSeason() {
+    void anyMemberCanUseExistingSeasonWithoutChangingSettings() {
         Profile organizer = new Profile(); organizer.setId(7L);
-        Community group = Community.builder().id(11L).rankingsEnabled(false).build();
+        Community group = Community.builder().id(11L).rankingsEnabled(true).build();
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
         when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
-        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(Optional.of(
-                CommunityMember.builder().role(CommunityRole.MEMBER).build()));
-
-        assertThrows(AccessDeniedException.class,
-                () -> service.create(seasonRequest(List.of(11L), 11L, true), "organizer"));
-        verify(sessions, never()).save(any());
-        group.setRankingsEnabled(true);
         CommunitySeason active = CommunitySeason.builder().id(99L)
                 .community(group).active(true).build();
         when(seasonsDb.findByCommunityIdAndActiveTrue(11L)).thenReturn(Optional.of(active));
@@ -219,9 +210,54 @@ class SessionCreateCrosspostTest {
         });
         when(mapper.toDetail(any(Session.class), eq(organizer)))
                 .thenReturn(mock(SessionDetailResponse.class));
+
         service.create(seasonRequest(List.of(11L), 11L, false), "organizer");
         verify(sessions).save(argThat(session -> session.getSeasonCompetition() == active));
         verify(communities, never()).save(any());
+        verify(seasonsDb, never()).save(any());
+    }
+
+    @Test
+    void aGameSharedWithTwoCommunitiesCannotAffectEitherSeason() {
+        Profile organizer = new Profile(); organizer.setId(7L);
+        Community first = Community.builder().id(11L).rankingsEnabled(true).build();
+        Community second = Community.builder().id(12L).rankingsEnabled(true).build();
+        when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
+        when(communities.findAllById(List.of(11L, 12L)))
+                .thenReturn(List.of(first, second));
+        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.existsByCommunityIdAndProfileId(12L, 7L)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.create(seasonRequest(List.of(11L, 12L), 11L, false), "organizer"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.create(seasonRequest(List.of(11L, 12L), 12L, true), "organizer"));
+        verify(sessions, never()).save(any());
+        verify(seasonsDb, never()).save(any());
+        verify(communities, never()).save(any());
+    }
+
+    @Test
+    void aMultiCommunitySessionWithoutSeasonRemainsUnranked() {
+        Profile organizer = new Profile(); organizer.setId(7L);
+        Community first = Community.builder().id(11L).build();
+        Community second = Community.builder().id(12L).build();
+        when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
+        when(communities.findAllById(List.of(11L, 12L)))
+                .thenReturn(List.of(first, second));
+        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.existsByCommunityIdAndProfileId(12L, 7L)).thenReturn(true);
+        when(sessions.save(any(Session.class))).thenAnswer(inv -> {
+            Session session = inv.getArgument(0);
+            session.setId(42L);
+            return session;
+        });
+        when(mapper.toDetail(any(Session.class), eq(organizer)))
+                .thenReturn(mock(SessionDetailResponse.class));
+
+        service.create(request(List.of(11L, 12L)), "organizer");
+        verify(sessions).save(argThat(session -> session.getSeasonCompetition() == null));
+        verifyNoInteractions(seasonsDb);
     }
 
     @Test
