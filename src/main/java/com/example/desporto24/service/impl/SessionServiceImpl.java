@@ -148,51 +148,45 @@ public class SessionServiceImpl implements SessionService {
             }
         }
 
-        // Season games have precisely ONE standings destination, even when a
-        // session is visible to members of multiple communities.
-        com.example.desporto24.model.community.CommunitySeason seasonCompetition = null;
+        // A game counts for a season ONLY when exactly one community is selected.
+        // Never let a client choose one standings destination from multiple groups.
+        Long soleCommunityId = linkedCommunity != null ? linkedCommunity.getId()
+                : shareIds.size() == 1 ? shareIds.get(0) : null;
         Long standingsCommunityId = request.seasonCompetitionCommunityId();
-        if (standingsCommunityId == null && request.confirmActivateRankings()) {
-            throw new IllegalArgumentException("Seleciona primeiro uma comunidade para ativar a classificação");
+        if (standingsCommunityId != null && !standingsCommunityId.equals(soleCommunityId)) {
+            throw new IllegalArgumentException(
+                    "Um jogo de época só pode pertencer a uma única comunidade");
         }
+        if (standingsCommunityId == null && request.confirmActivateRankings()) {
+            throw new IllegalArgumentException(
+                    "A ativação das classificações exige a opção de jogo de época");
+        }
+
+        com.example.desporto24.model.community.CommunitySeason seasonCompetition = null;
         if (standingsCommunityId != null) {
-            if (linkedCommunity == null && !shareIds.contains(standingsCommunityId)
-                    || linkedCommunity != null && !linkedCommunity.getId().equals(standingsCommunityId)) {
-                throw new IllegalArgumentException("A época tem de pertencer a uma das comunidades selecionadas");
-            }
+            // Community membership was already verified for both direct and shared games.
+            // Every member may enable rankings and start the default season, with consent.
             Community destination = linkedCommunity != null ? linkedCommunity
-                    : sharedCommunities.stream()
-                        .filter(group -> group.getId().equals(standingsCommunityId))
-                        .findFirst().orElseThrow();
-            var member = communityMemberRepository
-                    .findByCommunityIdAndProfileId(standingsCommunityId, creator.getId())
-                    .orElseThrow(() -> new AccessDeniedException("Não pertences à comunidade"));
-            boolean manager = member.getRole() == com.example.desporto24.enumeration.CommunityRole.OWNER
-                    || member.getRole() == com.example.desporto24.enumeration.CommunityRole.ADMIN;
+                    : sharedCommunities.get(0);
             if (!destination.isRankingsEnabled()) {
                 if (!request.confirmActivateRankings()) {
-                    throw new IllegalArgumentException("Confirma a ativação das classificações e estatísticas");
+                    throw new IllegalArgumentException(
+                            "Confirma a ativação das classificações e estatísticas");
                 }
-                if (!manager) throw new AccessDeniedException(
-                        "Só um administrador pode ativar as classificações da comunidade");
                 destination.setRankingsEnabled(true);
                 communityRepository.save(destination);
             }
-            // An existing season always wins; never overwrite its dates or scoring.
-            var existing = communitySeasonRepository
+            var existingSeason = communitySeasonRepository
                     .findByCommunityIdAndActiveTrue(standingsCommunityId);
-            if (existing.isPresent()) {
-                seasonCompetition = existing.get();
+            if (existingSeason.isPresent()) {
+                seasonCompetition = existingSeason.get();
             } else {
-                if (!manager) throw new AccessDeniedException(
-                        "Só um administrador pode criar a primeira época da comunidade");
                 java.time.ZonedDateTime localDate = request.gameDate()
                         .atZone(java.time.ZoneId.of("Europe/Lisbon"));
-                String defaultSeason = "Época " + localDate.getYear();
                 seasonCompetition = communitySeasonRepository.save(
                         com.example.desporto24.model.community.CommunitySeason.builder()
                                 .community(destination)
-                                .name(defaultSeason)
+                                .name("Época " + localDate.getYear())
                                 .startsAt(Instant.now())
                                 .createdAt(Instant.now())
                                 .active(true)
