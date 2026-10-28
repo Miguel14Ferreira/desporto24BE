@@ -140,6 +140,19 @@ public class CommunityController {
                 id, authentication.getName(), request.venueId()));
     }
 
+    public record CommunityHabitualLocationRequest(String source, Double latitude,
+                                                    Double longitude, String city, String address) {}
+
+    @PutMapping("/{id}/habitual-location")
+    public ResponseEntity<CommunityResponse> updateHabitualLocation(
+            @PathVariable Long id,
+            @RequestBody @Valid CommunityHabitualLocationRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateHabitualLocation(id, authentication.getName(),
+                request.source(), request.latitude(), request.longitude(),
+                request.city(), request.address()));
+    }
+
     @PutMapping("/{id}/sports")
     public ResponseEntity<CommunityResponse> updateSports(
             @PathVariable Long id,
