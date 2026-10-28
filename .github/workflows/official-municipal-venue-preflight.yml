@@ -7,6 +7,7 @@ on:
       - 'scripts/preflight_municipal_venues_20261028.py'
       - 'scripts/test_preflight_municipal_venues_20261028.py'
       - 'docs/venue-imports/municipal-braganca-guarda-shortlist-20261028.json'
+      - 'docs/venue-imports/official-braganca-guarda-preflight-20261028.md'
       - '.github/workflows/official-municipal-venue-preflight.yml'
   workflow_dispatch:
 
