@@ -37,14 +37,6 @@ def distinctive(name, city):
             and part not in normalize(city).split()}
 
 
-def venue_type(name):
-    tokens = normalize(name).split()
-    for token in ("pavilhao", "piscina", "estadio", "campo", "pista"):
-        if any(t.startswith(token) for t in tokens):
-            return token
-    return None
-
-
 def is_official_link(url):
     if not isinstance(url, str):
         return False
@@ -98,12 +90,13 @@ def compare(catalogue, manifest):
             potential = exact
             status = "EXACT_EXISTING"
         else:
-            typed = venue_type(item["name"])
+            # Facility type alone (e.g. "pavilhão") does NOT establish an
+            # alias: unrelated sports halls exist in the same municipality.
             words = distinctive(item["name"], item["city"])
             matches = []
             for row in local:
                 overlap = len(words & distinctive(row.get("name"), item["city"]))
-                if overlap or (typed and typed == venue_type(row.get("name"))):
+                if overlap:
                     matches.append((overlap, row))
             matches.sort(key=lambda pair: (-pair[0], pair[1]["id"]))
             potential = [m[1] for m in matches]
