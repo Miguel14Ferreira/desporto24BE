@@ -114,3 +114,22 @@ recintos e no fluxo de criação de sessões, apresentar uma indicação
 clara de que é necessária autorização/reserva prévia pelo Município
 e de que uma sessão criada na Jynlo **não reserva o espaço**. Não
 publicar a tabela como preço garantido, nem uma disponibilidade fictícia.
+
+## Verificação de retificações e aviso na Jynlo — 28/10/2026
+
+A fonte legal principal, o [Regulamento n.º 977/2026](https://diariodarepublica.pt/dr/detalhe/regulamento/977-2026-1151247864), **foi retificada duas vezes**:
+- [Declaração de Retificação n.º 715/2026/2 (21 agosto)](https://diariodarepublica.pt/dr/detalhe/declaracao-retificacao/715-2026-1160677051): ajusta os artigos C-2/10.º e K-2/11.º, sem alterar os requisitos de reserva dos pavilhões citados acima.
+- [Declaração de Retificação n.º 756/2026/2 (1 setembro)](https://diariodarepublica.pt/dr/detalhe/declaracao-retificacao/756-2026-1164280738): entre outros, altera as regras de ingressos de **museus e piscinas** (art. K-1/9.º) e o número de utilizadores para cedência de uma pista de piscina (tabela, art. 17.º). **Não aplicar esta alteração aos preços do pavilhão**, e não mostrar desconto ou preço de reserva como garantido.
+
+No frontend atual, `src/app/pages/venue-details/venue-details.component.html`
+já apresenta, para todos os recintos, a tradução
+`venue.detail.accessNotice`: «Antes de organizar uma sessão, confirma
+diretamente com a entidade gestora os horários e as condições de utilização.
+A Jynlo não faz reservas.» A versão inglesa também existe. **Não duplicar**
+o aviso na ficha dos recintos por este lote. Uma possível comunicação futura
+específica de autorização municipal deve recorrer a dados de acesso verificáveis
+e a um modelo genérico, não a uma exceção codificada pelo nome do pavilhão.
+
+Estas verificações não eliminam a necessidade de confirmar localização exata
+de acesso, aliases e documentação de reutilização antes de publicar os dois
+recintos. Os dois `INSERT` continuam desativados no master e não autorizados.
