@@ -178,14 +178,14 @@ jobs:
           SQL
           psql -X -v ON_ERROR_STOP=1 -f "$sql"
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $check$
           BEGIN
             IF (SELECT COUNT(*) FROM desporto24.venue) <> 3
              OR (SELECT COUNT(*) FROM desporto24.venue
                  WHERE contact LIKE 'KEEP-%') <> 3 THEN
               RAISE EXCEPTION 'Legacy renamed pavilion or Coxa must not be duplicated, Bancada preserved';
             END IF;
-          END $;
+          END $check$;
           SQL
           echo 'PASS: historical municipal name and independent Bancada safely preserved'
       - name: Legacy pavilion without any GPS is still protected
@@ -203,7 +203,7 @@ jobs:
           SQL
           psql -X -v ON_ERROR_STOP=1 -f "$sql"
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $check$
           BEGIN
             IF (SELECT COUNT(*) FROM desporto24.venue) <> 2
              OR (SELECT COUNT(*) FROM desporto24.venue
@@ -214,7 +214,7 @@ jobs:
                  WHERE source_reference='JYNLO:OFFICIAL:BRAGANCA:COXA') <> 1 THEN
                RAISE EXCEPTION 'Must block Arnaldo duplicate without GPS but allow distinct Coxa';
             END IF;
-          END $;
+          END $check$;
           SQL
           echo 'PASS: no-GPS historic alias blocks Arnaldo alone'
       - name: Existing venue aliases must block inserts, preserving community rows
