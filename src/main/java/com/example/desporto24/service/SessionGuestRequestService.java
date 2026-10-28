@@ -373,6 +373,97 @@ public class SessionGuestRequestService {
                 guest.getNote(),guest.getTeamCode());
     }
 
+    public record ChangeGuestIdentityInput(String receipt,Long playerId,String newName) {}
+
+    /**
+     * Fixes the identity of a confirmed guest without moving, releasing or
+     * re-reserving the seat. Atomic under the same session row lock as joining.
+     * The private receipt is the sole proof of ownership, never the shared link.
+     */
+    @Transactional
+    public GuestReceipt changeGuestIdentity(Long sessionId,ChangeGuestIdentityInput input) {
+        String receipt=input==null?null:input.receipt();
+        if(receipt==null||!receipt.matches("[A-Za-z0-9_-]{43}"))
+            throw invalid("Comprovativo inválido");
+        Session session=locked(sessionId);
+        SessionGuestRequest guest=requests.findBySessionIdAndReceiptHash(sessionId,hash(receipt))
+                .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        if(guest.getStatus()!=SessionGuestRequest.State.APPROVED)
+            throw conflict("Apenas uma presença confirmada sem conta pode ser alterada");
+        if(session.getStatus()==SessionStatus.CANCELLED || session.getStatus()==SessionStatus.COMPLETED
+                || session.getGameDate()==null
+                || !session.getGameDate().toInstant().isAfter(Instant.now()))
+            throw conflict("Já não é possível alterar o jogador depois do início");
+
+        boolean selected=input.playerId()!=null;
+        boolean typed=input.newName()!=null && !input.newName().isBlank();
+        if(selected==typed)throw invalid("Escolhe um jogador ou indica um nome novo");
+        Community group=historicalCommunity(session);
+        CommunityPlayer historical=null;
+        String name;
+        if(selected){
+            if(group==null)throw invalid("Esta sessão não tem jogadores históricos");
+            historical=players.findById(input.playerId())
+                    .orElseThrow(()->invalid("Jogador não encontrado"));
+            if(historical.getProfile()!=null || historical.getCommunity()==null
+                    || !group.getId().equals(historical.getCommunity().getId())
+                    || historicalLinkRepository.existsByCommunityIdAndPlayerIdAndStatus(
+                        group.getId(),historical.getId(),"ACCEPTED"))
+                throw invalid("Este jogador já está associado a uma conta");
+            name=historical.getDisplayName();
+        } else {
+            name=clean(input.newName(),80);
+            if(group!=null){
+                String wanted=normalized(name);
+                boolean historicalName=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
+                        .stream().anyMatch(p->normalized(p.getDisplayName()).equals(wanted));
+                if(historicalName)throw invalid("Este nome existe na comunidade. Seleciona-o na lista");
+            }
+        }
+
+        String normalizedName=normalized(name);
+        if(normalizedName.equals(guest.getNormalizedName())
+                && java.util.Objects.equals(historical==null?null:historical.getId(),
+                    guest.getCommunityPlayer()==null?null:guest.getCommunityPlayer().getId()))
+            return new GuestReceipt(receipt,"APPROVED",guest.getDisplayName(),
+                    confirmedMeetingPoint(session,guest.getStatus()));
+        // Unique (session_id, normalized_name) prevents concurrent identity collisions.
+        // A previously cancelled identity is still reserved as an audit row;
+        // it cannot be stolen or overwritten by another guest.
+        SessionGuestRequest other=requests.findBySessionIdAndNormalizedName(sessionId,normalizedName)
+                .orElse(null);
+        if(other!=null && !java.util.Objects.equals(other.getId(),guest.getId()))
+            throw conflict("Este jogador já está associado a outra inscrição nesta sessão");
+
+        guest.setCommunityPlayer(historical);
+        guest.setDisplayName(name);
+        guest.setNormalizedName(normalizedName);
+        // Team balance is no longer valid after replacing a participant identity.
+        if(guest.getTeamCode()!=null){
+            guest.setTeamCode(null);
+            List<SessionParticipant> registered=participants
+                    .findBySessionIdAndStateOrderByJoinedAtAsc(sessionId,ParticipantState.ACTIVE);
+            boolean changed=false;
+            for(SessionParticipant member:registered){
+                if(member.getTeamCode()!=null){member.setTeamCode(null);changed=true;}
+            }
+            if(changed)participants.saveAll(registered);
+            List<SessionGuestRequest> approved=requests
+                    .findBySessionIdAndStatusOrderByCreatedAtAsc(
+                        sessionId,SessionGuestRequest.State.APPROVED);
+            boolean guestChanged=false;
+            for(SessionGuestRequest otherGuest:approved){
+                if(otherGuest.getTeamCode()!=null){
+                    otherGuest.setTeamCode(null);guestChanged=true;
+                }
+            }
+            if(guestChanged)requests.saveAll(approved);
+        }
+        requests.saveAndFlush(guest);
+        // No capacity change; same request ID, same receipt, same confirmed slot.
+        return new GuestReceipt(receipt,"APPROVED",name,confirmedMeetingPoint(session,guest.getStatus()));
+    }
+
     /**
      * A guest may cancel ONLY the reservation proven by its private receipt.
      * A shared invite token and a display name alone never authorize deletion.
