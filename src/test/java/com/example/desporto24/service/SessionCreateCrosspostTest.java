@@ -162,8 +162,6 @@ class SessionCreateCrosspostTest {
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
         when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
-        when(members.findByCommunityIdAndProfileId(11L, 7L))
-                .thenReturn(Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.create(seasonRequest(List.of(11L), 11L, false), "organizer"));
