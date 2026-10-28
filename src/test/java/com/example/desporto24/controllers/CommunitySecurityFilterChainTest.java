@@ -145,6 +145,27 @@ class CommunitySecurityFilterChainTest {
     }
 
     @Test
+    void ownGuestCorrectionsAreAnonymousPostOnlyWhileNameOwnershipIsReceiptChecked() throws Exception {
+        String receipt="r".repeat(43);
+        when(guests.changeGuestIdentity(eq(42L),any())).thenReturn(
+                new com.example.desporto24.service.SessionGuestRequestService.GuestReceipt(
+                        receipt,"APPROVED","Fresco"));
+        when(guests.cancelByReceipt(eq(42L),any())).thenReturn(
+                new com.example.desporto24.service.SessionGuestRequestService.GuestReceipt(
+                        receipt,"CANCELLED","Fresco"));
+        mvc.perform(post("/api/sessions/42/guest-requests/change-player")
+                .contentType("application/json")
+                .content("{\"receipt\":\""+receipt+"\",\"playerId\":null,\"newName\":\"Fresco\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.playerName").value("Fresco"));
+        mvc.perform(post("/api/sessions/42/guest-requests/cancel-self")
+                .contentType("application/json")
+                .content("{\"receipt\":\""+receipt+"\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
+        mvc.perform(get("/api/sessions/42/guest-requests/change-player"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void malformedBearerTokenCannotReachTheController() throws Exception {
         when(tokens.getSubject("malformed-jwt")).thenThrow(new IllegalArgumentException("malformed"));
 
