@@ -45,12 +45,12 @@ final class CommunityRoundEventType {
                     "INLINE_ROAD_LAP_FIRST_ROUND",
                     "INLINE_TRACK_500D_QUARTER_HEAT",
                     "INLINE_TRACK_500D_SEMI_HEAT",
+                    // World Skate 2026 Articles 51.5 / 115: no new Final B.
+                    // Historical Final B rounds remain readable via CommunityInlineSpeedResults.
                     "INLINE_TRACK_500D_FINAL_A",
-                    "INLINE_TRACK_500D_FINAL_B",
                     "INLINE_ROAD_LAP_QUARTER_HEAT",
                     "INLINE_ROAD_LAP_SEMI_HEAT",
-                    "INLINE_ROAD_LAP_FINAL_A",
-                    "INLINE_ROAD_LAP_FINAL_B")),
+                    "INLINE_ROAD_LAP_FINAL_A")),
             Map.entry("Muay Thai", List.of("IFMA_FULL_WP", "IFMA_FULL_KO",
                     "IFMA_FULL_RSCS", "IFMA_FULL_RSCI")),
             Map.entry("Kickboxing", List.of("WAKO_POINT_FIGHTING", "WAKO_LIGHT_CONTACT",

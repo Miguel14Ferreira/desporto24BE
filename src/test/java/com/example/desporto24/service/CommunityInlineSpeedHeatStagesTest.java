@@ -21,7 +21,7 @@ class CommunityInlineSpeedHeatStagesTest {
                 sec == null ? null : new BigDecimal(sec), null, null);
     }
 
-    @Test void supportsEachTrackAndRoadStageWithoutChangingLegacyTimedOptions() {
+    @Test void acceptsCurrentStagesButKeepsHistoricalFinalBReadable() {
         for (String code : List.of(
                 "INLINE_TRACK_500D_QUARTER_HEAT", "INLINE_TRACK_500D_SEMI_HEAT",
                 "INLINE_TRACK_500D_FINAL_A", "INLINE_TRACK_500D_FINAL_B",
@@ -29,7 +29,14 @@ class CommunityInlineSpeedHeatStagesTest {
                 "INLINE_ROAD_LAP_FINAL_A", "INLINE_ROAD_LAP_FINAL_B")) {
             assertTrue(CommunityInlineSpeedResults.isPlacedHeat(code));
             assertTrue(CommunityInlineSpeedResults.isInlineEvent(code));
-            assertEquals(code, CommunityRoundEventType.validate("Patinagem de Velocidade", code));
+            if (code.endsWith("_FINAL_B")) {
+                // Historical rounds still display and validate scores, but 2026 forbids
+                // starting a *new* Final B at either distance (World Skate 51.5).
+                assertThrows(IllegalArgumentException.class, () ->
+                        CommunityRoundEventType.validate("Patinagem de Velocidade", code));
+            } else {
+                assertEquals(code, CommunityRoundEventType.validate("Patinagem de Velocidade", code));
+            }
             assertTrue(CommunityRoundEventType.isRaceEvent("Patinagem de Velocidade", code));
             assertFalse(CommunityRoundEventType.isNeutralEvent("Patinagem de Velocidade", code));
             assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Patinagem de Velocidade", code));
