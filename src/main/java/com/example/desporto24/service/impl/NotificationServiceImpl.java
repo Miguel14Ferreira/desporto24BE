@@ -63,10 +63,12 @@ public class NotificationServiceImpl implements NotificationService {
         List<Notifications> records = notificationsRepository.findByUsername(username);
         if (preferenceService == null) return records;
         var prefs = preferenceService.get(username);
-        if (!prefs.inAppEnabled()) return List.of();
-        if (prefs.disabledInAppTypes().isEmpty()) return records;
-        return records.stream().filter(n -> !prefs.disabledInAppTypes()
-                .contains(com.example.desporto24.service.NotificationPreferencesService.category(n))).toList();
+        if (prefs.inAppEnabled() && prefs.disabledInAppTypes().isEmpty()) return records;
+        return records.stream().filter(n ->
+                com.example.desporto24.service.NotificationPreferencesService.isAccountSecurityAlert(n)
+                || (prefs.inAppEnabled() && !prefs.disabledInAppTypes().contains(
+                        com.example.desporto24.service.NotificationPreferencesService.category(n)))
+        ).toList();
     }
 
     @Override
@@ -77,11 +79,12 @@ public class NotificationServiceImpl implements NotificationService {
         if (prefs.inAppEnabled() && prefs.disabledInAppTypes().isEmpty()) {
             return notificationsRepository.countByUsernameAndReadFalse(username);
         }
-        if (!prefs.inAppEnabled()) return 0;
         return notificationsRepository.findByUsername(username).stream()
-                .filter(n -> !n.isRead() && !prefs.disabledInAppTypes()
-                        .contains(com.example.desporto24.service.NotificationPreferencesService.category(n)))
-                .count();
+                .filter(n -> !n.isRead() && (
+                        com.example.desporto24.service.NotificationPreferencesService.isAccountSecurityAlert(n)
+                        || (prefs.inAppEnabled() && !prefs.disabledInAppTypes().contains(
+                                com.example.desporto24.service.NotificationPreferencesService.category(n)))
+                )).count();
     }
 
     @Override
