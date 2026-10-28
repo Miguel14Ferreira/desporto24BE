@@ -21,11 +21,34 @@ class ThreePavilionsTests(unittest.TestCase):
                           "Freixo de Espada à Cinta"}, {x["city"] for x in rows})
         self.assertTrue(all(x["approvedForImport"] is False for x in rows))
 
-    def test_exact_name_in_district_found_even_when_city_is_parish(self):
+    def test_exact_name_across_district_with_other_city_requires_review(self):
         site = evidence()["sites"][1]
         result = analyze([venue(3, site["name"], city="Parish")], evidence())
-        self.assertEqual("EXACT_NAME_REVIEW", result["results"][1]["status"])
-        self.assertEqual([3], result["results"][1]["exactNameIds"])
+        self.assertEqual("DISTRICT_NAME_COLLISION_REVIEW",
+                         result["results"][1]["status"])
+        self.assertEqual([], result["results"][1]["exactLocalNameIds"])
+        self.assertEqual([3], result["results"][1]["districtOtherCityNameIds"])
+        self.assertFalse(result["results"][1]["approvedForImport"])
+
+    def test_same_name_in_same_city_is_local_exact_review(self):
+        site = evidence()["sites"][1]
+        result = analyze([venue(4, site["name"], city=site["city"])], evidence())
+        self.assertEqual("EXACT_LOCAL_NAME_REVIEW",
+                         result["results"][1]["status"])
+        self.assertEqual([4], result["results"][1]["exactLocalNameIds"])
+
+    def test_missing_district_local_hall_is_not_ignored(self):
+        row = venue(5, "Pavilhão Municipal", city="Vila Flor", district=None)
+        result = analyze([row], evidence())["results"][2]
+        self.assertEqual("LOCAL_PAVILION_ALIAS_REVIEW", result["status"])
+        self.assertEqual(1, result["localPavilionsWithMissingDistrict"])
+        self.assertEqual([5], [v["id"] for v in result["localPavilions"]])
+
+    def test_missing_district_in_other_municipality_is_not_misclassified(self):
+        row = venue(5, "Pavilhão Municipal", city="Mirandela", district=None)
+        result = analyze([row], evidence())["results"][2]
+        self.assertEqual("NO_LOCAL_MATCH_NOT_PROOF_OF_NEW_SITE",
+                         result["status"])
 
     def test_local_pavilion_without_gps_is_reviewed_not_imported(self):
         r = analyze([venue(9, "Pavilhão Municipal")], evidence())["results"][2]
@@ -79,6 +102,12 @@ class ThreePavilionsTests(unittest.TestCase):
             lambda d: d["sites"][0].update(coordinatePrecision="CERTIFIED_ENTRANCE"),
             lambda d: d["sites"][0].update(independentSourceUrl="https://www.canaln.tv.evil.org/x"),
             lambda d: d["sites"][1].update(city=d["sites"][0]["city"]),
+            lambda d: d["sites"][1]["historicalRegulation"].update(
+                samePhysicalBuildingAs2016GuideVerified=True),
+            lambda d: d["sites"][1]["historicalRegulation"].update(
+                currentBookingRulesVerified=True),
+            lambda d: d["sites"][1]["historicalRegulation"].update(
+                sourceUrl="https://www.cm-macedodecavaleiros.pt.evil.org/x"),
         ]
         for f in edits:
             data = evidence()

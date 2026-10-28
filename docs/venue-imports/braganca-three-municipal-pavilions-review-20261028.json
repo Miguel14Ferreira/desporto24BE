@@ -32,7 +32,18 @@
       "district": "Bragança",
       "coordinateSourceUrl": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
       "coordinatePrecision": "2016_GUIDE_FACILITY_SITE_NOT_ENTRANCE",
-      "approvedForImport": false
+      "approvedForImport": false,
+      "historicalRegulation": {
+        "sourceUrl": "https://www.cm-macedodecavaleiros.pt/cmmacedocavaleiros/uploads/document/file/13154/regulamento_municipal_do_pavilhao_desportivo.pdf",
+        "sourceType": "HISTORICAL_MUNICIPAL_REGULATION_DATE_NOT_VERIFIED",
+        "regulatedVenueName": "Pavilhão Desportivo de Macedo de Cavaleiros",
+        "describedLocation": "School complex of Macedo de Cavaleiros",
+        "currentApplicabilityVerified": false,
+        "samePhysicalBuildingAs2016GuideVerified": false,
+        "priorWrittenAuthorizationSpecified": true,
+        "currentBookingRulesVerified": false,
+        "currentAvailabilityVerified": false
+      }
     },
     {
       "name": "Pavilhão Gimnodesportivo Municipal de Vila Flor",
@@ -54,6 +65,7 @@
     "Contemporary activity reports corroborate Freixo and Macedo facilities but do not certify 2026 arrival entrances or availability.",
     "Vila Flor school page is undated; no 2026 use claim is made.",
     "No historical GPS has been approved as a player navigation pin.",
-    "A public catalogue result cannot replace an authorized SQL preflight, licensing, municipal access check or rollback."
+    "A public catalogue result cannot replace an authorized SQL preflight, licensing, municipal access check or rollback.",
+    "The Macedo municipal regulation refers to a school-complex sports hall; equivalence to the 2016 guide venue and current legal applicability are not proven."
   ]
 }

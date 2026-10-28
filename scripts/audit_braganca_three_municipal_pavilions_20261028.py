@@ -64,6 +64,23 @@ def validate(data):
                 or not valid_gps(v.get("latitude"), v.get("longitude"))
                 or not _safe_https(v.get("independentSourceUrl"))):
             raise ValueError("Unverified identity, historic GPS or source")
+        if city == "Macedo de Cavaleiros":
+            reg = v.get("historicalRegulation")
+            if (not isinstance(reg, dict)
+                    or not _safe_https(reg.get("sourceUrl"),
+                         "www.cm-macedodecavaleiros.pt")
+                    or reg.get("sourceType") != "HISTORICAL_MUNICIPAL_REGULATION_DATE_NOT_VERIFIED"
+                    or reg.get("regulatedVenueName") !=
+                    "Pavilhão Desportivo de Macedo de Cavaleiros"
+                    or reg.get("describedLocation") !=
+                    "School complex of Macedo de Cavaleiros"
+                    or reg.get("priorWrittenAuthorizationSpecified") is not True
+                    or any(reg.get(key) is not False for key in (
+                        "currentApplicabilityVerified",
+                        "samePhysicalBuildingAs2016GuideVerified",
+                        "currentBookingRulesVerified",
+                        "currentAvailabilityVerified"))):
+                raise ValueError("Historical municipal access limits are unverified")
         if city == "Vila Flor":
             if (v.get("independentSourceDate") is not None
                     or v.get("evidenceKind") != "SCHOOL_MUNICIPAL_USE_PAGE_UNDATED"):
@@ -79,17 +96,31 @@ def analyze(catalogue, manifest):
     sites = validate(manifest)
     results = []
     for site in sites:
-        district_rows = [v for v in catalogue
-                         if fold(v.get("district")) == "braganca"]
-        exact = [v for v in district_rows
-                 if fold(v.get("name")) == fold(site["name"])]
+        # District may be empty in older rows. Only include an unclassified
+        # row when its city explicitly agrees with the reviewed municipality.
+        district_rows = [
+            v for v in catalogue
+            if fold(v.get("district")) == "braganca"
+            or (not fold(v.get("district"))
+                and fold(v.get("city")) == fold(site["city"]))
+        ]
+        local = [v for v in district_rows
+                 if fold(v.get("city")) == fold(site["city"])]
+        # A district-wide identical name might refer to another municipality
+        # or to a parish label. Record it, but never claim local identity.
+        exact_local = [v for v in local
+                       if fold(v.get("name")) == fold(site["name"])]
+        district_name_other_city = [
+            v for v in district_rows if v not in local
+            and fold(v.get("name")) == fold(site["name"])]
+        local_named = [
+            v for v in local
+            if any(part in fold(v.get("name"))
+                   for part in ("pavilh", "gimnodesport", "polidesport"))
+        ]
+        missing_district = sum(not fold(v.get("district")) for v in local_named)
         near = []
-        local_named = []
         for v in district_rows:
-            if fold(v.get("city")) == fold(site["city"]):
-                name = fold(v.get("name"))
-                if any(x in name for x in ("pavilh", "gimnodesport", "polidesport")):
-                    local_named.append(v)
             lat, lon = v.get("latitude"), v.get("longitude")
             if valid_gps(lat, lon):
                 meters = distance_m(site["latitude"], site["longitude"], lat, lon)
@@ -97,23 +128,31 @@ def analyze(catalogue, manifest):
                     near.append((round(meters, 1), v))
         local_named.sort(key=lambda v: v["id"])
         near.sort(key=lambda pair: (pair[0], pair[1]["id"]))
-        status = ("EXACT_NAME_REVIEW" if exact
+        status = ("EXACT_LOCAL_NAME_REVIEW" if exact_local
                   else "LOCAL_PAVILION_ALIAS_REVIEW" if local_named
+                  else "DISTRICT_NAME_COLLISION_REVIEW" if district_name_other_city
                   else "NEARBY_FACILITIES_REVIEW" if near
                   else "NO_LOCAL_MATCH_NOT_PROOF_OF_NEW_SITE")
         results.append({
             "candidate": site["name"], "city": site["city"], "district": "Bragança",
             "status": status,
-            "exactNameIds": sorted(v["id"] for v in exact)[:MAX_RESULTS],
+            "exactLocalNameIds": sorted(v["id"] for v in exact_local)[:MAX_RESULTS],
+            "districtOtherCityNameCount": len(district_name_other_city),
+            "districtOtherCityNameIds": sorted(
+                v["id"] for v in district_name_other_city)[:MAX_RESULTS],
             "localPavilionCount": len(local_named),
+            "localPavilionsWithMissingDistrict": missing_district,
             "localPavilions": [{"id": v["id"], "name": str(v.get("name") or "")}
                                for v in local_named[:MAX_RESULTS]],
             "nearbyCount": len(near),
             "nearby": [{"id": v["id"], "name": str(v.get("name") or ""),
                         "distanceFromHistoricalSiteMeters": meters}
                        for meters, v in near[:MAX_RESULTS]],
-            "resultsTruncated": (len(local_named) > MAX_RESULTS or
-                                  len(near) > MAX_RESULTS or len(exact) > MAX_RESULTS),
+            "resultsTruncated": (
+                len(local_named) > MAX_RESULTS
+                or len(near) > MAX_RESULTS
+                or len(exact_local) > MAX_RESULTS
+                or len(district_name_other_city) > MAX_RESULTS),
             "historicalCoordinateSource": GUIDE,
             "sourcePrecision": "2016_GUIDE_FACILITY_SITE_NOT_ENTRANCE",
             "approvedForImport": False,
@@ -122,6 +161,8 @@ def analyze(catalogue, manifest):
             "results": results, "approvedCount": 0, "writeActions": 0,
             "warnings": ["Historic guide site coordinates are not certified entrances.",
                          "Nearby venues and aliases require human inspection.",
+                         "Matching names in another town are review leads, never confirmed identities.",
+                         "Missing district is accepted only for the same named municipality.",
                          "No individual GPS, street address or contact is exported.",
                          "No import or production database access has been authorized."]}
 
