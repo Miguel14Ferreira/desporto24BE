@@ -132,7 +132,7 @@ class CommunitySecurityFilterChainTest {
         // anonymous request crossed the real security filter, unlike 403.
         mvc.perform(post("/api/sessions/42/guest-confirmed-players")
                 .contentType("application/json")
-                .content("{\\"token\\":\\"signed-invite\\"}"))
+                .content("{\"token\":\"signed-invite\"}"))
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/sessions/42/guest-confirmed-players"))
                 .andExpect(status().isForbidden());
