@@ -27,8 +27,28 @@ public record CommunityResponse(
         Double photoFocusY,
         String photoFitMode,
         Long defaultVenueId,
-        String defaultVenueName
+        String defaultVenueName,
+        String habitualLocationSource,
+        Double habitualLatitude,
+        Double habitualLongitude,
+        String habitualCity,
+        String habitualAddress
 ) {
+    // Existing full 21-field constructions remain source-compatible.
+    public CommunityResponse(Long id, String name, String description, String sport,
+                             String photoUrl, CommunityVisibility visibility,
+                             boolean rankingsEnabled, String ownerUsername,
+                             CommunityRole myRole, int memberCount, Instant createdAt,
+                             List<CommunityMemberResponse> members, List<String> sports,
+                             boolean individualTournamentsEnabled, boolean teamTournamentsEnabled,
+                             Double photoZoom, Double photoFocusX, Double photoFocusY,
+                             String photoFitMode, Long defaultVenueId, String defaultVenueName) {
+        this(id, name, description, sport, photoUrl, visibility, rankingsEnabled,
+                ownerUsername, myRole, memberCount, createdAt, members, sports,
+                individualTournamentsEnabled, teamTournamentsEnabled,
+                photoZoom, photoFocusX, photoFocusY, photoFitMode,
+                defaultVenueId, defaultVenueName, null, null, null, null, null);
+    }
     // Keep old response factories and tests source-compatible.
     public CommunityResponse(Long id, String name, String description, String sport,
                              String photoUrl, CommunityVisibility visibility,
