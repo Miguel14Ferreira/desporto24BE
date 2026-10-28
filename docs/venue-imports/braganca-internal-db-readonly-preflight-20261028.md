@@ -74,3 +74,24 @@ Antes de qualquer ativação, a CI verifica em PostgreSQL 16 efémero:
 O ambiente de teste é descartável e não usa qualquer ligação a Render
 ou base de dados de produção. O teste não autoriza publicação,
 deduplicação automática nem GPS de chegada.
+
+## Segurança de relatórios incompletos — 28/10/2026
+
+O PR seguinte aperfeiçoa o contrato dos logs privados:
+**nenhum ID nem resumo é emitido enquanto a leitura não estiver
+completa, o rollback não tiver terminado e a ligação não tiver
+sido fechada sem erro**. O probe guarda no máximo 100 IDs públicos
+temporariamente em memória e recusa IDs duplicados ou inválidos.
+Caso apareça o 101.º resultado ou haja falha na transação,
+a execução é considerada inconclusiva, sem linhas parciais.
+
+Uma execução bem-sucedida termina com
+`JYNLO_BRAGANCA_PREFLIGHT_SUMMARY ... complete=true ... entries_approved=0`.
+A palavra `complete` apenas significa que a consulta foi lida e a
+transação foi revertida; **nunca** é aprovação de qualquer recinto.
+
+Testes automatizados capturam os próprios logs e verificam:
+ordem de publicação após rollback e fecho da ligação,
+ausência de relatório quando há 101 correspondências,
+falha de rollback ou identificador duplicado.
+O mecanismo continua desligado por defeito.
