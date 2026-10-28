@@ -121,7 +121,9 @@ class AccountLockRecoveryHttpJpaTest {
                 mock(RefreshOriginValidator.class), mock(RefreshTokenRotationService.class),
                 jwt, mock(GoogleAuthenticationService.class));
         http = MockMvcBuilders.standaloneSetup(
-                new NotificationController(notificationService, mock(NotificationPreferencesService.class)),
+                new NotificationController(notificationService, mock(NotificationPreferencesService.class),
+                        mock(ConversationNotificationMuteService.class), mock(InboxSummaryService.class),
+                        mock(PrivateGroupService.class)),
                 authController).build();
     }
 

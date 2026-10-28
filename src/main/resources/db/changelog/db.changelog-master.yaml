@@ -289,3 +289,5 @@ databaseChangeLog:
   # Allow in-app alerts when the organizer changes private arrival instructions.
   - include:
       file: db/changelog/changes/2026-10-28-session-meeting-point-notification-type.yaml
+  - include:
+      file: db/changelog/changes/2026-10-28-conversation-notification-mutes.yaml
