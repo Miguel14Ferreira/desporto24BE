@@ -38,6 +38,31 @@ copiar para produção. Um resultado vazio não significa que não exista
 um recinto (pode estar sem GPS ou com nome distinto). O relatório
 não copia dados de contacto, endereço ou GPS de registos Jynlo.
 
+## Resultado da medição LIVE — 28/10/2026, 10:38 UTC
+
+GitHub Actions do PR #501, auditoria pública de **3614** registos;
+testes Python 7/7 e GitGuardian aprovados.
+
+O ponto independente do **conjunto** Arnaldo Pereira / piscinas localiza,
+dentro do raio exploratório de 250 metros, os seguintes recintos Jynlo:
+
+| Recinto existente | ID Jynlo | Distância aproximada |
+| --- | ---: | ---: |
+| Piscinas Municipais | 1141 | 24,9 m |
+| Piscinas do Clube Académico | 1140 | 155,1 m |
+| Estádio Municipal de Bragança | 1139 | 158,8 m |
+
+Nenhum recinto no distrito tem o **nome exatamente igual** a
+`Pavilhão Municipal Arnaldo Pereira` nesta fotografia do catálogo.
+Isto **não significa** que esteja ausente sob outro nome ou sem GPS.
+A piscina municipal (ID 1141) é uma instalação diferente do pavilhão;
+nunca fazer merge ou copiar o ponto geográfico da piscina para o
+pavilhão. O estádio vizinho é um terceiro local diferente, e a pista
+de atletismo do mesmo complexo pode não ser um recinto independente.
+
+Esta observação reduz os riscos de duplicados e permite priorizar a
+identificação do pavilhão numa revisão manual. Não aprova inserção.
+
 ## Outros candidatos de Bragança
 
 - Pavilhão da Coxa: Rua Padre Benjamim Videira Pires, conforme
