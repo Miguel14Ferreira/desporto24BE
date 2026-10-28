@@ -19,8 +19,9 @@ public class DirectCallController {
     public record StartRequest(@NotBlank String media) {}
 
     @GetMapping("/availability")
-    public java.util.Map<String, Boolean> availability() {
-        return java.util.Map.of("enabled", service.available());
+    public java.util.Map<String, Object> availability() {
+        String status = service.providerStatus();
+        return java.util.Map.of("enabled", "ready".equals(status), "status", status);
     }
 
     /** Allows the recipient to recover a missed RINGING WebSocket event. */
