@@ -162,13 +162,42 @@ public class SessionGuestRequestService {
         return new GuestReceipt(receipt,request.getStatus().name());
     }
 
-    @Transactional(readOnly=true)
+    @Transactional
     public GuestReceipt status(Long sessionId,ReceiptInput input) {
         String receipt=input==null?null:input.receipt();
         if(receipt==null||!receipt.matches("[A-Za-z0-9_-]{43}"))
             throw invalid("Comprovativo inválido");
-        SessionGuestRequest request=requests.findBySessionIdAndReceiptHash(sessionId,hash(receipt))
+        String digest=hash(receipt);
+        SessionGuestRequest request=requests.findBySessionIdAndReceiptHash(sessionId,digest)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+        // Bring pre-release pending receipts into the new instant-confirmation flow,
+        // but never overbook or override explicit cancellation/rejection.
+        if(request.getStatus()==SessionGuestRequest.State.PENDING){
+            Session session=locked(sessionId);
+            request=requests.findBySessionIdAndReceiptHash(sessionId,digest)
+                    .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Pedido não encontrado"));
+            Instant now=Instant.now();
+            if(request.getStatus()==SessionGuestRequest.State.PENDING
+                    && session.getGameDate()!=null && session.getGameDate().toInstant().isAfter(now)
+                    && session.getStatus()!=SessionStatus.CANCELLED
+                    && session.getStatus()!=SessionStatus.COMPLETED
+                    && (session.getStatus()==SessionStatus.OPEN || session.getStatus()==SessionStatus.FULL)
+                    && SessionRegistrationOpening.isOpen(session,now)){
+                long active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
+                if(SessionCapacity.remainingPlaces(session,active)>0){
+                    int external=session.getExternalConfirmedParticipants()==null?0:
+                            session.getExternalConfirmedParticipants();
+                    request.setStatus(SessionGuestRequest.State.APPROVED);
+                    request.setReviewedAt(now);
+                    requests.save(request);
+                    session.setExternalConfirmedParticipants(external+1);
+                    session.setUpdatedAt(now);
+                    session.setStatus(SessionCapacity.remainingPlaces(session,active)==0
+                            ?SessionStatus.FULL:SessionStatus.OPEN);
+                    sessions.save(session);
+                }
+            }
+        }
         return new GuestReceipt(receipt,request.getStatus().name());
     }
 
