@@ -149,6 +149,64 @@ jobs:
             END IF;
           END $$;
           SQL
+      - name: Legacy pre-2015 municipal pavilion name WITHOUT GPS blocks duplication
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql=src/main/resources/db/changelog/venue-imports/drafts/2026-10-28-braganca-two-pavilions-OPT-IN.sql
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE desporto24.venue RESTART IDENTITY;
+          INSERT INTO desporto24.venue
+            (name,city,district,address,information_source,contact,latitude,longitude,created_at)
+          VALUES
+            ('Pavilhão Municipal','Bragança','Bragança',NULL,
+             'COMMUNITY','KEEP-RENAMED-PAVILION',41.805258,-6.769586,NOW()),
+            ('Pavilhão da Bancada','Bragança','Bragança','Estádio Municipal',
+             'COMMUNITY','KEEP-DISTINCT-BANCADA',NULL,NULL,NOW()),
+            ('Pavilhão da Coxa','Sé','Bragança','Bairro da Coxa',
+             'COMMUNITY','KEEP-COXA',NULL,NULL,NOW());
+          SQL
+          psql -X -v ON_ERROR_STOP=1 -f "$sql"
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.venue) <> 3
+             OR (SELECT COUNT(*) FROM desporto24.venue
+                 WHERE contact LIKE 'KEEP-%') <> 3 THEN
+              RAISE EXCEPTION 'Legacy renamed pavilion or Coxa must not be duplicated, Bancada preserved';
+            END IF;
+          END $;
+          SQL
+          echo 'PASS: historical municipal name and independent Bancada safely preserved'
+      - name: Legacy pavilion without any GPS is still protected
+        shell: bash
+        run: |
+          set -euo pipefail
+          sql=src/main/resources/db/changelog/venue-imports/drafts/2026-10-28-braganca-two-pavilions-OPT-IN.sql
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE desporto24.venue RESTART IDENTITY;
+          INSERT INTO desporto24.venue
+            (name,city,district,address,information_source,contact,latitude,longitude,created_at)
+          VALUES
+            ('Pavilhão Municipal','Bragança','Bragança','Recinto sem coordenadas',
+             'COMMUNITY','KEEP-WITHOUT-GPS',NULL,NULL,NOW());
+          SQL
+          psql -X -v ON_ERROR_STOP=1 -f "$sql"
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $
+          BEGIN
+            IF (SELECT COUNT(*) FROM desporto24.venue) <> 2
+             OR (SELECT COUNT(*) FROM desporto24.venue
+                 WHERE contact='KEEP-WITHOUT-GPS') <> 1
+             OR (SELECT COUNT(*) FROM desporto24.venue
+                 WHERE source_reference='JYNLO:OFFICIAL:BRAGANCA:ARNALDO-PEREIRA') <> 0
+             OR (SELECT COUNT(*) FROM desporto24.venue
+                 WHERE source_reference='JYNLO:OFFICIAL:BRAGANCA:COXA') <> 1 THEN
+               RAISE EXCEPTION 'Must block Arnaldo duplicate without GPS but allow distinct Coxa';
+            END IF;
+          END $;
+          SQL
+          echo 'PASS: no-GPS historic alias blocks Arnaldo alone'
       - name: Existing venue aliases must block inserts, preserving community rows
         shell: bash
         run: |

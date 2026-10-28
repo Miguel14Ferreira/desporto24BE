@@ -15,7 +15,13 @@
       "sportsContextSource": "https://estrelasbrigantinas.com/contactos",
       "addressNote": "Rua Dom Sancho I 2A, 5300-263 Bragança (architectural record); postal variants require review",
       "warning": "Architectural study associates point with pavilion and swimming pool complex. Historical municipality emergency plan displays inconsistent latitude (41.569643): do not copy municipal value without checking source.",
-      "approvedForImport": false
+      "approvedForImport": false,
+      "historicalName": "Pavilhão Municipal",
+      "municipalRenamingSource": "https://www.cm-braganca.pt/uploads/writer_file/document/3277/Diploma_de_homenagem_Arnaldo_Pereira.pdf",
+      "secondaryCoordinateRaw": "41805258, -6769586",
+      "secondaryCoordinateInterpretation": "UNVERIFIED_POSSIBLE_DECIMAL_41.805258_-6.769586",
+      "secondaryCoordinateSource": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
+      "secondaryPointDistanceMetersApprox": 66.6
     },
     {
       "name": "Pavilhão Polidesportivo da Coxa",
@@ -29,11 +35,15 @@
       "sportsContextSource": "https://estrelasbrigantinas.com/contactos",
       "addressNote": "Bairro da Coxa / Rua Padre Benjamim Videira Pires, Bragança; verify number and public entrance",
       "warning": "Construction company site point corroborates municipality listed facility, but does not establish the entrance or booking availability.",
-      "approvedForImport": false
+      "approvedForImport": false,
+      "recentCompetitionSource": "https://santosmartires.pt/desporto-inclusivo-hoquei-di/",
+      "recentCompetitionDate": "2026-10-15"
     }
   ],
   "notes": [
     "Two different municipal sports halls; the neighbouring swimming pools and stadium are separate facilities.",
-    "No insertion, update, publication or GPS correction authorized."
+    "No insertion, update, publication or GPS correction authorized.",
+    "Arnaldo Pereira was previously named Pavilhão Municipal; older unspecific names without GPS must be checked before any insert.",
+    "Arnaldo secondary municipal-guide coordinate is unverified decimal interpretation, not a certified entrance."
   ]
 }

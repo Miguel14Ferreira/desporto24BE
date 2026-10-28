@@ -21,6 +21,19 @@ WHERE NOT EXISTS (
  WHERE v.source_reference='JYNLO:OFFICIAL:BRAGANCA:ARNALDO-PEREIRA'
  OR (LOWER(BTRIM(COALESCE(v.district,'')))=LOWER('Bragança')
    AND (LOWER(COALESCE(v.name,'')) LIKE '%arnaldo pereira%'
+   -- The municipality RENAMED the old "Pavilhão Municipal" on 2015-02-09.
+   -- Without this check, a legacy COMMUNITY row without GPS would be duplicated.
+   OR (LOWER(BTRIM(COALESCE(v.name,''))) IN
+         ('pavilhão municipal', 'pavilhao municipal',
+          'pavilhão municipal de bragança', 'pavilhao municipal de braganca',
+          'pavilhão gimnodesportivo', 'pavilhao gimnodesportivo',
+          'pavilhão gimnodesportivo de bragança',
+          'pavilhao gimnodesportivo de braganca')
+       AND (LOWER(BTRIM(COALESCE(v.city,''))) IN
+          ('bragança', 'braganca', 'sé', 'se', 'santa maria', 'meixedo',
+           'união das freguesias de sé, santa maria e meixedo')
+         OR LOWER(COALESCE(v.address,'')) LIKE '%sancho i%'
+         OR LOWER(COALESCE(v.address,'')) LIKE '%zona desportiva%'))
    OR (v.latitude IS NOT NULL AND v.longitude IS NOT NULL
      AND ABS(v.latitude-41.804841855561804)<=0.0006
      AND ABS(v.longitude-(-6.770163826983646))<=0.00075

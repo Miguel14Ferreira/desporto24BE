@@ -41,3 +41,36 @@ Segurança do DRAFT:
 - Antes de qualquer execução: identidade final, GPS de acesso, revisão
   das fontes/licenças, read-only preflight autorizado e backup/restore
   validado. Autorizar especificamente a escrita e publicação depois.
+
+## Correção de identidade histórica (28/10/2026)
+
+A Câmara Municipal deliberou **em 9 de fevereiro de 2015** dar o nome
+Arnaldo Pereira ao antigo **Pavilhão Municipal**, pelo que o nome
+antigo não pode ser tratado como um recinto novo. Fonte oficial:
+https://www.cm-braganca.pt/uploads/writer_file/document/3277/Diploma_de_homenagem_Arnaldo_Pereira.pdf
+
+O pré-voo SQL e a minuta agora verificam os aliases de nome mais comuns
+(`Pavilhão Municipal`, `Pavilhão Municipal de Bragança` e
+`Pavilhão Gimnodesportivo`), circunscritos à cidade, freguesias
+correspondentes ou rua/zona desportiva, **mesmo sem GPS**. Este bloqueio
+não se aplica ao `Pavilhão da Bancada`, ao estádio nem às piscinas,
+que são outras instalações municipais.
+
+O **Guia das Acessibilidades dos Espaços Desportivos do Distrito de
+Bragança**, disponível no site municipal de Vila Flor, publica para
+Arnaldo Pereira os algarismos `41805258, -6769586`, que poderiam
+corresponder a `41.805258, -6.769586` se decimalizados. A interpretação
+é **não validada** e fica apenas como evidência secundária para revisão.
+O ponto do estudo Arquitectura Aqui fica a ~66,6 metros deste valor
+interpretado. Não alterar automaticamente o GPS do rascunho nem
+apresentar qualquer desses valores como **entrada verificada**.
+Fonte: https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf
+
+O Pavilhão Polidesportivo da Coxa acolheu o Torneio Regional da
+Castanha de Hóquei DI em **15 de outubro de 2026**, confirmando uso
+recente mas **não livre disponibilidade** para reserva. Fontes:
+https://jornalnordeste.com/noticias/braganca-recebe-7-torneio-regional-da-castanha-de-hoque-di
+https://santosmartires.pt/desporto-inclusivo-hoquei-di/
+
+As fontes da identidade, GPS de sítio e da atividade são diferentes;
+nenhuma autoriza lançar uma entrada GPS individual sem revisão.
