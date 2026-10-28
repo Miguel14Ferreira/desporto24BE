@@ -106,15 +106,21 @@ public class DirectCallService {
         Instant now = Instant.now();
         if (now.isBefore(providerCheckedAt.plus(PROVIDER_CACHE))) return providerState;
         String result;
+        int httpStatus = -1;
         try {
-            int status = probeProvider();
-            result = status == 200 ? "ready"
-                    : (status == 401 || status == 403) ? "invalidCredentials"
+            httpStatus = probeProvider();
+            result = httpStatus == 200 ? "ready"
+                    : httpStatus == 401 ? "invalidCredentials"
+                    : httpStatus == 403 ? "insufficientPermissions"
                     : "providerUnavailable";
         } catch (Exception e) {
             result = "providerUnavailable";
         }
-        if (!result.equals(providerState)) log.warn("LiveKit calling readiness: {}", result);
+        // The numeric HTTP status is sufficient to distinguish invalid
+        // authentication from insufficient permission. Never log the URL,
+        // token, key, secret, participant or response body.
+        if (!result.equals(providerState) || httpStatus != 200)
+            log.warn("LiveKit provider probe outcome={} httpStatus={}", result, httpStatus);
         providerState = result;
         providerCheckedAt = now;
         return result;
