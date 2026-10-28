@@ -92,10 +92,16 @@ public class ChatServiceImpl implements ChatService {
         return chat;
     }
 
+    /** The chat keeps its original GIF envelope. Alerts only store a safe summary. */
+    static String notificationPreview(String message) {
+        return message != null && message.startsWith("[JYNLO:GIPHY:1]")
+                ? "🎞️ GIF" : message;
+    }
+
     private void createChatNotification(Chat chat) {
         Notifications notification = new Notifications();
         notification.setSubject("Nova mensagem de " + chat.getUsername1());
-        notification.setMessage(chat.getText());
+        notification.setMessage(notificationPreview(chat.getText()));
         notification.setGreeting("");
         notification.setSignature("");
         notification.setCreatedAt(Instant.now().toString());
