@@ -1,0 +1,39 @@
+{
+  "reviewedAt": "2026-10-28",
+  "status": "SITE_POINTS_REQUIRE_DEDUP_AND_GPS_ENTRANCE_REVIEW",
+  "approvedForImport": false,
+  "venues": [
+    {
+      "name": "Pavilhão Municipal Arnaldo Pereira",
+      "city": "Bragança",
+      "district": "Bragança",
+      "latitude": 41.804841855561804,
+      "longitude": -6.770163826983646,
+      "precision": "ARCHITECTURAL_COMPLEX_POINT_NOT_ENTRANCE",
+      "coordinateSource": "https://arquitecturaaqui.eu/pt/obras/4824/pavilhao-municipal-arnaldo-pereira-braganca",
+      "officialIdentitySource": "https://diariodarepublica.pt/dr/detalhe/anuncio-procedimento/19668-2024-888585905",
+      "sportsContextSource": "https://estrelasbrigantinas.com/contactos",
+      "addressNote": "Rua Dom Sancho I 2A, 5300-263 Bragança (architectural record); postal variants require review",
+      "warning": "Architectural study associates point with pavilion and swimming pool complex. Historical municipality emergency plan displays inconsistent latitude (41.569643): do not copy municipal value without checking source.",
+      "approvedForImport": false
+    },
+    {
+      "name": "Pavilhão Polidesportivo da Coxa",
+      "city": "Bragança",
+      "district": "Bragança",
+      "latitude": 41.801816342807,
+      "longitude": -6.7712549306452,
+      "precision": "CONTRACTOR_DOCUMENTED_BUILDING_SITE_NOT_ENTRANCE",
+      "coordinateSource": "https://www.alnconstrucoes.com/obras/2019/pavilhao-polidesportivo-da-coxa-braganca",
+      "officialIdentitySource": "https://diariodarepublica.pt/dr/detalhe/anuncio-procedimento/19668-2024-888585905",
+      "sportsContextSource": "https://estrelasbrigantinas.com/contactos",
+      "addressNote": "Bairro da Coxa / Rua Padre Benjamim Videira Pires, Bragança; verify number and public entrance",
+      "warning": "Construction company site point corroborates municipality listed facility, but does not establish the entrance or booking availability.",
+      "approvedForImport": false
+    }
+  ],
+  "notes": [
+    "Two different municipal sports halls; the neighbouring swimming pools and stadium are separate facilities.",
+    "No insertion, update, publication or GPS correction authorized."
+  ]
+}
