@@ -327,6 +327,65 @@ class SessionGuestRequestServiceTest {
         verifyNoInteractions(historicalLinks);
         verify(participants,never()).saveAndFlush(any());
     }
+    @Test void changingMyConfirmedNameKeepsSameReceiptSameSeatEvenWhenGameIsFull(){
+        String secret=token();
+        var original=new SessionGuestRequest();
+        original.setId(90L);original.setSession(session);
+        original.setDisplayName("Barata");original.setNormalizedName("barata");
+        original.setStatus(SessionGuestRequest.State.APPROVED);
+        var player=historic();player.setDisplayName("Fresco");player.setNormalizedName("fresco");
+        when(players.findById(15L)).thenReturn(Optional.of(player));
+        String receipt="M".repeat(43);
+        String digest;
+        try{digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(original));
+        when(requests.findBySessionIdAndNormalizedName(7L,"fresco")).thenReturn(Optional.empty());
+        session.setExternalConfirmedParticipants(9);
+        when(participants.countBySessionIdAndState(7L,ParticipantState.ACTIVE)).thenReturn(1L);
+        session.setStatus(SessionStatus.FULL);
+        var result=service.changeGuestIdentity(7L,
+                new SessionGuestRequestService.ChangeGuestIdentityInput(receipt,15L,null));
+        assertEquals("APPROVED",result.status());
+        assertEquals("Fresco",result.playerName());
+        assertEquals(receipt,result.receipt());
+        assertEquals("Fresco",original.getDisplayName());
+        assertEquals("fresco",original.getNormalizedName());
+        assertEquals(SessionGuestRequest.State.APPROVED,original.getStatus());
+        assertEquals(9,session.getExternalConfirmedParticipants());
+        assertEquals(SessionStatus.FULL,session.getStatus());
+        verify(requests).saveAndFlush(same(original));
+        verify(sessions,never()).save(any(Session.class));
+        verifyNoInteractions(waitlistPromotionService);
+        assertThrows(ResponseStatusException.class,()->service.changeGuestIdentity(7L,
+            new SessionGuestRequestService.ChangeGuestIdentityInput("invalid",null,"Intruso")));
+    }
+
+    @Test void cannotChangeMyBookingToAnotherConfirmedNameOrLinkedProfile(){
+        token();
+        var owner=new SessionGuestRequest();
+        owner.setId(91L);owner.setSession(session);
+        owner.setNormalizedName("barata");owner.setStatus(SessionGuestRequest.State.APPROVED);
+        var other=new SessionGuestRequest();other.setId(92L);
+        other.setNormalizedName("fresco");other.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findBySessionIdAndNormalizedName(7L,"fresco")).thenReturn(Optional.of(other));
+        String receipt="N".repeat(43);
+        String digest;
+        try{digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(owner));
+        assertThrows(ResponseStatusException.class,()->service.changeGuestIdentity(7L,
+                new SessionGuestRequestService.ChangeGuestIdentityInput(receipt,null,"Fresco")));
+        var linked=historic();linked.setProfile(organizer);
+        when(players.findById(15L)).thenReturn(Optional.of(linked));
+        assertThrows(ResponseStatusException.class,()->service.changeGuestIdentity(7L,
+                new SessionGuestRequestService.ChangeGuestIdentityInput(receipt,15L,null)));
+        assertEquals("barata",owner.getNormalizedName());
+        verify(requests,never()).saveAndFlush(any());
+    }
+
     @Test void guestMayCancelOwnReceiptOnceAndFreeSeatWithoutAccount(){
         String secret=token();
         var original=new SessionGuestRequest();
