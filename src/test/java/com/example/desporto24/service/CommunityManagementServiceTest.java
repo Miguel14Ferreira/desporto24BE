@@ -106,6 +106,87 @@ class CommunityManagementServiceTest {
     }
 
     @Test
+    void adminCanSaveMapsAndGpsPointsAndSwitchBackToExistingVenue() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        var venues = mock(com.example.desporto24.repository.venue.VenueRepository.class);
+        Profile owner = new Profile();
+        owner.setId(8L);
+        owner.setUsername("owner");
+        Community community = Community.builder().id(9L).owner(owner)
+                .name("Grupo").build();
+        CommunityMember membership = CommunityMember.builder().community(community)
+                .profile(owner).role(CommunityRole.OWNER).build();
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(9L, 8L)).thenReturn(Optional.of(membership));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(9L)).thenReturn(List.of(membership));
+        when(communities.save(community)).thenReturn(community);
+        var venue = new com.example.desporto24.model.venue.Venue();
+        venue.setId(55L);
+        venue.setName("Pavilhão");
+        when(venues.findById(55L)).thenReturn(Optional.of(venue));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "venueRepository", venues);
+
+        var maps = service.updateHabitualLocation(9L, "owner",
+                "MAPS", 38.7, -9.2, "Lisboa", "Rua Teste");
+        assertEquals("MAPS", maps.habitualLocationSource());
+        assertEquals(38.7, maps.habitualLatitude());
+        assertEquals(-9.2, maps.habitualLongitude());
+        assertEquals(null, maps.defaultVenueId());
+
+        var gps = service.updateHabitualLocation(9L, "owner",
+                "GPS", 38.71, -9.21, null, null);
+        assertEquals("GPS", gps.habitualLocationSource());
+        assertEquals(null, gps.habitualAddress());
+        assertEquals(38.71, community.getHabitualLatitude());
+
+        var updated = service.updateDefaultVenue(9L, "owner", 55L);
+        assertEquals(55L, updated.defaultVenueId());
+        assertEquals(null, updated.habitualLocationSource());
+        assertEquals(null, community.getHabitualLatitude());
+        verify(communities, times(3)).save(community);
+    }
+
+    @Test
+    void rejectsInvalidHabitualCoordinatesAndUnauthorizedMembers() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        var owner = new Profile(); owner.setId(8L); owner.setUsername("owner");
+        var member = new Profile(); member.setId(10L); member.setUsername("member");
+        Community group = Community.builder().id(9L).owner(owner).build();
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(members.findByCommunityIdAndProfileId(9L, 8L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(owner)
+                        .role(CommunityRole.OWNER).build()));
+        when(members.findByCommunityIdAndProfileId(9L, 10L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(member)
+                        .role(CommunityRole.MEMBER).build()));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateHabitualLocation(9L, "owner", "MAPS",
+                        Double.NaN, -9.2, "Lisboa", "Rua"));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateHabitualLocation(9L, "owner", "MAPS",
+                        91.0, -9.2, "Lisboa", "Rua"));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateHabitualLocation(9L, "owner", "OTHER",
+                        38.7, -9.2, "Lisboa", "Rua"));
+        assertThrows(SecurityException.class, () ->
+                service.updateHabitualLocation(9L, "member", "GPS",
+                        38.7, -9.2, "Lisboa", "Rua"));
+        verify(communities, never()).save(any());
+    }
+
+    @Test
     void aRegularMemberCannotChangeHabitualVenue() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);

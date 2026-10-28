@@ -278,3 +278,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-27-private-group-photo.yaml
   - include:
       file: db/changelog/changes/2026-10-28-session-season-game.yaml
+  - include:
+      file: db/changelog/changes/2026-10-28-community-habitual-location.yaml

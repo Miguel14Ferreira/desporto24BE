@@ -67,6 +67,23 @@ public class Community {
     @JoinColumn(name = "default_venue_id")
     private Venue defaultVenue;
 
+    // Alternative to an existing venue: a confirmed Google Maps or browser GPS point.
+    // Null source preserves legacy defaultVenue-only communities.
+    @Column(name = "habitual_location_source", length = 8)
+    private String habitualLocationSource;
+
+    @Column(name = "habitual_latitude")
+    private Double habitualLatitude;
+
+    @Column(name = "habitual_longitude")
+    private Double habitualLongitude;
+
+    @Column(name = "habitual_city", length = 160)
+    private String habitualCity;
+
+    @Column(name = "habitual_address", length = 350)
+    private String habitualAddress;
+
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;
 
