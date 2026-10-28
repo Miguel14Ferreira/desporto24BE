@@ -3,6 +3,9 @@ package com.example.desporto24.service;
 import com.example.desporto24.model.*;
 import com.example.desporto24.repository.*;
 import com.example.desporto24.service.interfaces.ChatService;
+import com.example.desporto24.storage.MediaStorage;
+import org.springframework.web.multipart.MultipartFile;
+import java.net.URI;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -27,11 +30,12 @@ public class PrivateGroupService {
     private final PrivateGroupMessageRepository messages;
     private final ProfileRepository profiles;
     private final ChatService chatService;
+    private final MediaStorage mediaStorage;
     private final ApplicationEventPublisher events;
 
     public record MemberView(String username,String displayName,String profilePicUrl,boolean admin) {}
     public record GroupView(Long id,String title,String creatorUsername,List<MemberView> members,
-                            Instant createdAt) {}
+                            Instant createdAt,String photoUrl) {}
     public record MessageView(Long id,Long groupId,String sender,String text,Instant createdAt) {}
     public record CreateRequest(String title,List<String> usernames) {}
     public record AddRequest(List<String> usernames) {}
@@ -99,6 +103,30 @@ public class PrivateGroupService {
         if(!group.getCreatorUsername().equalsIgnoreCase(actor))
             throw new AccessDeniedException("Only the group creator can rename the group");
         group.setTitle(validTitle(request==null?null:request.title()));
+        groups.save(group);
+        GroupView updated=view(group);
+        events.publishEvent(new GroupEvent(id,usernames(updated),null));
+        return updated;
+    }
+
+    /** Creator can upload a validated photo through the same storage policy as community photos.
+     * The group ID is used only inside a non-guessable object key; the membership
+     * endpoint never returns photos or other group information to nonmembers.
+     */
+    @Transactional
+    public GroupView updatePhoto(String actor, Long id, MultipartFile photo) {
+        PrivateGroup group=authorized(actor,id);
+        if(!group.getCreatorUsername().equalsIgnoreCase(actor))
+            throw new AccessDeniedException("Only the group creator can change the photo");
+        if(photo==null||photo.isEmpty()||photo.getSize()>5L*1024*1024)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Image must be 1-5 MB");
+        URI stored;
+        try {
+            stored=mediaStorage.storeCommunityPhoto("private-groups/"+id+"/"+UUID.randomUUID(),photo);
+        } catch(IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid image");
+        }
+        group.setPhotoUrl(stored.toString());
         groups.save(group);
         GroupView updated=view(group);
         events.publishEvent(new GroupEvent(id,usernames(updated),null));
@@ -184,7 +212,7 @@ public class PrivateGroupService {
             result.add(new MemberView(p.getUsername(),display,p.getProfilePicUrl(),
                     p.getUsername().equalsIgnoreCase(g.getCreatorUsername())));
         }
-        return new GroupView(g.getId(),g.getTitle(),g.getCreatorUsername(),List.copyOf(result),g.getCreatedAt());
+        return new GroupView(g.getId(),g.getTitle(),g.getCreatorUsername(),List.copyOf(result),g.getCreatedAt(),g.getPhotoUrl());
     }
     private void addMember(Long id,String username,Instant when){
         PrivateGroupMember m=new PrivateGroupMember();
