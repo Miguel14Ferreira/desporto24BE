@@ -10,6 +10,11 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface SessionCommunityShareRepository extends JpaRepository<SessionCommunityShare, Long> {
+    /** Community associations for a session, also when it is shared with several communities. */
+    List<SessionCommunityShare> findBySession_IdOrderByIdAsc(Long sessionId);
+
+    boolean existsBySession_Id(Long sessionId);
+
     @Query("""
         select distinct share.session from SessionCommunityShare share
         where share.community.id = :communityId
