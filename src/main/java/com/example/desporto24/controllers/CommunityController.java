@@ -129,6 +129,17 @@ public class CommunityController {
         return ResponseEntity.ok(service.updateFeatures(id, authentication.getName(), request));
     }
 
+    public record CommunitySessionCreationPolicyRequest(boolean membersCanCreateSessions) {}
+
+    @PutMapping("/{id}/session-creation-policy")
+    public ResponseEntity<CommunityResponse> updateSessionCreationPolicy(
+            @PathVariable Long id,
+            @RequestBody @Valid CommunitySessionCreationPolicyRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateSessionCreationPolicy(
+                id, authentication.getName(), request.membersCanCreateSessions()));
+    }
+
     public record CommunityDefaultVenueRequest(Long venueId) {}
 
     @PutMapping("/{id}/default-venue")
