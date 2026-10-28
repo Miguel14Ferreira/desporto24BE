@@ -176,6 +176,34 @@ class SessionViewMapperPrivacyTest {
     }
 
     @Test
+    void meetingPointIsVisibleOnlyToCreatorAndConfirmedParticipant() {
+        Profile creator = profile(1L, "creator");
+        Profile participant = profile(2L, "participant");
+        Profile outsider = profile(3L, "outsider");
+        Session session = session(creator);
+        session.setMeetingPointInstructions("Entrada lateral, junto aos balneários");
+
+        when(participantRepository.existsBySessionIdAndProfileIdAndState(
+                10L, 2L, ParticipantState.ACTIVE)).thenReturn(true);
+        assertEquals("Entrada lateral, junto aos balneários",
+                mapper.toDetail(session, creator).meetingPointInstructions());
+        assertEquals("Entrada lateral, junto aos balneários",
+                mapper.toDetail(session, participant).meetingPointInstructions());
+        assertNull(mapper.toDetail(session, outsider).meetingPointInstructions());
+        assertNull(mapper.toDetail(session, null).meetingPointInstructions());
+    }
+
+    @Test
+    void meetingPointIsNeverPublicForWaitlistedPlayers() {
+        Profile creator = profile(1L, "creator");
+        Profile viewer = profile(4L, "waitlisted");
+        Session session = session(creator);
+        session.setMeetingPointInstructions("Portão 3");
+        // Waitlisted is not ACTIVE; even the waitlist detail cannot leak.
+        assertNull(mapper.toDetail(session, viewer).meetingPointInstructions());
+    }
+
+    @Test
     void creatorCanSeeExactAddress() {
         Profile creator = profile(1L, "creator");
         Session session = session(creator);

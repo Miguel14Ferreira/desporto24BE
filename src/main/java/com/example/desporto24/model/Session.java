@@ -38,6 +38,9 @@ public class Session {
     private Date gameDate;
     private String city;
     private String address;
+    /** Optional arrival instructions, visible only after the player joins. */
+    @Column(name = "meeting_point_instructions", length = 240)
+    private String meetingPointInstructions;
     private String price;
     private String password;
     private Boolean privateGame;

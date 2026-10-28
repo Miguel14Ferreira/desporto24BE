@@ -321,6 +321,9 @@ public class SessionServiceImpl implements SessionService {
         session.setGameDate(Date.from(gameDate));
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
+        String arrivalNote = request.meetingPointInstructions();
+        session.setMeetingPointInstructions(arrivalNote == null || arrivalNote.isBlank()
+                ? null : arrivalNote.trim());
         session.setMaxParticipants(request.maxParticipants());
         session.setExternalConfirmedParticipants(
                 request.externalConfirmedParticipants() == null ? 0 : request.externalConfirmedParticipants());

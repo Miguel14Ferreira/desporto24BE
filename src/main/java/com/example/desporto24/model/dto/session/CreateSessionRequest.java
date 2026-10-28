@@ -45,8 +45,32 @@ public record CreateSessionRequest(
         com.example.desporto24.enumeration.SessionPlayFormat playFormat,
         @Size(max = 5) java.util.List<@NotNull Long> communityShareIds,
         Long seasonCompetitionCommunityId,
-        boolean confirmActivateRankings
+        boolean confirmActivateRankings,
+        @Size(max = 240)
+        @Pattern(regexp = "^[^\\p{Cc}]*$", message = "O ponto de encontro deve ter uma única linha")
+        String meetingPointInstructions
 ) {
+    /** Source compatibility for the previous complete request constructor. */
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+            java.util.List<Long> communityShareIds,
+            Long seasonCompetitionCommunityId, boolean confirmActivateRankings) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId, venueId,
+                recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, additionalWeeklyGameDates,
+                recurrenceTimeZone, playFormat, communityShareIds,
+                seasonCompetitionCommunityId, confirmActivateRankings, null);
+    }
+
     // Preserve the pre-season-game request signature for existing callers.
     public CreateSessionRequest(
             String sport, Instant gameDate, String city, String address,
