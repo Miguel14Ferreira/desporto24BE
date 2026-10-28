@@ -328,7 +328,8 @@ class SessionGuestRequestServiceTest {
         verify(participants,never()).saveAndFlush(any());
     }
     @Test void changingMyConfirmedNameKeepsSameReceiptSameSeatEvenWhenGameIsFull(){
-        String secret=token();
+        token();
+        clearInvocations(sessions);
         var original=new SessionGuestRequest();
         original.setId(90L);original.setSession(session);
         original.setDisplayName("Barata");original.setNormalizedName("barata");
