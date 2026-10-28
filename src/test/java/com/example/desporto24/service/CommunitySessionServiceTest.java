@@ -121,6 +121,102 @@ class CommunitySessionServiceTest {
     }
 
     @Test
+    void cancelledSessionsAreExcludedFromOwnedAndCrossPostedCommunityListings() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        SessionRepository sessions = mock(SessionRepository.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
+        SessionViewMapper mapper = mock(SessionViewMapper.class);
+
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        Community community = Community.builder().id(10L)
+                .visibility(CommunityVisibility.PUBLIC).build();
+
+        Session cancelledOwned = new Session();
+        cancelledOwned.setId(100L);
+        cancelledOwned.setStatus(SessionStatus.CANCELLED);
+        cancelledOwned.setAudience(SessionAudience.COMMUNITY_ONLY);
+
+        Session activeOwned = new Session();
+        activeOwned.setId(101L);
+        activeOwned.setStatus(SessionStatus.OPEN);
+        activeOwned.setAudience(SessionAudience.COMMUNITY_ONLY);
+
+        Session completedOwned = new Session();
+        completedOwned.setId(102L);
+        completedOwned.setStatus(SessionStatus.COMPLETED);
+        completedOwned.setAudience(SessionAudience.COMMUNITY_ONLY);
+
+        Session cancelledShared = new Session();
+        cancelledShared.setId(103L);
+        cancelledShared.setStatus(SessionStatus.CANCELLED);
+        cancelledShared.setAudience(SessionAudience.PUBLIC);
+        cancelledShared.setPrivateGame(false);
+
+        Session activeShared = new Session();
+        activeShared.setId(104L);
+        activeShared.setStatus(SessionStatus.OPEN);
+        activeShared.setAudience(SessionAudience.PUBLIC);
+        activeShared.setPrivateGame(false);
+
+        when(profiles.findUserByUsernameIgnoreCase("viewer")).thenReturn(Optional.of(viewer));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(members.existsByCommunityIdAndProfileId(10L, 7L)).thenReturn(true);
+        when(sessions.findByCommunityIdOrderByGameDateDesc(10L))
+                .thenReturn(List.of(cancelledOwned, activeOwned, completedOwned));
+        when(shares.sessionsSharedWithCommunity(10L))
+                .thenReturn(List.of(cancelledShared, activeShared));
+
+        var service = new CommunitySessionService(
+                communities, members, profiles, sessions, shares, mapper);
+
+        assertEquals(3, service.sessions(10L, "viewer").size());
+        verify(mapper).toSummary(same(activeOwned), isNull(), same(viewer));
+        verify(mapper).toSummary(same(completedOwned), isNull(), same(viewer));
+        verify(mapper).toSummary(same(activeShared), isNull(), same(viewer));
+        verify(mapper, never()).toSummary(same(cancelledOwned), isNull(), any(Profile.class));
+        verify(mapper, never()).toSummary(same(cancelledShared), isNull(), any(Profile.class));
+        verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
+    void nonMembersCannotSeeCancelledPublicCommunitySessions() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        SessionRepository sessions = mock(SessionRepository.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
+        SessionViewMapper mapper = mock(SessionViewMapper.class);
+
+        Profile viewer = new Profile();
+        viewer.setId(7L);
+        Community community = Community.builder().id(10L)
+                .visibility(CommunityVisibility.PUBLIC).build();
+        Session cancelled = new Session();
+        cancelled.setId(200L);
+        cancelled.setAudience(SessionAudience.PUBLIC);
+        cancelled.setStatus(SessionStatus.CANCELLED);
+        Session available = new Session();
+        available.setId(201L);
+        available.setAudience(SessionAudience.PUBLIC);
+        available.setStatus(SessionStatus.OPEN);
+
+        when(profiles.findUserByUsernameIgnoreCase("viewer")).thenReturn(Optional.of(viewer));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(sessions.findByCommunityIdOrderByGameDateDesc(10L))
+                .thenReturn(List.of(cancelled, available));
+        when(shares.sessionsSharedWithCommunity(10L)).thenReturn(List.of());
+
+        var service = new CommunitySessionService(
+                communities, members, profiles, sessions, shares, mapper);
+        assertEquals(1, service.sessions(10L, "viewer").size());
+        verify(mapper).toSummary(same(available), isNull(), same(viewer));
+        verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
     void cannotPublishCancelledCompletedOrStartedSessions() {
         for (SessionStatus status : new SessionStatus[] {
                 SessionStatus.CANCELLED, SessionStatus.COMPLETED, SessionStatus.OPEN
