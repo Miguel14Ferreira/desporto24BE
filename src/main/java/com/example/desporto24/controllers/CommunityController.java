@@ -129,6 +129,17 @@ public class CommunityController {
         return ResponseEntity.ok(service.updateFeatures(id, authentication.getName(), request));
     }
 
+    public record CommunityDefaultVenueRequest(Long venueId) {}
+
+    @PutMapping("/{id}/default-venue")
+    public ResponseEntity<CommunityResponse> updateDefaultVenue(
+            @PathVariable Long id,
+            @RequestBody @Valid CommunityDefaultVenueRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(service.updateDefaultVenue(
+                id, authentication.getName(), request.venueId()));
+    }
+
     @PutMapping("/{id}/sports")
     public ResponseEntity<CommunityResponse> updateSports(
             @PathVariable Long id,
