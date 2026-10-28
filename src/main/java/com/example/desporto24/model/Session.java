@@ -106,6 +106,12 @@ public class Session {
     @JoinColumn(name = "venue_id")
     private Venue venue;
 
+    /** Explicit opt-in: the game counts towards this specific season after an
+     * administrator confirms its result. Unset for ordinary sessions. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "season_competition_id")
+    private com.example.desporto24.model.community.CommunitySeason seasonCompetition;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "registration_opening_mode", length = 16)
     private com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode;
