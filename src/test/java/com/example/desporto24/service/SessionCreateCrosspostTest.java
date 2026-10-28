@@ -64,8 +64,10 @@ class SessionCreateCrosspostTest {
         Community second = Community.builder().id(12L).build();
         when(communities.findAllById(List.of(11L, 12L)))
                 .thenReturn(List.of(first, second));
-        when(members.existsByCommunityIdAndProfileId(11L,7L)).thenReturn(true);
-        when(members.existsByCommunityIdAndProfileId(12L,7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
+        when(members.findByCommunityIdAndProfileId(12L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
         when(sessions.save(any(Session.class))).thenAnswer(inv -> {
             Session s=inv.getArgument(0);
             s.setId(42L);
@@ -93,8 +95,10 @@ class SessionCreateCrosspostTest {
         Community first = Community.builder().id(11L).build();
         Community second = Community.builder().id(12L).build();
         when(communities.findAllById(List.of(11L, 12L))).thenReturn(List.of(first, second));
-        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
-        when(members.existsByCommunityIdAndProfileId(12L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
+        when(members.findByCommunityIdAndProfileId(12L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
         java.util.concurrent.atomic.AtomicLong ids = new java.util.concurrent.atomic.AtomicLong(40L);
         when(sessions.save(any(Session.class))).thenAnswer(inv -> {
             Session saved = inv.getArgument(0);
@@ -161,7 +165,8 @@ class SessionCreateCrosspostTest {
         Community group = Community.builder().id(11L).rankingsEnabled(false).build();
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
-        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.create(seasonRequest(List.of(11L), 11L, false), "organizer"));
@@ -199,7 +204,8 @@ class SessionCreateCrosspostTest {
         Community group = Community.builder().id(11L).rankingsEnabled(true).build();
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
-        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
         CommunitySeason active = CommunitySeason.builder().id(99L)
                 .community(group).active(true).build();
         when(seasonsDb.findByCommunityIdAndActiveTrue(11L)).thenReturn(Optional.of(active));
@@ -225,8 +231,10 @@ class SessionCreateCrosspostTest {
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L, 12L)))
                 .thenReturn(List.of(first, second));
-        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
-        when(members.existsByCommunityIdAndProfileId(12L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
+        when(members.findByCommunityIdAndProfileId(12L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.create(seasonRequest(List.of(11L, 12L), 11L, false), "organizer"));
@@ -245,8 +253,10 @@ class SessionCreateCrosspostTest {
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L, 12L)))
                 .thenReturn(List.of(first, second));
-        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
-        when(members.existsByCommunityIdAndProfileId(12L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
+        when(members.findByCommunityIdAndProfileId(12L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
         when(sessions.save(any(Session.class))).thenAnswer(inv -> {
             Session session = inv.getArgument(0);
             session.setId(42L);
@@ -266,7 +276,8 @@ class SessionCreateCrosspostTest {
         Community group = Community.builder().id(11L).build();
         when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
         when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
-        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(
+                Optional.of(CommunityMember.builder().role(CommunityRole.MEMBER).build()));
         assertThrows(IllegalArgumentException.class,
                 () -> service.create(seasonRequest(List.of(11L), 12L, true), "organizer"));
         verify(sessions, never()).save(any());
