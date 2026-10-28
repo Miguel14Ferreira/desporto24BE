@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -66,7 +67,29 @@ public class NotificationPreferencesService {
         return response(repository.save(stored));
     }
 
+    /**
+     * Security-critical account alerts are mandatory even when optional inbox
+     * preferences are disabled. Do not trust isUpdateProfile: older routine
+     * profile changes used that flag as well.
+     */
+    public static boolean isAccountSecurityAlert(Notifications notification) {
+        if (notification == null || notification.getSubject() == null) return false;
+        String subject = notification.getSubject().strip().toLowerCase(Locale.ROOT);
+        return Set.of(
+                "alteração de email",
+                "palavra-passe alterada",
+                "email changed",
+                "email address changed",
+                "password changed",
+                "autenticação multifator ativada",
+                "autenticação multifator desativada",
+                "multi-factor authentication enabled",
+                "multi-factor authentication disabled"
+        ).contains(subject);
+    }
+
     public boolean allowsInApp(String username, Notifications notification) {
+        if (isAccountSecurityAlert(notification)) return true;
         NotificationPreferencesRequest prefs = get(username);
         return prefs.inAppEnabled() && !prefs.disabledInAppTypes().contains(category(notification));
     }
