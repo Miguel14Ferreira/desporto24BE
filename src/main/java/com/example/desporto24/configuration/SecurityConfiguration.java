@@ -61,6 +61,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/sessions/*/guest-preview",
                                 "/api/sessions/*/guest-roster",
+                                "/api/sessions/*/guest-confirmed-players",
                                 "/api/sessions/*/guest-requests",
                                 "/api/sessions/*/guest-requests/status").permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()

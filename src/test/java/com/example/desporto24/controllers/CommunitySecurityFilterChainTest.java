@@ -52,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The application uses a custom anonymous authentication entry point returning
  * 403 (rather than 401). Keep expectations aligned with that explicit policy.
  */
-@WebMvcTest(controllers = CommunityController.class)
+@WebMvcTest(controllers = {CommunityController.class, SessionGuestRequestController.class})
 @AutoConfigureMockMvc(addFilters = false)
 @Import({
         SecurityConfiguration.class,
@@ -83,6 +83,8 @@ class CommunitySecurityFilterChainTest {
     @MockitoBean private CommunityHistoricalMatchPreviewService previews;
     @MockitoBean private CommunityHistoricalMatchArchiveService historicalMatches;
     @MockitoBean private CommunitySessionService sessions;
+    @MockitoBean private com.example.desporto24.service.SessionGuestRequestService guests;
+    @MockitoBean private com.example.desporto24.service.interfaces.SessionService publicSessionService;
     @MockitoBean private com.example.desporto24.service.CommunitySessionResultService sessionResults;
 
     @BeforeEach
@@ -124,6 +126,22 @@ class CommunitySecurityFilterChainTest {
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(communities);
+    }
+
+    @Test
+    void signedGuestConfirmedRosterIsPostOnlyAndDoesNotRequireAccount() throws Exception {
+        when(guests.confirmedPlayers(42L, "signed-invite")).thenReturn(List.of(
+                new com.example.desporto24.service.SessionGuestRequestService.ConfirmedPlayer(
+                        "guest:8","Fresco",false)));
+        mvc.perform(post("/api/sessions/42/guest-confirmed-players")
+                .contentType("application/json")
+                .content("{\"token\":\"signed-invite\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Fresco"));
+        mvc.perform(get("/api/sessions/42/guest-confirmed-players"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/sessions/42/guest-link"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

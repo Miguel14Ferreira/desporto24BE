@@ -152,6 +152,21 @@ class SessionGuestRequestServiceTest {
         verify(requests,never()).findBySessionIdOrderByCreatedAtAsc(7L);
     }
 
+    @Test void signedGuestRosterDoesNotOfferAlreadyReservedHistoricalName(){
+        var fresco=historic();fresco.setDisplayName("Fresco");fresco.setNormalizedName("fresco");
+        var free=historic();free.setId(16L);free.setDisplayName("Outro Jogador");
+        free.setNormalizedName("outro jogador");
+        when(players.findByCommunityIdOrderByDisplayNameAsc(11L))
+                .thenReturn(List.of(fresco,free));
+        var submitted=new SessionGuestRequest();
+        submitted.setNormalizedName("fresco");
+        submitted.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findBySessionIdOrderByCreatedAtAsc(7L)).thenReturn(List.of(submitted));
+        var roster=service.roster(7L,token());
+        assertEquals(1,roster.players().size());
+        assertEquals("Outro Jogador",roster.players().getFirst().name());
+    }
+
     @Test void signedInviteReservesSeatImmediatelyAndReturnsApprovedReceipt(){
         String token=token();var person=historic();
         when(players.findById(15L)).thenReturn(Optional.of(person));
