@@ -121,6 +121,37 @@ class CommunitySessionServiceTest {
     }
 
     @Test
+    void sharedMemberOnlySessionIsVisibleOnlyInsideItsCommunities() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        SessionRepository sessions = mock(SessionRepository.class);
+        SessionCommunityShareRepository shares = mock(SessionCommunityShareRepository.class);
+        SessionViewMapper mapper = mock(SessionViewMapper.class);
+        Profile user = new Profile();
+        user.setId(7L);
+        Community community = Community.builder().id(10L)
+                .visibility(CommunityVisibility.PUBLIC).build();
+        Session restricted = new Session();
+        restricted.setId(55L);
+        restricted.setAudience(SessionAudience.COMMUNITY_ONLY);
+        restricted.setStatus(SessionStatus.OPEN);
+        when(profiles.findUserByUsernameIgnoreCase("viewer")).thenReturn(Optional.of(user));
+        when(communities.findById(10L)).thenReturn(Optional.of(community));
+        when(sessions.findByCommunityIdOrderByGameDateDesc(10L)).thenReturn(List.of());
+        when(shares.sessionsSharedWithCommunity(10L)).thenReturn(List.of(restricted));
+        var service = new CommunitySessionService(
+                communities, members, profiles, sessions, shares, mapper);
+
+        assertEquals(0, service.sessions(10L, "viewer").size());
+        verifyNoInteractions(mapper);
+
+        when(members.existsByCommunityIdAndProfileId(10L, 7L)).thenReturn(true);
+        assertEquals(1, service.sessions(10L, "viewer").size());
+        verify(mapper).toSummary(restricted, null, user);
+    }
+
+    @Test
     void cancelledSessionsAreExcludedFromOwnedAndCrossPostedCommunityListings() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);
