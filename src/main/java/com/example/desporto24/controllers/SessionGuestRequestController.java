@@ -56,6 +56,14 @@ public class SessionGuestRequestController {
             @RequestBody SessionGuestRequestService.ReceiptInput body){
         return guests.status(sessionId,body);
     }
+    /** Change only the confirmed player authenticated by the private receipt. */
+    @PostMapping("/guest-requests/change-player")
+    public SessionGuestRequestService.GuestReceipt changePlayer(
+            @PathVariable Long sessionId,
+            @RequestBody SessionGuestRequestService.ChangeGuestIdentityInput body){
+        return guests.changeGuestIdentity(sessionId,body);
+    }
+
     /** Receipt proves ownership; the shared invitation does not. */
     @PostMapping("/guest-requests/cancel-self")
     public SessionGuestRequestService.GuestReceipt cancelSelf(
