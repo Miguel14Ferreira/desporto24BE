@@ -114,6 +114,16 @@ jobs:
               RAISE EXCEPTION 'Exactly two inserts and one Liquibase changeset required';
             END IF;
             IF (SELECT COUNT(*) FROM desporto24.venue
+               WHERE name='Pavilhão Municipal Arnaldo Pereira'
+                 AND address='Avenida D. Sancho I, Zona Desportiva, 5300-125 Bragança'
+                 AND sports='Futsal;Andebol;Voleibol;Basquetebol;Hóquei em patins') <> 1
+              OR (SELECT COUNT(*) FROM desporto24.venue
+               WHERE name='Pavilhão Polidesportivo da Coxa'
+                 AND address='Rua Padre Benjamim Videira Pires, s/n, 5300-464 Bragança'
+                 AND sports='Futsal;Andebol;Voleibol;Basquetebol;Ténis') <> 1 THEN
+               RAISE EXCEPTION 'Official municipal regulatory venue data mismatch';
+            END IF;
+            IF (SELECT COUNT(*) FROM desporto24.venue
                 WHERE district='Bragança' AND information_source='OFFICIAL'
                   AND indoor AND contact IS NULL AND website IS NULL
                   AND latitude BETWEEN 41.75 AND 41.85

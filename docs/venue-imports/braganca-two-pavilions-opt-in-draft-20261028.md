@@ -74,3 +74,43 @@ https://santosmartires.pt/desporto-inclusivo-hoquei-di/
 
 As fontes da identidade, GPS de sítio e da atividade são diferentes;
 nenhuma autoriza lançar uma entrada GPS individual sem revisão.
+
+## Regulamento municipal definitivo 977/2026 — confirmação oficial
+
+**Nova fonte prioritária e em vigor:** [Regulamento n.º 977/2026,
+de 23 de julho](https://diariodarepublica.pt/dr/detalhe/regulamento/977-2026-1151247864),
+Capítulo H-1, anexo H-1/I e tabela de taxas. A identificação, as moradas,
+os desportos e os requisitos de acesso **substituem** as afirmações
+provisórias dos editais de consulta pública de setembro/outubro de 2025.
+
+| Dado | Arnaldo Pereira | Coxa |
+| --- | --- | --- |
+| Registo municipal | 14242 | 13288 |
+| Morada | Avenida D. Sancho I, Zona Desportiva, 5300-125 Bragança | Rua Padre Benjamim Videira Pires, s/n, 5300-464 Bragança |
+| Modalidades | Futsal, andebol, voleibol, basquetebol, hóquei em patins | Futsal, andebol, voleibol, basquetebol, ténis |
+| Dias úteis (horário regulamentar habitual) | 08h30–12h30; 14h30–23h30 | 08h30–12h30; 14h30–23h30 |
+
+- **Uso condicionado:** marcação prévia, autorização do Município de
+  Bragança e taxa de utilização, salvo isenções/reduções aplicáveis
+  (artigos H-1/27.º e H-1/32.º). O horário **não é disponibilidade**.
+- Tabela regulamentar, artigo 18.º: 23 €/hora ou fração em dias úteis,
+  35 €/hora ou fração em fins de semana e feriados, para cedência da
+  nave central; estes são valores-base regulamentares, não um preço
+  de reserva Jynlo nem confirmação de um horário livre.
+- **Acesso de participantes no Arnaldo:** o Anexo H-1/I indica
+  receção/entrada de participantes no rés do chão da lateral norte.
+  Continua por confirmar o ponto de entrada geográfico exato.
+- O regulamento identifica piscina, estádio e pavilhão da Bancada
+  como instalações distintas e o pavilhão da Bancada como parte do
+  estádio, evitando confundir recintos próximos.
+
+O SQL DRAFT já contém **as moradas e modalidades desta fonte final**.
+As coordenadas continuam a ser **pontos documentais de local**, não
+portas certificadas; não ativar importação até rever a precisão e fazer
+o pré-voo LIVE PostgreSQL autorizado.
+
+**Requisito funcional para o produto Jynlo:** na futura ficha destes
+recintos e no fluxo de criação de sessões, apresentar uma indicação
+clara de que é necessária autorização/reserva prévia pelo Município
+e de que uma sessão criada na Jynlo **não reserva o espaço**. Não
+publicar a tabela como preço garantido, nem uma disponibilidade fictícia.
