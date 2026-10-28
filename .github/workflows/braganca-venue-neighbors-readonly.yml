@@ -1,0 +1,43 @@
+name: Braganca official-site neighbour preflight (read-only)
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'docs/venue-imports/braganca-arnaldo-complex-gps-review-20261028.json'
+      - 'docs/venue-imports/braganca-arnaldo-neighbour-review-20261028.md'
+      - 'scripts/audit_braganca_arnaldo_nearby_20261028.py'
+      - 'scripts/test_audit_braganca_arnaldo_nearby_20261028.py'
+      - '.github/workflows/braganca-venue-neighbors-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  brakanca-neighbours:
+    name: Braganca documented-site catalogue preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline privacy and geographic identity tests
+        run: python3 -m unittest discover -s scripts -p 'test_audit_braganca_arnaldo_nearby_20261028.py' -v
+      - name: Fixed public API GET (no POST, no credentials)
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/braganca-neighbors
+          python3 scripts/audit_braganca_arnaldo_nearby_20261028.py \
+            --live-public-api --out .cache/braganca-neighbors/report.json
+          echo "Read-only Braganca complex audit (UTC $(date -u +'%Y-%m-%dT%H:%M:%SZ'))" >> "$GITHUB_STEP_SUMMARY"
+          echo "Report does NOT prove absence of other venues and does NOT provide GPS to publish." >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish review-only result for three days
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-braganca-arnaldo-review
+          path: .cache/braganca-neighbors/report.json
+          retention-days: 3
+          if-no-files-found: error
