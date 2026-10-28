@@ -40,6 +40,7 @@ class SessionGuestRequestServiceTest {
         session.setGameDate(Date.from(Instant.parse("2099-11-10T14:00:00Z")));
         session.setMaxParticipants(10);session.setStatus(SessionStatus.OPEN);
         session.setExternalConfirmedParticipants(0);
+        when(links.findByCommunityIdAndStatus(11L,"ACCEPTED")).thenReturn(List.of());
         when(sessions.findByIdForUpdate(7L)).thenReturn(Optional.of(session));
         when(sessions.findById(7L)).thenReturn(Optional.of(session));
     }
