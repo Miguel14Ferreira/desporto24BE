@@ -300,7 +300,49 @@ public class CommunityManagementService {
                     .orElseThrow(() -> new IllegalArgumentException("Recinto não encontrado"));
         }
         community.setDefaultVenue(venue);
+        // Switching to a catalogued venue clears a previously saved GPS/Maps point.
+        clearHabitualCoordinates(community);
         return toResponse(communityRepository.save(community), actor);
+    }
+
+    /** Saves a habitual point without claiming it is a catalogue venue or a verified address.
+     * The client resolves Google Maps links before submission; GPS requires device permission. */
+    public CommunityResponse updateHabitualLocation(Long communityId, String username,
+                                                      String source, Double latitude,
+                                                      Double longitude, String city, String address) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        if (!"MAPS".equals(source) && !"GPS".equals(source)) {
+            throw new IllegalArgumentException("Seleciona Google Maps ou Estou no recinto");
+        }
+        if (latitude == null || longitude == null || !Double.isFinite(latitude)
+                || !Double.isFinite(longitude) || Math.abs(latitude) > 90
+                || Math.abs(longitude) > 180) {
+            throw new IllegalArgumentException("A localização precisa de coordenadas válidas");
+        }
+        community.setDefaultVenue(null);
+        community.setHabitualLocationSource(source);
+        community.setHabitualLatitude(latitude);
+        community.setHabitualLongitude(longitude);
+        community.setHabitualCity(trimBounded(city, 160));
+        community.setHabitualAddress(trimBounded(address, 350));
+        return toResponse(communityRepository.save(community), actor);
+    }
+
+    private void clearHabitualCoordinates(Community community) {
+        community.setHabitualLocationSource(null);
+        community.setHabitualLatitude(null);
+        community.setHabitualLongitude(null);
+        community.setHabitualCity(null);
+        community.setHabitualAddress(null);
+    }
+
+    private String trimBounded(String value, int limit) {
+        String result = trimToNull(value);
+        if (result != null && result.length() > limit) {
+            throw new IllegalArgumentException("A localidade ou morada é demasiado longa");
+        }
+        return result;
     }
 
     public CommunityResponse updateSports(Long communityId, String username,
@@ -734,7 +776,10 @@ public class CommunityManagementService {
                 community.getPhotoZoom(), community.getPhotoFocusX(),
                 community.getPhotoFocusY(), community.getPhotoFitMode(),
                 community.getDefaultVenue() == null ? null : community.getDefaultVenue().getId(),
-                community.getDefaultVenue() == null ? null : community.getDefaultVenue().getName()
+                community.getDefaultVenue() == null ? null : community.getDefaultVenue().getName(),
+                community.getHabitualLocationSource(),
+                community.getHabitualLatitude(), community.getHabitualLongitude(),
+                community.getHabitualCity(), community.getHabitualAddress()
         );
     }
 
