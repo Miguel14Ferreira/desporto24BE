@@ -68,6 +68,65 @@ class CommunityManagementServiceTest {
     }
 
     @Test
+    void adminsCanSetAndClearHabitualVenueWithoutChangingPastSessions() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        com.example.desporto24.repository.venue.VenueRepository venues =
+                mock(com.example.desporto24.repository.venue.VenueRepository.class);
+        Profile owner = new Profile();
+        owner.setId(8L);
+        owner.setUsername("owner");
+        Community group = Community.builder().id(9L).owner(owner)
+                .name("Grupo").build();
+        var membership = CommunityMember.builder().community(group).profile(owner)
+                .role(CommunityRole.OWNER).build();
+        var venue = new com.example.desporto24.model.venue.Venue();
+        venue.setId(55L);
+        venue.setName("Pavilhão");
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(9L, 8L)).thenReturn(Optional.of(membership));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(9L)).thenReturn(List.of(membership));
+        when(venues.findById(55L)).thenReturn(Optional.of(venue));
+        when(communities.save(group)).thenReturn(group);
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "venueRepository", venues);
+
+        var updated = service.updateDefaultVenue(9L, "owner", 55L);
+        assertEquals(55L, updated.defaultVenueId());
+        assertEquals("Pavilhão", updated.defaultVenueName());
+        assertEquals(venue, group.getDefaultVenue());
+
+        var cleared = service.updateDefaultVenue(9L, "owner", null);
+        assertEquals(null, cleared.defaultVenueId());
+        assertEquals(null, group.getDefaultVenue());
+        verify(communities, times(2)).save(group);
+    }
+
+    @Test
+    void aRegularMemberCannotChangeHabitualVenue() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile member = new Profile();
+        member.setId(10L);
+        member.setUsername("member");
+        Community group = Community.builder().id(9L).owner(member).build();
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(members.findByCommunityIdAndProfileId(9L, 10L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(member)
+                        .role(CommunityRole.MEMBER).build()));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        assertThrows(SecurityException.class, () ->
+                service.updateDefaultVenue(9L, "member", 55L));
+        verify(communities, never()).save(any());
+    }
+
+    @Test
     void ordinaryCommunityMemberCannotConfigureModules() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);
