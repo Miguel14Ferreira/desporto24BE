@@ -43,8 +43,28 @@ public record CreateSessionRequest(
         // IANA zone keeps the same local weekday/time across DST transitions.
         @Size(max = 64) String recurrenceTimeZone,
         com.example.desporto24.enumeration.SessionPlayFormat playFormat,
-        @Size(max = 5) java.util.List<@NotNull Long> communityShareIds
+        @Size(max = 5) java.util.List<@NotNull Long> communityShareIds,
+        Long seasonCompetitionCommunityId,
+        boolean confirmActivateRankings
 ) {
+    // Preserve the pre-season-game request signature for existing callers.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+            java.util.List<Long> communityShareIds) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId,
+                venueId, recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, additionalWeeklyGameDates,
+                recurrenceTimeZone, playFormat, communityShareIds, null, false);
+    }
     // Backwards-compatible canonical constructor for existing 20-field clients/tests.
     public CreateSessionRequest(
             String sport, Instant gameDate, String city, String address,

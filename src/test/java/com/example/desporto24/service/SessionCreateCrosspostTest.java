@@ -6,6 +6,9 @@ import com.example.desporto24.enumeration.RegistrationOpeningMode;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.community.Community;
+import com.example.desporto24.model.community.CommunitySeason;
+import com.example.desporto24.model.community.CommunityMember;
+import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.SessionDetailResponse;
 import com.example.desporto24.model.session.SessionCommunityShare;
@@ -37,6 +40,7 @@ class SessionCreateCrosspostTest {
     @Mock SessionRepository sessions;
     @Mock ProfileRepository profiles;
     @Mock CommunityRepository communities;
+    @Mock com.example.desporto24.repository.community.CommunitySeasonRepository seasonsDb;
     @Mock CommunityMemberRepository members;
     @Mock SessionParticipantRepository participants;
     @Mock com.example.desporto24.repository.session.SessionWaitlistRepository waitlist;
@@ -140,6 +144,97 @@ class SessionCreateCrosspostTest {
         assertThrows(AccessDeniedException.class, () ->
                 service.joinWithGuestToken(42L, "a".repeat(43), "outsider"));
         verify(participants, never()).save(any());
+    }
+
+
+    private CreateSessionRequest seasonRequest(List<Long> groups, long destination, boolean confirm) {
+        return new CreateSessionRequest(
+                "Futebol", Instant.now().plusSeconds(3600), "Cacém", "Rua do Campo",
+                10, BigDecimal.ZERO, false, null, null, null,
+                null, null, null, null, 0, null, null, null, null, null,
+                groups, destination, confirm);
+    }
+
+    @Test
+    void creatingASeasonGameActivatesStandingsOnlyWithExplicitAdminConfirmation() {
+        Profile organizer = new Profile(); organizer.setId(7L);
+        Community group = Community.builder().id(11L).rankingsEnabled(false).build();
+        when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
+        when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
+        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L))
+                .thenReturn(Optional.of(CommunityMember.builder().role(CommunityRole.ADMIN).build()));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.create(seasonRequest(List.of(11L), 11L, false), "organizer"));
+        verify(communities, never()).save(any());
+        verify(sessions, never()).save(any());
+
+        when(seasonsDb.findByCommunityIdAndActiveTrue(11L)).thenReturn(Optional.empty());
+        when(seasonsDb.save(any(CommunitySeason.class))).thenAnswer(inv -> {
+            CommunitySeason created = inv.getArgument(0);
+            created.setId(99L);
+            return created;
+        });
+        when(sessions.save(any(Session.class))).thenAnswer(inv -> {
+            Session session = inv.getArgument(0);
+            session.setId(42L);
+            return session;
+        });
+        when(mapper.toDetail(any(Session.class), eq(organizer)))
+                .thenReturn(mock(SessionDetailResponse.class));
+
+        service.create(seasonRequest(List.of(11L), 11L, true), "organizer");
+
+        assertTrue(group.isRankingsEnabled());
+        verify(communities).save(group);
+        verify(seasonsDb).save(argThat(season -> season.isActive()
+                && season.getCommunity() == group && season.getName().startsWith("Época ")));
+        verify(sessions).save(argThat(session ->
+                session.getSeasonCompetition() != null
+                && session.getSeasonCompetition().getId().equals(99L)));
+    }
+
+    @Test
+    void regularMemberCannotEnableStandingsButMayChooseAnExistingActiveSeason() {
+        Profile organizer = new Profile(); organizer.setId(7L);
+        Community group = Community.builder().id(11L).rankingsEnabled(false).build();
+        when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
+        when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
+        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.findByCommunityIdAndProfileId(11L, 7L)).thenReturn(Optional.of(
+                CommunityMember.builder().role(CommunityRole.MEMBER).build()));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.create(seasonRequest(List.of(11L), 11L, true), "organizer"));
+        verify(sessions, never()).save(any());
+        group.setRankingsEnabled(true);
+        CommunitySeason active = CommunitySeason.builder().id(99L)
+                .community(group).active(true).build();
+        when(seasonsDb.findByCommunityIdAndActiveTrue(11L)).thenReturn(Optional.of(active));
+        when(sessions.save(any(Session.class))).thenAnswer(inv -> {
+            Session session = inv.getArgument(0);
+            session.setId(42L);
+            return session;
+        });
+        when(mapper.toDetail(any(Session.class), eq(organizer)))
+                .thenReturn(mock(SessionDetailResponse.class));
+        service.create(seasonRequest(List.of(11L), 11L, false), "organizer");
+        verify(sessions).save(argThat(session -> session.getSeasonCompetition() == active));
+        verify(communities, never()).save(any());
+    }
+
+    @Test
+    void seasonDestinationMustBelongToSelectedCommunities() {
+        Profile organizer = new Profile(); organizer.setId(7L);
+        Community group = Community.builder().id(11L).build();
+        when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(organizer));
+        when(communities.findAllById(List.of(11L))).thenReturn(List.of(group));
+        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.create(seasonRequest(List.of(11L), 12L, true), "organizer"));
+        verify(sessions, never()).save(any());
+        verify(seasonsDb, never()).save(any());
     }
 
     @Test

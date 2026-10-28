@@ -463,6 +463,7 @@ class SessionCreationServiceTest {
                 profileRepository,
                 communityRepository,
                 communityMemberRepository,
+                mock(com.example.desporto24.repository.community.CommunitySeasonRepository.class),
                 mock(com.example.desporto24.repository.session.SessionCommunityShareRepository.class),
                 venueRepository,
                 participantRepository,

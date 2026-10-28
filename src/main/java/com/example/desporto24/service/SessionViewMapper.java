@@ -65,7 +65,9 @@ public class SessionViewMapper {
                 joinedByViewer,
                 waitlistedByViewer,
                 session.getRecurrenceSeriesId(),
-                session.getCommunity() == null ? null : session.getCommunity().getId()
+                session.getCommunity() == null ? null : session.getCommunity().getId(),
+                session.getSeasonCompetition() == null ? null
+                        : session.getSeasonCompetition().getCommunity().getId()
         );
     }
 
@@ -91,7 +93,9 @@ public class SessionViewMapper {
                 joinedSessionIds.contains(session.getId()),
                 waitlistedSessionIds.contains(session.getId()),
                 session.getRecurrenceSeriesId(),
-                session.getCommunity() == null ? null : session.getCommunity().getId()
+                session.getCommunity() == null ? null : session.getCommunity().getId(),
+                session.getSeasonCompetition() == null ? null
+                        : session.getSeasonCompetition().getCommunity().getId()
         );
     }
 

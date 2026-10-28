@@ -31,6 +31,7 @@ import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
@@ -79,6 +80,7 @@ public class SessionServiceImpl implements SessionService {
     private final ProfileRepository profileRepository;
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
+    private final CommunitySeasonRepository communitySeasonRepository;
     private final SessionCommunityShareRepository sessionCommunityShareRepository;
     private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
@@ -143,6 +145,58 @@ public class SessionServiceImpl implements SessionService {
             if (!communityMemberRepository.existsByCommunityIdAndProfileId(
                     community.getId(), creator.getId())) {
                 throw new AccessDeniedException("Só podes partilhar em comunidades a que pertences");
+            }
+        }
+
+        // Season games have precisely ONE standings destination, even when a
+        // session is visible to members of multiple communities.
+        com.example.desporto24.model.community.CommunitySeason seasonCompetition = null;
+        Long standingsCommunityId = request.seasonCompetitionCommunityId();
+        if (standingsCommunityId == null && request.confirmActivateRankings()) {
+            throw new IllegalArgumentException("Seleciona primeiro uma comunidade para ativar a classificação");
+        }
+        if (standingsCommunityId != null) {
+            if (linkedCommunity == null && !shareIds.contains(standingsCommunityId)
+                    || linkedCommunity != null && !linkedCommunity.getId().equals(standingsCommunityId)) {
+                throw new IllegalArgumentException("A época tem de pertencer a uma das comunidades selecionadas");
+            }
+            Community destination = linkedCommunity != null ? linkedCommunity
+                    : sharedCommunities.stream()
+                        .filter(group -> group.getId().equals(standingsCommunityId))
+                        .findFirst().orElseThrow();
+            var member = communityMemberRepository
+                    .findByCommunityIdAndProfileId(standingsCommunityId, creator.getId())
+                    .orElseThrow(() -> new AccessDeniedException("Não pertences à comunidade"));
+            boolean manager = member.getRole() == com.example.desporto24.enumeration.CommunityRole.OWNER
+                    || member.getRole() == com.example.desporto24.enumeration.CommunityRole.ADMIN;
+            if (!destination.isRankingsEnabled()) {
+                if (!request.confirmActivateRankings()) {
+                    throw new IllegalArgumentException("Confirma a ativação das classificações e estatísticas");
+                }
+                if (!manager) throw new AccessDeniedException(
+                        "Só um administrador pode ativar as classificações da comunidade");
+                destination.setRankingsEnabled(true);
+                communityRepository.save(destination);
+            }
+            // An existing season always wins; never overwrite its dates or scoring.
+            var existing = communitySeasonRepository
+                    .findByCommunityIdAndActiveTrue(standingsCommunityId);
+            if (existing.isPresent()) {
+                seasonCompetition = existing.get();
+            } else {
+                if (!manager) throw new AccessDeniedException(
+                        "Só um administrador pode criar a primeira época da comunidade");
+                java.time.ZonedDateTime localDate = request.gameDate()
+                        .atZone(java.time.ZoneId.of("Europe/Lisbon"));
+                String defaultSeason = "Época " + localDate.getYear();
+                seasonCompetition = communitySeasonRepository.save(
+                        com.example.desporto24.model.community.CommunitySeason.builder()
+                                .community(destination)
+                                .name(defaultSeason)
+                                .startsAt(Instant.now())
+                                .createdAt(Instant.now())
+                                .active(true)
+                                .build());
             }
         }
 
@@ -223,6 +277,7 @@ public class SessionServiceImpl implements SessionService {
                     linkedCommunity,
                     !sharedCommunities.isEmpty(),
                     linkedVenue,
+                    seasonCompetition,
                     sport,
                     occurrence.kickoff(),
                     recurrenceSeriesId,
@@ -247,6 +302,7 @@ public class SessionServiceImpl implements SessionService {
             Community linkedCommunity,
             boolean memberOnlyCrosspost,
             Venue linkedVenue,
+            com.example.desporto24.model.community.CommunitySeason seasonCompetition,
             String sport,
             Instant gameDate,
             String recurrenceSeriesId,
@@ -287,6 +343,7 @@ public class SessionServiceImpl implements SessionService {
         session.setAudience(linkedCommunity == null && !memberOnlyCrosspost
                 ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
+        session.setSeasonCompetition(seasonCompetition);
         session.setRecurrenceSeriesId(recurrenceSeriesId);
         session.setRegistrationOpeningMode(openingMode);
         session.setRegistrationOpensAt(registrationOpensAt);

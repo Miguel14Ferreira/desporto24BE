@@ -8,6 +8,7 @@ import com.example.desporto24.model.Session;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.community.CommunityMember;
 import com.example.desporto24.model.community.CommunityRound;
+import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.dto.community.CommunityRoundResponse;
 import com.example.desporto24.model.dto.community.CommunitySessionResultRequest;
 import com.example.desporto24.model.dto.community.CreateCommunityRoundRequest;
@@ -104,6 +105,38 @@ class CommunitySessionResultServiceTest {
         assertEquals(0, captor.getValue().entries().get(0).goals());
         assertEquals(sessionId, round.getSourceSessionId());
         verify(rounds).saveAndFlush(round);
+    }
+
+    @Test
+    void sharedSeasonGameUsesOnlyItsSelectedCommunityForResults() {
+        eligible(CommunityRole.ADMIN, true);
+        Community group = Community.builder().id(communityId).rankingsEnabled(true).build();
+        CommunitySeason season = CommunitySeason.builder().id(27L).community(group).active(true).build();
+        Session game = new Session();
+        game.setId(sessionId);
+        game.setSport("Futebol");
+        game.setSeasonCompetition(season);
+        game.setStatus(SessionStatus.COMPLETED);
+        game.setGameDate(Date.from(Instant.now().minusSeconds(86400)));
+        // A shared game has no direct community, but an explicit season destination.
+        when(sessions.lockForCommunityResult(communityId, sessionId)).thenReturn(Optional.of(game));
+        players();
+        var round = new CommunityRound(); round.setId(25L);
+        var response = new CommunityRoundResponse(25L, "Sessão #63",
+                Instant.now(), List.of(), "Futebol", null, null, null);
+        when(competition.createRound(eq(communityId), eq("manager"),
+                any(CreateCommunityRoundRequest.class))).thenReturn(response);
+        when(rounds.findById(25L)).thenReturn(Optional.of(round));
+
+        assertEquals(25L, service.record(communityId, sessionId, "manager", winnerA()).id());
+        assertEquals(sessionId, round.getSourceSessionId());
+        verify(rounds).saveAndFlush(round);
+
+        season.setActive(false);
+        assertThrows(ResponseStatusException.class,
+                () -> service.record(communityId, sessionId, "manager", winnerA()));
+        verify(competition, times(1)).createRound(eq(communityId), eq("manager"),
+                any(CreateCommunityRoundRequest.class));
     }
 
     @Test
