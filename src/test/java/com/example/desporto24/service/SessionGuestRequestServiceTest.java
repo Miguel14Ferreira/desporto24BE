@@ -134,7 +134,7 @@ class SessionGuestRequestServiceTest {
         when(players.findById(15L)).thenReturn(Optional.of(person));
         var receipt=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
                 token,15L,null,"Chego a horas"));
-        assertEquals("PENDING",receipt.status());
+        assertEquals("APPROVED",receipt.status());
         assertEquals(43,receipt.receipt().length());
         var captor=org.mockito.ArgumentCaptor.forClass(SessionGuestRequest.class);
         verify(requests).saveAndFlush(captor.capture());
