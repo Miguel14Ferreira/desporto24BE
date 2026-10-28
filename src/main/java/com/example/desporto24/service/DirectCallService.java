@@ -52,6 +52,28 @@ public class DirectCallService {
     public record CallSession(UUID callId, String peer, String media,
                               String serverUrl, String token, Instant expiresAt) {}
 
+    /** Incoming invitation only. Never includes the LiveKit token or credentials. */
+    public record PendingInvitation(UUID callId, String caller, String peer,
+                                    String media, Instant expiresAt) {}
+
+    /**
+     * Recover a missed WebSocket ringing notification after reconnect/reload.
+     * Only the authenticated callee can retrieve the still-ringing invitation.
+     * Friendship and block rules are rechecked at lookup time.
+     */
+    public synchronized PendingInvitation pendingFor(String recipient) {
+        if (recipient == null || recipient.isBlank()) return null;
+        Instant now = Instant.now();
+        calls.entrySet().removeIf(entry -> !now.isBefore(entry.getValue().expiresAt));
+        for (Call call : calls.values()) {
+            if (!"RINGING".equals(call.state) || !call.peer.equalsIgnoreCase(recipient)) continue;
+            inbox.requireConversationAccess(recipient, "direct", call.caller);
+            return new PendingInvitation(call.id, call.caller, call.peer,
+                    call.media, call.expiresAt);
+        }
+        return null;
+    }
+
     public boolean available() {
         return serverUrl != null && serverUrl.startsWith("wss://")
                 && apiKey != null && !apiKey.isBlank()
