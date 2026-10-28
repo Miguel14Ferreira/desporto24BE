@@ -59,6 +59,9 @@ public class CommunityManagementService {
     @Autowired
     private CommunityCreationQuotaService creationQuota;
 
+    @Autowired(required = false)
+    private com.example.desporto24.repository.venue.VenueRepository venueRepository;
+
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
@@ -282,6 +285,22 @@ public class CommunityManagementService {
         request.setStatus(CommunityInviteStatus.REJECTED);
         joinRequestRepository.save(request);
         notifyJoinDecision(request, actor, false);
+    }
+
+    /** The habitual venue is optional and can be changed without altering past games. */
+    public CommunityResponse updateDefaultVenue(Long communityId, String username, Long venueId) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        if (venueId != null && venueId <= 0) {
+            throw new IllegalArgumentException("Recinto inválido");
+        }
+        com.example.desporto24.model.venue.Venue venue = null;
+        if (venueId != null) {
+            venue = venueRepository.findById(venueId)
+                    .orElseThrow(() -> new IllegalArgumentException("Recinto não encontrado"));
+        }
+        community.setDefaultVenue(venue);
+        return toResponse(communityRepository.save(community), actor);
     }
 
     public CommunityResponse updateSports(Long communityId, String username,
@@ -713,7 +732,9 @@ public class CommunityManagementService {
                 community.isIndividualTournamentsEnabled(),
                 community.isTeamTournamentsEnabled(),
                 community.getPhotoZoom(), community.getPhotoFocusX(),
-                community.getPhotoFocusY(), community.getPhotoFitMode()
+                community.getPhotoFocusY(), community.getPhotoFitMode(),
+                community.getDefaultVenue() == null ? null : community.getDefaultVenue().getId(),
+                community.getDefaultVenue() == null ? null : community.getDefaultVenue().getName()
         );
     }
 

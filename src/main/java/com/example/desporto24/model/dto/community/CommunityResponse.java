@@ -25,8 +25,24 @@ public record CommunityResponse(
         Double photoZoom,
         Double photoFocusX,
         Double photoFocusY,
-        String photoFitMode
+        String photoFitMode,
+        Long defaultVenueId,
+        String defaultVenueName
 ) {
+    // Keep old response factories and tests source-compatible.
+    public CommunityResponse(Long id, String name, String description, String sport,
+                             String photoUrl, CommunityVisibility visibility,
+                             boolean rankingsEnabled, String ownerUsername,
+                             CommunityRole myRole, int memberCount,
+                             Instant createdAt, List<CommunityMemberResponse> members,
+                             List<String> sports, boolean individualTournamentsEnabled,
+                             boolean teamTournamentsEnabled, Double photoZoom,
+                             Double photoFocusX, Double photoFocusY, String photoFitMode) {
+        this(id, name, description, sport, photoUrl, visibility, rankingsEnabled,
+                ownerUsername, myRole, memberCount, createdAt, members, sports,
+                individualTournamentsEnabled, teamTournamentsEnabled, photoZoom,
+                photoFocusX, photoFocusY, photoFitMode, null, null);
+    }
     // Compatibility with photo-framing responses and existing call sites.
     public CommunityResponse(Long id, String name, String description, String sport,
                              String photoUrl, CommunityVisibility visibility,
