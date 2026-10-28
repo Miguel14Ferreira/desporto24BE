@@ -23,6 +23,49 @@ RELATIONS = {
 }
 
 
+def validate_identity_evidence(case):
+    """Evidence only upgrades human triage, never site identity or GPS approval."""
+    evidence = case.get("identityEvidence")
+    if evidence is None:
+        return None
+    if (case["relation"] != "POTENTIAL_DUPLICATE_POOL"
+            or case["target"]["id"] != 299 or case["related"]["id"] != 447):
+        raise ValueError("Source crosswalk is only reviewed for the São Jacinto pool pair")
+    if not isinstance(evidence, dict):
+        raise ValueError("Invalid official/OSM identity evidence")
+    if (evidence.get("sourceDoesNotProveCurrentEntrance") is not True or
+            evidence.get("sourceDoesNotProveSamePhysicalFacility") is not True):
+        raise ValueError("Official aliases/OSM geometries do not prove an entrance or duplicate")
+    if fold(evidence.get("officialSingularName")) != fold(case["target"]["name"]):
+        raise ValueError("Official singular name does not match municipal venue")
+    if fold(evidence.get("officialPluralName")) != fold("Piscinas Municipais de São Jacinto"):
+        raise ValueError("Unreviewed official plural alias")
+    if fold(evidence.get("parishStreet")) != fold("Avenida Ria-Mar"):
+        raise ValueError("Unreviewed parish location")
+    if evidence.get("officialPluralPublicationDate") != "2026-07-24":
+        raise ValueError("Unreviewed date of official plural naming")
+    way = evidence.get("osmWayId")
+    if type(way) is not int or way != 152241544:
+        raise ValueError("Unknown OSM geometry; explicit source identity required")
+    if (evidence.get("osmGeometry") != "LEISURE_SWIMMING_POOL_POLYGON_NOT_ENTRANCE"
+            or "Bing" not in str(evidence.get("osmMappedFrom", ""))):
+        raise ValueError("OSM pool polygon provenance not validated")
+    for key, prefix in (
+        ("officialSingularSourceUrl", "https://cm-aveiro.pt/"),
+        ("officialPluralSourceUrl", "https://www.cm-aveiro.pt/"),
+        ("parishSourceUrl", "https://www.jf-saojacinto.pt/"),
+        ("osmWayUrl", "https://www.openstreetmap.org/way/"),
+    ):
+        value = evidence.get(key)
+        if not isinstance(value, str) or not value.startswith(prefix):
+            raise ValueError("Unexpected provenance URL: " + key)
+        if value not in case["sourceUrls"]:
+            raise ValueError("Evidence URL not listed in the verified source collection")
+    if evidence["osmWayUrl"] != "https://www.openstreetmap.org/way/" + str(way):
+        raise ValueError("OSM URL does not match identified polygon")
+    return evidence
+
+
 def load_cases(data):
     """Validate manually curated known public IDs; reject approval or write flags."""
     if not isinstance(data, dict) or data.get("schemaVersion") != 1:
@@ -60,6 +103,7 @@ def load_cases(data):
                 raise ValueError("Venue name, city and district required")
         if case["target"]["id"] == case["related"]["id"]:
             raise ValueError("Target and related cannot be the same ID")
+        validate_identity_evidence(case)
         target_district = fold(case["target"]["district"])
         related_district = fold(case["related"]["district"])
         if case["relation"] == "DIFFERENT_DISTRICT_NAME_COLLISION":
@@ -106,7 +150,19 @@ def audit(catalogue, cases):
             status = "RELATED_GPS_UNAVAILABLE_OR_INVALID_REVIEW"
         else:
             status = RELATIONS[case["relation"]]
+        identity_evidence = case.get("identityEvidence")
+        source_identity_fresh = status == "POTENTIAL_DUPLICATE_REQUIRES_IDENTITY_REVIEW"
         rows.append({
+            "reviewPriority": ("HIGH_OFFICIAL_ALIAS_PLUS_OSM_AREA"
+                               if identity_evidence and source_identity_fresh else "NORMAL"),
+            "identityEvidenceStatus": (
+                "OFFICIAL_NAMES_AND_HISTORIC_OSM_POLYGON_STILL_UNVERIFIED"
+                if identity_evidence and source_identity_fresh else
+                "SOURCE_IDENTITY_CHANGED_RECHECK" if identity_evidence else
+                "NO_CURATED_IDENTITY_EVIDENCE"),
+            "samePhysicalFacilityVerified": False,
+            "currentEntranceVerified": False,
+            "osmWayIdForHumanReview": identity_evidence["osmWayId"] if identity_evidence else None,
             "caseId": case["caseId"],
             "targetVenueId": case["target"]["id"],
             "relatedVenueId": case["related"]["id"],
