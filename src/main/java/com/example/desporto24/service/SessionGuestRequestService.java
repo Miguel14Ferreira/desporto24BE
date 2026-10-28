@@ -106,9 +106,15 @@ public class SessionGuestRequestService {
         if (group == null) return new GuestRoster(sessionId, null, List.of());
         var claimed = historicalLinkRepository.findByCommunityIdAndStatus(group.getId(),"ACCEPTED")
                 .stream().map(link->link.getPlayer().getId()).collect(java.util.stream.Collectors.toSet());
+        // Previously submitted names cannot be reserved a second time.
+        // Keep them visible in confirmedPlayers(), not in the identity picker.
+        var alreadyUsedNames = requests.findBySessionIdOrderByCreatedAtAsc(sessionId).stream()
+                .map(SessionGuestRequest::getNormalizedName)
+                .collect(java.util.stream.Collectors.toSet());
         return new GuestRoster(sessionId,group.getId(),players.findByCommunityIdOrderByDisplayNameAsc(
                 group.getId()).stream()
-                .filter(p->p.getProfile()==null && !claimed.contains(p.getId()))
+                .filter(p->p.getProfile()==null && !claimed.contains(p.getId())
+                        && !alreadyUsedNames.contains(normalized(p.getDisplayName())))
                 .limit(150)
                 .map(p->new GuestPlayer(p.getId(),p.getDisplayName()))
                 .toList());
