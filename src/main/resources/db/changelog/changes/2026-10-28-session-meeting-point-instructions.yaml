@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-session-meeting-point-instructions-v1
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: meeting_point_instructions
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: meeting_point_instructions
+                  type: VARCHAR(240)
+                  constraints:
+                    nullable: true

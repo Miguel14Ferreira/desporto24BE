@@ -57,6 +57,27 @@ class CreateSessionRequestValidationTest {
         assertTrue(validator.validate(requestWithExternal(7)).isEmpty());
     }
 
+    @Test
+    void arrivalInstructionsAreOptionalAndCappedAt240Characters() {
+        CreateSessionRequest base = requestWithCity("Lisboa");
+        assertTrue(validator.validate(base).isEmpty());
+        CreateSessionRequest valid = withMeetingPoint(base, "Portão lateral junto à receção");
+        assertTrue(validator.validate(valid).isEmpty());
+        assertFalse(validator.validate(withMeetingPoint(base, "a".repeat(241))).isEmpty());
+        assertFalse(validator.validate(withMeetingPoint(base, "porta\nsecreta")).isEmpty());
+    }
+
+    private CreateSessionRequest withMeetingPoint(CreateSessionRequest r, String note) {
+        return new CreateSessionRequest(r.sport(), r.gameDate(), r.city(), r.address(),
+                r.maxParticipants(), r.priceAmount(), r.privateGame(), r.password(),
+                r.latitude(), r.longitude(), r.communityId(), r.venueId(), r.recurrence(),
+                r.recurrenceOccurrences(), r.externalConfirmedParticipants(),
+                r.registrationOpeningMode(), r.registrationOpensAt(),
+                r.additionalWeeklyGameDates(), r.recurrenceTimeZone(), r.playFormat(),
+                r.communityShareIds(), r.seasonCompetitionCommunityId(),
+                r.confirmActivateRankings(), note);
+    }
+
     private CreateSessionRequest requestWithExternal(int external) {
         return new CreateSessionRequest(
                 "Futsal", Instant.now().plusSeconds(3600), "Lisboa", "Rua de Teste 1",

@@ -167,7 +167,10 @@ public class SessionViewMapper {
                         : session.getRegistrationOpeningMode(),
                 session.getRegistrationOpensAt(),
                 TeamBalancingSportPolicy.isEligible(session),
-                session.getPlayFormat()
+                session.getPlayFormat(),
+                // This may specify an entry gate, so keep it private just like
+                // the precise street and nested venue GPS coordinates.
+                canSeeExactAddress ? session.getMeetingPointInstructions() : null
         );
     }
 }
