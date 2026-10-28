@@ -42,6 +42,14 @@ class SessionManagementControllerTest {
     }
 
     @Test
+    void patchMeetingPointUsesAuthenticatedIdentity() {
+        when(authentication.getName()).thenReturn("miguel");
+        var request = new com.example.desporto24.model.dto.session.UpdateSessionMeetingPointRequest("Portão 2");
+        controller.updateMeetingPoint(10L, request, authentication);
+        verify(sessionService).updateMeetingPoint(10L, "Portão 2", "miguel");
+    }
+
+    @Test
     void cancelUsesAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("miguel");
 

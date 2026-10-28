@@ -96,6 +96,51 @@ class SessionLifecycleServiceTest {
     }
 
     @Test
+    void creatorCanUpdateAndClearOnlyTheMeetingPointBeforeKickoff() {
+        session.setMeetingPointInstructions("Entrada principal");
+        sessionRepository.saveAndFlush(session);
+        var updated = service.updateMeetingPoint(
+                session.getId(), "  Portão 2, lado poente  ", creator.getUsername());
+        assertEquals("Portão 2, lado poente", updated.meetingPointInstructions());
+        Session persisted = sessionRepository.findById(session.getId()).orElseThrow();
+        assertEquals("Portão 2, lado poente", persisted.getMeetingPointInstructions());
+        assertEquals("Rua do Campo", persisted.getAddress());
+        assertEquals(SessionStatus.OPEN, persisted.getStatus());
+
+        var cleared = service.updateMeetingPoint(session.getId(), "   ", creator.getUsername());
+        assertNull(cleared.meetingPointInstructions());
+        assertNull(sessionRepository.findById(session.getId()).orElseThrow()
+                .getMeetingPointInstructions());
+    }
+
+    @Test
+    void participantCannotChangeOrganiserMeetingPoint() {
+        Profile player = profile("player");
+        participant(player);
+        assertThrows(AccessDeniedException.class,
+                () -> service.updateMeetingPoint(session.getId(), "Portão secreto", player.getUsername()));
+        assertNull(sessionRepository.findById(session.getId()).orElseThrow()
+                .getMeetingPointInstructions());
+    }
+
+    @Test
+    void closedOrStartedSessionsRejectArrivalInstructionChanges() {
+        for (SessionStatus status : new SessionStatus[] {SessionStatus.CANCELLED, SessionStatus.COMPLETED}) {
+            session.setStatus(status);
+            sessionRepository.saveAndFlush(session);
+            assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> service.updateMeetingPoint(session.getId(), "Portão 3", creator.getUsername()));
+        }
+        session.setStatus(SessionStatus.OPEN);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(20)));
+        sessionRepository.saveAndFlush(session);
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.updateMeetingPoint(session.getId(), "Portão 3", creator.getUsername()));
+        assertNull(sessionRepository.findById(session.getId()).orElseThrow()
+                .getMeetingPointInstructions());
+    }
+
+    @Test
     void leavingDeactivatesMembershipAndPromotesFirstWaitlistedUser() {
         Profile leaving = profile("leaving");
         SessionParticipant leavingMembership = participant(leaving);
