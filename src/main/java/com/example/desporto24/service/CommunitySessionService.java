@@ -60,7 +60,8 @@ public class CommunitySessionService {
                 .stream()
                 .filter(session -> session.getStatus() != SessionStatus.CANCELLED)
                 .filter(session -> session.getAudience() == SessionAudience.PUBLIC
-                        && !Boolean.TRUE.equals(session.getPrivateGame()))
+                        && !Boolean.TRUE.equals(session.getPrivateGame())
+                        || member && session.getAudience() == SessionAudience.COMMUNITY_ONLY)
                 .forEach(session -> visible.putIfAbsent(session.getId() != null ? session.getId() : session, session));
         return visible.values().stream()
                 .sorted(java.util.Comparator.comparing(Session::getGameDate,

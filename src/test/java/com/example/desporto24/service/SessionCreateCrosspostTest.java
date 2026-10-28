@@ -1,5 +1,8 @@
 package com.example.desporto24.service;
 
+import com.example.desporto24.enumeration.SessionAudience;
+import com.example.desporto24.enumeration.SessionRecurrence;
+import com.example.desporto24.enumeration.RegistrationOpeningMode;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.community.Community;
@@ -36,6 +39,7 @@ class SessionCreateCrosspostTest {
     @Mock CommunityRepository communities;
     @Mock CommunityMemberRepository members;
     @Mock SessionParticipantRepository participants;
+    @Mock com.example.desporto24.repository.session.SessionWaitlistRepository waitlist;
     @Mock SessionCommunityShareRepository shares;
     @Mock SessionViewMapper mapper;
     @Mock PilotEventService events;
@@ -67,12 +71,75 @@ class SessionCreateCrosspostTest {
         when(mapper.toDetail(any(Session.class),eq(creator))).thenReturn(details);
 
         assertSame(details,service.create(request(List.of(11L,12L)),"organizer"));
-        verify(sessions,times(1)).save(any(Session.class));
+        verify(sessions,times(1)).save(argThat(session ->
+                session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && !Boolean.TRUE.equals(session.getPrivateGame())
+                && session.getCommunity() == null));
         verify(participants,times(1)).save(any());
         verify(shares,times(2)).save(argThat(share ->
                 share.getSession().getId().equals(42L)
                 && (share.getCommunity().getId().equals(11L)
                     || share.getCommunity().getId().equals(12L))));
+    }
+
+    @Test
+    void recurringSharedGamesArePrivateToMembersAndEachOccurrenceIsPostedToEveryCommunity() {
+        Profile creator = new Profile(); creator.setId(7L);
+        when(profiles.findUserByUsername("organizer")).thenReturn(Optional.of(creator));
+        Community first = Community.builder().id(11L).build();
+        Community second = Community.builder().id(12L).build();
+        when(communities.findAllById(List.of(11L, 12L))).thenReturn(List.of(first, second));
+        when(members.existsByCommunityIdAndProfileId(11L, 7L)).thenReturn(true);
+        when(members.existsByCommunityIdAndProfileId(12L, 7L)).thenReturn(true);
+        java.util.concurrent.atomic.AtomicLong ids = new java.util.concurrent.atomic.AtomicLong(40L);
+        when(sessions.save(any(Session.class))).thenAnswer(inv -> {
+            Session saved = inv.getArgument(0);
+            saved.setId(ids.incrementAndGet());
+            return saved;
+        });
+        when(mapper.toDetail(any(Session.class), eq(creator)))
+                .thenReturn(mock(SessionDetailResponse.class));
+
+        CreateSessionRequest recurring = new CreateSessionRequest(
+                "Futebol", Instant.now().plusSeconds(3600), "Cacém", "Rua do Campo",
+                10, BigDecimal.ZERO, false, null, null, null,
+                null, null, SessionRecurrence.WEEKLY, 2, 0,
+                RegistrationOpeningMode.MANUAL, null, null, "Europe/Lisbon",
+                null, List.of(11L, 12L));
+
+        service.create(recurring, "organizer");
+
+        var sessionsCreated = org.mockito.ArgumentCaptor.forClass(Session.class);
+        verify(sessions, times(2)).save(sessionsCreated.capture());
+        assertTrue(sessionsCreated.getAllValues().stream()
+                .allMatch(s -> s.getAudience() == SessionAudience.COMMUNITY_ONLY));
+        String seriesId = sessionsCreated.getAllValues().get(0).getRecurrenceSeriesId();
+        assertNotNull(seriesId);
+        assertEquals(seriesId, sessionsCreated.getAllValues().get(1).getRecurrenceSeriesId());
+        verify(participants, times(2)).save(any());
+        verify(shares, times(4)).save(any(SessionCommunityShare.class));
+    }
+
+    @Test
+    void nonMembersCannotReadOrJoinSharedCommunitySessionsEvenWithInviteToken() {
+        Profile outsider = new Profile(); outsider.setId(77L);
+        Session session = new Session();
+        session.setId(42L);
+        session.setCommunity(null);
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        session.setStatus(com.example.desporto24.enumeration.SessionStatus.OPEN);
+        session.setGameDate(java.util.Date.from(Instant.now().plusSeconds(3600)));
+        when(profiles.findUserByUsername("outsider")).thenReturn(Optional.of(outsider));
+        when(sessions.findById(42L)).thenReturn(Optional.of(session));
+        when(sessions.findByIdForUpdate(42L)).thenReturn(Optional.of(session));
+
+        assertThrows(AccessDeniedException.class, () -> service.getById(42L, "outsider"));
+        assertThrows(AccessDeniedException.class, () ->
+                service.join(42L, new com.example.desporto24.model.dto.session.JoinSessionRequest(null),
+                        "outsider"));
+        assertThrows(AccessDeniedException.class, () ->
+                service.joinWithGuestToken(42L, "a".repeat(43), "outsider"));
+        verify(participants, never()).save(any());
     }
 
     @Test
