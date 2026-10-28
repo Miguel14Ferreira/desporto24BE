@@ -62,7 +62,9 @@ public class CommunitySessionResultService {
         if (!community.isRankingsEnabled())
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A classificação não está ativa");
         if (sessions.findById(sessionId)
-                .filter(s -> s.getCommunity() != null && communityId.equals(s.getCommunity().getId()))
+                .filter(s -> s.getCommunity() != null && communityId.equals(s.getCommunity().getId())
+                        || s.getSeasonCompetition() != null
+                        && communityId.equals(s.getSeasonCompetition().getCommunity().getId()))
                 .isEmpty())
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão fora desta comunidade");
         return participants.findBySessionIdAndStateOrderByJoinedAtAsc(sessionId, ParticipantState.ACTIVE)
@@ -106,6 +108,12 @@ public class CommunitySessionResultService {
         Session session = sessions.lockForCommunityResult(communityId, sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Sessão indisponível nesta comunidade"));
+        if (session.getSeasonCompetition() != null
+                && (!session.getSeasonCompetition().isActive()
+                    || !communityId.equals(session.getSeasonCompetition().getCommunity().getId()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A época deste jogo já não está ativa nesta comunidade");
+        }
         if (session.getStatus() == SessionStatus.CANCELLED ||
                 session.getGameDate() == null ||
                 !session.getGameDate().toInstant().isBefore(Instant.now())) {
