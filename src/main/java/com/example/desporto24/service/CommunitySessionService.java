@@ -53,10 +53,12 @@ public class CommunitySessionService {
         java.util.Map<Object, Session> visible = new java.util.LinkedHashMap<>();
         sessionRepository.findByCommunityIdOrderByGameDateDesc(communityId)
                 .stream()
+                .filter(session -> session.getStatus() != SessionStatus.CANCELLED)
                 .filter(session -> member || session.getAudience() == SessionAudience.PUBLIC)
                 .forEach(session -> visible.put(session.getId() != null ? session.getId() : session, session));
         sessionCommunityShareRepository.sessionsSharedWithCommunity(communityId)
                 .stream()
+                .filter(session -> session.getStatus() != SessionStatus.CANCELLED)
                 .filter(session -> session.getAudience() == SessionAudience.PUBLIC
                         && !Boolean.TRUE.equals(session.getPrivateGame()))
                 .forEach(session -> visible.putIfAbsent(session.getId() != null ? session.getId() : session, session));
