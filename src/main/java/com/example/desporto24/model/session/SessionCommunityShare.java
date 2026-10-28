@@ -7,8 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** A public session posted to a community. Does not grant community membership
- * or create another copy of the session, participants, payments or rankings. */
+/** Associates one session with an eligible community without cloning
+ * participants, payments or rankings or granting any community membership.
+ * Member-only shared sessions can be viewed and joined only by group members. */
 @Entity
 @Table(name = "session_community_share", schema = "desporto24",
        uniqueConstraints = @UniqueConstraint(name = "uq_session_community_share",
