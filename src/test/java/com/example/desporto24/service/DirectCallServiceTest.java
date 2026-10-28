@@ -158,6 +158,11 @@ class DirectCallServiceTest {
         doReturn(401).when(invalidKey).probeProvider();
         assertEquals("invalidCredentials", invalidKey.providerStatus());
 
+        DirectCallService insufficientPermissions = spy(calls);
+        doReturn(403).when(insufficientPermissions).probeProvider();
+        assertEquals("insufficientPermissions", insufficientPermissions.providerStatus(),
+                "HTTP 403 must not be described as an invalid API key");
+
         DirectCallService unreachable = spy(calls);
         doThrow(new java.io.IOException("No network")).when(unreachable).probeProvider();
         assertEquals("providerUnavailable", unreachable.providerStatus());
