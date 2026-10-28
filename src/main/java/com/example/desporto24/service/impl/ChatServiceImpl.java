@@ -37,6 +37,8 @@ public class ChatServiceImpl implements ChatService {
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.ConversationNotificationMuteService muteService;
 
     private final FriendRepository friendRepository;
     private final ChatRepository chatRepository;
@@ -115,10 +117,12 @@ public class ChatServiceImpl implements ChatService {
         notification.setType(NotificationType.CHAT_MESSAGE);
         notification.setSessionId(null);
         notification.setRead(false);
-        if (preferenceService == null ||
-                preferenceService.allowsInApp(notification.getUsername(), notification)) {
-            notificationsRepository.save(notification);
-        }
+        boolean enabled = preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification);
+        boolean muted = muteService != null && muteService.muted(
+                notification.getUsername(), "direct",
+                chat.getUsername1().toLowerCase(java.util.Locale.ROOT));
+        if (enabled && !muted) notificationsRepository.save(notification);
     }
 
     @Override
