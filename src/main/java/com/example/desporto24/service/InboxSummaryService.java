@@ -169,7 +169,7 @@ public class InboxSummaryService {
         if (latest.isEmpty()) return empty("direct", key);
         Chat message = latest.get(0);
         Date at = message.getDate();
-        return new InboxSummaryResponse("direct", key, message.getId(), message.getText(),
+        return new InboxSummaryResponse("direct", key, message.getId(), ChatMessagePreview.forMessage(message),
                 message.getUsername1(), at == null ? null : at.toInstant(),
                 chats.countUnread(actor.getUsername(), friend.getUsername(), readId));
     }
