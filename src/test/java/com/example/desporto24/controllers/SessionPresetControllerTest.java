@@ -4,7 +4,6 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.session.SessionPreset;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.session.SessionPresetRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
@@ -45,7 +44,16 @@ class SessionPresetControllerTest {
         when(actor.isAuthenticated()).thenReturn(true);
         when(actor.getName()).thenReturn("player-one");
         when(profiles.findUserByUsernameIgnoreCase("player-one")).thenReturn(Optional.of(owner));
-        controller = new SessionPresetController(presets, profiles, new ObjectMapper());
+        controller = new SessionPresetController(presets, profiles);
+    }
+
+    @Test
+    void controllerDoesNotRequireAnUnconfiguredJackson2BeanAtRuntime() {
+        var constructors = SessionPresetController.class.getDeclaredConstructors();
+        assertEquals(1, constructors.length);
+        assertEquals(2, constructors[0].getParameterCount());
+        assertTrue(java.util.Arrays.stream(constructors[0].getParameterTypes())
+                .noneMatch(type -> type.getName().equals("com.fasterxml.jackson.databind.ObjectMapper")));
     }
 
     @Test
