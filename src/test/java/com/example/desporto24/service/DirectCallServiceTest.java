@@ -71,6 +71,38 @@ class DirectCallServiceTest {
     }
 
     @Test
+    void missedIncomingInvitationCanBeRecoveredWithoutExposingCredentials() {
+        var outgoing = calls.start("ana", "bea", "video");
+        assertNull(calls.pendingFor("ana"), "The caller cannot fetch an incoming invitation");
+        assertNull(calls.pendingFor("mallory"), "Other accounts cannot see the invitation");
+
+        var recovered = calls.pendingFor("bea");
+        assertNotNull(recovered);
+        assertEquals(outgoing.callId(), recovered.callId());
+        assertEquals("ana", recovered.caller());
+        assertEquals("bea", recovered.peer());
+        assertEquals("video", recovered.media());
+        assertEquals(outgoing.expiresAt(), recovered.expiresAt());
+        verify(inbox).requireConversationAccess("bea", "direct", "ana");
+
+        calls.accept(outgoing.callId(), "bea");
+        assertNull(calls.pendingFor("bea"), "Accepted calls must not ring again");
+
+        calls.end(outgoing.callId(), "ana");
+        assertNull(calls.pendingFor("bea"));
+    }
+
+    @Test
+    void pendingRecoveryRevalidatesChatAccessAndCannotBypassBlocks() {
+        calls.start("ana", "bea", "voice");
+        doThrow(new org.springframework.security.access.AccessDeniedException("Blocked"))
+                .when(inbox).requireConversationAccess("bea", "direct", "ana");
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> calls.pendingFor("bea"));
+        assertNull(calls.pendingFor("mallory"));
+    }
+
+    @Test
     void deniesUnknownParticipantAndCallerAcceptance() {
         var outgoing = calls.start("ana", "bea", "voice");
         ResponseStatusException outsider = assertThrows(ResponseStatusException.class,
