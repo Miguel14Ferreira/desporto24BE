@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-community-session-creation-policy
+      author: desporto24
+      changes:
+        # Keep legacy behavior for all existing communities.
+        - addColumn:
+            schemaName: desporto24
+            tableName: community
+            columns:
+              - column:
+                  name: members_can_create_sessions
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
