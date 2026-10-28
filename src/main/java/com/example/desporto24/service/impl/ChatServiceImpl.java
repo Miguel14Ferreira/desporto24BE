@@ -14,6 +14,7 @@ import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.UserBlockService;
+import com.example.desporto24.service.ChatMessagePreview;
 import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.websocket.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
@@ -94,14 +95,13 @@ public class ChatServiceImpl implements ChatService {
 
     /** The chat keeps its original GIF envelope. Alerts only store a safe summary. */
     static String notificationPreview(String message) {
-        return message != null && message.startsWith("[JYNLO:GIPHY:1]")
-                ? "🎞️ GIF" : message;
+        return ChatMessagePreview.forText(message);
     }
 
     private void createChatNotification(Chat chat) {
         Notifications notification = new Notifications();
         notification.setSubject("Nova mensagem de " + chat.getUsername1());
-        notification.setMessage(notificationPreview(chat.getText()));
+        notification.setMessage(ChatMessagePreview.forMessage(chat));
         notification.setGreeting("");
         notification.setSignature("");
         notification.setCreatedAt(Instant.now().toString());
