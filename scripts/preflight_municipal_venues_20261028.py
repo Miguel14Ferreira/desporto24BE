@@ -80,18 +80,27 @@ def compare(catalogue, manifest):
     candidates = validate_manifest(manifest)
     reviewed = []
     for item in candidates:
-        local = [
+        district_rows = [
             row for row in catalogue
-            if normalize(row.get("district")) == normalize(item["district"])
-            and normalize(row.get("city")) == normalize(item["city"])]
+            if normalize(row.get("district")) == normalize(item["district"])]
+        local = [
+            row for row in district_rows
+            if normalize(row.get("city")) == normalize(item["city"])]
         exact = [row for row in local
                  if normalize(row.get("name")) == normalize(item["name"])]
+        # Legacy Jynlo `city` may be a parish rather than a municipality.
+        # A name in the same district but another locality is a review flag,
+        # never proof of identical facilities or approval for insertion.
+        district_name = [row for row in district_rows
+                         if normalize(row.get("name")) == normalize(item["name"])]
         if exact:
             potential = exact
             status = "EXACT_EXISTING"
+        elif district_name:
+            potential = district_name
+            status = "DISTRICT_NAME_MATCH_REVIEW"
         else:
-            # Facility type alone (e.g. "pavilhão") does NOT establish an
-            # alias: unrelated sports halls exist in the same municipality.
+            # Generic type alone ("pavilhão") does NOT establish an alias.
             words = distinctive(item["name"], item["city"])
             matches = []
             for row in local:
