@@ -13,5 +13,6 @@ public interface CommunityHistoricalPlayerLinkRepository extends JpaRepository<C
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<CommunityHistoricalPlayerLink> findByIdAndCommunityId(Long id, Long communityId);
     List<CommunityHistoricalPlayerLink> findByCommunityIdAndStatus(Long communityId, String status);
+    boolean existsByCommunityIdAndPlayerIdAndStatus(Long communityId, Long playerId, String status);
     List<CommunityHistoricalPlayerLink> findByCommunityIdAndProfileIdAndStatus(Long communityId, Long profileId, String status);
 }
