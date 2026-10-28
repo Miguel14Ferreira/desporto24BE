@@ -39,6 +39,44 @@ import static org.mockito.Mockito.*;
 
 class CommunityManagementServiceTest {
     @Test
+    void ownersAndAdminsChooseWhoMayCreateCommunitySessions() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile owner = new Profile(); owner.setId(1L); owner.setUsername("owner");
+        Profile admin = new Profile(); admin.setId(2L); admin.setUsername("admin");
+        Profile player = new Profile(); player.setId(3L); player.setUsername("player");
+        Community group = Community.builder().id(7L).name("Futsal").owner(owner).build();
+        org.junit.jupiter.api.Assertions.assertTrue(group.isMembersCanCreateSessions());
+        when(communities.findById(7L)).thenReturn(Optional.of(group));
+        when(communities.save(group)).thenReturn(group);
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(profiles.findUserByUsernameIgnoreCase("admin")).thenReturn(Optional.of(admin));
+        when(profiles.findUserByUsernameIgnoreCase("player")).thenReturn(Optional.of(player));
+        when(members.findByCommunityIdAndProfileId(eq(7L), anyLong())).thenAnswer(inv -> {
+            long id = inv.getArgument(1);
+            Profile profile = id == 1L ? owner : id == 2L ? admin : player;
+            return Optional.of(CommunityMember.builder().community(group).profile(profile)
+                    .role(id == 1L ? CommunityRole.OWNER : id == 2L ? CommunityRole.ADMIN
+                            : CommunityRole.MEMBER).build());
+        });
+        when(members.findByCommunityIdOrderByJoinedAtAsc(7L)).thenReturn(List.of());
+        CommunityManagementService service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        var restricted = service.updateSessionCreationPolicy(7L, "owner", false);
+        assertEquals(false, restricted.membersCanCreateSessions());
+        assertEquals(false, group.isMembersCanCreateSessions());
+        assertThrows(SecurityException.class,
+                () -> service.updateSessionCreationPolicy(7L, "player", true));
+        assertEquals(false, group.isMembersCanCreateSessions());
+        var reopened = service.updateSessionCreationPolicy(7L, "admin", true);
+        assertEquals(true, reopened.membersCanCreateSessions());
+        verify(communities, times(2)).save(group);
+    }
+
+    @Test
     void ownerConfiguresOptionalModulesWithoutDeletingAnyCommunityHistory() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);
