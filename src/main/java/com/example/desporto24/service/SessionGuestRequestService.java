@@ -12,6 +12,7 @@ import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.model.community.CommunityPlayer;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.repository.session.SessionCommunityShareRepository;
+import com.example.desporto24.repository.community.CommunityHistoricalPlayerLinkRepository;
 import com.example.desporto24.model.session.SessionGuestRequest;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityPlayerRepository;
@@ -41,6 +42,7 @@ public class SessionGuestRequestService {
     private final SessionRepository sessions;
     private final SessionCommunityShareRepository sharedCommunities;
     private final CommunityPlayerRepository players;
+    private final CommunityHistoricalPlayerLinkRepository historicalLinkRepository;
     private final SessionGuestRequestRepository requests;
     private final SessionParticipantRepository participants;
     private final ProfileRepository profiles;
@@ -84,9 +86,11 @@ public class SessionGuestRequestService {
         Session session=validLink(sessionId,token);
         Community group=historicalCommunity(session);
         if (group == null) return new GuestRoster(sessionId, null, List.of());
+        var claimed = historicalLinkRepository.findByCommunityIdAndStatus(group.getId(),"ACCEPTED")
+                .stream().map(link->link.getPlayer().getId()).collect(java.util.stream.Collectors.toSet());
         return new GuestRoster(sessionId,group.getId(),players.findByCommunityIdOrderByDisplayNameAsc(
                 group.getId()).stream()
-                .filter(p->p.getProfile()==null)
+                .filter(p->p.getProfile()==null && !claimed.contains(p.getId()))
                 .limit(150)
                 .map(p->new GuestPlayer(p.getId(),p.getDisplayName()))
                 .toList());
@@ -100,6 +104,12 @@ public class SessionGuestRequestService {
         if(!SessionRegistrationOpening.isOpen(session,Instant.now())) {
             throw conflict("A convocatória ainda não abriu");
         }
+        // A valid, organizer-issued link is consent to reserve a guest spot
+        // immediately. Lock the session row so simultaneous requests cannot
+        // overbook a full game.
+        long active=participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE);
+        if(SessionCapacity.remainingPlaces(session,active)<=0)
+            throw conflict("Este jogo já não tem vagas disponíveis");
         boolean picked=input.playerId()!=null;
         boolean typed=input.newName()!=null&&!input.newName().isBlank();
         if(picked==typed)throw invalid("Escolhe um jogador ou indica um nome novo");
@@ -109,8 +119,10 @@ public class SessionGuestRequestService {
         if(picked){
             if(group==null)throw invalid("Este jogo não tem uma lista histórica de jogadores");
             player=players.findById(input.playerId()).orElseThrow(()->invalid("Jogador não encontrado"));
-            if(player.getProfile()!=null||!group.getId().equals(player.getCommunity().getId()))
-                throw invalid("Este nome não está disponível para convidados");
+            if(player.getProfile()!=null||!group.getId().equals(player.getCommunity().getId())
+                    || historicalLinkRepository.existsByCommunityIdAndPlayerIdAndStatus(
+                        group.getId(),player.getId(),"ACCEPTED"))
+                throw invalid("Este nome já está associado a uma conta");
             name=player.getDisplayName();
         } else {
             name=clean(input.newName(),80);
@@ -124,8 +136,7 @@ public class SessionGuestRequestService {
         String normalized=normalized(name);
         if(requests.findBySessionIdAndNormalizedName(sessionId,normalized).isPresent())
             throw conflict("Este jogador já tem um pedido nesta sessão");
-        if(requests.countBySessionIdAndStatus(sessionId,SessionGuestRequest.State.PENDING)>=40)
-            throw conflict("Limite de pedidos pendentes atingido");
+
         String note=input.note()==null||input.note().isBlank()?"":clean(input.note(),160);
         byte[] bytes=new byte[32];RANDOM.nextBytes(bytes);
         String receipt=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -136,9 +147,18 @@ public class SessionGuestRequestService {
         request.setNormalizedName(normalized);
         request.setReceiptHash(hash(receipt));
         request.setNote(note);
-        request.setStatus(SessionGuestRequest.State.PENDING);
-        request.setCreatedAt(Instant.now());
+        Instant now=Instant.now();
+        request.setStatus(SessionGuestRequest.State.APPROVED);
+        request.setCreatedAt(now);
+        request.setReviewedAt(now);
         requests.saveAndFlush(request);
+        int external=session.getExternalConfirmedParticipants()==null?0:
+                session.getExternalConfirmedParticipants();
+        session.setExternalConfirmedParticipants(external+1);
+        session.setStatus(SessionCapacity.remainingPlaces(session,active)==0
+                ? SessionStatus.FULL : SessionStatus.OPEN);
+        session.setUpdatedAt(now);
+        sessions.save(session);
         return new GuestReceipt(receipt,request.getStatus().name());
     }
 
