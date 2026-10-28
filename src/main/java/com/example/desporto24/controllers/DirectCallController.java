@@ -23,6 +23,12 @@ public class DirectCallController {
         return java.util.Map.of("enabled", service.available());
     }
 
+    /** Allows the recipient to recover a missed RINGING WebSocket event. */
+    @GetMapping("/pending")
+    public DirectCallService.PendingInvitation pending(Authentication auth) {
+        return service.pendingFor(auth.getName());
+    }
+
     @PostMapping("/{peer}")
     public DirectCallService.CallSession start(@PathVariable String peer,
             @RequestBody @Valid StartRequest request, Authentication auth) {
