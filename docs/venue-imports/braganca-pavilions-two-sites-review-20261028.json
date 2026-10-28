@@ -15,7 +15,24 @@
       "sportsContextSource": "https://estrelasbrigantinas.com/contactos",
       "addressNote": "Rua Dom Sancho I 2A, 5300-263 Bragança (architectural record); postal variants require review",
       "warning": "Architectural study associates point with pavilion and swimming pool complex. Historical municipality emergency plan displays inconsistent latitude (41.569643): do not copy municipal value without checking source.",
-      "approvedForImport": false
+      "approvedForImport": false,
+      "historicalName": "Pavilhão Municipal",
+      "municipalRenamingSource": "https://www.cm-braganca.pt/uploads/writer_file/document/3277/Diploma_de_homenagem_Arnaldo_Pereira.pdf",
+      "secondaryCoordinateRaw": "41805258, -6769586",
+      "secondaryCoordinateInterpretation": "UNVERIFIED_POSSIBLE_DECIMAL_41.805258_-6.769586",
+      "secondaryCoordinateSource": "https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf",
+      "secondaryPointDistanceMetersApprox": 66.6,
+      "municipalRegistrationId": 14242,
+      "officialAddress": "Avenida D. Sancho I, Zona Desportiva, 5300-125 Bragança",
+      "officialSports": [
+        "Futsal",
+        "Andebol",
+        "Voleibol",
+        "Basquetebol",
+        "Hóquei em patins"
+      ],
+      "participantsAccess": "North ground-floor reception/entrance specified in official Annex H-1/I; geographic point of entry remains unverified",
+      "officialWeekdayHours": "08:30-12:30 and 14:30-23:30; outside only by prior authorization; not real-time availability"
     },
     {
       "name": "Pavilhão Polidesportivo da Coxa",
@@ -29,11 +46,30 @@
       "sportsContextSource": "https://estrelasbrigantinas.com/contactos",
       "addressNote": "Bairro da Coxa / Rua Padre Benjamim Videira Pires, Bragança; verify number and public entrance",
       "warning": "Construction company site point corroborates municipality listed facility, but does not establish the entrance or booking availability.",
-      "approvedForImport": false
+      "approvedForImport": false,
+      "recentCompetitionSource": "https://santosmartires.pt/desporto-inclusivo-hoquei-di/",
+      "recentCompetitionDate": "2026-10-15",
+      "municipalRegistrationId": 13288,
+      "officialAddress": "Rua Padre Benjamim Videira Pires, s/n, 5300-464 Bragança",
+      "officialSports": [
+        "Futsal",
+        "Andebol",
+        "Voleibol",
+        "Basquetebol",
+        "Ténis"
+      ],
+      "officialWeekdayHours": "08:30-12:30 and 14:30-23:30; outside only by prior authorization; not real-time availability"
     }
   ],
   "notes": [
     "Two different municipal sports halls; the neighbouring swimming pools and stadium are separate facilities.",
-    "No insertion, update, publication or GPS correction authorized."
-  ]
+    "No insertion, update, publication or GPS correction authorized.",
+    "Arnaldo Pereira was previously named Pavilhão Municipal; older unspecific names without GPS must be checked before any insert.",
+    "Arnaldo secondary municipal-guide coordinate is unverified decimal interpretation, not a certified entrance.",
+    "2026 municipal regulation establishes that creating a Jynlo session does not book a facility; user must obtain municipal authorization."
+  ],
+  "officialRegulationSource": "https://diariodarepublica.pt/dr/detalhe/regulamento/977-2026-1151247864",
+  "officialRegulationPublished": "2026-07-23",
+  "pavilionUseRequires": "Advance booking + municipal authorization + applicable fee; Jynlo has no municipality booking integration",
+  "referenceFeeNotGuaranteed": "Recinto principal: 23 EUR/hour weekdays; 35 EUR/hour weekend/holidays, subject to applicable exemptions/reductions"
 }

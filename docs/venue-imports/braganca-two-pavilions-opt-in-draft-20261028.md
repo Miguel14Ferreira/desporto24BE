@@ -41,3 +41,76 @@ Segurança do DRAFT:
 - Antes de qualquer execução: identidade final, GPS de acesso, revisão
   das fontes/licenças, read-only preflight autorizado e backup/restore
   validado. Autorizar especificamente a escrita e publicação depois.
+
+## Correção de identidade histórica (28/10/2026)
+
+A Câmara Municipal deliberou **em 9 de fevereiro de 2015** dar o nome
+Arnaldo Pereira ao antigo **Pavilhão Municipal**, pelo que o nome
+antigo não pode ser tratado como um recinto novo. Fonte oficial:
+https://www.cm-braganca.pt/uploads/writer_file/document/3277/Diploma_de_homenagem_Arnaldo_Pereira.pdf
+
+O pré-voo SQL e a minuta agora verificam os aliases de nome mais comuns
+(`Pavilhão Municipal`, `Pavilhão Municipal de Bragança` e
+`Pavilhão Gimnodesportivo`), circunscritos à cidade, freguesias
+correspondentes ou rua/zona desportiva, **mesmo sem GPS**. Este bloqueio
+não se aplica ao `Pavilhão da Bancada`, ao estádio nem às piscinas,
+que são outras instalações municipais.
+
+O **Guia das Acessibilidades dos Espaços Desportivos do Distrito de
+Bragança**, disponível no site municipal de Vila Flor, publica para
+Arnaldo Pereira os algarismos `41805258, -6769586`, que poderiam
+corresponder a `41.805258, -6.769586` se decimalizados. A interpretação
+é **não validada** e fica apenas como evidência secundária para revisão.
+O ponto do estudo Arquitectura Aqui fica a ~66,6 metros deste valor
+interpretado. Não alterar automaticamente o GPS do rascunho nem
+apresentar qualquer desses valores como **entrada verificada**.
+Fonte: https://www.cm-vilaflor.pt/uploads/writer_file/document/1736/GUIA_BRAGAN_A.pdf
+
+O Pavilhão Polidesportivo da Coxa acolheu o Torneio Regional da
+Castanha de Hóquei DI em **15 de outubro de 2026**, confirmando uso
+recente mas **não livre disponibilidade** para reserva. Fontes:
+https://jornalnordeste.com/noticias/braganca-recebe-7-torneio-regional-da-castanha-de-hoque-di
+https://santosmartires.pt/desporto-inclusivo-hoquei-di/
+
+As fontes da identidade, GPS de sítio e da atividade são diferentes;
+nenhuma autoriza lançar uma entrada GPS individual sem revisão.
+
+## Regulamento municipal definitivo 977/2026 — confirmação oficial
+
+**Nova fonte prioritária e em vigor:** [Regulamento n.º 977/2026,
+de 23 de julho](https://diariodarepublica.pt/dr/detalhe/regulamento/977-2026-1151247864),
+Capítulo H-1, anexo H-1/I e tabela de taxas. A identificação, as moradas,
+os desportos e os requisitos de acesso **substituem** as afirmações
+provisórias dos editais de consulta pública de setembro/outubro de 2025.
+
+| Dado | Arnaldo Pereira | Coxa |
+| --- | --- | --- |
+| Registo municipal | 14242 | 13288 |
+| Morada | Avenida D. Sancho I, Zona Desportiva, 5300-125 Bragança | Rua Padre Benjamim Videira Pires, s/n, 5300-464 Bragança |
+| Modalidades | Futsal, andebol, voleibol, basquetebol, hóquei em patins | Futsal, andebol, voleibol, basquetebol, ténis |
+| Dias úteis (horário regulamentar habitual) | 08h30–12h30; 14h30–23h30 | 08h30–12h30; 14h30–23h30 |
+
+- **Uso condicionado:** marcação prévia, autorização do Município de
+  Bragança e taxa de utilização, salvo isenções/reduções aplicáveis
+  (artigos H-1/27.º e H-1/32.º). O horário **não é disponibilidade**.
+- Tabela regulamentar, artigo 18.º: 23 €/hora ou fração em dias úteis,
+  35 €/hora ou fração em fins de semana e feriados, para cedência da
+  nave central; estes são valores-base regulamentares, não um preço
+  de reserva Jynlo nem confirmação de um horário livre.
+- **Acesso de participantes no Arnaldo:** o Anexo H-1/I indica
+  receção/entrada de participantes no rés do chão da lateral norte.
+  Continua por confirmar o ponto de entrada geográfico exato.
+- O regulamento identifica piscina, estádio e pavilhão da Bancada
+  como instalações distintas e o pavilhão da Bancada como parte do
+  estádio, evitando confundir recintos próximos.
+
+O SQL DRAFT já contém **as moradas e modalidades desta fonte final**.
+As coordenadas continuam a ser **pontos documentais de local**, não
+portas certificadas; não ativar importação até rever a precisão e fazer
+o pré-voo LIVE PostgreSQL autorizado.
+
+**Requisito funcional para o produto Jynlo:** na futura ficha destes
+recintos e no fluxo de criação de sessões, apresentar uma indicação
+clara de que é necessária autorização/reserva prévia pelo Município
+e de que uma sessão criada na Jynlo **não reserva o espaço**. Não
+publicar a tabela como preço garantido, nem uma disponibilidade fictícia.
