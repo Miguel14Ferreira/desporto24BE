@@ -1,0 +1,29 @@
+name: National venues offline catalogue review
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'scripts/plan_national_venue_coverage.py'
+      - 'scripts/test_plan_national_venue_coverage.py'
+      - 'scripts/audit_live_venue_district_coverage.py'
+      - 'scripts/test_audit_live_venue_district_coverage.py'
+      - '.github/workflows/national-venues-offline-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-catalogue-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify public catalogue analysis and privacy-safe review plan
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_audit_live_venue_district_coverage.py' -v
+          python3 -m unittest discover -s scripts -p 'test_plan_national_venue_coverage.py' -v
