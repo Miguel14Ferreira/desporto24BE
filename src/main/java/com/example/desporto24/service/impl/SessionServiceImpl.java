@@ -663,11 +663,11 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+        if (guestToken == null && session.getAudience() == SessionAudience.COMMUNITY_ONLY
                 && session.getCommunity() == null
                 && !sessionCommunityShareRepository.isMemberOfSharedCommunity(
                         sessionId, profile.getId())) {
-            // Signed guest links cannot bypass a multi-community member-only session.
+            // Without a signed invitation, community membership is mandatory.
             throw new AccessDeniedException("Esta sessão está reservada aos membros das comunidades");
         }
         if (guestToken == null) requireCommunitySessionAccess(session, profile);
@@ -779,8 +779,7 @@ public class SessionServiceImpl implements SessionService {
      * All normal exclusion, reliability, capacity and waitlist checks still run.
      */
     private void requireValidGuestToken(Session session, String token) {
-        if (session.getCommunity() == null
-                || (session.getAudience() != SessionAudience.PUBLIC
+        if ((session.getAudience() != SessionAudience.PUBLIC
                     && session.getAudience() != SessionAudience.COMMUNITY_ONLY)
                 || Boolean.TRUE.equals(session.getPrivateGame())
                 || Boolean.FALSE.equals(session.getEnabled())
