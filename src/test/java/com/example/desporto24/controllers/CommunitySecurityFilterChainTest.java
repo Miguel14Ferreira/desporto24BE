@@ -127,6 +127,20 @@ class CommunitySecurityFilterChainTest {
     }
 
     @Test
+    void signedGuestConfirmedRosterIsPostOnlyAndDoesNotRequireAccount() throws Exception {
+        // The MVC slice does not register the guest controller: 404 means the
+        // anonymous request crossed the real security filter, unlike 403.
+        mvc.perform(post("/api/sessions/42/guest-confirmed-players")
+                .contentType("application/json")
+                .content("{\\"token\\":\\"signed-invite\\"}"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/sessions/42/guest-confirmed-players"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/sessions/42/guest-link"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void malformedBearerTokenCannotReachTheController() throws Exception {
         when(tokens.getSubject("malformed-jwt")).thenThrow(new IllegalArgumentException("malformed"));
 
