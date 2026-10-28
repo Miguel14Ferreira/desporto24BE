@@ -68,6 +68,9 @@ public class SessionGuestRequestService {
     @Transactional(readOnly=true)
     public GuestRoster roster(Long sessionId,String token) {
         Session session=validLink(sessionId,token);
+        // Historical names are community-scoped. A standalone or shared
+        // session still allows a new guest name without exposing any roster.
+        if (session.getCommunity() == null) return new GuestRoster(sessionId, null, List.of());
         return new GuestRoster(sessionId,session.getCommunity().getId(),players.findByCommunityIdOrderByDisplayNameAsc(
                 session.getCommunity().getId()).stream()
                 .filter(p->p.getProfile()==null)
@@ -90,6 +93,7 @@ public class SessionGuestRequestService {
         CommunityPlayer player=null;
         String name;
         if(picked){
+            if(session.getCommunity()==null)throw invalid("Este jogo não tem uma lista histórica de jogadores");
             player=players.findById(input.playerId()).orElseThrow(()->invalid("Jogador não encontrado"));
             if(player.getProfile()!=null||!session.getCommunity().getId().equals(player.getCommunity().getId()))
                 throw invalid("Este nome não está disponível para convidados");
@@ -97,9 +101,11 @@ public class SessionGuestRequestService {
         } else {
             name=clean(input.newName(),80);
             String normalized=normalized(name);
-            boolean exists=players.findByCommunityIdOrderByDisplayNameAsc(session.getCommunity().getId())
-                    .stream().anyMatch(p->normalized(p.getDisplayName()).equals(normalized));
-            if(exists)throw invalid("Este nome já existe. Seleciona-o na lista");
+            if(session.getCommunity()!=null){
+                boolean exists=players.findByCommunityIdOrderByDisplayNameAsc(session.getCommunity().getId())
+                        .stream().anyMatch(p->normalized(p.getDisplayName()).equals(normalized));
+                if(exists)throw invalid("Este nome já existe. Seleciona-o na lista");
+            }
         }
         String normalized=normalized(name);
         if(requests.findBySessionIdAndNormalizedName(sessionId,normalized).isPresent())
@@ -160,7 +166,7 @@ public class SessionGuestRequestService {
                 session.getExternalConfirmedParticipants();
         if(external<=0)throw conflict("A reserva de convidado deixou de existir");
         if(guest.getCommunityPlayer()!=null){
-            historicalLinks.claimOrganizerApprovedGuest(session.getCommunity().getId(),
+            historicalLinks.claimOrganizerApprovedGuest(guest.getCommunityPlayer().getCommunity().getId(),
                     owner.getUsername(),guest.getCommunityPlayer().getId());
         }
         SessionParticipant member=new SessionParticipant();
@@ -308,7 +314,7 @@ public class SessionGuestRequestService {
     }
 
     private void requireGuestEligible(Session session){
-        if(session.getCommunity()==null || (session.getAudience()!=SessionAudience.PUBLIC
+        if((session.getAudience()!=SessionAudience.PUBLIC
                 && session.getAudience()!=SessionAudience.COMMUNITY_ONLY)
                 || Boolean.TRUE.equals(session.getPrivateGame())
                 || Boolean.FALSE.equals(session.getEnabled())
