@@ -145,4 +145,29 @@ class DirectCallServiceTest {
                 () -> calls.start("ana", "bea", "screen")).getStatusCode());
         verifyNoInteractions(gateway);
     }
+
+    @Test
+    void availabilityRequiresActualLiveKitServerAndMatchingCredentials() throws Exception {
+        DirectCallService healthy = spy(calls);
+        doReturn(200).when(healthy).probeProvider();
+        assertEquals("ready", healthy.providerStatus());
+        assertEquals("ready", healthy.providerStatus(), "Successful probe is cached");
+        verify(healthy, times(1)).probeProvider();
+
+        DirectCallService invalidKey = spy(calls);
+        doReturn(401).when(invalidKey).probeProvider();
+        assertEquals("invalidCredentials", invalidKey.providerStatus());
+
+        DirectCallService unreachable = spy(calls);
+        doThrow(new java.io.IOException("No network")).when(unreachable).probeProvider();
+        assertEquals("providerUnavailable", unreachable.providerStatus());
+    }
+
+    @Test
+    void missingSettingsNeverProbeOrExposeLiveKitCredentials() throws Exception {
+        ReflectionTestUtils.setField(calls, "apiKey", "");
+        DirectCallService unavailable = spy(calls);
+        assertEquals("notConfigured", unavailable.providerStatus());
+        verify(unavailable, never()).probeProvider();
+    }
 }
