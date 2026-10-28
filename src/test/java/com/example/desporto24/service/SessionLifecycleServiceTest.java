@@ -13,6 +13,7 @@ import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
+import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.analytics.PilotEventRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
@@ -77,6 +78,7 @@ class SessionLifecycleServiceTest {
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
+    @Autowired private NotificationsRepository notificationsRepository;
     @MockitoBean private VenueService venueService;
 
     private Profile creator;
@@ -84,6 +86,7 @@ class SessionLifecycleServiceTest {
 
     @BeforeEach
     void setUp() {
+        notificationsRepository.deleteAll();
         pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
@@ -93,6 +96,34 @@ class SessionLifecycleServiceTest {
         creator = profile("creator");
         session = session(3);
         participant(creator);
+    }
+
+    @Test
+    void editingMeetingPointNotifiesOnlyActivePlayersAndOnlyOnRealChanges() {
+        Profile active = profile("player");
+        participant(active);
+        Profile waiting = profile("waiting");
+        waitlisted(waiting);
+
+        service.updateMeetingPoint(session.getId(), "Porta A", creator.getUsername());
+        assertEquals(1, notificationsRepository.findByUsername("player").size());
+        assertTrue(notificationsRepository.findByUsername("creator").isEmpty());
+        assertTrue(notificationsRepository.findByUsername("waiting").isEmpty());
+
+        var initial = notificationsRepository.findByUsername("player").get(0);
+        assertEquals(com.example.desporto24.enumeration.NotificationType.SESSION_MEETING_POINT_UPDATED,
+                initial.getType());
+        assertEquals(session.getId(), initial.getSessionId());
+        assertFalse(initial.isRead());
+        assertFalse(initial.getMessage().contains("Porta A"));
+
+        service.updateMeetingPoint(session.getId(), "  Porta A ", creator.getUsername());
+        assertEquals(1, notificationsRepository.findByUsername("player").size());
+
+        service.updateMeetingPoint(session.getId(), null, creator.getUsername());
+        assertEquals(2, notificationsRepository.findByUsername("player").size());
+        assertEquals("Rua do Campo",
+                sessionRepository.findById(session.getId()).orElseThrow().getAddress());
     }
 
     @Test

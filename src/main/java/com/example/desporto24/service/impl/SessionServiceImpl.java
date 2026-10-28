@@ -779,6 +779,9 @@ public class SessionServiceImpl implements SessionService {
             session.setMeetingPointInstructions(normalized);
             session.setUpdatedAt(Instant.now());
             sessionRepository.save(session);
+            // Only a genuine change sends an in-app alert. The alert itself
+            // deliberately contains neither the private note nor venue GPS.
+            sessionNotificationService.notifyMeetingPointUpdated(session);
         }
         return sessionViewMapper.toDetail(session, actor);
     }
