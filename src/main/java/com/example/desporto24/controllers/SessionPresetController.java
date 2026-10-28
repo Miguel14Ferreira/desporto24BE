@@ -34,7 +34,8 @@ public class SessionPresetController {
     private static final int MAX_PRESETS = 20;
     private final SessionPresetRepository presets;
     private final ProfileRepository profiles;
-    private final ObjectMapper mapper;
+    // Spring Boot 4 configures Jackson 3 by default; avoid requesting an absent Jackson 2 bean.
+    private final ObjectMapper mapper = new ObjectMapper();
 
     /** Explicit allowlist; Jackson ignores any unexpected client fields (including passwords and dates). */
     public record Settings(
