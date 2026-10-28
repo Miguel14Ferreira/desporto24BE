@@ -1,0 +1,44 @@
+name: Official Braganca Guarda venue shortlist (read-only)
+
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'scripts/preflight_municipal_venues_20261028.py'
+      - 'scripts/test_preflight_municipal_venues_20261028.py'
+      - 'docs/venue-imports/municipal-braganca-guarda-shortlist-20261028.json'
+      - '.github/workflows/official-municipal-venue-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  municipal-preflight:
+    name: Ten official municipal candidates versus public catalogue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline contract and security tests
+        run: python3 -m unittest discover -s scripts -p 'test_preflight_municipal_venues_20261028.py' -v
+      - name: Live read-only public catalogue comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/jynlo-municipal-review
+          python3 scripts/preflight_municipal_venues_20261028.py --live-public-api \
+            --sources-json docs/venue-imports/municipal-braganca-guarda-shortlist-20261028.json \
+            --output-json .cache/jynlo-municipal-review/preflight.json
+          echo "Official municipal shortlist, public catalogue GET, UTC $(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_STEP_SUMMARY"
+          echo "Status is for human review only; NO IMPORTS OR WRITES." >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep review report for three days
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-municipal-shortlist-review
+          path: .cache/jynlo-municipal-review/preflight.json
+          retention-days: 3
+          if-no-files-found: error
