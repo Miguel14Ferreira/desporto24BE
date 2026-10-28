@@ -327,6 +327,143 @@ class SessionGuestRequestServiceTest {
         verifyNoInteractions(historicalLinks);
         verify(participants,never()).saveAndFlush(any());
     }
+    @Test void changingMyConfirmedNameKeepsSameReceiptSameSeatEvenWhenGameIsFull(){
+        token();
+        clearInvocations(sessions);
+        var original=new SessionGuestRequest();
+        original.setId(90L);original.setSession(session);
+        original.setDisplayName("Barata");original.setNormalizedName("barata");
+        original.setStatus(SessionGuestRequest.State.APPROVED);
+        var player=historic();player.setDisplayName("Fresco");player.setNormalizedName("fresco");
+        when(players.findById(15L)).thenReturn(Optional.of(player));
+        String receipt="M".repeat(43);
+        String digest;
+        try{digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(original));
+        when(requests.findBySessionIdAndNormalizedName(7L,"fresco")).thenReturn(Optional.empty());
+        session.setExternalConfirmedParticipants(9);
+        when(participants.countBySessionIdAndState(7L,ParticipantState.ACTIVE)).thenReturn(1L);
+        session.setStatus(SessionStatus.FULL);
+        var result=service.changeGuestIdentity(7L,
+                new SessionGuestRequestService.ChangeGuestIdentityInput(receipt,15L,null));
+        assertEquals("APPROVED",result.status());
+        assertEquals("Fresco",result.playerName());
+        assertEquals(receipt,result.receipt());
+        assertEquals("Fresco",original.getDisplayName());
+        assertEquals("fresco",original.getNormalizedName());
+        assertEquals(SessionGuestRequest.State.APPROVED,original.getStatus());
+        assertEquals(9,session.getExternalConfirmedParticipants());
+        assertEquals(SessionStatus.FULL,session.getStatus());
+        verify(requests).saveAndFlush(same(original));
+        verify(sessions,never()).save(any(Session.class));
+        verifyNoInteractions(waitlistPromotionService);
+        assertThrows(ResponseStatusException.class,()->service.changeGuestIdentity(7L,
+            new SessionGuestRequestService.ChangeGuestIdentityInput("invalid",null,"Intruso")));
+    }
+
+    @Test void cannotChangeMyBookingToAnotherConfirmedNameOrLinkedProfile(){
+        token();
+        var owner=new SessionGuestRequest();
+        owner.setId(91L);owner.setSession(session);
+        owner.setNormalizedName("barata");owner.setStatus(SessionGuestRequest.State.APPROVED);
+        var other=new SessionGuestRequest();other.setId(92L);
+        other.setNormalizedName("fresco");other.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findBySessionIdAndNormalizedName(7L,"fresco")).thenReturn(Optional.of(other));
+        String receipt="N".repeat(43);
+        String digest;
+        try{digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(owner));
+        assertThrows(ResponseStatusException.class,()->service.changeGuestIdentity(7L,
+                new SessionGuestRequestService.ChangeGuestIdentityInput(receipt,null,"Fresco")));
+        var linked=historic();linked.setProfile(organizer);
+        when(players.findById(15L)).thenReturn(Optional.of(linked));
+        assertThrows(ResponseStatusException.class,()->service.changeGuestIdentity(7L,
+                new SessionGuestRequestService.ChangeGuestIdentityInput(receipt,15L,null)));
+        assertEquals("barata",owner.getNormalizedName());
+        verify(requests,never()).saveAndFlush(any());
+    }
+
+    @Test void guestMayCancelOwnReceiptOnceAndFreeSeatWithoutAccount(){
+        String secret=token();
+        var original=new SessionGuestRequest();
+        original.setId(82L);original.setSession(session);
+        original.setDisplayName("Barata");original.setNormalizedName("barata");
+        original.setStatus(SessionGuestRequest.State.APPROVED);
+        original.setTeamCode("A");
+        session.setExternalConfirmedParticipants(1);
+        session.setStatus(SessionStatus.FULL);
+        String receipt="B".repeat(43);
+        String digest;
+        try {
+            digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest))
+                .thenReturn(Optional.of(original));
+        when(requests.findBySessionIdOrderByCreatedAtAsc(7L))
+                .thenReturn(List.of(original));
+        when(waitlistPromotionService.promoteNext(eq(session),any(Instant.class)))
+                .thenReturn(Optional.empty());
+        assertThrows(ResponseStatusException.class,()->service.cancelByReceipt(7L,
+                new SessionGuestRequestService.ReceiptInput("wrong")));
+        assertEquals(1,session.getExternalConfirmedParticipants());
+        var result=service.cancelByReceipt(7L,new SessionGuestRequestService.ReceiptInput(receipt));
+        assertEquals("CANCELLED",result.status());
+        assertEquals("Barata",result.playerName());
+        assertEquals(0,session.getExternalConfirmedParticipants());
+        assertEquals(SessionStatus.OPEN,session.getStatus());
+        assertNull(original.getTeamCode());
+        assertTrue(service.confirmedPlayers(7L,secret).isEmpty());
+        assertEquals("CANCELLED",service.cancelByReceipt(7L,
+                new SessionGuestRequestService.ReceiptInput(receipt)).status());
+        assertEquals(0,session.getExternalConfirmedParticipants());
+        verify(requests,times(1)).save(original);
+        verify(waitlistPromotionService,times(1)).promoteNext(eq(session),any(Instant.class));
+    }
+
+    @Test void aCancelledHistoricalGuestMayBeSelectedAgainWithANewReceipt(){
+        String secret=token();
+        var player=historic();
+        when(players.findById(15L)).thenReturn(Optional.of(player));
+        when(players.findByCommunityIdOrderByDisplayNameAsc(11L)).thenReturn(List.of(player));
+        var previous=new SessionGuestRequest();
+        previous.setId(82L);previous.setSession(session);
+        previous.setNormalizedName("afonso salvador");
+        previous.setStatus(SessionGuestRequest.State.CANCELLED);
+        previous.setReceiptHash("old-digest");
+        when(requests.findBySessionIdOrderByCreatedAtAsc(7L)).thenReturn(List.of(previous));
+        when(requests.findBySessionIdAndNormalizedName(7L,"afonso salvador"))
+                .thenReturn(Optional.of(previous));
+        assertEquals(1,service.roster(7L,secret).players().size());
+        var rejoined=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
+                secret,15L,null,""));
+        assertEquals("APPROVED",rejoined.status());
+        assertEquals(1,session.getExternalConfirmedParticipants());
+        assertNotEquals("old-digest",previous.getReceiptHash());
+        assertEquals(SessionGuestRequest.State.APPROVED,previous.getStatus());
+        verify(requests).saveAndFlush(same(previous));
+    }
+
+    @Test void linkedGuestReceiptCannotRemoveRegisteredParticipants(){
+        var linked=new SessionGuestRequest();
+        linked.setSession(session);linked.setStatus(SessionGuestRequest.State.LINKED);
+        String receipt="L".repeat(43);
+        String digest;
+        try {
+            digest=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(receipt.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }catch(Exception ex){throw new AssertionError(ex);}
+        when(requests.findBySessionIdAndReceiptHash(7L,digest)).thenReturn(Optional.of(linked));
+        assertThrows(ResponseStatusException.class,()->service.cancelByReceipt(7L,
+                new SessionGuestRequestService.ReceiptInput(receipt)));
+        verify(requests,never()).save(linked);
+        verifyNoInteractions(waitlistPromotionService);
+    }
+
     @Test void organizerCancellationReleasesOneSeatAndClearsBothKindsOfTeam(){
         var guest=new SessionGuestRequest();
         guest.setId(20L);guest.setSession(session);
