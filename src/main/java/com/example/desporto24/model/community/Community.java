@@ -84,6 +84,11 @@ public class Community {
     @Column(name = "habitual_address", length = 350)
     private String habitualAddress;
 
+    // Legacy communities retain the existing all-members permission.
+    @Builder.Default
+    @Column(name = "members_can_create_sessions", nullable = false)
+    private boolean membersCanCreateSessions = true;
+
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;
 
