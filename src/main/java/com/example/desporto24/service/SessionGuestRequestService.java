@@ -336,7 +336,11 @@ public class SessionGuestRequestService {
                 session.getGameDate().toInstant(),session.getMaxParticipants(),
                 SessionCapacity.totalConfirmed(session,
                     participants.countBySessionIdAndState(sessionId,ParticipantState.ACTIVE)),
-                session.getPriceAmount(),session.getStatus(),session.getGamePhoto());
+                session.getPriceAmount(),session.getStatus(),session.getGamePhoto(),
+                session.getVenue()==null?null:session.getVenue().getName(),
+                session.getAddress()!=null && !session.getAddress().isBlank()
+                  ?session.getAddress()
+                  :session.getVenue()==null?null:session.getVenue().getAddress());
     }
 
     private Session validLink(Long sessionId,String token) {
