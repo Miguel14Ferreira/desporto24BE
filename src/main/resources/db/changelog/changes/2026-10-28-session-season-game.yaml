@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-session-season-game
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: season_competition_id
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: season_competition_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - addForeignKeyConstraint:
+            baseTableName: session
+            baseColumnNames: season_competition_id
+            referencedTableName: community_season
+            referencedColumnNames: id
+            constraintName: fk_session_season_competition
+        - createIndex:
+            tableName: session
+            indexName: ix_session_season_competition
+            columns:
+              - column:
+                  name: season_competition_id
