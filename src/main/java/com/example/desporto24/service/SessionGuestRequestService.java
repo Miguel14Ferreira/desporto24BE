@@ -53,7 +53,11 @@ public class SessionGuestRequestService {
     public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
     public record GuestRequestInput(String linkToken,Long playerId,String newName,String note) {}
     public record ReceiptInput(String receipt) {}
-    public record GuestReceipt(String receipt,String status) {}
+    public record GuestReceipt(String receipt,String status,String playerName) {
+        public GuestReceipt(String receipt,String status){ this(receipt,status,null); }
+    }
+    /** The signed link is a bearer capability; never expose these identities on a public GET. */
+    public record ConfirmedPlayer(String key,String name,boolean hasAccount) {}
     public record LinkedReceipt(String status,String username) {}
     public record GuestView(Long id,String name,String status,String note,String teamCode) {}
 
@@ -94,6 +98,29 @@ public class SessionGuestRequestService {
                 .limit(150)
                 .map(p->new GuestPlayer(p.getId(),p.getDisplayName()))
                 .toList());
+    }
+
+    /**
+     * Session-only confirmed roster, available exclusively to people possessing
+     * the organiser-issued signed link. No email, phone, IDs or private
+     * community ranking data are returned.
+     */
+    @Transactional(readOnly=true)
+    public List<ConfirmedPlayer> confirmedPlayers(Long sessionId,String token) {
+        validLink(sessionId,token);
+        List<ConfirmedPlayer> result=new java.util.ArrayList<>();
+        for(SessionParticipant member:participants.findBySessionIdAndStateOrderByJoinedAtAsc(
+                sessionId,ParticipantState.ACTIVE)) {
+            if(member.getProfile()!=null && member.getProfile().getUsername()!=null) {
+                result.add(new ConfirmedPlayer("account:"+member.getId(),
+                        member.getProfile().getUsername(),true));
+            }
+        }
+        for(SessionGuestRequest guest:requests.findBySessionIdAndStatusOrderByCreatedAtAsc(
+                sessionId,SessionGuestRequest.State.APPROVED)) {
+            result.add(new ConfirmedPlayer("guest:"+guest.getId(),guest.getDisplayName(),false));
+        }
+        return List.copyOf(result);
     }
 
     @Transactional
@@ -159,7 +186,7 @@ public class SessionGuestRequestService {
                 ? SessionStatus.FULL : SessionStatus.OPEN);
         session.setUpdatedAt(now);
         sessions.save(session);
-        return new GuestReceipt(receipt,request.getStatus().name());
+        return new GuestReceipt(receipt,request.getStatus().name(),name);
     }
 
     @Transactional
@@ -198,7 +225,7 @@ public class SessionGuestRequestService {
                 }
             }
         }
-        return new GuestReceipt(receipt,request.getStatus().name());
+        return new GuestReceipt(receipt,request.getStatus().name(),request.getDisplayName());
     }
 
     /**

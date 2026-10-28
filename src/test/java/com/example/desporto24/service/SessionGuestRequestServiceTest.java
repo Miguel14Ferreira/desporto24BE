@@ -130,12 +130,35 @@ class SessionGuestRequestServiceTest {
         session.setPrivateGame(true);
         assertThrows(ResponseStatusException.class,()->service.preview(7L,secret));
     }
+    @Test void signedLinkShowsAllConfirmedPlayersWithoutExposingUnapprovedOrLinkedGuests(){
+        String secret=token();
+        var member=new SessionParticipant();member.setId(30L);member.setProfile(organizer);
+        when(participants.findBySessionIdAndStateOrderByJoinedAtAsc(7L,ParticipantState.ACTIVE))
+                .thenReturn(List.of(member));
+        var guest=new SessionGuestRequest();guest.setId(40L);
+        guest.setDisplayName("Fresco");guest.setStatus(SessionGuestRequest.State.APPROVED);
+        when(requests.findBySessionIdAndStatusOrderByCreatedAtAsc(
+                7L,SessionGuestRequest.State.APPROVED)).thenReturn(List.of(guest));
+        assertThrows(ResponseStatusException.class,
+                ()->service.confirmedPlayers(7L,"invalid"));
+        var confirmed=service.confirmedPlayers(7L,secret);
+        assertEquals(2,confirmed.size());
+        assertEquals("account:30",confirmed.getFirst().key());
+        assertEquals("rui",confirmed.getFirst().name());
+        assertTrue(confirmed.getFirst().hasAccount());
+        assertEquals("guest:40",confirmed.get(1).key());
+        assertEquals("Fresco",confirmed.get(1).name());
+        assertFalse(confirmed.get(1).hasAccount());
+        verify(requests,never()).findBySessionIdOrderByCreatedAtAsc(7L);
+    }
+
     @Test void signedInviteReservesSeatImmediatelyAndReturnsApprovedReceipt(){
         String token=token();var person=historic();
         when(players.findById(15L)).thenReturn(Optional.of(person));
         var receipt=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
                 token,15L,null,"Chego a horas"));
         assertEquals("APPROVED",receipt.status());
+        assertEquals("Afonso Salvador",receipt.playerName());
         assertEquals(43,receipt.receipt().length());
         var captor=org.mockito.ArgumentCaptor.forClass(SessionGuestRequest.class);
         verify(requests).saveAndFlush(captor.capture());
