@@ -39,6 +39,7 @@ class SessionCreateCrosspostTest {
     @Mock CommunityRepository communities;
     @Mock CommunityMemberRepository members;
     @Mock SessionParticipantRepository participants;
+    @Mock com.example.desporto24.repository.session.SessionWaitlistRepository waitlist;
     @Mock SessionCommunityShareRepository shares;
     @Mock SessionViewMapper mapper;
     @Mock PilotEventService events;
