@@ -750,6 +750,39 @@ public class SessionServiceImpl implements SessionService {
         );
     }
 
+    /** Update only private arrival instructions, not the catalogue venue or
+     * its reference point. Row locking serializes concurrent organizer edits.
+     */
+    @Override
+    @Transactional
+    public SessionDetailResponse updateMeetingPoint(
+            Long sessionId, String instructions, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireCreator(session, actor);
+        if ((session.getStatus() != SessionStatus.OPEN && session.getStatus() != SessionStatus.FULL)
+                || session.getGameDate() == null
+                || !session.getGameDate().toInstant().isAfter(Instant.now())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "O ponto de encontro só pode ser alterado antes do início da sessão");
+        }
+        if (instructions != null && (instructions.length() > 240
+                || instructions.codePoints().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Instruções de chegada inválidas");
+        }
+        String normalized = instructions == null || instructions.isBlank()
+                ? null : instructions.trim();
+        if (!java.util.Objects.equals(normalized, session.getMeetingPointInstructions())) {
+            session.setMeetingPointInstructions(normalized);
+            session.setUpdatedAt(Instant.now());
+            sessionRepository.save(session);
+        }
+        return sessionViewMapper.toDetail(session, actor);
+    }
+
     @Override
     @Transactional
     public SessionDetailResponse openRegistration(Long sessionId, String username) {
