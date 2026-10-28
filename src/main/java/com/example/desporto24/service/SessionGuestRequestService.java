@@ -53,11 +53,25 @@ public class SessionGuestRequestService {
     public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
     public record GuestRequestInput(String linkToken,Long playerId,String newName,String note) {}
     public record ReceiptInput(String receipt) {}
-    public record GuestReceipt(String receipt,String status,String playerName) {
-        public GuestReceipt(String receipt,String status){ this(receipt,status,null); }
+    public record GuestReceipt(String receipt,String status,String playerName,String meetingPointInstructions) {
+        public GuestReceipt(String receipt,String status){ this(receipt,status,null,null); }
+        public GuestReceipt(String receipt,String status,String playerName){ this(receipt,status,playerName,null); }
     }
     /** The signed link is a bearer capability; never expose these identities on a public GET. */
     public record ConfirmedPlayer(String key,String name,boolean hasAccount) {}
+
+    /**
+     * A signed invitation alone is not proof of attendance. Reveal private arrival
+     * instructions only to the holder of that guest's approved receipt, while
+     * the game remains active. A newly fetched receipt always reflects edits.
+     */
+    private String confirmedMeetingPoint(Session session,SessionGuestRequest.State state) {
+        if(session==null || (state!=SessionGuestRequest.State.APPROVED
+                && state!=SessionGuestRequest.State.LINKED)
+                || (session.getStatus()!=SessionStatus.OPEN
+                    && session.getStatus()!=SessionStatus.FULL)) return null;
+        return session.getMeetingPointInstructions();
+    }
     public record LinkedReceipt(String status,String username) {}
     public record GuestView(Long id,String name,String status,String note,String teamCode) {}
 
@@ -186,7 +200,8 @@ public class SessionGuestRequestService {
                 ? SessionStatus.FULL : SessionStatus.OPEN);
         session.setUpdatedAt(now);
         sessions.save(session);
-        return new GuestReceipt(receipt,request.getStatus().name(),name);
+        return new GuestReceipt(receipt,request.getStatus().name(),name,
+                confirmedMeetingPoint(session,request.getStatus()));
     }
 
     @Transactional
@@ -225,7 +240,8 @@ public class SessionGuestRequestService {
                 }
             }
         }
-        return new GuestReceipt(receipt,request.getStatus().name(),request.getDisplayName());
+        return new GuestReceipt(receipt,request.getStatus().name(),request.getDisplayName(),
+                confirmedMeetingPoint(request.getSession(),request.getStatus()));
     }
 
     /**
