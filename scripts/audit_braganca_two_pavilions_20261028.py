@@ -71,6 +71,31 @@ def validate(manifest):
                    for key in ("coordinateSource", "officialIdentitySource",
                                "sportsContextSource")):
             raise ValueError("Missing traceable official/source evidence")
+    # Arrival evidence must never be silently promoted to a GPS entrance,
+    # operational transport service, or a reservation.
+    by_name = {v["name"]: v for v in venues}
+    arnaldo = by_name[NAMES[0]].get("visitorArrivalEvidence")
+    if (not isinstance(arnaldo, dict)
+            or arnaldo.get("status") != "OFFICIAL_NAMED_BUS_STOP_NOT_ENTRANCE"
+            or arnaldo.get("officialTransportUrl") !=
+               "https://bus.cm-braganca.pt/routes"
+            or arnaldo.get("stopName") != "Pavilhão Arnaldo Pereira"
+            or arnaldo.get("listedRouteCodes") != ["R1", "R3", "R5", "R7"]
+            or any(arnaldo.get(key) is not False for key in (
+                "stopCoordinatesVerified", "pavilionDoorCoordinatesVerified",
+                "timetablesVerified", "transportServiceGuaranteed",
+                "venueBookingGuaranteed"))):
+        raise ValueError("Official public transit evidence is not a certified arrival")
+    coxa = by_name[NAMES[1]].get("visitorArrivalEvidence")
+    if (not isinstance(coxa, dict)
+            or coxa.get("status") != "PUBLIC_ENTRANCE_UNVERIFIED"
+            or coxa.get("contractorFacadePhotoUrl") !=
+               "https://www.alnconstrucoes.com/obras/2019/pavilhao-polidesportivo-da-coxa-braganca"
+            or any(coxa.get(key) is not False for key in (
+                "facadePhotoProvesCurrentPublicEntrance",
+                "pavilionDoorCoordinatesVerified",
+                "transportServiceGuaranteed", "venueBookingGuaranteed"))):
+        raise ValueError("Contractor construction photo is not arrival proof")
     if distance_m(venues[0]["latitude"], venues[0]["longitude"],
                   venues[1]["latitude"], venues[1]["longitude"]) < 100:
         raise ValueError("The two sports halls cannot share the same point")
@@ -134,6 +159,12 @@ def analyze(catalogue, manifest):
             "district": source["district"],
             "documentedSiteSource": source["coordinateSource"],
             "sourcePrecision": source["precision"],
+            "arrivalEvidenceStatus": source["visitorArrivalEvidence"]["status"],
+            "documentedBusStopName": (
+                source["visitorArrivalEvidence"].get("stopName")),
+            "documentedRouteCodes": (
+                source["visitorArrivalEvidence"].get("listedRouteCodes", [])),
+            "arrivalPointVerified": False,
             "sameNameInDistrict": sorted(same_name, key=lambda v: v["id"]),
             "possibleAliasCount": len(aliases),
             "possibleAliases": aliases[:MAX_RESULTS],
@@ -155,6 +186,8 @@ def analyze(catalogue, manifest):
                 "Municipal emergency plan historic Arnaldo latitude conflicts with independent evidence.",
                 "Nearby venues may have incorrect/missing GPS or alternative names.",
                 "Potential aliases are review leads, not verified duplicate identities.",
+                "Municipal bus stop names are not certified venue doors or guaranteed services.",
+                "Construction photographs are not reliable 2026 visitor access instructions.",
                 "No individual coordinates, addresses, contacts or source points copied to output."
             ]}
 

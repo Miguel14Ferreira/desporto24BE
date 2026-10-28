@@ -31,6 +31,34 @@ class BragancaTwoPavilionsTests(unittest.TestCase):
                             and point["precision"].endswith("NOT_ENTRANCE")
                             for point in points))
 
+    def test_official_bus_stop_is_a_named_option_not_an_entrance(self):
+        data = manifest()
+        entry = data["venues"][0]["visitorArrivalEvidence"]
+        self.assertEqual("Pavilhão Arnaldo Pereira", entry["stopName"])
+        self.assertEqual(["R1", "R3", "R5", "R7"], entry["listedRouteCodes"])
+        self.assertFalse(entry["pavilionDoorCoordinatesVerified"])
+        self.assertFalse(entry["stopCoordinatesVerified"])
+        report = analyze([], data)
+        arnaldo = report["candidates"][0]
+        self.assertEqual("OFFICIAL_NAMED_BUS_STOP_NOT_ENTRANCE",
+                         arnaldo["arrivalEvidenceStatus"])
+        self.assertEqual(entry["stopName"], arnaldo["documentedBusStopName"])
+        self.assertEqual(entry["listedRouteCodes"], arnaldo["documentedRouteCodes"])
+        self.assertFalse(arnaldo["arrivalPointVerified"])
+        self.assertEqual(0, report["writeActions"])
+
+    def test_coxa_photo_is_not_certified_arrival_or_booking(self):
+        data = manifest()
+        entry = data["venues"][1]["visitorArrivalEvidence"]
+        self.assertFalse(entry["facadePhotoProvesCurrentPublicEntrance"])
+        self.assertFalse(entry["pavilionDoorCoordinatesVerified"])
+        coxa = analyze([], data)["candidates"][1]
+        self.assertEqual("PUBLIC_ENTRANCE_UNVERIFIED",
+                         coxa["arrivalEvidenceStatus"])
+        self.assertIsNone(coxa["documentedBusStopName"])
+        self.assertEqual([], coxa["documentedRouteCodes"])
+        self.assertFalse(coxa["arrivalPointVerified"])
+
     def test_neighbouring_pool_and_stadium_do_not_count_as_same_pavilion(self):
         point = manifest()["venues"][0]
         p = [point["latitude"], point["longitude"]]
@@ -138,6 +166,16 @@ class BragancaTwoPavilionsTests(unittest.TestCase):
             lambda d: d["venues"][0].update(
                 precision="CONFIRMED_ENTRANCE"),
             lambda d: d["venues"][1].update(name=d["venues"][0]["name"]),
+            lambda d: d["venues"][0]["visitorArrivalEvidence"].update(
+                pavilionDoorCoordinatesVerified=True),
+            lambda d: d["venues"][0]["visitorArrivalEvidence"].update(
+                listedRouteCodes=["R1", "R2"]),
+            lambda d: d["venues"][0]["visitorArrivalEvidence"].update(
+                transportServiceGuaranteed=True),
+            lambda d: d["venues"][1]["visitorArrivalEvidence"].update(
+                facadePhotoProvesCurrentPublicEntrance=True),
+            lambda d: d["venues"][1]["visitorArrivalEvidence"].update(
+                venueBookingGuaranteed=True),
             lambda d: d["venues"][1].update(
                 latitude=d["venues"][0]["latitude"],
                 longitude=d["venues"][0]["longitude"]),

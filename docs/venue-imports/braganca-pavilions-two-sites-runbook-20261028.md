@@ -82,3 +82,34 @@ duplicado e nunca autoriza importação. O relatório limita os candidatos a
 nem coordenadas individuais. O catálogo público não substitui o pré-voo
 SQL autorizado à base de dados. A alteração é só auditoria, sem endpoint de
 escrita ou execução da migração opt-in.
+
+## Como chegar — pistas oficiais, mas não entradas certificadas (28/10/2026)
+
+O portal municipal [Bragança Bus — Linhas e Horários](https://bus.cm-braganca.pt/routes)
+apresenta uma paragem chamada **«Pavilhão Arnaldo Pereira»** e lista as
+correspondências R1, R3, R5 e R7. Isto é uma pista prática de
+transporte público para o equipamento e uma fonte oficial autónoma,
+sem depender do ponto arquitetónico do complexo.
+
+**Não** existem neste lote as coordenadas oficiais exatas da paragem,
+a posição da porta de entrada, horários em tempo real, frequência
+confirmada para a data da sessão ou garantias de funcionamento.
+O Regulamento n.º 977/2026 descreve uma receção/entrada para os
+praticantes na lateral norte do rés do chão, mas a ligação entre essa
+receção e uma coordenada cartográfica ainda não foi certificada.
+Uma futura experiência de navegação deverá consultar a fonte de
+transportes e distinguir **paragem de autocarro**, **referência de
+complexo** e **entrada de jogadores**.
+
+No **Pavilhão da Coxa**, a empresa construtora publica fotografias
+da fachada durante a obra de 2019:
+https://www.alnconstrucoes.com/obras/2019/pavilhao-polidesportivo-da-coxa-braganca .
+Portas visíveis durante uma obra **não demonstram** qual o acesso
+público atualmente autorizado, nem o percurso seguro para jogadores.
+Não atribuir ponto de chegada a partir da fotografia.
+
+O manifesto distingue explicitamente estes dois níveis de evidência.
+O teste de contrato impede promover a paragem, a fotografia ou a
+referência de sítio a entrada certificada e impede sugerir reservas
+de recinto efetuadas pela Jynlo. **Sem alteração de base de dados,
+recintos públicos, Liquibase ou deploy.**

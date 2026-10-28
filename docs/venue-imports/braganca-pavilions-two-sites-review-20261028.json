@@ -32,7 +32,23 @@
         "Hóquei em patins"
       ],
       "participantsAccess": "North ground-floor reception/entrance specified in official Annex H-1/I; geographic point of entry remains unverified",
-      "officialWeekdayHours": "08:30-12:30 and 14:30-23:30; outside only by prior authorization; not real-time availability"
+      "officialWeekdayHours": "08:30-12:30 and 14:30-23:30; outside only by prior authorization; not real-time availability",
+      "visitorArrivalEvidence": {
+        "status": "OFFICIAL_NAMED_BUS_STOP_NOT_ENTRANCE",
+        "officialTransportUrl": "https://bus.cm-braganca.pt/routes",
+        "stopName": "Pavilhão Arnaldo Pereira",
+        "listedRouteCodes": [
+          "R1",
+          "R3",
+          "R5",
+          "R7"
+        ],
+        "stopCoordinatesVerified": false,
+        "pavilionDoorCoordinatesVerified": false,
+        "timetablesVerified": false,
+        "transportServiceGuaranteed": false,
+        "venueBookingGuaranteed": false
+      }
     },
     {
       "name": "Pavilhão Polidesportivo da Coxa",
@@ -58,7 +74,15 @@
         "Basquetebol",
         "Ténis"
       ],
-      "officialWeekdayHours": "08:30-12:30 and 14:30-23:30; outside only by prior authorization; not real-time availability"
+      "officialWeekdayHours": "08:30-12:30 and 14:30-23:30; outside only by prior authorization; not real-time availability",
+      "visitorArrivalEvidence": {
+        "status": "PUBLIC_ENTRANCE_UNVERIFIED",
+        "contractorFacadePhotoUrl": "https://www.alnconstrucoes.com/obras/2019/pavilhao-polidesportivo-da-coxa-braganca",
+        "facadePhotoProvesCurrentPublicEntrance": false,
+        "pavilionDoorCoordinatesVerified": false,
+        "transportServiceGuaranteed": false,
+        "venueBookingGuaranteed": false
+      }
     }
   ],
   "notes": [
@@ -66,7 +90,9 @@
     "No insertion, update, publication or GPS correction authorized.",
     "Arnaldo Pereira was previously named Pavilhão Municipal; older unspecific names without GPS must be checked before any insert.",
     "Arnaldo secondary municipal-guide coordinate is unverified decimal interpretation, not a certified entrance.",
-    "2026 municipal regulation establishes that creating a Jynlo session does not book a facility; user must obtain municipal authorization."
+    "2026 municipal regulation establishes that creating a Jynlo session does not book a facility; user must obtain municipal authorization.",
+    "The official Braganca Bus public routes page names a Pavilhao Arnaldo Pereira stop with R1/R3/R5/R7 connections, but no bus stop coordinates, timetables or player entrance were certified.",
+    "Coxa contractor construction images show a facade but cannot certify current public entrance or approach. No guessed navigation pin is imported."
   ],
   "officialRegulationSource": "https://diariodarepublica.pt/dr/detalhe/regulamento/977-2026-1151247864",
   "officialRegulationPublished": "2026-07-23",
