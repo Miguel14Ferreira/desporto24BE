@@ -46,6 +46,32 @@ class SessionGuestRequestServiceTest {
         var p=new CommunityPlayer();p.setId(15L);p.setCommunity(community);
         p.setDisplayName("Afonso Salvador");p.setNormalizedName("afonso salvador");return p;
     }
+    @Test void standaloneGameCanInviteWithoutAccountAndWithoutExposingCommunityRoster() {
+        session.setCommunity(null);
+        String secret=token();
+        var roster=service.roster(7L,secret);
+        assertNull(roster.communityId());
+        assertTrue(roster.players().isEmpty());
+        when(players.findByCommunityIdOrderByDisplayNameAsc(anyLong()))
+                .thenThrow(new AssertionError("No historical roster for standalone games"));
+        var receipt=service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,null,"Primeiro Convidado",""));
+        assertEquals("PENDING",receipt.status());
+        assertThrows(ResponseStatusException.class,()->service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,15L,null,"")));
+    }
+
+    @Test void crosspostedMemberOnlyGameCanIssueSignedGuestLinkWithoutDirectCommunity() {
+        session.setCommunity(null);
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        String secret=token();
+        assertEquals(7L,service.preview(7L,secret).id());
+        assertTrue(service.roster(7L,secret).players().isEmpty());
+        assertEquals("PENDING",service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(secret,null,"Segundo Jogador","")).status());
+        assertThrows(ResponseStatusException.class,()->service.preview(7L,"b".repeat(43)));
+    }
+
     @Test void publicLinkIsOpaqueAndCannotExposeRosterWithoutToken(){
         String token=token();
         assertEquals(43,token.length());
