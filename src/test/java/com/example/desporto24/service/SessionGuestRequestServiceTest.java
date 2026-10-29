@@ -23,11 +23,12 @@ class SessionGuestRequestServiceTest {
     private final CommunityHistoricalPlayerLinkRepository links=mock(CommunityHistoricalPlayerLinkRepository.class);
     private final SessionGuestRequestRepository requests=mock(SessionGuestRequestRepository.class);
     private final SessionParticipantRepository participants=mock(SessionParticipantRepository.class);
+    private final SessionWaitlistRepository waitlist=mock(SessionWaitlistRepository.class);
     private final ProfileRepository profiles=mock(ProfileRepository.class);
     private final CommunityHistoricalPlayerLinkService historicalLinks=mock(CommunityHistoricalPlayerLinkService.class);
     private final WaitlistPromotionService waitlistPromotionService=mock(WaitlistPromotionService.class);
     private final SessionGuestRequestService service=new SessionGuestRequestService(
-            sessions,sharedCommunities,players,links,requests,participants,profiles,historicalLinks,waitlistPromotionService);
+            sessions,sharedCommunities,players,links,requests,participants,waitlist,profiles,historicalLinks,waitlistPromotionService);
     private final Session session=new Session();
     private final Community community=new Community();
     private final Profile organizer=new Profile();
@@ -597,6 +598,50 @@ class SessionGuestRequestServiceTest {
         var preview=service.preview(7L,token());
         assertNull(preview.latitude());
         assertNull(preview.longitude());
+    }
+
+    @Test void signedInviteShowsAccountAttendanceButCannotImpersonateAnotherUser() {
+        String signed=token();
+        var user=new Profile();user.setId(22L);user.setUsername("member");
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(user));
+        when(participants.existsBySessionIdAndProfileIdAndState(7L,22L,ParticipantState.ACTIVE))
+                .thenReturn(true);
+        var status=service.memberPresence(7L,signed,"member");
+        assertEquals("PARTICIPANT",status.status());
+        assertTrue(status.canCancel());
+        assertThrows(ResponseStatusException.class,
+                ()->service.memberPresence(7L,"wrong","member"));
+        assertThrows(AccessDeniedException.class,
+                ()->service.memberPresence(7L,signed,null));
+        verify(waitlist,never()).findBySessionIdAndProfileId(7L,22L);
+    }
+
+    @Test void signedInviteDistinguishesWaitlistedAbsentAndOrganizer() {
+        String signed=token();
+        var user=new Profile();user.setId(22L);user.setUsername("member");
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(user));
+        var slot=new SessionWaitlist();slot.setId(5L);
+        when(waitlist.findBySessionIdAndProfileId(7L,22L)).thenReturn(Optional.of(slot));
+        assertEquals("WAITLISTED",service.memberPresence(7L,signed,"member").status());
+        assertTrue(service.memberPresence(7L,signed,"member").canCancel());
+        when(waitlist.findBySessionIdAndProfileId(7L,22L)).thenReturn(Optional.empty());
+        assertEquals("NONE",service.memberPresence(7L,signed,"member").status());
+        assertFalse(service.memberPresence(7L,signed,"member").canCancel());
+        assertEquals("ORGANIZER",service.memberPresence(7L,signed,"rui").status());
+    }
+
+    @Test void typedHistoricalPlayerCanConfirmWithoutDropdownButLinkedIdentityIsProtected() {
+        var person=historic();
+        when(players.findByCommunityIdOrderByDisplayNameAsc(11L)).thenReturn(List.of(person));
+        String signed=token();
+        var receipt=service.request(7L,new SessionGuestRequestService.GuestRequestInput(
+                signed,null,"Afonso Salvador",""));
+        assertEquals("APPROVED",receipt.status());
+        verify(requests).saveAndFlush(argThat(x->x.getCommunityPlayer()==person));
+        person.setProfile(organizer);
+        assertThrows(ResponseStatusException.class,()->service.request(7L,
+                new SessionGuestRequestService.GuestRequestInput(
+                        signed,null,"Afonso Salvador","")));
     }
 
 }
