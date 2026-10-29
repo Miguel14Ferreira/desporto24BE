@@ -579,4 +579,24 @@ class SessionGuestRequestServiceTest {
         assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,receipt));
     }
 
+    @Test void signedInvitationProvidesExactSessionCoordinatesNotAnAddressGuess() {
+        session.setLatitude(38.7488967);
+        session.setLongitude(-9.1526148);
+        session.setAddress("Campo Grande");
+        String secret=token();
+        var preview=service.preview(7L,secret);
+        assertEquals(38.7488967,preview.latitude(),0.00000001);
+        assertEquals(-9.1526148,preview.longitude(),0.00000001);
+        assertEquals("Campo Grande",preview.address());
+        assertThrows(ResponseStatusException.class,()->service.preview(7L,"bad-token"));
+    }
+
+    @Test void invalidCoordinatePairsNeverBecomeMisleadingMapPins() {
+        session.setLatitude(100.0);
+        session.setLongitude(-9.1526148);
+        var preview=service.preview(7L,token());
+        assertNull(preview.latitude());
+        assertNull(preview.longitude());
+    }
+
 }

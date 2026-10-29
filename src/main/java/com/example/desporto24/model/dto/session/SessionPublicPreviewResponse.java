@@ -21,13 +21,23 @@ public record SessionPublicPreviewResponse(
         SessionStatus status,
         String gamePhoto,
         String venueName,
-        String address
+        String address,
+        Double latitude,
+        Double longitude
 ) {
+    // Existing test and application constructors remain source-compatible.
+    public SessionPublicPreviewResponse(Long id, String sport, String city, Instant gameDate,
+                                        Integer maxParticipants, Integer participantCount,
+                                        BigDecimal priceAmount, SessionStatus status, String gamePhoto,
+                                        String venueName, String address) {
+        this(id,sport,city,gameDate,maxParticipants,participantCount,priceAmount,
+                status,gamePhoto,venueName,address,null,null);
+    }
     // Keep the unauthenticated public preview safe and existing constructors compatible.
     public SessionPublicPreviewResponse(Long id, String sport, String city, Instant gameDate,
                                         Integer maxParticipants, Integer participantCount,
                                         BigDecimal priceAmount, SessionStatus status, String gamePhoto) {
         this(id,sport,city,gameDate,maxParticipants,participantCount,priceAmount,
-                status,gamePhoto,null,null);
+                status,gamePhoto,null,null,null,null);
     }
 }
