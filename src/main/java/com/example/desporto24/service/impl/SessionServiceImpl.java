@@ -325,6 +325,8 @@ public class SessionServiceImpl implements SessionService {
         session.setMeetingPointInstructions(arrivalNote == null || arrivalNote.isBlank()
                 ? null : arrivalNote.trim());
         session.setMaxParticipants(request.maxParticipants());
+        session.setMinParticipants(com.example.desporto24.service.SessionMinimumPlayers.validate(
+                request.minParticipants(), request.sport(), request.maxParticipants()));
         session.setExternalConfirmedParticipants(
                 request.externalConfirmedParticipants() == null ? 0 : request.externalConfirmedParticipants());
         session.setPriceAmount(request.priceAmount() == null ? BigDecimal.ZERO : request.priceAmount());
