@@ -23,6 +23,14 @@ public class SessionGuestRequestController {
                 sessionId, body == null ? null : body.get("token"), auth.getName());
     }
 
+    /** Signed invitation + authenticated account: report the real participation state. */
+    @PostMapping("/guest-member-presence")
+    public SessionGuestRequestService.MemberPresence memberPresence(
+            @PathVariable Long sessionId,@RequestBody Map<String,String> body,Authentication auth) {
+        return guests.memberPresence(sessionId,body==null?null:body.get("token"),
+                auth==null?null:auth.getName());
+    }
+
     @PostMapping("/guest-link")
     public Map<String,String> createLink(@PathVariable Long sessionId,Authentication auth){
         return Map.of("token",guests.issueLink(sessionId,auth.getName()));

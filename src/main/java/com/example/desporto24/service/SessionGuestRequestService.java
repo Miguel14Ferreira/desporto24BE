@@ -45,6 +45,7 @@ public class SessionGuestRequestService {
     private final CommunityHistoricalPlayerLinkRepository historicalLinkRepository;
     private final SessionGuestRequestRepository requests;
     private final SessionParticipantRepository participants;
+    private final com.example.desporto24.repository.session.SessionWaitlistRepository waitlist;
     private final ProfileRepository profiles;
     private final CommunityHistoricalPlayerLinkService historicalLinks;
     private final WaitlistPromotionService waitlistPromotionService;
@@ -53,6 +54,32 @@ public class SessionGuestRequestService {
     public record GuestRoster(Long sessionId,Long communityId,List<GuestPlayer> players) {}
     public record GuestRequestInput(String linkToken,Long playerId,String newName,String note) {}
     public record ReceiptInput(String receipt) {}
+    public record MemberPresence(String status,boolean canCancel) {}
+
+    /** Registered users must see their actual seat before any invitation CTA.
+     * The token establishes the session context, the JWT establishes the actor.
+     * Never infer an active reservation from the shared link alone.
+     */
+    @Transactional(readOnly=true)
+    public MemberPresence memberPresence(Long sessionId,String token,String username) {
+        Session session=validLink(sessionId,token);
+        if(username==null || username.isBlank())
+            throw new AccessDeniedException("Autenticação necessária");
+        // The organizer is already part of the session. Avoid requiring an
+        // additional profile lookup (or attempting to join their own game).
+        if(session.getProfile()!=null && session.getProfile().getUsername()!=null
+                && session.getProfile().getUsername().equalsIgnoreCase(username))
+            return new MemberPresence("ORGANIZER",false);
+        Profile actor=profiles.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(()->new AccessDeniedException("Conta não encontrada"));
+        if(participants.existsBySessionIdAndProfileIdAndState(
+                sessionId,actor.getId(),ParticipantState.ACTIVE))
+            return new MemberPresence("PARTICIPANT",true);
+        if(waitlist.findBySessionIdAndProfileId(sessionId,actor.getId()).isPresent())
+            return new MemberPresence("WAITLISTED",true);
+        return new MemberPresence("NONE",false);
+    }
+
     public record GuestReceipt(String receipt,String status,String playerName,String meetingPointInstructions) {
         public GuestReceipt(String receipt,String status){ this(receipt,status,null,null); }
         public GuestReceipt(String receipt,String status,String playerName){ this(receipt,status,playerName,null); }
@@ -220,10 +247,16 @@ public class SessionGuestRequestService {
         } else {
             name=clean(input.newName(),80);
             String normalized=normalized(name);
+            // A typed full name may safely reuse a still-unclaimed historical
+            // player. Never require an empty classification dropdown to RSVP.
             if(group!=null){
-                boolean exists=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
-                        .stream().anyMatch(p->normalized(p.getDisplayName()).equals(normalized));
-                if(exists)throw invalid("Este nome já existe. Seleciona-o na lista");
+                player=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
+                        .stream().filter(p->normalized(p.getDisplayName()).equals(normalized))
+                        .findFirst().orElse(null);
+                if(player!=null && (player.getProfile()!=null ||
+                        historicalLinkRepository.existsByCommunityIdAndPlayerIdAndStatus(
+                                group.getId(),player.getId(),"ACCEPTED")))
+                    throw invalid("Este nome já está associado a uma conta");
             }
         }
         String normalized=normalized(name);
@@ -459,9 +492,13 @@ public class SessionGuestRequestService {
             name=clean(input.newName(),80);
             if(group!=null){
                 String wanted=normalized(name);
-                boolean historicalName=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
-                        .stream().anyMatch(p->normalized(p.getDisplayName()).equals(wanted));
-                if(historicalName)throw invalid("Este nome existe na comunidade. Seleciona-o na lista");
+                historical=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
+                        .stream().filter(p->normalized(p.getDisplayName()).equals(wanted))
+                        .findFirst().orElse(null);
+                if(historical!=null && (historical.getProfile()!=null ||
+                        historicalLinkRepository.existsByCommunityIdAndPlayerIdAndStatus(
+                                group.getId(),historical.getId(),"ACCEPTED")))
+                    throw invalid("Este nome já está associado a uma conta");
             }
         }
 
