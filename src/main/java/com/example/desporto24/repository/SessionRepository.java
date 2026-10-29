@@ -192,6 +192,26 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("since") Date since,
             Pageable pageable);
 
+    /**
+     * Only new, explicitly configured sessions are automatically checked.
+     * Filter underfilled games in SQL so completed-ready sessions never starve
+     * the next batch. Lock and recheck before changing a row.
+     */
+    @Query("""
+            select s.id from Session s
+            where s.minParticipants is not null
+              and s.gameDate <= :cutoff
+              and s.status in (
+                com.example.desporto24.enumeration.SessionStatus.OPEN,
+                com.example.desporto24.enumeration.SessionStatus.FULL)
+              and s.minParticipants > coalesce(s.externalConfirmedParticipants, 0)
+                + (select count(p) from SessionParticipant p
+                   where p.session.id = s.id
+                     and p.state = com.example.desporto24.enumeration.ParticipantState.ACTIVE)
+            order by s.gameDate asc, s.id asc
+            """)
+    List<Long> findDueUnderMinimum(@Param("cutoff") Date cutoff, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Session s where s.id = :id")
     java.util.Optional<Session> findByIdForUpdate(@Param("id") Long id);
