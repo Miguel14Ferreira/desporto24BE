@@ -107,6 +107,10 @@ class SessionLegacyCommunityAuthorizationTest {
 
     @Test
     void signedRecipientCanOpenPrivateCommunitySessionDetailsBeforeAccepting() {
+        // Mockito's constructor injection does not populate this optional
+        // field when SessionServiceImpl uses its generated required constructor.
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                sessionService, "directInviteRepository", directInviteRepository);
         legacy.setAudience(SessionAudience.COMMUNITY_ONLY);
         when(sessionRepository.findById(77L)).thenReturn(Optional.of(legacy));
         when(profileRepository.findUserByUsername("outsider")).thenReturn(Optional.of(outsider));
