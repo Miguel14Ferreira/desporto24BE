@@ -28,6 +28,9 @@ import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
+import com.example.desporto24.model.session.SessionInvite;
+import com.example.desporto24.enumeration.SessionInviteStatus;
+import com.example.desporto24.repository.session.SessionInviteRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
@@ -98,6 +101,10 @@ public class SessionServiceImpl implements SessionService {
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
+
+    /** Invitation verification is deliberately scoped to its named recipient. */
+    @Autowired(required = false)
+    private SessionInviteRepository directInviteRepository;
 
     /**
      * Enforce the community owner's choice server-side on all creation paths:
@@ -441,8 +448,15 @@ public class SessionServiceImpl implements SessionService {
                     .isPresent();
     }
 
+    private boolean hasPendingDirectInvitation(Session session, Profile viewer) {
+        return directInviteRepository != null
+                && directInviteRepository.findBySessionIdAndInviteeIdAndStatus(
+                        session.getId(), viewer.getId(), SessionInviteStatus.PENDING).isPresent();
+    }
+
     private void requireCommunitySessionAccess(Session session, Profile viewer) {
-        if (!canAccessCommunitySession(session, viewer)) {
+        if (!canAccessCommunitySession(session, viewer)
+                && !hasPendingDirectInvitation(session, viewer)) {
             throw new AccessDeniedException("Esta sessão está reservada à comunidade");
         }
     }
@@ -649,32 +663,52 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional
     public JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username) {
-        return joinInternal(sessionId, request, username, null);
+        return joinInternal(sessionId, request, username, null, null);
     }
 
     @Override
     @Transactional
     public JoinSessionResponse joinWithGuestToken(Long sessionId, String token, String username) {
-        return joinInternal(sessionId, new JoinSessionRequest(null), username, token);
+        return joinInternal(sessionId, new JoinSessionRequest(null), username, token, null);
+    }
+
+    @Override
+    @Transactional
+    public JoinSessionResponse joinWithInvitation(Long sessionId, Long inviteId, String username) {
+        return joinInternal(sessionId, new JoinSessionRequest(null), username, null, inviteId);
     }
 
     private JoinSessionResponse joinInternal(
-            Long sessionId, JoinSessionRequest request, String username, String guestToken) {
+            Long sessionId, JoinSessionRequest request, String username, String guestToken, Long inviteId) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
-        if (guestToken == null && session.getAudience() == SessionAudience.COMMUNITY_ONLY
+        // Only a recipient-bound, still-pending invite can waive session-only
+        // access restrictions. Regular joins and guest-link joins are unchanged.
+        boolean directInvitation = inviteId != null;
+        if (directInvitation) {
+            if (directInviteRepository == null) throw new AccessDeniedException("Convite indisponível");
+            SessionInvite invite = directInviteRepository.findById(inviteId)
+                    .orElseThrow(() -> new AccessDeniedException("Convite indisponível"));
+            if (!invite.getSession().getId().equals(sessionId)
+                    || !invite.getInvitee().getId().equals(profile.getId())
+                    || invite.getStatus() != SessionInviteStatus.PENDING) {
+                throw new AccessDeniedException("Este convite não te pertence ou já foi respondido");
+            }
+        }
+        if (!directInvitation && guestToken == null && session.getAudience() == SessionAudience.COMMUNITY_ONLY
                 && session.getCommunity() == null
                 && !sessionCommunityShareRepository.isMemberOfSharedCommunity(
                         sessionId, profile.getId())) {
-            // Without a signed invitation, community membership is mandatory.
             throw new AccessDeniedException("Esta sessão está reservada aos membros das comunidades");
         }
-        if (guestToken == null) requireCommunitySessionAccess(session, profile);
-        else requireValidGuestToken(session, guestToken);
+        if (!directInvitation) {
+            if (guestToken == null) requireCommunitySessionAccess(session, profile);
+            else requireValidGuestToken(session, guestToken);
+        }
         if (!com.example.desporto24.service.SessionRegistrationOpening.isOpen(session, Instant.now())) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.CONFLICT,
@@ -700,7 +734,7 @@ public class SessionServiceImpl implements SessionService {
             );
         }
 
-        if (Boolean.TRUE.equals(session.getPrivateGame())) {
+        if (Boolean.TRUE.equals(session.getPrivateGame()) && !directInvitation) {
             String supplied = request == null ? null : request.password();
             if (supplied == null
                     || session.getPasswordHash() == null

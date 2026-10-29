@@ -59,9 +59,6 @@ public class SessionInviteService {
                 || !session.getGameDate().toInstant().isAfter(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A sessão já não aceita convites.");
         }
-        if (session.getAudience() != SessionAudience.PUBLIC || Boolean.TRUE.equals(session.getPrivateGame())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Os convites estão disponíveis apenas para sessões públicas.");
-        }
         Profile recipient = profiles.findUserByUsernameIgnoreCase(recipientUsername.trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Jogador não encontrado."));
         if (recipient.getId().equals(actor.getId())) {
@@ -133,7 +130,7 @@ public class SessionInviteService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão não encontrada."));
         SessionInvite invite = findPendingInvite(sessionId, inviteId, username);
         // Reuse all existing eligibility, capacity, exclusion and waitlist rules.
-        JoinSessionResponse result = sessionService.join(sessionId, new JoinSessionRequest(null), username);
+        JoinSessionResponse result = sessionService.joinWithInvitation(sessionId, inviteId, username);
         invite.setStatus(SessionInviteStatus.ACCEPTED);
         invite.setRespondedAt(Instant.now());
         invites.save(invite);

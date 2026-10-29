@@ -38,6 +38,7 @@ class SessionLegacyCommunityAuthorizationTest {
     @Mock private com.example.desporto24.repository.session.SessionParticipantRepository participantRepository;
     @Mock private com.example.desporto24.repository.session.SessionWaitlistRepository waitlistRepository;
     @Mock private com.example.desporto24.repository.session.SessionCommunityShareRepository sessionCommunityShareRepository;
+    @Mock private com.example.desporto24.repository.session.SessionInviteRepository directInviteRepository;
     @Mock private SessionViewMapper sessionViewMapper;
     @InjectMocks private SessionServiceImpl sessionService;
 
@@ -102,6 +103,25 @@ class SessionLegacyCommunityAuthorizationTest {
 
         assertSame(expected, sessionService.getById(77L, "outsider"));
         verifyNoInteractions(communityMemberRepository);
+    }
+
+    @Test
+    void signedRecipientCanOpenPrivateCommunitySessionDetailsBeforeAccepting() {
+        // Mockito's constructor injection does not populate this optional
+        // field when SessionServiceImpl uses its generated required constructor.
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                sessionService, "directInviteRepository", directInviteRepository);
+        legacy.setAudience(SessionAudience.COMMUNITY_ONLY);
+        when(sessionRepository.findById(77L)).thenReturn(Optional.of(legacy));
+        when(profileRepository.findUserByUsername("outsider")).thenReturn(Optional.of(outsider));
+        com.example.desporto24.model.session.SessionInvite invite =
+                new com.example.desporto24.model.session.SessionInvite();
+        when(directInviteRepository.findBySessionIdAndInviteeIdAndStatus(
+                77L, 44L, com.example.desporto24.enumeration.SessionInviteStatus.PENDING))
+                .thenReturn(Optional.of(invite));
+        SessionDetailResponse expected = mock(SessionDetailResponse.class);
+        when(sessionViewMapper.toDetail(legacy, outsider)).thenReturn(expected);
+        assertSame(expected, sessionService.getById(77L, "outsider"));
     }
 
     @Test

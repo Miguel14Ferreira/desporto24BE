@@ -26,6 +26,8 @@ public interface SessionService {
     List<SessionParticipantResponse> participants(Long sessionId, String username);
     JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username);
     JoinSessionResponse joinWithGuestToken(Long sessionId, String token, String username);
+    /** Accept a recipient-bound, pending direct invitation without exposing private passwords. */
+    JoinSessionResponse joinWithInvitation(Long sessionId, Long inviteId, String username);
     SessionDetailResponse updateMeetingPoint(Long sessionId, String instructions, String username);
     SessionDetailResponse updateExternalConfirmations(Long sessionId, int externalConfirmed, String username);
     SessionDetailResponse openRegistration(Long sessionId, String username);
