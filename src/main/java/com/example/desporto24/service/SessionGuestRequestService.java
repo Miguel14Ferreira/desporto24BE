@@ -76,6 +76,26 @@ public class SessionGuestRequestService {
     public record GuestView(Long id,String name,String status,String note,String teamCode) {}
 
     /**
+     * An invitation link and a typed player name are never chat credentials.
+     * Only a private 256-bit RSVP receipt tied to an APPROVED seat authorizes chat.
+     * Re-evaluate this database row on every read or send to revoke immediately
+     * on cancellation, organizer removal or account linking.
+     */
+    @Transactional(readOnly=true)
+    public SessionGuestRequest requireApprovedChatGuest(Long sessionId,String receipt) {
+        if (receipt == null || !receipt.matches("[A-Za-z0-9_-]{43}")) {
+            throw new AccessDeniedException("Comprovativo de presença obrigatório");
+        }
+        SessionGuestRequest guest = requests.findBySessionIdAndReceiptHash(sessionId,hash(receipt))
+                .orElseThrow(() -> new AccessDeniedException("Presença não encontrada"));
+        if (guest.getStatus() != SessionGuestRequest.State.APPROVED
+                || guest.getLinkedProfile() != null) {
+            throw new AccessDeniedException("Presença não confirmada");
+        }
+        return guest;
+    }
+
+    /**
      * A single crosspost retains the selected community historical roster.
      * For crossposts to several groups we deliberately do not combine private
      * historical player lists; invitees can still enter their own name.

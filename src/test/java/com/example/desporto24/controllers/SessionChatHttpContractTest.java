@@ -97,4 +97,43 @@ class SessionChatHttpContractTest {
         verify(service).messages(41L, "creator");
         verify(service).post(41L, "late message", "creator", null);
     }
+
+    @Test
+    void guestsUseReceiptScopedPostRoutesAndNoPublicGet() throws Exception {
+        SessionChatService service=mock(SessionChatService.class);
+        String receipt="r".repeat(43);
+        when(service.guestMessages(41L,receipt)).thenReturn(List.of());
+        when(service.guestPost(41L,receipt,"Olá")).thenReturn(
+                new SessionMessageResponse(8L,41L,"André (Borralho)","Olá",
+                        java.time.Instant.now(),null,null,null,null,null,null,null,null,true));
+        MockMvc mvc=controller(service);
+        mvc.perform(post("/api/sessions/41/messages/guest-chat/read")
+                .contentType("application/json").content("{\"receipt\":\""+receipt+"\"}"))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        mvc.perform(post("/api/sessions/41/messages/guest-chat/send")
+                .contentType("application/json")
+                .content("{\"receipt\":\""+receipt+"\",\"body\":\"Olá\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.senderGuest").value(true))
+                .andExpect(jsonPath("$.senderUsername").value("André (Borralho)"));
+        verify(service).guestMessages(41L,receipt);
+        verify(service).guestPost(41L,receipt,"Olá");
+    }
+
+    @Test
+    void invalidAndRevokedGuestReceiptsReturn403NotMessages() throws Exception {
+        SessionChatService service=mock(SessionChatService.class);
+        when(service.guestMessages(eq(41L),any()))
+                .thenThrow(new AccessDeniedException("Invalid receipt"));
+        when(service.guestPost(eq(41L),any(),any()))
+                .thenThrow(new AccessDeniedException("Invalid receipt"));
+        MockMvc mvc=controller(service);
+        mvc.perform(post("/api/sessions/41/messages/guest-chat/read")
+                .contentType("application/json").content("{\"receipt\":\"invitation\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/sessions/41/messages/guest-chat/send")
+                .contentType("application/json").content("{\"receipt\":\"invitation\",\"body\":\"Hi\"}"))
+                .andExpect(status().isForbidden());
+        verify(service,never()).messages(any(),any());
+    }
+
 }

@@ -552,4 +552,31 @@ class SessionGuestRequestServiceTest {
                 new SessionGuestRequestService.ReceiptInput("name-only")));
         verify(requests,never()).findBySessionIdAndReceiptHash(anyLong(),anyString());
     }
+
+    @Test void privateReceiptAuthorizesOnlyApprovedUnlinkedGuestOfSameSession() {
+        String receipt="g".repeat(43);
+        SessionGuestRequest guest=new SessionGuestRequest();
+        guest.setStatus(SessionGuestRequest.State.APPROVED);
+        guest.setDisplayName("André (Borralho)");
+        when(requests.findBySessionIdAndReceiptHash(eq(7L),anyString()))
+                .thenReturn(Optional.of(guest));
+        assertSame(guest,service.requireApprovedChatGuest(7L,receipt));
+        verify(requests,never()).findBySessionIdAndReceiptHash(eq(8L),anyString());
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,"signed-link"));
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,null));
+        when(requests.findBySessionIdAndReceiptHash(eq(8L),anyString()))
+                .thenReturn(Optional.empty());
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(8L,receipt));
+
+        guest.setStatus(SessionGuestRequest.State.CANCELLED);
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,receipt));
+        guest.setStatus(SessionGuestRequest.State.REJECTED);
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,receipt));
+        guest.setStatus(SessionGuestRequest.State.LINKED);
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,receipt));
+        guest.setStatus(SessionGuestRequest.State.APPROVED);
+        guest.setLinkedProfile(organizer);
+        assertThrows(AccessDeniedException.class,()->service.requireApprovedChatGuest(7L,receipt));
+    }
+
 }

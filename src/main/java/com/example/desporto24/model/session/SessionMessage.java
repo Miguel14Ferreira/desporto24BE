@@ -24,9 +24,14 @@ public class SessionMessage {
     @JoinColumn(name = "session_id", nullable = false)
     private Session session;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "sender_profile_id", nullable = false)
+    /** Exactly one real author: registered profile OR verified guest booking. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_profile_id")
     private Profile senderProfile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_guest_request_id")
+    private SessionGuestRequest senderGuestRequest;
 
     @Column(nullable = false, length = 2000)
     private String body;
