@@ -4,6 +4,10 @@ import com.example.desporto24.enumeration.AttendanceStatus;
 import com.example.desporto24.enumeration.JoinState;
 import com.example.desporto24.enumeration.ParticipantState;
 import com.example.desporto24.enumeration.SessionStatus;
+import com.example.desporto24.enumeration.SessionAudience;
+import com.example.desporto24.enumeration.SessionInviteStatus;
+import com.example.desporto24.model.session.SessionInvite;
+import com.example.desporto24.repository.session.SessionInviteRepository;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Session;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
@@ -86,6 +90,7 @@ class SessionJoinServiceTest {
     @Autowired private SessionParticipantRepository participantRepository;
     @Autowired private SessionOrganizerExclusionRepository exclusionRepository;
     @Autowired private SessionWaitlistRepository waitlistRepository;
+    @Autowired private SessionInviteRepository directInviteRepository;
     @Autowired private PilotEventRepository pilotEventRepository;
     @Autowired private BCryptPasswordEncoder passwordEncoder;
     @MockitoBean private VenueService venueService;
@@ -94,6 +99,7 @@ class SessionJoinServiceTest {
 
     @BeforeEach
     void setUp() {
+        directInviteRepository.deleteAll();
         pilotEventRepository.deleteAll();
         waitlistRepository.deleteAll();
         participantRepository.deleteAll();
@@ -238,6 +244,61 @@ class SessionJoinServiceTest {
                 session.getId(), joiner.getId(), ParticipantState.ACTIVE));
         assertTrue(waitlistRepository.findBySessionIdAndProfileId(
                 session.getId(), joiner.getId()).isEmpty());
+    }
+
+    @Test
+    void privateSessionAcceptsVerifiedDirectInviteWithoutPassword() {
+        Session session = createSession(true, passwordEncoder.encode("segredo"), 3);
+        Profile joiner = createProfile("directInvitee");
+        SessionInvite invite = saveDirectInvite(session, joiner);
+
+        assertThrows(BadCredentialsException.class, () -> sessionService.join(
+                session.getId(), new JoinSessionRequest(null), joiner.getUsername()));
+        assertEquals(JoinState.PARTICIPANT,
+                sessionService.joinWithInvitation(session.getId(), invite.getId(), joiner.getUsername()).state());
+        assertTrue(participantRepository.existsBySessionIdAndProfileIdAndState(
+                session.getId(), joiner.getId(), ParticipantState.ACTIVE));
+    }
+
+    @Test
+    void communityOnlySessionAcceptsNamedInviteButRejectsOrdinaryOutsider() {
+        Session session = createSession(false, null, 3);
+        session.setAudience(SessionAudience.COMMUNITY_ONLY);
+        sessionRepository.saveAndFlush(session);
+        Profile joiner = createProfile("communityInvitee");
+        SessionInvite invite = saveDirectInvite(session, joiner);
+
+        assertThrows(AccessDeniedException.class, () -> sessionService.join(
+                session.getId(), new JoinSessionRequest(null), joiner.getUsername()));
+        assertEquals(JoinState.PARTICIPANT,
+                sessionService.joinWithInvitation(session.getId(), invite.getId(), joiner.getUsername()).state());
+    }
+
+    @Test
+    void directInviteCannotBeReusedByAnotherProfileOrAfterDecline() {
+        Session session = createSession(true, passwordEncoder.encode("segredo"), 3);
+        Profile joiner = createProfile("intendedInvitee");
+        Profile outsider = createProfile("unrelatedOutsider");
+        SessionInvite invite = saveDirectInvite(session, joiner);
+
+        assertThrows(AccessDeniedException.class, () -> sessionService.joinWithInvitation(
+                session.getId(), invite.getId(), outsider.getUsername()));
+        invite.setStatus(SessionInviteStatus.DECLINED);
+        directInviteRepository.saveAndFlush(invite);
+        assertThrows(AccessDeniedException.class, () -> sessionService.joinWithInvitation(
+                session.getId(), invite.getId(), joiner.getUsername()));
+        assertFalse(participantRepository.existsBySessionIdAndProfileIdAndState(
+                session.getId(), outsider.getId(), ParticipantState.ACTIVE));
+    }
+
+    private SessionInvite saveDirectInvite(Session session, Profile recipient) {
+        SessionInvite invite = new SessionInvite();
+        invite.setSession(session);
+        invite.setInvitee(recipient);
+        invite.setInviter(creator);
+        invite.setStatus(SessionInviteStatus.PENDING);
+        invite.setCreatedAt(Instant.now());
+        return directInviteRepository.saveAndFlush(invite);
     }
 
     @Test
