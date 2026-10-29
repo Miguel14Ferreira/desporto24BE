@@ -17,6 +17,23 @@ public class SessionChatController {
 
     private final SessionChatService sessionChatService;
 
+    /** POST-only: the private RSVP receipt stays in the JSON body, never a URL. */
+    public record GuestChatRead(String receipt) {}
+    public record GuestChatSend(String receipt,String body) {}
+
+    @PostMapping("/guest-chat/read")
+    public List<SessionMessageResponse> guestRead(
+            @PathVariable Long sessionId,@RequestBody GuestChatRead request) {
+        return sessionChatService.guestMessages(sessionId,request==null?null:request.receipt());
+    }
+
+    @PostMapping("/guest-chat/send")
+    public SessionMessageResponse guestSend(
+            @PathVariable Long sessionId,@RequestBody GuestChatSend request) {
+        return sessionChatService.guestPost(sessionId,request==null?null:request.receipt(),
+                request==null?null:request.body());
+    }
+
     @GetMapping
     public List<SessionMessageResponse> messages(
             @PathVariable Long sessionId,

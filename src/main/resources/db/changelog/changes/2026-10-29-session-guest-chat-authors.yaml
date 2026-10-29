@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-29-session-guest-chat-authors
+      author: desporto24
+      comment: "Anonymous confirmed guests may write session messages without creating fake profiles."
+      changes:
+        - dropNotNullConstraint:
+            schemaName: desporto24
+            tableName: session_message
+            columnName: sender_profile_id
+            columnDataType: BIGINT
+        - addColumn:
+            schemaName: desporto24
+            tableName: session_message
+            columns:
+              - column: {name: sender_guest_request_id, type: BIGINT}
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: session_message
+            baseColumnNames: sender_guest_request_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: session_guest_request
+            referencedColumnNames: id
+            constraintName: fk_session_message_guest_author
+            onDelete: CASCADE
+        - sql:
+            sql: "ALTER TABLE desporto24.session_message ADD CONSTRAINT ck_session_message_one_author CHECK ((sender_profile_id IS NOT NULL) <> (sender_guest_request_id IS NOT NULL))"

@@ -43,9 +43,50 @@ public class SessionChatService {
     private final SessionParticipantRepository participantRepository;
     private final SessionMessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final SessionGuestRequestService guestRequestService;
 
     @Autowired(required = false)
     private PrivateChatFileStorage privateChatStorage;
+
+    /**
+     * Keep guest access separate from the authenticated GET endpoint. A public
+     * WhatsApp invitation can never read messages without its own approved RSVP.
+     */
+    @Transactional(readOnly = true)
+    public List<SessionMessageResponse> guestMessages(Long sessionId,String receipt) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        guestRequestService.requireApprovedChatGuest(sessionId,receipt);
+        if (!isChatOpen(session,Instant.now())) {
+            throw new AccessDeniedException("Session chat is closed");
+        }
+        return messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public SessionMessageResponse guestPost(Long sessionId,String receipt,String body) {
+        // Shares the session lock used by cancellation/removal and member posting.
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        var guest = guestRequestService.requireApprovedChatGuest(sessionId,receipt);
+        if (!isChatOpen(session,Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Session chat is closed");
+        }
+        String normalized = body==null ? "" : body.trim();
+        if (normalized.isBlank() || normalized.length()>2000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid message body");
+        }
+        SessionMessage saved = messageRepository.save(SessionMessage.builder()
+                .session(session).senderGuestRequest(guest).body(normalized)
+                .createdAt(Instant.now()).build());
+        SessionMessageResponse response = toResponse(saved);
+        // Only active authenticated accounts have private WebSocket destinations;
+        // anonymous guests refresh via verified, receipt-gated POST reads.
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(
+                response,realtimeRecipients(session)));
+        return response;
+    }
 
     @Transactional(readOnly = true)
     public List<SessionMessageResponse> messages(Long sessionId, String username) {
@@ -111,7 +152,7 @@ public class SessionChatService {
                 .senderProfile(actor)
                 .body(normalized)
                 .replyToMessageId(quoted == null ? null : quoted.getId())
-                .replyToSender(quoted == null ? null : quoted.getSenderProfile().getUsername())
+                .replyToSender(quoted == null ? null : senderName(quoted))
                 .replyToText(quoted == null ? null : quoted.getBody())
                 .createdAt(Instant.now())
                 .build());
@@ -175,7 +216,8 @@ public class SessionChatService {
         if (!session.getId().equals(message.getSession().getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
         }
-        if (!actor.getId().equals(message.getSenderProfile().getId())) {
+        if (message.getSenderProfile()==null
+                || !actor.getId().equals(message.getSenderProfile().getId())) {
             throw new AccessDeniedException("Only the message author may change this message");
         }
         return message;
@@ -239,7 +281,7 @@ public class SessionChatService {
                     .session(session).senderProfile(actor)
                     .body(body.isEmpty() ? "📎 " + stored.name() : body)
                     .replyToMessageId(quoted == null ? null : quoted.getId())
-                    .replyToSender(quoted == null ? null : quoted.getSenderProfile().getUsername())
+                    .replyToSender(quoted == null ? null : senderName(quoted))
                     .replyToText(quoted == null ? null : quoted.getBody())
                     .attachmentKey(stored.key()).attachmentName(stored.name())
                     .attachmentMimeType(stored.mime()).attachmentSize(stored.size())
@@ -327,11 +369,17 @@ public class SessionChatService {
         }
     }
 
+    private String senderName(SessionMessage message) {
+        if (message.getSenderGuestRequest()!=null)
+            return message.getSenderGuestRequest().getDisplayName();
+        return message.getSenderProfile().getUsername();
+    }
+
     private SessionMessageResponse toResponse(SessionMessage message) {
         return new SessionMessageResponse(
                 message.getId(),
                 message.getSession().getId(),
-                message.getSenderProfile().getUsername(),
+                senderName(message),
                 message.getBody(),
                 message.getCreatedAt(),
                 message.getReplyToMessageId(),
@@ -341,7 +389,8 @@ public class SessionChatService {
                 message.getAttachmentMimeType(),
                 message.getAttachmentSize(),
                 message.getEditedAt(),
-                message.getDeletedAt()
+                message.getDeletedAt(),
+                message.getSenderGuestRequest()!=null
         );
     }
 }

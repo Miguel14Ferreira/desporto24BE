@@ -19,14 +19,14 @@ public interface SessionMessageRepository extends JpaRepository<SessionMessage, 
     @Query("""
             select count(m) from SessionMessage m
             where m.session.id = :sessionId and m.id > :lastReadId
-              and m.senderProfile.id <> :readerId
+              and (m.senderProfile is null or m.senderProfile.id <> :readerId)
             """)
     long countUnread(@Param("sessionId") Long sessionId, @Param("readerId") Long readerId,
                      @Param("lastReadId") long lastReadId);
 
     @Query(value = """
             select m from SessionMessage m
-            join fetch m.senderProfile
+            left join fetch m.senderProfile
             where m.session.id = :sessionId
               and lower(m.body) like concat('%', :term, '%') escape '!'
             order by m.id desc

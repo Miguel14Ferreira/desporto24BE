@@ -191,6 +191,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/2026-10-25-session-chat-private-attachments.yaml
   - include:
+      file: db/changelog/changes/2026-10-29-session-guest-chat-authors.yaml
+  - include:
       file: db/changelog/changes/2026-10-25-community-round-event-type-64.yaml
   - include:
       file: db/changelog/changes/2026-10-25-community-owner-subtree-delete.yaml

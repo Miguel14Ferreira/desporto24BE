@@ -37,6 +37,7 @@ class SessionChatServiceTest {
     private SessionMessageRepository messageRepository;
     private ApplicationEventPublisher eventPublisher;
     private SessionChatService service;
+    private SessionGuestRequestService guestRequestService;
 
     @BeforeEach
     void setUp() {
@@ -45,12 +46,14 @@ class SessionChatServiceTest {
         participantRepository = mock(SessionParticipantRepository.class);
         messageRepository = mock(SessionMessageRepository.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        guestRequestService = mock(SessionGuestRequestService.class);
         service = new SessionChatService(
                 sessionRepository,
                 profileRepository,
                 participantRepository,
                 messageRepository,
-                eventPublisher
+                eventPublisher,
+                guestRequestService
         );
     }
 
