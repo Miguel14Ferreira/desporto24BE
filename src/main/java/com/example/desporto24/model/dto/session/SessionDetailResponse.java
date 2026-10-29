@@ -62,7 +62,7 @@ public record SessionDetailResponse(
                 communityId, canSharePublicly, externalConfirmedParticipants,
                 registrationOpeningMode, registrationOpensAt, teamBalanceSupported,
                 playFormat, meetingPointInstructions,
-                com.example.desporto24.service.SessionMinimumPlayers.suggest(sport, maxParticipants));
+                com.example.desporto24.service.SessionMinimumPlayers.suggested(sport, maxParticipants));
     }
     /** Preserve all callers of the previous complete detail response. */
     public SessionDetailResponse(
