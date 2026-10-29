@@ -496,4 +496,81 @@ class SessionChatServiceTest {
         session.setGameDate(Date.from(Instant.now().plusSeconds(3600)));
         return session;
     }
+
+    @Test
+    void confirmedGuestCanReadExistingChatWithoutBecomingAUser() {
+        Profile creator=profile(1L,"creator");
+        Session session=session(10L,creator);
+        var guest=new com.example.desporto24.model.session.SessionGuestRequest();
+        guest.setDisplayName("André (Borralho)");
+        guest.setStatus(com.example.desporto24.model.session.SessionGuestRequest.State.APPROVED);
+        when(sessionRepository.findById(10L)).thenReturn(Optional.of(session));
+        when(guestRequestService.requireApprovedChatGuest(10L,"r".repeat(43))).thenReturn(guest);
+        var registered=SessionMessage.builder().id(1L).session(session).senderProfile(creator)
+                .body("Olá André").createdAt(Instant.now()).build();
+        var anonymous=SessionMessage.builder().id(2L).session(session).senderGuestRequest(guest)
+                .body("Olá!").createdAt(Instant.now()).build();
+        when(messageRepository.findBySessionIdOrderByCreatedAtAsc(10L))
+                .thenReturn(List.of(registered,anonymous));
+        var result=service.guestMessages(10L,"r".repeat(43));
+        assertEquals(2,result.size());
+        assertEquals("creator",result.getFirst().senderUsername());
+        assertFalse(result.getFirst().senderGuest());
+        assertEquals("André (Borralho)",result.get(1).senderUsername());
+        assertTrue(result.get(1).senderGuest());
+    }
+
+    @Test
+    void guestPostUsesGuestBookingNotFakeProfileAndPublishesOnlyToMembers() {
+        Profile creator=profile(1L,"creator");
+        Session session=session(10L,creator);
+        var guest=new com.example.desporto24.model.session.SessionGuestRequest();
+        guest.setDisplayName("Afonso Salvador");
+        when(sessionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(session));
+        when(guestRequestService.requireApprovedChatGuest(10L,"r".repeat(43))).thenReturn(guest);
+        when(messageRepository.save(any(SessionMessage.class))).thenAnswer(i->{
+            SessionMessage m=i.getArgument(0);m.setId(21L);return m;
+        });
+        var result=service.guestPost(10L,"r".repeat(43),"  Vou jogar  ");
+        assertEquals("Vou jogar",result.body());
+        assertTrue(result.senderGuest());
+        assertEquals("Afonso Salvador",result.senderUsername());
+        verify(messageRepository).save(argThat(m->m.getSenderProfile()==null
+                && m.getSenderGuestRequest()==guest));
+        ArgumentCaptor<SessionChatMessageCreatedEvent> events=
+                ArgumentCaptor.forClass(SessionChatMessageCreatedEvent.class);
+        verify(eventPublisher).publishEvent(events.capture());
+        assertEquals(Set.of("creator"),events.getValue().recipients());
+        verifyNoInteractions(profileRepository);
+    }
+
+    @Test
+    void removedGuestReceiptCannotReadSendOrGetHistory() {
+        Profile creator=profile(1L,"creator");
+        Session session=session(10L,creator);
+        when(sessionRepository.findById(10L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(session));
+        when(guestRequestService.requireApprovedChatGuest(eq(10L),any()))
+                .thenThrow(new AccessDeniedException("Revoked"));
+        assertThrows(AccessDeniedException.class,()->service.guestMessages(10L,"r".repeat(43)));
+        assertThrows(AccessDeniedException.class,()->service.guestPost(10L,"r".repeat(43),"hello"));
+        verifyNoInteractions(messageRepository,eventPublisher);
+    }
+
+    @Test
+    void expiredGuestChatCannotReadOrPostEvenWithValidReceipt() {
+        Profile creator=profile(1L,"creator");
+        Session session=session(10L,creator);
+        session.setGameDate(Date.from(Instant.now().minusSeconds(1)));
+        var guest=new com.example.desporto24.model.session.SessionGuestRequest();
+        guest.setDisplayName("Jogador");
+        when(sessionRepository.findById(10L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(session));
+        when(guestRequestService.requireApprovedChatGuest(eq(10L),any())).thenReturn(guest);
+        assertThrows(AccessDeniedException.class,()->service.guestMessages(10L,"r".repeat(43)));
+        assertEquals(409,assertThrows(ResponseStatusException.class,
+                ()->service.guestPost(10L,"r".repeat(43),"hello")).getStatusCode().value());
+        verifyNoInteractions(messageRepository);
+    }
+
 }
