@@ -126,6 +126,14 @@ public class CommunitySessionResultService {
         }
         List<SessionParticipant> eligible = participants.findBySessionIdAndStateOrderByJoinedAtAsc(
                 sessionId, ParticipantState.ACTIVE);
+        int totalConfirmed = com.example.desporto24.service.SessionCapacity.totalConfirmed(
+                session, participants.countBySessionIdAndState(sessionId, ParticipantState.ACTIVE));
+        int minRequired = com.example.desporto24.service.SessionMinimumPlayers.required(session);
+        if (totalConfirmed < minRequired) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta sessão não atingiu o mínimo de " + minRequired +
+                    " jogadores para validar resultados");
+        }
         Map<String, SessionParticipant> eligibleByName = new HashMap<>();
         for (var participant : eligible) {
             if (participant.getAttendanceStatus() != AttendanceStatus.NO_SHOW &&
