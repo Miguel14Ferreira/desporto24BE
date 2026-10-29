@@ -7,11 +7,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class SessionMinimumPlayersTest {
 
     @Test void footballRequiresPlayableMinimumWithoutMakingCapacityMandatory() {
-        assertEquals(6, SessionMinimumPlayers.suggest("Futebol", 10));
-        assertEquals(6, SessionMinimumPlayers.suggest("Futsal", 10));
-        assertEquals(4, SessionMinimumPlayers.suggest("Futsal", 4));
-        assertEquals(4, SessionMinimumPlayers.suggest("Padel", 4));
-        assertEquals(2, SessionMinimumPlayers.suggest("Ténis", 2));
+        assertEquals(6, SessionMinimumPlayers.suggested("Futebol", 10));
+        assertEquals(6, SessionMinimumPlayers.suggested("Futsal", 10));
+        assertEquals(4, SessionMinimumPlayers.suggested("Futsal", 4));
+        assertEquals(4, SessionMinimumPlayers.suggested("Padel", 4));
+        assertEquals(2, SessionMinimumPlayers.suggested("Ténis", 2));
     }
 
     @Test void organiserCanSetMinimumIndependentlyOfCapacity() {
