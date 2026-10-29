@@ -65,10 +65,13 @@ public class SessionGuestRequestService {
         Session session=validLink(sessionId,token);
         if(username==null || username.isBlank())
             throw new AccessDeniedException("Autenticação necessária");
+        // The organizer is already part of the session. Avoid requiring an
+        // additional profile lookup (or attempting to join their own game).
+        if(session.getProfile()!=null && session.getProfile().getUsername()!=null
+                && session.getProfile().getUsername().equalsIgnoreCase(username))
+            return new MemberPresence("ORGANIZER",false);
         Profile actor=profiles.findUserByUsernameIgnoreCase(username)
                 .orElseThrow(()->new AccessDeniedException("Conta não encontrada"));
-        if(session.getProfile()!=null && actor.getId().equals(session.getProfile().getId()))
-            return new MemberPresence("ORGANIZER",false);
         if(participants.existsBySessionIdAndProfileIdAndState(
                 sessionId,actor.getId(),ParticipantState.ACTIVE))
             return new MemberPresence("PARTICIPANT",true);
