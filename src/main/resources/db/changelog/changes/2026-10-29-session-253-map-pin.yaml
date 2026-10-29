@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-29-session-253-map-pin-correction
+      author: desporto24
+      dbms: postgresql
+      comment: "Correct the specific Futsal session pin supplied by the organizer; never touch user profiles or unrelated sessions."
+      changes:
+        - sql:
+            sql: |
+              UPDATE desporto24.session
+              SET latitude = 38.7488967,
+                  longitude = -9.1526148
+              WHERE id = 253
+                AND LOWER(sport) LIKE '%futsal%'
+                AND game_date >= TIMESTAMP '2026-10-29 00:00:00'
+                AND game_date < TIMESTAMP '2026-10-30 00:00:00'
+                AND (
+                    LOWER(COALESCE(city, '')) LIKE '%campo grande%'
+                    OR LOWER(COALESCE(address, '')) LIKE '%campo grande%'
+                  )
+                AND (
+                    latitude IS DISTINCT FROM 38.7488967
+                    OR longitude IS DISTINCT FROM -9.1526148
+                  );

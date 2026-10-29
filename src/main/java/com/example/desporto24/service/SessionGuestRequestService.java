@@ -590,7 +590,37 @@ public class SessionGuestRequestService {
                 session.getVenue()==null?null:session.getVenue().getName(),
                 session.getAddress()!=null && !session.getAddress().isBlank()
                   ?session.getAddress()
-                  :session.getVenue()==null?null:session.getVenue().getAddress());
+                  :session.getVenue()==null?null:session.getVenue().getAddress(),
+                invitationLatitude(session),invitationLongitude(session));
+    }
+
+    /**
+     * The session's confirmed GPS pin is authoritative, not reverse-geocoded
+     * street text. A valid organiser-signed invitation already reveals its
+     * exact address; never expose coordinates from the ordinary public GET.
+     */
+    private static Double invitationLatitude(Session s) {
+        Double lat = s.getLatitude(), lon = s.getLongitude();
+        if (!validPin(lat,lon) && s.getVenue()!=null) {
+            lat=s.getVenue().getLatitude();
+            lon=s.getVenue().getLongitude();
+        }
+        return validPin(lat,lon) ? lat : null;
+    }
+
+    private static Double invitationLongitude(Session s) {
+        Double lat = s.getLatitude(), lon = s.getLongitude();
+        if (!validPin(lat,lon) && s.getVenue()!=null) {
+            lat=s.getVenue().getLatitude();
+            lon=s.getVenue().getLongitude();
+        }
+        return validPin(lat,lon) ? lon : null;
+    }
+
+    private static boolean validPin(Double lat,Double lon) {
+        return lat!=null && lon!=null && Double.isFinite(lat) && Double.isFinite(lon)
+                && Math.abs(lat)<=90 && Math.abs(lon)<=180
+                && !(lat==0d && lon==0d);
     }
 
     private Session validLink(Long sessionId,String token) {
