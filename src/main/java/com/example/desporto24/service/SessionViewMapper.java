@@ -170,7 +170,8 @@ public class SessionViewMapper {
                 session.getPlayFormat(),
                 // This may specify an entry gate, so keep it private just like
                 // the precise street and nested venue GPS coordinates.
-                canSeeExactAddress ? session.getMeetingPointInstructions() : null
+                canSeeExactAddress ? session.getMeetingPointInstructions() : null,
+                SessionMinimumPlayers.required(session)
         );
     }
 }

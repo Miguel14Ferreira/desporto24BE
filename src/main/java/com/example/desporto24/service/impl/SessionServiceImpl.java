@@ -325,6 +325,8 @@ public class SessionServiceImpl implements SessionService {
         session.setMeetingPointInstructions(arrivalNote == null || arrivalNote.isBlank()
                 ? null : arrivalNote.trim());
         session.setMaxParticipants(request.maxParticipants());
+        session.setMinParticipants(com.example.desporto24.service.SessionMinimumPlayers.validate(
+                request.minParticipants(), request.sport(), request.maxParticipants()));
         session.setExternalConfirmedParticipants(
                 request.externalConfirmedParticipants() == null ? 0 : request.externalConfirmedParticipants());
         session.setPriceAmount(request.priceAmount() == null ? BigDecimal.ZERO : request.priceAmount());
@@ -1009,6 +1011,15 @@ public class SessionServiceImpl implements SessionService {
         Instant now = Instant.now();
         if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
             throw new IllegalStateException("Session cannot be completed before it starts");
+        }
+
+        if (session.getMinParticipants() != null) {
+            long active = participantRepository.countBySessionIdAndState(
+                    sessionId, ParticipantState.ACTIVE);
+            int total = com.example.desporto24.service.SessionCapacity.totalConfirmed(session, active);
+            if (total < com.example.desporto24.service.SessionMinimumPlayers.required(session)) {
+                throw new IllegalStateException("O mínimo de jogadores não foi atingido. A sessão não se realizou");
+            }
         }
 
         session.setStatus(SessionStatus.COMPLETED);

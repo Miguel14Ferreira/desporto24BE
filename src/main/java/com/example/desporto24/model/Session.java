@@ -54,6 +54,10 @@ public class Session {
 
     @Column(name = "max_participants")
     private Integer maxParticipants;
+    
+    /** Minimum required for a playable activity; legacy rows use sport defaults. */
+    @Column(name = "min_participants")
+    private Integer minParticipants;
 
     // Counts confirmed people without a Jynlo membership. The creator is already an ACTIVE participant.
     @Builder.Default

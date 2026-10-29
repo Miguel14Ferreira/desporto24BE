@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-29-session-minimum-players-v1
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: min_participants
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: min_participants
+                  type: INT
+                  constraints:
+                    nullable: true

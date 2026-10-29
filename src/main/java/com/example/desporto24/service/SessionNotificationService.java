@@ -71,6 +71,26 @@ public class SessionNotificationService {
         ));
     }
 
+    /** Distinguish automatic minimum enforcement from organiser cancellation. */
+    @Transactional
+    public void notifyInsufficientPlayers(Session session, int minimum) {
+        Map<String, Profile> affected = new LinkedHashMap<>();
+        participantRepository.findBySessionIdAndStateOrderByJoinedAtAsc(
+                session.getId(), ParticipantState.ACTIVE)
+                .stream().map(p -> p.getProfile())
+                .filter(p -> p != null && p.getUsername() != null)
+                .forEach(p -> affected.putIfAbsent(p.getUsername(), p));
+        if (session.getProfile() != null && session.getProfile().getUsername() != null) {
+            affected.putIfAbsent(session.getProfile().getUsername(), session.getProfile());
+        }
+        affected.values().forEach(profile -> save(
+                profile, session, NotificationType.SESSION_CANCELLED,
+                "Sessão não realizada",
+                "O mínimo de " + minimum + " jogadores não foi atingido até ao início. "
+                    + "A sessão não se realizou e não conta para a classificação."
+        ));
+    }
+
     /**
      * Notify active registered players when arrival instructions actually
      * change. Never include the private note or exact address in the alert:

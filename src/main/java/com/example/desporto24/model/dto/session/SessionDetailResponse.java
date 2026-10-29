@@ -38,8 +38,32 @@ public record SessionDetailResponse(
         Instant registrationOpensAt,
         boolean teamBalanceSupported,
         com.example.desporto24.enumeration.SessionPlayFormat playFormat,
-        String meetingPointInstructions
+        String meetingPointInstructions,
+        int minParticipants
 ) {
+    /** Compatible with existing detail response callers. */
+    public SessionDetailResponse(
+            Long id, String sport, String city, Instant gameDate, Double distanceKm,
+            int participantCount, int maxParticipants, BigDecimal priceAmount,
+            boolean privateGame, SessionStatus status, String creatorUsername,
+            String address, boolean canSeeExactAddress, boolean joined,
+            boolean waitlisted, Integer waitlistPosition, String gamePhoto,
+            VenueResponse venue, SessionAudience audience, String recurrenceSeriesId,
+            SessionProblemType problemType, String problemDetails, Long communityId,
+            boolean canSharePublicly, int externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, boolean teamBalanceSupported,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+            String meetingPointInstructions) {
+        this(id, sport, city, gameDate, distanceKm, participantCount, maxParticipants,
+                priceAmount, privateGame, status, creatorUsername, address,
+                canSeeExactAddress, joined, waitlisted, waitlistPosition, gamePhoto,
+                venue, audience, recurrenceSeriesId, problemType, problemDetails,
+                communityId, canSharePublicly, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, teamBalanceSupported,
+                playFormat, meetingPointInstructions,
+                com.example.desporto24.service.SessionMinimumPlayers.suggested(sport, maxParticipants));
+    }
     /** Preserve all callers of the previous complete detail response. */
     public SessionDetailResponse(
             Long id, String sport, String city, Instant gameDate, Double distanceKm,

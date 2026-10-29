@@ -1,6 +1,7 @@
 package com.example.desporto24;
 
 import org.springframework.boot.SpringApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
@@ -16,6 +17,7 @@ import java.io.File;
 import static com.example.desporto24.constant.FileConstant.USER_FOLDER;
 
 @SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
+@EnableScheduling
 public class Desporto24Application {
     private static final Logger log = LoggerFactory.getLogger(Desporto24Application.class);
 
