@@ -489,9 +489,13 @@ public class SessionGuestRequestService {
             name=clean(input.newName(),80);
             if(group!=null){
                 String wanted=normalized(name);
-                boolean historicalName=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
-                        .stream().anyMatch(p->normalized(p.getDisplayName()).equals(wanted));
-                if(historicalName)throw invalid("Este nome existe na comunidade. Seleciona-o na lista");
+                historical=players.findByCommunityIdOrderByDisplayNameAsc(group.getId())
+                        .stream().filter(p->normalized(p.getDisplayName()).equals(wanted))
+                        .findFirst().orElse(null);
+                if(historical!=null && (historical.getProfile()!=null ||
+                        historicalLinkRepository.existsByCommunityIdAndPlayerIdAndStatus(
+                                group.getId(),historical.getId(),"ACCEPTED")))
+                    throw invalid("Este nome já está associado a uma conta");
             }
         }
 
