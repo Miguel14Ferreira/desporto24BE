@@ -1,0 +1,36 @@
+name: Backend develop reconciliation audit
+on:
+  push:
+    branches:
+      - chore/reconcile-develop-production-20261030
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Analyse actual merge conflicts without changing branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin develop feature/desporto24-preview-deploy
+          git config user.email "actions@users.noreply.github.com"
+          git config user.name "GitHub Actions"
+          git merge --no-commit --no-ff origin/develop > merge-output.txt 2>&1 || true
+          git diff --name-only --diff-filter=U > conflict-files.txt
+          git status --short > git-status.txt
+          echo "Conflicting files: $(wc -l < conflict-files.txt)"
+          cat conflict-files.txt
+          git merge --abort || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-merge-conflict-report
+          path: |
+            merge-output.txt
+            conflict-files.txt
+            git-status.txt
