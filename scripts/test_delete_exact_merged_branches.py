@@ -26,6 +26,10 @@ class AllowlistTests(unittest.TestCase):
                 return 200, {"status": status, "ahead_by": ahead}
             if path.startswith("pulls?"):
                 return 200, pr if pr is not None else []
+            if method == "POST" and path == "git/refs":
+                self.assertEqual(body["sha"], old)
+                self.assertTrue(body["ref"].startswith("refs/tags/archive/allowlisted-merged-20261030/"))
+                return 201, {"ref": body["ref"]}
             if method == "DELETE":
                 return 204, None
             if path == "git/ref/heads/" + branch:
@@ -49,6 +53,7 @@ class AllowlistTests(unittest.TestCase):
     def test_deletes_only_explicitly_confirmed_ancestor(self):
         calls, out, error = self.run_case(confirm="DELETE_EXACT_ALLOWLIST")
         self.assertIsNone(error)
+        self.assertEqual(sum(method == "POST" for method, _ in calls), 1)
         self.assertEqual(sum(method == "DELETE" for method, _ in calls), 1)
 
     def test_divergent_commit_rejected(self):

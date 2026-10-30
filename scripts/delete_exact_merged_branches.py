@@ -66,7 +66,17 @@ def main():
         if confirmation != "DELETE_EXACT_ALLOWLIST":
             print("DRY_RUN", branch, sha)
             continue
-        # Protection/rules remain enforced by GitHub. No force option.
+        # Archive exact historical tip before destructive action; fail closed if tag exists.
+        recovery = "git/refs"
+        tag = "refs/tags/archive/allowlisted-merged-20261030/" + branch
+        archived_status, _ = github("POST", recovery, token, {"ref": tag, "sha": sha})
+        if archived_status != 201:
+            raise RuntimeError("Recovery ref was not created: " + branch)
+        # Check the tip once more after the archive write.
+        _, final_ref = github("GET", refpath, token)
+        if final_ref["object"]["sha"] != sha:
+            raise RuntimeError("Branch moved after recovery tag: " + branch)
+        # GitHub branch protections remain enforced; never force the deletion.
         try:
             status, _ = github("DELETE", refpath, token)
             if status != 204:
