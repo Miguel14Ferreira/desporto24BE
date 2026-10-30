@@ -18,5 +18,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCTION_BRANCH: feature/desporto24-preview-deploy
-          DRY_RUN: 'true'
+          DRY_RUN: 'false'
         run: python3 scripts/cleanup_patch_equivalent_branches.py
