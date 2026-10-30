@@ -11,6 +11,15 @@ public interface CommunityRoundEntryRepository extends JpaRepository<CommunityRo
     List<CommunityRoundEntry> findByRoundIdOrderByIdAsc(Long roundId);
     List<CommunityRoundEntry> findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(Long communityId);
     List<CommunityRoundEntry> findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(Long seasonId);
+    // Only rounds attributed to a linked registered profile; historical records without
+    // an account stay anonymous and cannot be attributed to an arbitrary player.
+    @Query("""
+        select entry from CommunityRoundEntry entry
+        join fetch entry.communityPlayer player
+        where entry.profile.id = :profileId
+           or (entry.profile is null and player.profile.id = :profileId)
+        """)
+    List<CommunityRoundEntry> findEntriesForProfile(@Param("profileId") Long profileId);
     void deleteByRoundId(Long roundId);
 
     /** Player IDs linked to this exact season before its entries are deleted. */

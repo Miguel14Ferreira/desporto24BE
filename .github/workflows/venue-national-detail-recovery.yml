@@ -1,0 +1,100 @@
+name: National OSM detail recovery (read-only)
+on:
+  push:
+    branches: ['audit/jynlo-national-detail-recovery-20261021']
+    paths:
+      - '.github/workflows/venue-national-detail-recovery.yml'
+      - 'scripts/recover_national_venue_details.py'
+      - 'scripts/test_recover_national_venue_details.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  enrich-all-18:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      WORK: /tmp/jynlo-national-work
+      GEO: /tmp/jynlo-national-caop
+      SOURCE: /tmp/jynlo-national-prior
+      OUT: /tmp/jynlo-national-results
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify detail reconstruction rules offline
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_recover_national_venue_details.py' -v
+      - name: Load previously audited 3514 candidate references
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39597754588
+          name: jynlo-national-18-districts-readonly-report
+          github-token: ${{ github.token }}
+          path: ${{ env.SOURCE }}/original
+      - name: Load public LIVE duplicate hints
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 39602965416
+          name: jynlo-national-public-live-reconciliation
+          github-token: ${{ github.token }}
+          path: ${{ env.SOURCE }}/public
+      - name: Install PBF parser and cartographic conversion
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet osmium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin
+      - name: Obtain official CAOP2025 coordinates and polygons
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GEO" "$WORK" "$OUT"
+          curl -fL --retry 2 --connect-timeout 25 --max-time 240 \
+            -o "$GEO/caop.zip" https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip
+          unzip -q "$GEO/caop.zip" -d "$GEO"
+          GPKG="$(find "$GEO" -iname '*.gpkg' -type f -print -quit)"
+          test -n "$GPKG"
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "$GEO/municipios.geojson" "$GPKG" cont_municipios
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "$GEO/distritos.geojson" "$GPKG" cont_distritos
+          python3 - "$GEO/municipios.geojson" "$GEO/distritos.geojson" <<'PY'
+          import json, sys
+          m,d = [json.load(open(x))["features"] for x in sys.argv[1:]]
+          assert len(m) == 278 and len(d) == 18
+          PY
+      - name: Recollect 18 OSM extracts once to reconstruct missing venue fields
+        shell: bash
+        run: |
+          set -uo pipefail
+          python3 -u scripts/prepare_national_venues.py --district all \
+            --cache-dir "$WORK" \
+            --municipalities-geojson "$GEO/municipios.geojson" \
+            --districts-geojson "$GEO/distritos.geojson"
+      - name: Join full fields to exact old 3514 candidate OSM identities
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$WORK/national-report.json"
+          python3 scripts/recover_national_venue_details.py \
+            --cache-dir "$WORK" \
+            --original "$SOURCE/original/manual-review-candidates.jsonl.gz" \
+            --qa "$SOURCE/original/national-qa.json" \
+            --public-review "$SOURCE/public/national-live-reconciliation-review.csv" \
+            --out "$OUT"
+      - name: Store compressed reports only, no raw PBF or database exports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-3514-venue-full-details-readonly
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            ${{ env.OUT }}/quality-summary.json
+            ${{ env.OUT }}/source-drift.json
+            ${{ env.OUT }}/national-venue-details-3514.jsonl.gz
+            ${{ env.OUT }}/district-quality.csv

@@ -1,0 +1,24 @@
+# Keep production dependencies on a low-noise weekly update cadence.
+# GitHub reads this configuration from the repository DEFAULT branch.
+# Version updates target the actual deployed branch; no auto-merge/deploy.
+# Dependabot SECURITY update PRs may still target the default branch and
+# must be reviewed and backported to the production branch separately.
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    target-branch: "feature/desporto24-preview-deploy"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Lisbon"
+    open-pull-requests-limit: 2
+    groups:
+      safe-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

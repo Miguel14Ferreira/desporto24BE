@@ -1,0 +1,94 @@
+name: Jynlo first three LIVE SQL preflight fixture (PG16)
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'src/main/resources/db/changelog/venue-imports/preflight-first-three-municipal-live-READONLY.sql'
+      - 'scripts/test_first_three_final_readonly_preflight.py'
+      - 'docs/venue-imports/first-three-operator-preflight-result-20261022.json'
+      - 'scripts/validate_first_three_operator_preflight.py'
+      - 'scripts/test_validate_first_three_operator_preflight.py'
+      - '.github/workflows/venue-first-three-final-sql-preflight-pg16.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  readonly-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: disposable_only
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin source candidates and ensure strictly READ ONLY SQL
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_first_three_final_readonly_preflight.py' -v
+          python3 -m unittest discover -s scripts -p 'test_validate_first_three_operator_preflight.py' -v
+          python3 scripts/validate_first_three_operator_preflight.py
+      - name: Execute read-only preflight with neighboring and duplicate fixtures
+        shell: bash
+        env:
+          PGCID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          QUERY=src/main/resources/db/changelog/venue-imports/preflight-first-three-municipal-live-READONLY.sql
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGSERIAL PRIMARY KEY, name VARCHAR(140) NOT NULL,
+            city VARCHAR(120) NOT NULL,
+            latitude DOUBLE PRECISION, longitude DOUBLE PRECISION,
+            information_source VARCHAR(20), source_reference VARCHAR(255)
+          );
+          -- Pavilhão Mário Mexia is represented as a DIFFERENT fixture facility
+          -- approximately 108m away from Centro Olímpico.
+          INSERT INTO desporto24.venue
+            (name,city,latitude,longitude,information_source)
+          VALUES
+            ('Pavilhão Municipal Multidesportos Mário Mexia',
+             'Coimbra',40.2063624,-8.4068928,'COMMUNITY');
+          SQL
+          docker exec -i "$PGCID" psql -X -At -F '|' -v ON_ERROR_STOP=1 -U postgres \
+            < "$QUERY" > /tmp/jynlo-preflight-neighbor.txt
+          grep -F 'OSM:WAY:1056855283|Centro Olímpico de Piscinas Municipais|Coimbra|1|0|1|' \
+            /tmp/jynlo-preflight-neighbor.txt
+          grep -F 'OSM:WAY:122685516|Piscinas Municipais Rui Abreu|Coimbra|1|0|0|' \
+            /tmp/jynlo-preflight-neighbor.txt
+          grep -F 'OSM:WAY:145943204|Pavilhão Marialvas|Cantanhede|1|0|0|' \
+            /tmp/jynlo-preflight-neighbor.txt
+          before="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$before" = '1'
+
+          # Two additional fixture records: same municipality alias without GPS,
+          # and exact OSM reference with an unrelated name. Both MUST block.
+          docker exec -i "$PGCID" psql -X -v ON_ERROR_STOP=1 -U postgres <<'SQL'
+          INSERT INTO desporto24.venue
+            (name,city,latitude,longitude,information_source,source_reference)
+          VALUES
+            ('Pavilhão Os Marialvas','Cantanhede',NULL,NULL,'COMMUNITY',NULL),
+            ('Outro nome para Rui Abreu','Coimbra',NULL,NULL,
+             'OPENSTREETMAP','OSM:WAY:122685516');
+          SQL
+          docker exec -i "$PGCID" psql -X -At -F '|' -v ON_ERROR_STOP=1 -U postgres \
+            < "$QUERY" > /tmp/jynlo-preflight-blocked.txt
+          grep -F 'OSM:WAY:1056855283|Centro Olímpico de Piscinas Municipais|Coimbra|3|0|1|' \
+            /tmp/jynlo-preflight-blocked.txt
+          grep -F 'OSM:WAY:122685516|Piscinas Municipais Rui Abreu|Coimbra|3|1|0|' \
+            /tmp/jynlo-preflight-blocked.txt
+          grep -F 'OSM:WAY:145943204|Pavilhão Marialvas|Cantanhede|3|1|0|' \
+            /tmp/jynlo-preflight-blocked.txt
+          after="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$after" = '3'
+          echo 'READ ONLY PG16 passed: neighbor advisory separated; OSM and alias duplicates blocked.'

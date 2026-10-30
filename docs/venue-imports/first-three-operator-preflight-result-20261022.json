@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "operator_supplied_readonly_psql_output",
+  "capturedFrom": "User-provided psql result in the conversation",
+  "executedAt": null,
+  "executionDateVerified": false,
+  "queryPath": "src/main/resources/db/changelog/venue-imports/preflight-first-three-municipal-live-READONLY.sql",
+  "queryAtCommit": "7c802a374ebd5bc0bf19f416a90fa4602e462e12",
+  "catalogueRows": 265,
+  "allProposalsApproved": false,
+  "records": [
+    {
+      "sourceReference": "OSM:WAY:1056855283",
+      "name": "Centro Olímpico de Piscinas Municipais",
+      "city": "Coimbra",
+      "potentialCollisionCount": 0,
+      "nearby100To150MetresCount": 1,
+      "potentialMatches": [
+        {
+          "id": 262,
+          "sourceReference": "OSM:WAY:58257179",
+          "name": "Pavilhão Municipal Multidesportos Mário Mexia",
+          "city": "Coimbra",
+          "source": "OPENSTREETMAP",
+          "sameRef": false,
+          "within100m": false,
+          "distanceMetres": 107.7,
+          "neighbor100to150m": true,
+          "sameNameOrAliasCity": false
+        }
+      ],
+      "humanNeighborDisposition": "MUNICIPAL_SOURCES_DOCUMENT_DISTINCT_FACILITIES",
+      "approvalDecision": "PENDING"
+    },
+    {
+      "sourceReference": "OSM:WAY:122685516",
+      "name": "Piscinas Municipais Rui Abreu",
+      "city": "Coimbra",
+      "potentialCollisionCount": 0,
+      "nearby100To150MetresCount": 0,
+      "potentialMatches": [],
+      "humanNeighborDisposition": "NO_NEIGHBORS_DETECTED",
+      "approvalDecision": "PENDING"
+    },
+    {
+      "sourceReference": "OSM:WAY:145943204",
+      "name": "Pavilhão Marialvas",
+      "city": "Cantanhede",
+      "potentialCollisionCount": 0,
+      "nearby100To150MetresCount": 0,
+      "potentialMatches": [],
+      "humanNeighborDisposition": "NO_NEIGHBORS_DETECTED",
+      "approvalDecision": "PENDING"
+    }
+  ],
+  "limitations": [
+    "Operator pasted tabular SQL output; it was not independently obtained by the GitHub workflow",
+    "The query detects exact OSM references, normalized same-municipality names and specified aliases, plus 100m spatial collisions; uncommon aliases can be missed",
+    "User-provided output does not supply an execution timestamp; execution freshness must be verified again before signing publication approval",
+    "A neighbor at 107.7m is a separate municipal facility, not by itself a duplicate or approval",
+    "This evidence alone does not confirm current operating hours, booking permissions, fees, or right to organize sessions",
+    "No insertion, approval, Liquibase master change, or deployment is authorized by this record"
+  ]
+}

@@ -1,0 +1,104 @@
+name: Jynlo national 18-district OSM + CAOP2025 preview (NO DB WRITE)
+# One-off run on this audit branch. On develop, opt-in workflow_dispatch only.
+on:
+  push:
+    branches: ['audit/national-18-districts-20261021']
+    paths:
+      - '.github/workflows/venue-national-18-preview-20261021.yml'
+      - 'scripts/audit_national_stage.py'
+      - 'scripts/test_audit_national_stage.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: national-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  all-18-districts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      WORK: /tmp/jynlo-national-review
+      CAOP: /tmp/jynlo-caop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test offline QA and import/staging without network
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_audit_national_stage.py' -v
+          python3 -m unittest discover -s scripts -p 'test_prepare_national_venues.py' -v
+          python3 -m unittest discover -s scripts -p 'test_import_osm_venues_national.py' -v
+      - name: Install open map decoder and official CAOP conversion
+        run: |
+          python3 -m pip install --quiet osmium
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gdal-bin
+      - name: Retrieve official DGT CAOP2025 polygons
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK" "$CAOP"
+          curl -fL --retry 2 --connect-timeout 25 --max-time 240 \
+            -o "$CAOP/caop2025.zip" \
+            "https://geo2.dgterritorio.gov.pt/caop/CAOP_Continente_2025-gpkg.zip"
+          unzip -q "$CAOP/caop2025.zip" -d "$CAOP"
+          GPKG="$(find "$CAOP" -name '*.gpkg' -print -quit)"
+          test -n "$GPKG"
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "$CAOP/municipios.geojson" "$GPKG" cont_municipios
+          ogr2ogr -f GeoJSON -t_srs EPSG:4326 -lco RFC7946=YES \
+            "$CAOP/distritos.geojson" "$GPKG" cont_distritos
+          python3 - "$CAOP/municipios.geojson" "$CAOP/distritos.geojson" <<'PY'
+          import json, sys
+          a, b = (json.load(open(path, encoding='utf-8'))['features'] for path in sys.argv[1:])
+          print('CAOP2025: municipalities', len(a), 'districts', len(b))
+          assert len(a) == 278 and len(b) == 18
+          PY
+      - name: Download and stage all 18 OSM district PBF extracts in read-only mode
+        shell: bash
+        run: |
+          set -uo pipefail
+          # Unlike '--apply', this command has no Jynlo credentials or API calls.
+          # Always produce a checkpoint after each district, including source failure.
+          python3 -u scripts/prepare_national_venues.py --district all \
+            --cache-dir "$WORK" \
+            --municipalities-geojson "$CAOP/municipios.geojson" \
+            --districts-geojson "$CAOP/distritos.geojson"
+      - name: Produce national coverage and duplicate-risk reports
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$WORK/national-report.json" ]; then
+            python3 scripts/venue_coverage_report.py \
+              --input "$WORK/national-report.json" \
+              --output "$WORK/coverage-18-districts.csv"
+            python3 scripts/audit_national_stage.py --cache-dir "$WORK" \
+              --output "$WORK/national-qa.json" \
+              --preview "$WORK/manual-review-candidates.jsonl"
+          fi
+      - name: Compress preview only, never publish raw OSM PBF
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$WORK/manual-review-candidates.jsonl" ]; then
+            gzip -n "$WORK/manual-review-candidates.jsonl"
+          fi
+          echo 'No Render database, admin token or API mutation was used.'
+      - name: Retain report and candidates for 1 day
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-national-18-districts-readonly-report
+          retention-days: 1
+          if-no-files-found: warn
+          path: |
+            ${{ env.WORK }}/national-report.json
+            ${{ env.WORK }}/coverage-18-districts.csv
+            ${{ env.WORK }}/national-qa.json
+            ${{ env.WORK }}/manual-review-candidates.jsonl.gz

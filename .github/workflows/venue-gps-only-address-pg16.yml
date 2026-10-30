@@ -1,0 +1,64 @@
+name: Venue nullable postal address PostgreSQL16 safety
+on:
+  push:
+    branches: ['feature/jynlo-venue-address-nullable-with-gps-20261021']
+    paths:
+      - 'src/main/resources/db/changelog/changes/2026-10-21-venue-gps-only-address-nullable.sql'
+      - 'src/main/resources/db/changelog/changes/2026-10-21-venue-gps-only-address-nullable.yaml'
+      - '.github/workflows/venue-gps-only-address-pg16.yml'
+permissions:
+  contents: read
+jobs:
+  postgres-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: disposable_fixture
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise actual Liquibase SQL on disposable PostgreSQL16
+        env:
+          PG: ${{ job.services.postgres.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i "$PG" psql -X -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, city TEXT NOT NULL,
+            address VARCHAR(255) NOT NULL, latitude DOUBLE PRECISION,
+            longitude DOUBLE PRECISION
+          );
+          INSERT INTO desporto24.venue (name,city,address)
+          VALUES ('Antigo Recinto','Lisboa','Rua Existente 10');
+          SQL
+          docker exec -i "$PG" psql -X -U postgres -v ON_ERROR_STOP=1 \
+            < src/main/resources/db/changelog/changes/2026-10-21-venue-gps-only-address-nullable.sql
+          docker exec -i "$PG" psql -X -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO desporto24.venue (name,city,address,latitude,longitude)
+          VALUES ('Campo GPS','Cantanhede',NULL,40.344,-8.588);
+          SQL
+          for values in "'Sem Localização','Cantanhede',NULL,NULL,NULL" \
+                        "'Latitude Incompleta','Cantanhede',NULL,40.2,NULL" \
+                        "'Fora de Portugal','Cantanhede',NULL,46.2,-8.5"; do
+            if docker exec "$PG" psql -X -U postgres -v ON_ERROR_STOP=1 \
+              -c "INSERT INTO desporto24.venue(name,city,address,latitude,longitude) VALUES ($values)"; then
+              echo 'FAIL: database accepted an incomplete GPS-only record'
+              exit 1
+            fi
+          done
+          existing="$(docker exec "$PG" psql -X -At -U postgres \
+            -c "SELECT address FROM desporto24.venue WHERE name='Antigo Recinto'")"
+          count="$(docker exec "$PG" psql -X -At -U postgres \
+            -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$existing" = 'Rua Existente 10'
+          test "$count" = '2'
+          echo 'POSTGRESQL16 PASSED: existing address preserved, GPS-only accepted, invalid cases rejected'

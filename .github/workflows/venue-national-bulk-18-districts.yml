@@ -1,0 +1,98 @@
+name: Generate national OSM venue map batches (18 districts, opt-in only)
+on:
+  push:
+    branches:
+      - feat/venues-national-bulk-map-backed-18-districts-20261022
+    paths:
+      - scripts/generate_national_map_venue_batches.py
+      - scripts/test_generate_national_map_venue_batches.py
+      - .github/workflows/venue-national-bulk-18-districts.yml
+
+permissions:
+  contents: write
+
+jobs:
+  national-candidate-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_only_no_real_database
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test national snapshot, no missing districts, safe unverified policy
+        run: python3 -m unittest discover -s scripts -p 'test_generate_national_map_venue_batches.py' -v
+      - name: Generate 18-district manifest and PostgreSQL inserts WITHOUT enabling import
+        run: |
+          set -euo pipefail
+          python3 scripts/generate_national_map_venue_batches.py \
+            --out-dir src/main/resources/db/changelog/venue-imports/drafts/national-20261022
+      - name: Replay all candidates twice in disposable PostgreSQL 16
+        shell: bash
+        env:
+          PGCID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          DIR=src/main/resources/db/changelog/venue-imports/drafts/national-20261022
+          docker exec -i "$PGCID" psql -X -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+             id BIGSERIAL PRIMARY KEY, name VARCHAR(140) NOT NULL,
+             city VARCHAR(120) NOT NULL, district VARCHAR(120),
+             address VARCHAR(255), sports VARCHAR(255),
+             venue_type VARCHAR(80), environment_type VARCHAR(20),
+             latitude DOUBLE PRECISION, longitude DOUBLE PRECISION,
+             information_source VARCHAR(20), source_reference VARCHAR(255),
+             indoor BOOLEAN NOT NULL, changing_rooms BOOLEAN NOT NULL,
+             parking BOOLEAN NOT NULL, lighting BOOLEAN NOT NULL,
+             created_at TIMESTAMP NOT NULL,
+             CONSTRAINT uk_venue_source_ref UNIQUE (information_source, source_reference),
+             CONSTRAINT ck_venue_address_or_mainland_gps CHECK (
+               NULLIF(BTRIM(address), '') IS NOT NULL
+               OR (latitude BETWEEN 36.8 AND 42.3 AND longitude BETWEEN -9.6 AND -6.0)
+             )
+          );
+          CREATE INDEX idx_venue_city_name ON desporto24.venue(LOWER(city),LOWER(name));
+          SQL
+          cat "$DIR"/sql/*.sql | docker exec -i "$PGCID" psql -X -q -U postgres -v ON_ERROR_STOP=1 > /tmp/first-apply.txt
+          first="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$first" -gt 100
+          districts="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(DISTINCT district) FROM desporto24.venue')"
+          test "$districts" = 18
+          unverified="$(docker exec "$PGCID" psql -X -At -U postgres -c "SELECT COUNT(*) FROM desporto24.venue WHERE information_source='OPENSTREETMAP' AND address IS NULL")"
+          test "$unverified" = "$first"
+          cat "$DIR"/sql/*.sql | docker exec -i "$PGCID" psql -X -q -U postgres -v ON_ERROR_STOP=1 > /tmp/replay-apply.txt
+          second="$(docker exec "$PGCID" psql -X -At -U postgres -c 'SELECT COUNT(*) FROM desporto24.venue')"
+          test "$second" = "$first"
+          echo "BULK_CANDIDATES_INSERTABLE_IN_FIXTURE=$first; DISTRICTS=$districts; REPLAY_NO_EXTRA_ROWS=YES"
+          # These are test fixtures only. Production access is never attempted.
+      - name: Save release-candidate evidence and SQL manifest (3-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: jynlo-national-map-18-districts-opt-in
+          path: src/main/resources/db/changelog/venue-imports/drafts/national-20261022
+          retention-days: 3
+          if-no-files-found: error
+      - name: Commit ONLY generated draft SQL and manifest to this isolated branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/main/resources/db/changelog/venue-imports/drafts/national-20261022
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(venues): stage 18-district unverified OSM release draft [skip ci]'
+            git push origin HEAD:refs/heads/feat/venues-national-bulk-map-backed-18-districts-20261022
+          fi
+          git diff --exit-code -- src/main/resources/db/changelog/db.changelog-master.yaml

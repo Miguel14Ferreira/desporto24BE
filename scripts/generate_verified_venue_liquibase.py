@@ -13,6 +13,7 @@ import math
 from pathlib import Path
 import re
 import unicodedata
+from urllib.parse import urlsplit
 
 DISTRICTS = {
     "Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra",
@@ -68,9 +69,47 @@ def validate(item):
     district = required_text(item, "district", 120)
     if district not in DISTRICTS:
         raise ValueError(f"Unknown mainland district: {district}")
-    address = required_text(item, "address", 255)
-    if "por confirmar" in address.casefold():
-        raise ValueError("Address still marked as unverified")
+    # GPS-only is a real, supported LIVE schema state (Oct 21 migration), not
+    # permission to smuggle OSM placeholder addresses into public data.
+    address = item.get("address")
+    if address is None:
+        if "address" not in item or item.get("postalAddressStatus") != "UNKNOWN_GPS_ONLY":
+            raise ValueError("GPS-only location requires explicit null address and UNKNOWN_GPS_ONLY status")
+        if item.get("gpsVerified") is not True:
+            raise ValueError("GPS-only location requires independent GPS verification")
+        gps_notes = required_text(item, "gpsVerificationNotes", 1000)
+        if len(gps_notes) < 40:
+            raise ValueError("GPS-only location requires substantial independent verification notes")
+        evidence = required_text(item, "gpsEvidenceUrl", 500)
+        url = urlsplit(evidence)
+        host = (url.hostname or "").lower()
+        if (url.scheme != "https" or not host or url.username or url.password
+                or host in {"openstreetmap.org", "www.openstreetmap.org", "osm.org",
+                            "www.osm.org", "localhost"}
+                or host.endswith(".openstreetmap.org")):
+            raise ValueError("GPS-only verification needs an independent HTTPS evidence URL, not OSM")
+    else:
+        address = required_text(item, "address", 255)
+        if "por confirmar" in address.casefold():
+            raise ValueError("Address still marked as unverified")
+        if item.get("postalAddressStatus") == "UNKNOWN_GPS_ONLY":
+            raise ValueError("GPS-only status conflicts with supplied postal address")
+    website = item.get("website")
+    if website is not None:
+        website = required_text(item, "website", 255)
+        try:
+            parsed_website = urlsplit(website)
+            website_host = (parsed_website.hostname or "").lower()
+            website_port = parsed_website.port
+        except ValueError as error:
+            raise ValueError("Invalid venue website") from error
+        if (parsed_website.scheme != "https" or not website_host
+                or parsed_website.username or parsed_website.password
+                or website_port not in (None, 443)
+                or website_host in {"openstreetmap.org", "www.openstreetmap.org",
+                                    "localhost", "osm.org", "www.osm.org"}
+                or website_host.endswith(".openstreetmap.org")):
+            raise ValueError("Venue website requires an independent HTTPS operator page")
     sports = required_text(item, "sports", 255)
     venue_type = required_text(item, "venueType", 80)
     environment = item.get("environmentType")
@@ -83,7 +122,7 @@ def validate(item):
         if not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f"{key} must be in mainland Portugal")
     return dict(sourceReference=source, name=name, city=city, district=district,
-                address=address, sports=sports, venueType=venue_type,
+                address=address, website=website, sports=sports, venueType=venue_type,
                 environmentType=environment,
                 latitude=round(float(item["latitude"]), 7),
                 longitude=round(float(item["longitude"]), 7))
@@ -114,6 +153,7 @@ def load_approved(path):
 
 def render_sql(rows):
     header = ("-- Generated from individually approved OSM venues. Review the SQL in a PR.\n"
+              "-- Explicit NULL postal address means independently verified GPS-only; never a fake street.\n"
               "-- Idempotent inserts: never update, replace or delete existing venue records.\n"
               "-- Does not prove an OSM facility is available for public booking.\n\n")
     statements = []
@@ -121,22 +161,23 @@ def render_sql(rows):
         values = [
             row["name"], row["city"], row["district"], row["address"], row["sports"],
             row["venueType"], row["environmentType"], row["latitude"], row["longitude"],
-            row["sourceReference"]
+            row["sourceReference"], row["website"]
         ]
         vals = ", ".join(literal(x) for x in values[:7])
         lat = f'{values[7]:.7f}'
         lon = f'{values[8]:.7f}'
         ref = literal(values[9])
+        website = literal(values[10])
         indoors = "TRUE" if row["environmentType"] == "INDOOR" else "FALSE"
         # Individual INSERTs mean later statements can observe previously inserted
         # rows in the same Liquibase transaction, unlike one bulk INSERT snapshot.
         statements.append(f"""-- {row['sourceReference']} / {row['district']}
 INSERT INTO desporto24.venue
   (name, city, district, address, sports, venue_type, environment_type,
-   latitude, longitude, information_source, source_reference,
+   latitude, longitude, information_source, source_reference, website,
    indoor, changing_rooms, parking, lighting, created_at)
 SELECT {vals}, {lat}, {lon}, 'OPENSTREETMAP', {ref},
-       {indoors}, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
+       {website}, {indoors}, FALSE, FALSE, FALSE, CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
   SELECT 1 FROM desporto24.venue existing
   WHERE (existing.information_source = 'OPENSTREETMAP'

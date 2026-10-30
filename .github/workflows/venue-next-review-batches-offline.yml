@@ -1,0 +1,27 @@
+name: Next 50 national venue review queue (offline)
+on:
+  push:
+    branches: ['feature/jynlo-national-next-review-batches-20261021']
+    paths:
+      - 'scripts/prepare_subsequent_venue_review_batches.py'
+      - 'scripts/test_prepare_subsequent_venue_review_batches.py'
+      - '.github/workflows/venue-next-review-batches-offline.yml'
+permissions:
+  contents: read
+jobs:
+  test-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate deterministic 2nd national batch without network
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_prepare_subsequent_venue_review_batches.py' -v
+          python3 scripts/prepare_subsequent_venue_review_batches.py \
+            --full-details docs/venue-imports/datasets/national-3514-reviewed-20261021.jsonl.gz \
+            --out-dir /tmp/jynlo-page2 --page 2 --limit 50 --district-cap 7
+          grep -q 'OSM:WAY:' /tmp/jynlo-page2/national-review-page-2.csv
