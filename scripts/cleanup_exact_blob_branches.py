@@ -6,7 +6,7 @@ from urllib.parse import quote
 ROOT=os.environ["GITHUB_REPOSITORY"]; TOKEN=os.environ["GITHUB_TOKEN"]
 BASE=os.environ["PRODUCTION_BRANCH"]; DRY=os.environ.get("DRY_RUN","true").lower()!="false"
 CUTOFF=datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(days=3)
-PROTECTED={"main","master","develop",BASE}
+PROTECTED={"main","master","develop",BASE,"feature/desporto24-preview-deploy"}
 def git(*args):
     return subprocess.run(["git",*args],capture_output=True,text=True)
 def api(path,method="GET",body=None):
