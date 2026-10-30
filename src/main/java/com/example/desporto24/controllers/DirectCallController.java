@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-/** Authenticated, one-to-one call signalling. LiveKit credentials never reach the frontend. */
+/** Authenticated call signalling. LiveKit credentials never reach the frontend. */
 @RestController
 @RequestMapping("/api/calls/direct")
 @RequiredArgsConstructor
@@ -39,6 +39,19 @@ public class DirectCallController {
     @PostMapping("/{callId}/accept")
     public DirectCallService.CallSession accept(@PathVariable UUID callId, Authentication auth) {
         return service.accept(callId, auth.getName());
+    }
+
+    /** Additional participant must accept an invitation before joining. */
+    @PostMapping("/{callId}/invite/{username}")
+    public void invite(@PathVariable UUID callId, @PathVariable String username,
+            Authentication auth) {
+        service.invite(callId, auth.getName(), username);
+    }
+
+    @GetMapping("/{callId}/members")
+    public DirectCallService.CallMembers members(@PathVariable UUID callId,
+            Authentication auth) {
+        return service.members(callId, auth.getName());
     }
 
     @PostMapping("/{callId}/decline")
