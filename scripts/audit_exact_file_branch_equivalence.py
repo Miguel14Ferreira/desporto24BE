@@ -21,7 +21,7 @@ for line in refs.splitlines():
  paths=[p for p in paths.splitlines() if p]
  if not paths or len(paths)>6:continue
  checked+=1
- equivalent=all(git("rev-parse","refs/remotes/origin/"+BASE+":"+p)[1] == git("rev-parse",ref+":"+p)[1] for p in paths)
+ equivalent=all((lambda a,b: a[0]==0 and b[0]==0 and a[1]==b[1])(git("rev-parse","refs/remotes/origin/"+BASE+":"+p),git("rev-parse",ref+":"+p)) for p in paths)
  obj={"branch":name,"exclusive_commits":n,"files":paths}
  (matches if equivalent else review).append(obj)
 print(json.dumps({"reference":BASE,"checked_small_branches":checked,"exact_file_content_matches":len(matches),"matches":matches,"needs_review":review[:25],"note":"read only: compare exact blob IDs at branch tips for files touched since merge base"},indent=2))
