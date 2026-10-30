@@ -15,8 +15,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Test branch cleanup safety
-        run: python3 -m unittest discover -s scripts -p 'test_safe_merged_branch_cleanup.py'
+      - name: Validate cleanup scripts and run safety tests
+        run: |
+          python3 -m py_compile scripts/safe_merged_branch_cleanup.py scripts/test_safe_merged_branch_cleanup.py
+          python3 -m unittest discover -s scripts -p 'test_safe_merged_branch_cleanup.py' -v
       - name: Remove eligible branches with preserved ancestry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
