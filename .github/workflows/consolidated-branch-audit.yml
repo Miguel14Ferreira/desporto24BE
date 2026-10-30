@@ -1,0 +1,33 @@
+name: Consolidated safe branch audit
+on:
+  push:
+    branches:
+      - chore/consolidated-cleanup-audit-20261030
+  pull_request:
+    paths:
+      - scripts/safe_merged_branch_cleanup.py
+      - scripts/test_safe_merged_branch_cleanup.py
+      - .github/workflows/consolidated-branch-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate syntax and regression cases
+        run: |
+          python3 -m py_compile scripts/safe_merged_branch_cleanup.py scripts/test_safe_merged_branch_cleanup.py
+          python3 -m unittest discover -s scripts -p 'test_safe_merged_branch_cleanup.py' -v
+      - name: Classify safely merged branches (read-only)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCTION_BRANCH: develop
+          MIN_AGE_DAYS: '3'
+          DRY_RUN: 'true'
+        run: python3 scripts/safe_merged_branch_cleanup.py
