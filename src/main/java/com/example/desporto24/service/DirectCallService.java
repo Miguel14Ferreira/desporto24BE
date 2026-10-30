@@ -24,6 +24,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -40,6 +44,7 @@ public class DirectCallService {
     private static final int RING_SECONDS = 60;
     private static final int MAX_CALL_MINUTES = 120;
     private static final int START_COOLDOWN_SECONDS = 10;
+    private static final int MAX_PARTICIPANTS = 6;
     private static final Logger log = LoggerFactory.getLogger(DirectCallService.class);
     private static final Duration PROVIDER_CACHE = Duration.ofSeconds(60);
     private static final HttpClient PROVIDER_HTTP = HttpClient.newBuilder()
@@ -61,6 +66,12 @@ public class DirectCallService {
 
     private final ConcurrentHashMap<UUID, Call> calls = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> lastStarted = new ConcurrentHashMap<>();
+    /** Node-local, explicit invitations: no LiveKit credential is minted
+     * until an authenticated invitee accepts. Mutations are synchronized. */
+    private final ConcurrentHashMap<UUID, LinkedHashMap<String, Guest>> guests = new ConcurrentHashMap<>();
+    private record Guest(String username, String inviter, Instant expiresAt, boolean accepted) {}
+    public record Member(String username, String identity) {}
+    public record CallMembers(List<Member> participants, List<String> pending) {}
 
     private record Call(UUID id, String caller, String peer, String media,
                         String room, Instant expiresAt, String state) {}
@@ -82,10 +93,18 @@ public class DirectCallService {
         Instant now = Instant.now();
         calls.entrySet().removeIf(entry -> !now.isBefore(entry.getValue().expiresAt));
         for (Call call : calls.values()) {
-            if (!"RINGING".equals(call.state) || !call.peer.equalsIgnoreCase(recipient)) continue;
-            inbox.requireConversationAccess(recipient, "direct", call.caller);
-            return new PendingInvitation(call.id, call.caller, call.peer,
-                    call.media, call.expiresAt);
+            if ("RINGING".equals(call.state) && call.peer.equalsIgnoreCase(recipient)) {
+                inbox.requireConversationAccess(recipient, "direct", call.caller);
+                return new PendingInvitation(call.id, call.caller, call.peer,
+                        call.media, call.expiresAt);
+            }
+            if (!"ACTIVE".equals(call.state)) continue;
+            Guest guest = guestFor(call.id, recipient);
+            if (guest != null && !guest.accepted() && now.isBefore(guest.expiresAt())) {
+                inbox.requireConversationAccess(recipient, "direct", guest.inviter());
+                return new PendingInvitation(call.id, guest.inviter(), guest.username(),
+                        call.media, guest.expiresAt());
+            }
         }
         return null;
     }
@@ -232,6 +251,7 @@ public class DirectCallService {
         }
         if (Instant.now().isAfter(call.expiresAt)) {
             calls.remove(id);
+            guests.remove(id);
             throw new ResponseStatusException(HttpStatus.GONE, "Call expired");
         }
         return call;
@@ -239,7 +259,7 @@ public class DirectCallService {
 
     private boolean isParticipant(Call call, String username) {
         return username != null && (call.caller.equalsIgnoreCase(username)
-                || call.peer.equalsIgnoreCase(username));
+                || call.peer.equalsIgnoreCase(username) || guestFor(call.id, username) != null);
     }
 
     private void configured() {
