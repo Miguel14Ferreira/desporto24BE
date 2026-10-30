@@ -31,7 +31,7 @@ for page in range(1, 30):
 else: raise RuntimeError("Unexpected PR pagination; abort")
 res = git("for-each-ref", "--format=%(refname:strip=3)\t%(committerdate:iso8601-strict)", "refs/remotes/origin")
 if res.returncode: raise RuntimeError(res.stderr)
-deleted, skipped, candidates = [], [], []
+deleted, skipped, candidates, content_equivalent = [], [], [], []
 for line in res.stdout.splitlines():
     name, date = line.split("\t", 1)
     if name in PROTECT or name in open_heads or not ALLOWED.match(name) or name.startswith("backup/") or name == "HEAD":
@@ -40,6 +40,11 @@ for line in res.stdout.splitlines():
     stamp = datetime.datetime.fromisoformat(date)
     if stamp >= CUTOFF: continue
     if git("merge-base", "--is-ancestor", "refs/remotes/origin/" + name, "refs/remotes/origin/" + PRODUCTION).returncode:
+        same_tree = git("diff", "--quiet", "refs/remotes/origin/" + name, "refs/remotes/origin/" + PRODUCTION)
+        if same_tree.returncode == 0:
+            content_equivalent.append(name)
+        elif same_tree.returncode != 1:
+            raise RuntimeError(f"Cannot compare trees safely: {name}: {same_tree.stderr}")
         continue
     candidates.append(name)
     if os.environ.get("DRY_RUN", "true").lower() != "false": continue
@@ -54,4 +59,4 @@ for line in res.stdout.splitlines():
     if result["status"] != 204:
         raise RuntimeError(f"Unexpected branch deletion status: {result['status']} for {name}")
     deleted.append(name)
-print(json.dumps({"repository": ROOT, "production": PRODUCTION, "dry_run": os.environ.get("DRY_RUN", "true"), "candidates":len(candidates), "deleted_attempts":len(deleted), "candidate_names":candidates[:150]}, indent=2))
+print(json.dumps({"repository": ROOT, "production": PRODUCTION, "dry_run": os.environ.get("DRY_RUN", "true"), "candidates":len(candidates), "deleted_attempts":len(deleted), "candidate_names":candidates[:150], "content_equivalent_read_only":content_equivalent[:150], "content_equivalent_count":len(content_equivalent)}, indent=2))
