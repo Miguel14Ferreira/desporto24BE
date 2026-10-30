@@ -236,6 +236,14 @@ public class DirectCallService {
 
     public synchronized void decline(UUID id, String actor) {
         Call call = requireCall(id, actor);
+        if ("ACTIVE".equals(call.state)) {
+            Guest guest = guestFor(id, actor);
+            if (guest == null || guest.accepted() || !Instant.now().isBefore(guest.expiresAt()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Invitation not ringing");
+            guests.get(id).remove(key(actor));
+            notifyParticipantsChanged(call, actor);
+            return;
+        }
         if (!actor.equalsIgnoreCase(call.peer)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
@@ -243,6 +251,7 @@ public class DirectCallService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Call not ringing");
         }
         calls.remove(id);
+        guests.remove(id);
         gateway.publishDirectCallEvent(call.caller, call.peer, id.toString(), call.media,
                 "DECLINED", actor, Instant.now());
     }
