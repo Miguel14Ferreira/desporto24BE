@@ -12,7 +12,17 @@ ALLOWLIST = [
     "fix/account-security-notice-preference-visibility-20261028",
     "fix/braganca-legacy-pavilion-dedup-20261028",
     "fix/community-guest-existing-account-20261027",
-    "fix/braganca-preflight-atomic-report-20261028"
+    "fix/braganca-preflight-atomic-report-20261028",
+    "audit/arroios-284-official-gis-pitch-20261027",
+    "audit/braganca-arnaldo-nearby-live-20261028",
+    "audit/braganca-municipality-collision-and-macedo-access-20261028",
+    "audit/braganca-pavilions-arrival-transit-evidence-20261028",
+    "audit/braganca-public-alias-scan-20261028",
+    "audit/braganca-three-rural-pavilions-20261028",
+    "audit/braganca-two-pavilions-source-gps-20261028",
+    "audit/guarda-municipal-historical-gps-20261028",
+    "audit/known-venue-gps-collisions-20261027",
+    "audit/municipal-gis-points-readonly-20261027"
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
