@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -26,6 +28,9 @@ import java.util.List;
 import java.util.Set;
 
 import com.example.desporto24.websocket.SessionChatMessageCreatedEvent;
+import com.example.desporto24.storage.PrivateChatFileStorage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
 
 import static com.example.desporto24.constant.UserImplConstant.NO_USER_FOUND_BY_USERNAME;
 
@@ -38,6 +43,50 @@ public class SessionChatService {
     private final SessionParticipantRepository participantRepository;
     private final SessionMessageRepository messageRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final SessionGuestRequestService guestRequestService;
+
+    @Autowired(required = false)
+    private PrivateChatFileStorage privateChatStorage;
+
+    /**
+     * Keep guest access separate from the authenticated GET endpoint. A public
+     * WhatsApp invitation can never read messages without its own approved RSVP.
+     */
+    @Transactional(readOnly = true)
+    public List<SessionMessageResponse> guestMessages(Long sessionId,String receipt) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        guestRequestService.requireApprovedChatGuest(sessionId,receipt);
+        if (!isChatOpen(session,Instant.now())) {
+            throw new AccessDeniedException("Session chat is closed");
+        }
+        return messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public SessionMessageResponse guestPost(Long sessionId,String receipt,String body) {
+        // Shares the session lock used by cancellation/removal and member posting.
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        var guest = guestRequestService.requireApprovedChatGuest(sessionId,receipt);
+        if (!isChatOpen(session,Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Session chat is closed");
+        }
+        String normalized = body==null ? "" : body.trim();
+        if (normalized.isBlank() || normalized.length()>2000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid message body");
+        }
+        SessionMessage saved = messageRepository.save(SessionMessage.builder()
+                .session(session).senderGuestRequest(guest).body(normalized)
+                .createdAt(Instant.now()).build());
+        SessionMessageResponse response = toResponse(saved);
+        // Only active authenticated accounts have private WebSocket destinations;
+        // anonymous guests refresh via verified, receipt-gated POST reads.
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(
+                response,realtimeRecipients(session)));
+        return response;
+    }
 
     @Transactional(readOnly = true)
     public List<SessionMessageResponse> messages(Long sessionId, String username) {
@@ -47,6 +96,9 @@ public class SessionChatService {
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new AccessDeniedException("Session chat is available only before the game");
+        }
 
         return messageRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
                 .stream()
@@ -56,6 +108,11 @@ public class SessionChatService {
 
     @Transactional
     public SessionMessageResponse post(Long sessionId, String body, String username) {
+        return post(sessionId, body, username, null);
+    }
+
+    @Transactional
+    public SessionMessageResponse post(Long sessionId, String body, String username, Long replyToMessageId) {
         // Serialize with cancellation/completion so closed sessions cannot receive new messages.
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
@@ -64,7 +121,7 @@ public class SessionChatService {
 
         requireChatAccess(session, actor);
         if (!isChatOpen(session, Instant.now())) {
-            throw new IllegalStateException("Session chat is closed after the game");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session chat is available only before the game");
         }
 
         String normalized = body == null ? "" : body.trim();
@@ -75,10 +132,28 @@ public class SessionChatService {
             throw new IllegalArgumentException("Message body must not exceed 2000 characters");
         }
 
+        SessionMessage quoted = null;
+        if (replyToMessageId != null) {
+            if (replyToMessageId <= 0) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+            quoted = messageRepository.findById(replyToMessageId)
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid reply message"));
+            if (!sessionId.equals(quoted.getSession().getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+        }
+
         SessionMessage saved = messageRepository.save(SessionMessage.builder()
                 .session(session)
                 .senderProfile(actor)
                 .body(normalized)
+                .replyToMessageId(quoted == null ? null : quoted.getId())
+                .replyToSender(quoted == null ? null : senderName(quoted))
+                .replyToText(quoted == null ? null : quoted.getBody())
                 .createdAt(Instant.now())
                 .build());
 
@@ -90,6 +165,168 @@ public class SessionChatService {
 
         return response;
     }
+
+    @Transactional
+    public SessionMessageResponse editMessage(Long sessionId, Long messageId, String body, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session chat is closed");
+        }
+        SessionMessage message = ownedMessage(session, messageId, actor);
+        message.setBody(ChatMessageMutationPolicy.editText(body, message.getCreatedAt(),
+                Instant.now(), message.getDeletedAt(), message.getAttachmentKey() != null));
+        message.setEditedAt(Instant.now());
+        messageRepository.saveAndFlush(message);
+        SessionMessageResponse response = toResponse(message);
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(response, realtimeRecipients(session)));
+        return response;
+    }
+
+    @Transactional
+    public SessionMessageResponse deleteMessage(Long sessionId, Long messageId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session chat is closed");
+        }
+        SessionMessage message = ownedMessage(session, messageId, actor);
+        ChatMessageMutationPolicy.requireNotDeleted(message.getDeletedAt());
+        message.setBody("");
+        message.setDeletedAt(Instant.now());
+        messageRepository.saveAndFlush(message);
+        messageRepository.redactRepliesToDeleted(sessionId, messageId, "[message deleted]");
+        SessionMessageResponse response = toResponse(message);
+        eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(response, realtimeRecipients(session)));
+        return response;
+    }
+
+    private SessionMessage ownedMessage(Session session, Long messageId, Profile actor) {
+        if (messageId == null || messageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        SessionMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+        if (!session.getId().equals(message.getSession().getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        if (message.getSenderProfile()==null
+                || !actor.getId().equals(message.getSenderProfile().getId())) {
+            throw new AccessDeniedException("Only the message author may change this message");
+        }
+        return message;
+    }
+
+    /**
+     * Session attachments are available only while the session is OPEN,
+     * and only to its organizer and active participants.
+     */
+    @Transactional(readOnly = true)
+    public boolean attachmentsAvailable(Long sessionId, String username) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        return isChatOpen(session, Instant.now())
+                && privateChatStorage != null && privateChatStorage.isConfigured();
+    }
+
+    /**
+     * Uses the same row lock as text posting and session cancellation. Recheck
+     * kickoff AFTER upload: a slow object store must not reopen a closed chat.
+     */
+    @Transactional
+    public SessionMessageResponse postAttachment(Long sessionId, MultipartFile file,
+            String caption, String username, Long replyToMessageId) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Session chat is available only before the game");
+        }
+        if (privateChatStorage == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Private chat attachment storage is unavailable");
+        }
+        String body = caption == null ? "" : caption.trim();
+        if (body.length() > 2000 || replyToMessageId != null && replyToMessageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid attachment message");
+        }
+        SessionMessage quoted = null;
+        if (replyToMessageId != null) {
+            quoted = messageRepository.findById(replyToMessageId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Invalid reply message"));
+            if (!sessionId.equals(quoted.getSession().getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+            }
+        }
+        var stored = privateChatStorage.store(file);
+        try {
+            if (!isChatOpen(session, Instant.now())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Session chat closed while uploading attachment");
+            }
+            SessionMessage saved = messageRepository.save(SessionMessage.builder()
+                    .session(session).senderProfile(actor)
+                    .body(body.isEmpty() ? "📎 " + stored.name() : body)
+                    .replyToMessageId(quoted == null ? null : quoted.getId())
+                    .replyToSender(quoted == null ? null : senderName(quoted))
+                    .replyToText(quoted == null ? null : quoted.getBody())
+                    .attachmentKey(stored.key()).attachmentName(stored.name())
+                    .attachmentMimeType(stored.mime()).attachmentSize(stored.size())
+                    .createdAt(Instant.now()).build());
+            messageRepository.flush();
+            SessionMessageResponse response = toResponse(saved);
+            eventPublisher.publishEvent(new SessionChatMessageCreatedEvent(
+                    response, realtimeRecipients(session)));
+            return response;
+        } catch (RuntimeException failure) {
+            try { privateChatStorage.delete(stored.key()); }
+            catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
+            throw failure;
+        }
+    }
+
+    /** Never expose attachments after kickoff, even to a former participant. */
+    @Transactional(readOnly = true)
+    public ChatAttachmentContent downloadAttachment(Long sessionId, Long messageId, String username) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireChatAccess(session, actor);
+        if (!isChatOpen(session, Instant.now())) {
+            throw new AccessDeniedException("Session chat is available only before the game");
+        }
+        if (messageId == null || messageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
+        }
+        SessionMessage message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Chat attachment not found"));
+        if (!sessionId.equals(message.getSession().getId()) || message.getAttachmentKey() == null || message.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chat attachment not found");
+        }
+        if (privateChatStorage == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Private chat attachment storage is unavailable");
+        }
+        return new ChatAttachmentContent(privateChatStorage.read(message.getAttachmentKey()),
+                message.getAttachmentMimeType(), message.getAttachmentName());
+    }
+
+    public record ChatAttachmentContent(byte[] content, String mimeType, String filename) {}
 
     private Set<String> realtimeRecipients(Session session) {
         Set<String> recipients = new LinkedHashSet<>();
@@ -116,9 +353,9 @@ public class SessionChatService {
             return false;
         }
 
-        // Preserve game-day coordination. The chat becomes read-only two hours after kick-off.
-        return session.getGameDate() == null
-                || session.getGameDate().toInstant().plus(Duration.ofHours(2)).isAfter(now);
+        // Session chat exists only before kick-off. Missing dates fail closed.
+        return session.getGameDate() != null
+                && session.getGameDate().toInstant().isAfter(now);
     }
 
     private void requireChatAccess(Session session, Profile actor) {
@@ -132,13 +369,28 @@ public class SessionChatService {
         }
     }
 
+    private String senderName(SessionMessage message) {
+        if (message.getSenderGuestRequest()!=null)
+            return message.getSenderGuestRequest().getDisplayName();
+        return message.getSenderProfile().getUsername();
+    }
+
     private SessionMessageResponse toResponse(SessionMessage message) {
         return new SessionMessageResponse(
                 message.getId(),
                 message.getSession().getId(),
-                message.getSenderProfile().getUsername(),
+                senderName(message),
                 message.getBody(),
-                message.getCreatedAt()
+                message.getCreatedAt(),
+                message.getReplyToMessageId(),
+                message.getReplyToSender(),
+                message.getReplyToText(),
+                message.getAttachmentName(),
+                message.getAttachmentMimeType(),
+                message.getAttachmentSize(),
+                message.getEditedAt(),
+                message.getDeletedAt(),
+                message.getSenderGuestRequest()!=null
         );
     }
 }

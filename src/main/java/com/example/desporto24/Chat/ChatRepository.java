@@ -34,5 +34,58 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                                       @Param("beforeId") Long beforeId,
                                       Pageable pageable);
 
+    @Query("""
+            select count(c) from Chat c
+            where ((c.username1 = :sender and c.username2 = :recipient)
+                or (c.username1 = :recipient and c.username2 = :sender))
+              and c.id > :lastReadId
+              and c.username1 = :recipient
+            """)
+    long countUnread(@Param("sender") String sender,
+                     @Param("recipient") String recipient,
+                     @Param("lastReadId") long lastReadId);
+
+    @Query(value = """
+            select c from Chat c
+            where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+                or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+              and lower(c.text) like concat('%', :term, '%') escape '!'
+            order by c.id desc
+            """,
+            countQuery = """
+            select count(c) from Chat c
+            where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+                or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+              and lower(c.text) like concat('%', :term, '%') escape '!'
+            """)
+    Page<Chat> searchConversation(@Param("actor") String actor,
+                                  @Param("other") String other,
+                                  @Param("term") String escapedTerm,
+                                  Pageable pageable);
+
+
+    @Query("""
+        select c from Chat c
+        where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+            or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+          and c.id <= :targetId order by c.id desc
+        """)
+    List<Chat> findConversationContextBefore(@Param("actor") String actor,
+            @Param("other") String other, @Param("targetId") Long targetId, Pageable limit);
+
+    @Query("""
+        select c from Chat c
+        where ((lower(c.username1) = lower(:actor) and lower(c.username2) = lower(:other))
+            or (lower(c.username1) = lower(:other) and lower(c.username2) = lower(:actor)))
+          and c.id > :targetId order by c.id asc
+        """)
+    List<Chat> findConversationContextAfter(@Param("actor") String actor,
+            @Param("other") String other, @Param("targetId") Long targetId, Pageable limit);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update Chat c set c.replyToText = :replacement where c.replyToMessageId = :messageId")
+    int redactRepliesToDeleted(@Param("messageId") Long messageId,
+                               @Param("replacement") String replacement);
+
     long deleteByUsername1OrUsername2(String username1, String username2);
 }

@@ -1,0 +1,44 @@
+name: Venue GPS source reconciliation (offline)
+on:
+  pull_request:
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'scripts/audit_live_venue_gps_evidence.py'
+      - 'scripts/test_audit_live_venue_gps_evidence.py'
+      - 'scripts/audit_official_municipal_gis.py'
+      - 'scripts/test_audit_official_municipal_gis.py'
+      - 'scripts/audit_known_venue_gps_collisions.py'
+      - 'scripts/test_audit_known_venue_gps_collisions.py'
+      - 'docs/venue-imports/2026-10-27-known-venue-gps-collision-review.json'
+      - 'docs/venue-imports/2026-10-27-known-venue-gps-collision-review.md'
+      - 'docs/venue-imports/2026-10-28-sao-jacinto-299-447-identity-triangulation.md'
+      - 'docs/venue-imports/2026-10-27-municipal-gis-readonly-and-four-missing-gps.md'
+      - 'docs/venue-imports/viseu-guarda-3-municipal-gps-pending-caop2025.json'
+      - 'docs/venue-imports/braga-evora-2-official-site-gps-review-20261021.json'
+      - 'docs/venue-imports/santarem-pavilhao-gps-source-conflict-20261027.json'
+      - 'docs/venue-imports/porto-outeiro-osm-geometry-review-20261027.json'
+      - 'docs/venue-imports/evora-piscinas-municipais-site-gps-review-20261027.json'
+      - 'docs/venue-imports/santarem-sacapeito-2-site-gps-review-20261027.json'
+      - 'docs/venue-imports/porto-choupos-site-gps-review-20261027.json'
+      - 'docs/venue-imports/lisboa-arroios-284-municipal-gis-pitch-review-20261027.json'
+      - '.github/workflows/venue-gps-evidence-audit-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate sixteen GPS evidence points, Choupos identity and no approvals
+        run: python3 -m unittest discover -s scripts -p test_audit_live_venue_gps_evidence.py -v
+
+      - name: Review official municipal GIS name ambiguities and reject GPS auto-approvals
+        run: python3 -m unittest discover -s scripts -p test_audit_official_municipal_gis.py -v
+
+      - name: Reject unsafe same-name venues, complex GPS and potential duplicate pools
+        run: python3 -m unittest discover -s scripts -p test_audit_known_venue_gps_collisions.py -v

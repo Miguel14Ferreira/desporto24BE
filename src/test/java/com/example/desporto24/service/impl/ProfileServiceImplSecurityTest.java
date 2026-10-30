@@ -82,6 +82,7 @@ class ProfileServiceImplSecurityTest {
         assertEquals("923456789", AES.decryptString(profile.getPhone(), profile.getUserId()));
         assertEquals("Rua Nova", AES.decryptString(profile.getAddress(), profile.getUserId()));
         verifyNoInteractions(emailService);
+        verifyNoInteractions(notificationsRepository);
     }
 
     @Test
@@ -140,13 +141,20 @@ class ProfileServiceImplSecurityTest {
 
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("miguel@example.com"),
-                eq("Alteração de email | Email address changed — Desporto24"), html.capture());
+                eq("Alteração de email | Email address changed — Jynlo"), html.capture());
         verify(emailService).send(eq("new@example.test"),
-                eq("Alteração de email | Email address changed — Desporto24"), eq(html.getValue()));
+                eq("Alteração de email | Email address changed — Jynlo"), eq(html.getValue()));
         verifyNoMoreInteractions(emailService);
+        org.mockito.ArgumentCaptor<com.example.desporto24.register.Notifications.Notifications> notice =
+                org.mockito.ArgumentCaptor.forClass(com.example.desporto24.register.Notifications.Notifications.class);
+        verify(notificationsRepository).save(notice.capture());
+        assertEquals("Alteração de email", notice.getValue().getSubject());
+        assertEquals(true, notice.getValue().isUpdateProfile());
         assertEquals("miguel@example.com", mapped.getOldEmail());
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Alteração de email"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Email address changed"));
+        org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Jynlo"));
+        org.junit.jupiter.api.Assertions.assertFalse(html.getValue().contains("Desporto24"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Redefinir palavra-passe / Reset password"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/login/resetPassword\""));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("If you made this change"));
@@ -208,13 +216,46 @@ class ProfileServiceImplSecurityTest {
         assertEquals(9L, profile.getTokenVersion());
         assertEquals("new-hash", profile.getPassword());
         verify(repository).save(profile);
+        org.mockito.ArgumentCaptor<com.example.desporto24.register.Notifications.Notifications> alert =
+                org.mockito.ArgumentCaptor.forClass(com.example.desporto24.register.Notifications.Notifications.class);
+        verify(notificationsRepository).save(alert.capture());
+        assertEquals("Palavra-passe alterada", alert.getValue().getSubject());
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"),
-                eq("Palavra-passe alterada | Password changed — Desporto24"), html.capture());
+                eq("Palavra-passe alterada | Password changed — Jynlo"), html.capture());
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Password changed"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("Redefinir palavra-passe / Reset password"));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("href=\"https://example.test/login/resetPassword\""));
         org.junit.jupiter.api.Assertions.assertTrue(html.getValue().contains("If you made this change"));
+    }
+
+    @Test
+    void uploadingProfilePhotoDoesNotSendRoutineNotification() {
+        ProfileRepository repository = mock(ProfileRepository.class);
+        ProfileMapper mapper = mock(ProfileMapper.class);
+        EmailService mail = mock(EmailService.class);
+        NotificationsRepository notifications = mock(NotificationsRepository.class);
+        Profile profile = new Profile();
+        profile.setId(3L);
+        profile.setUsername("guest");
+        when(repository.findUserByUsername("guest")).thenReturn(Optional.of(profile));
+        when(repository.save(profile)).thenReturn(profile);
+
+        ProfileServiceImpl service = new ProfileServiceImpl(repository, mapper, mail, notifications,
+                mock(PasswordHashService.class), mock(UserBlockService.class));
+        com.example.desporto24.storage.MediaStorage storage =
+                mock(com.example.desporto24.storage.MediaStorage.class);
+        org.springframework.web.multipart.MultipartFile photo =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        when(photo.isEmpty()).thenReturn(false);
+        when(storage.store(anyString(), same(photo)))
+                .thenReturn(java.net.URI.create("https://example.test/profile.jpg"));
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "mediaStorage", storage);
+
+        service.updateMyProfilePhoto("guest", photo);
+
+        verify(repository).save(profile);
+        verifyNoInteractions(mail, notifications);
     }
 
     @Test

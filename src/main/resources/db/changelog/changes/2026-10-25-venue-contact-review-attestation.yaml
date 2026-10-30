@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-venue-contact-review-attestation-v1
+      author: jynlo
+      changes:
+        - addColumn:
+            tableName: venue_edit_suggestion
+            columns:
+              - column:
+                  name: source_review_confirmed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true

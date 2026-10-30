@@ -3,6 +3,8 @@ package com.example.desporto24.repository.community;
 import com.example.desporto24.model.community.Community;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -12,7 +14,8 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
 
     @Query("""
             SELECT new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
-                c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility)
+                c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility,
+                c.photoZoom, c.photoFocusX, c.photoFocusY, c.photoFitMode)
             FROM Community c
             WHERE (:name = '' OR LOWER(c.name) LIKE CONCAT('%', :name, '%') ESCAPE '!')
               AND (:sport = ''
@@ -30,7 +33,8 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
 
     @Query("""
             SELECT new com.example.desporto24.model.dto.community.CommunityDiscoveryResponse(
-                c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility)
+                c.id, c.name, c.description, c.sport, c.photoUrl, c.visibility,
+                c.photoZoom, c.photoFocusX, c.photoFocusY, c.photoFitMode)
             FROM Community c
             WHERE c.visibility = com.example.desporto24.enumeration.CommunityVisibility.PUBLIC
             ORDER BY LOWER(c.name), c.id
@@ -44,5 +48,12 @@ public interface CommunityRepository extends JpaRepository<Community, Long> {
     @Query("SELECT c FROM Community c LEFT JOIN FETCH c.sports WHERE c.id = :id")
     java.util.Optional<Community> findWithSportsById(@Param("id") Long id);
 
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Community c WHERE c.id = :id")
+    java.util.Optional<Community> lockForDeletion(@Param("id") Long id);
+
+    long countByOwnerId(Long ownerId);
+    java.util.List<Community> findByOwnerId(Long ownerId);
     boolean existsByOwnerId(Long ownerId);
 }

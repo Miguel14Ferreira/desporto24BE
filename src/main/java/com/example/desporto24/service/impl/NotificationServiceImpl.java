@@ -51,19 +51,40 @@ public class NotificationServiceImpl implements NotificationService {
     private final UserBlockService userBlockService;
     private final PostGameReminderService postGameReminderService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     @Value("${ui.app.url}")
     private String uiAppUrl;
 
     @Override
     public List<Notifications> getNotificationsFromProfile(String username) {
         postGameReminderService.createDueReminders(username);
-        return notificationsRepository.findByUsername(username);
+        List<Notifications> records = notificationsRepository.findByUsername(username);
+        if (preferenceService == null) return records;
+        var prefs = preferenceService.get(username);
+        if (prefs.inAppEnabled() && prefs.disabledInAppTypes().isEmpty()) return records;
+        return records.stream().filter(n ->
+                com.example.desporto24.service.NotificationPreferencesService.isAccountSecurityAlert(n)
+                || (prefs.inAppEnabled() && !prefs.disabledInAppTypes().contains(
+                        com.example.desporto24.service.NotificationPreferencesService.category(n)))
+        ).toList();
     }
 
     @Override
     public long countUnreadNotifications(String username) {
         postGameReminderService.createDueReminders(username);
-        return notificationsRepository.countByUsernameAndReadFalse(username);
+        if (preferenceService == null) return notificationsRepository.countByUsernameAndReadFalse(username);
+        var prefs = preferenceService.get(username);
+        if (prefs.inAppEnabled() && prefs.disabledInAppTypes().isEmpty()) {
+            return notificationsRepository.countByUsernameAndReadFalse(username);
+        }
+        return notificationsRepository.findByUsername(username).stream()
+                .filter(n -> !n.isRead() && (
+                        com.example.desporto24.service.NotificationPreferencesService.isAccountSecurityAlert(n)
+                        || (prefs.inAppEnabled() && !prefs.disabledInAppTypes().contains(
+                                com.example.desporto24.service.NotificationPreferencesService.category(n)))
+                )).count();
     }
 
     @Override
@@ -161,7 +182,10 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void save(Notifications notifications) {
-        notificationsRepository.save(notifications);
+        if (preferenceService == null
+                || preferenceService.allowsInApp(notifications.getUsername(), notifications)) {
+            notificationsRepository.save(notifications);
+        }
     }
 
     @Override

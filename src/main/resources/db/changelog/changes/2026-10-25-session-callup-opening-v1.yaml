@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-session-callup-opening-v1
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: session
+            columnName: registration_opening_mode
+      changes:
+        - addColumn:
+            tableName: session
+            columns:
+              - column:
+                  name: registration_opening_mode
+                  type: VARCHAR(16)
+              - column:
+                  name: registration_opens_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - sql:
+            dbms: postgresql
+            sql: ALTER TABLE desporto24.session ADD CONSTRAINT ck_session_registration_opening_mode CHECK (registration_opening_mode IS NULL OR registration_opening_mode IN ('IMMEDIATE','SCHEDULED','MANUAL'))

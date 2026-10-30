@@ -43,6 +43,18 @@ public class Community {
     @Column(name = "photo_url", length = 1000)
     private String photoUrl;
 
+    // Null = legacy presentation (animated GIFs remain letterboxed by default).
+    @Column(name = "photo_zoom")
+    private Double photoZoom;
+    @Column(name = "photo_focus_x")
+    private Double photoFocusX;
+    @Column(name = "photo_focus_y")
+    private Double photoFocusY;
+
+    // Null means legacy COVER; changing this never modifies the stored image.
+    @Column(name = "photo_fit_mode", length = 16)
+    private String photoFitMode;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CommunityVisibility visibility;
@@ -54,6 +66,28 @@ public class Community {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_venue_id")
     private Venue defaultVenue;
+
+    // Alternative to an existing venue: a confirmed Google Maps or browser GPS point.
+    // Null source preserves legacy defaultVenue-only communities.
+    @Column(name = "habitual_location_source", length = 8)
+    private String habitualLocationSource;
+
+    @Column(name = "habitual_latitude")
+    private Double habitualLatitude;
+
+    @Column(name = "habitual_longitude")
+    private Double habitualLongitude;
+
+    @Column(name = "habitual_city", length = 160)
+    private String habitualCity;
+
+    @Column(name = "habitual_address", length = 350)
+    private String habitualAddress;
+
+    // Legacy communities retain the existing all-members permission.
+    @Builder.Default
+    @Column(name = "members_can_create_sessions", nullable = false)
+    private boolean membersCanCreateSessions = true;
 
     @Column(name = "rankings_enabled", nullable = false)
     private boolean rankingsEnabled;

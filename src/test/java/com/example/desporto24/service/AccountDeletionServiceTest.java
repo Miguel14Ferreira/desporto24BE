@@ -57,6 +57,7 @@ class AccountDeletionServiceTest {
     @Mock private FriendRepository friendRepository;
     @Mock private FriendRequestRepository friendRequestRepository;
     @Mock private NotificationsRepository notificationsRepository;
+    @Mock private com.example.desporto24.repository.NotificationPreferencesRepository notificationPreferencesRepository;
     @Mock private ConfirmationTokenRepository confirmationTokenRepository;
     @Mock private MFAVerificationRepository mfaVerificationRepository;
     @Mock private PasswordHashService passwordHashService;
@@ -77,6 +78,7 @@ class AccountDeletionServiceTest {
         );
 
         verify(profileRepository, never()).saveAndFlush(any(Profile.class));
+        verifyNoInteractions(notificationPreferencesRepository);
     }
 
     @Test
@@ -125,6 +127,7 @@ class AccountDeletionServiceTest {
                 .deleteByProfile("miguel");
         verify(mfaVerificationRepository)
                 .deleteByPerfil("miguel");
+        verify(notificationPreferencesRepository).deleteById("miguel");
         verify(profileRepository).saveAndFlush(profile);
         verify(profileRepository, never()).delete(any(Profile.class));
     }

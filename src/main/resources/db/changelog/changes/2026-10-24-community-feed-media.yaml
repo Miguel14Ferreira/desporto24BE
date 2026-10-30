@@ -1,0 +1,27 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-community-feed-media
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_timeline_entry
+            columns:
+              - column:
+                  name: image_url
+                  type: VARCHAR(1200)
+              - column:
+                  name: image_storage_key
+                  type: VARCHAR(800)
+              - column:
+                  name: video_url
+                  type: VARCHAR(1200)
+              - column:
+                  name: video_storage_key
+                  type: VARCHAR(800)
+        - sql:
+            dbms: postgresql
+            sql: |
+              ALTER TABLE desporto24.community_timeline_entry
+              ADD CONSTRAINT ck_community_post_one_media
+              CHECK (image_url IS NULL OR video_url IS NULL)

@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface CommunityStandingsArchiveRowRepository extends JpaRepository<CommunityStandingsArchiveRow, Long> {
     List<CommunityStandingsArchiveRow> findByArchiveIdOrderByPositionAscIdAsc(Long archiveId);
+    void deleteByArchiveId(Long archiveId);
 }

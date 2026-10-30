@@ -1,0 +1,40 @@
+{
+  "source": "Viver Santarém operator site, Visite Santarém official municipal tourism directions and independently named OSM swimming-pool building (27 October 2026)",
+  "approved_for_import": false,
+  "notes": "Existing public Jynlo ID 276 Piscinas Municipais do Sacapeito has no GPS. Tourism directions 39.2250178,-8.6886809 and rounded OSM swimming pool polygon reference 39.225,-8.68865 are ~3.3 metres apart. Site-level research, not certified entrance, must require authentication and manual GPS moderation. Distinct from nearby municipal swimming complexes and from the 277/278 pavilion-source coordinate conflict.",
+  "points": [
+    {
+      "source_reference": "JYNLO:VISITESANTAREM:SACAPEITO:VENUE_DIRECTIONS",
+      "candidate_name": "Piscinas Municipais do Sacapeito",
+      "expected_existing_venue_id": 276,
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "latitude": 39.2250178,
+      "longitude": -8.6886809,
+      "match_kind": "MUNICIPAL_TOURISM_FACILITY_DIRECTIONS_SITE_POINT",
+      "location_source_url": "https://www.visitesantarem.pt/lista/piscinas-municipais-do-sacapeito/",
+      "location_source_text": "Visite Santarém official swimming pool page, Praceta Cidade de Badajóz, directions anchor https://maps.google.com/maps?daddr=39.2250178,-8.6886809 (wayfinding, not entrance certification).",
+      "confirmation_source_url": "https://viversantarem.pt/piscinas/",
+      "point_precision": "MUNICIPAL_DIRECTIONS_POINT_NOT_BUILDING_PROVEN",
+      "facility_verified_by_official_source": true,
+      "public_access_warning": "Site position is NOT a verified pedestrian entrance; opening hours require separate verification."
+    },
+    {
+      "source_reference": "OSM:WAY:1172748137",
+      "candidate_name": "Piscinas Municipais do Sacapeito",
+      "expected_existing_venue_id": 276,
+      "expected_municipality": "Santarém",
+      "expected_district": "Santarém",
+      "latitude": 39.225,
+      "longitude": -8.68865,
+      "match_kind": "NAMED_OSM_SWIMMING_POOL_BUILDING_POLYGON_REFERENCE",
+      "location_source_url": "https://mapcarta.com/pt/W1172748137",
+      "location_source_text": "OpenStreetMap way 1172748137, named Piscinas Munícipais Sacapeito; leisure=swimming_pool, sport=swimming, building=yes, operator CMS; OSM-based Mapcarta rounded reference 39.225,-8.68865.",
+      "osm_object_url": "https://www.openstreetmap.org/way/1172748137",
+      "confirmation_source_url": "https://viversantarem.pt/piscinas/",
+      "point_precision": "OSM_SITE_POLYGON_CENTRE_NOT_ENTRANCE",
+      "facility_verified_by_official_source": false,
+      "public_access_warning": "Rounded polygon/site point; not a physical entrance nor permission to auto-publish GPS."
+    }
+  ]
+}

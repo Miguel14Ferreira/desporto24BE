@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-session-chat-private-attachments
+      author: desporto24
+      comment: "Optional files for pre-kickoff session chat only; old messages remain unchanged."
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: session_message
+            columns:
+              - column: { name: attachment_key, type: VARCHAR(240) }
+              - column: { name: attachment_name, type: VARCHAR(160) }
+              - column: { name: attachment_mime_type, type: VARCHAR(60) }
+              - column: { name: attachment_size, type: BIGINT }

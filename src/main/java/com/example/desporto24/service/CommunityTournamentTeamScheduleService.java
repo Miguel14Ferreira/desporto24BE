@@ -83,10 +83,16 @@ public class CommunityTournamentTeamScheduleService {
             }
             counts.merge(player.getTeam().getId(), 1, Integer::sum);
         }
+        // Legacy fixed-size tournaments keep the original complete-roster rule.
+        // New flexible tournaments require at least one member in each team.
+        Integer fixedSize = tournament.getPlayersPerTeam();
         for (var team : rosterTeams) {
-            if (counts.getOrDefault(team.getId(), 0) != tournament.getPlayersPerTeam()) {
+            int assigned = counts.getOrDefault(team.getId(), 0);
+            if (fixedSize == null ? assigned < 1 || assigned > 30 : assigned != fixedSize) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        "Completa todos os plantéis antes de gerar as jornadas");
+                        fixedSize == null
+                                ? "Cada equipa precisa de pelo menos um jogador antes de publicar"
+                                : "Completa todos os plantéis antes de gerar as jornadas");
             }
         }
 

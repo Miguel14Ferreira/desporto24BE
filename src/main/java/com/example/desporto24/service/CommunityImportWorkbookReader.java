@@ -38,7 +38,14 @@ final class CommunityImportWorkbookReader {
         String name = filename == null ? "" : filename.toLowerCase(Locale.ROOT);
         if (name.endsWith(".xls") || name.endsWith(".xlsx")) {
             try (var input = new BufferedInputStream(file.getInputStream())) {
-                return WorkbookFactory.create(input);
+                try {
+                    return WorkbookFactory.create(input);
+                } catch (RuntimeException malformedWorkbook) {
+                    // POI may throw unchecked exceptions for malformed Excel bytes.
+                    // Normalize them to IOException so all historical import previews
+                    // return the existing localized HTTP 400 read-error contract.
+                    throw new IOException("Ficheiro Excel inválido", malformedWorkbook);
+                }
             }
         }
         if (!name.endsWith(".csv") && !name.endsWith(".tsv")) {

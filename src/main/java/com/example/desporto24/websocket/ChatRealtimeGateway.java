@@ -3,6 +3,7 @@ package com.example.desporto24.websocket;
 import com.example.desporto24.model.Chat;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.dto.session.SessionMessageResponse;
+import com.example.desporto24.model.dto.community.CommunityTimelineEntryResponse;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,6 +16,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -23,19 +25,29 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
 
     private final JWTokenProvider jwtTokenProvider;
     private final ProfileRepository profileRepository;
+    private final com.example.desporto24.service.ChatTypingService typingService;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     public ChatRealtimeGateway(
             JWTokenProvider jwtTokenProvider,
-            ProfileRepository profileRepository) {
+            ProfileRepository profileRepository,
+            com.example.desporto24.service.ChatTypingService typingService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.profileRepository = profileRepository;
+        this.typingService = typingService;
     }
 
     private final ConcurrentHashMap<String, Set<WebSocketSession>> sessionsByUsername =
             new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> usernameBySessionId =
             new ConcurrentHashMap<>();
+    // Version observed at AUTH. A logout, reset, role change or suspension
+    // increments the persisted version; old sockets must not receive events.
+    private final ConcurrentHashMap<String, Long> versionBySessionId =
+            new ConcurrentHashMap<>();
+
+    // In-memory, socket-scoped abuse protection; never persisted.
+    private final ConcurrentHashMap<String, Long> lastTypingAtBySocket = new ConcurrentHashMap<>();
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
@@ -43,14 +55,60 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         String type = payload.path("type").asText("");
 
         if (!"AUTH".equals(type)) {
-            if (!usernameBySessionId.containsKey(session.getId())) {
-                session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Authentication required"));
+            String actor = usernameBySessionId.get(session.getId());
+            if (actor == null || !isCurrentAuthenticatedSession(session)) {
+                closeRevokedSession(session);
+                return;
             }
+            if ("CHAT_TYPING".equals(type)) handleTyping(session, actor, payload);
             return;
         }
 
+        // One socket is bound to one account. Re-authentication on the same
+        // connection must never leave this socket subscribed to two users.
+        if (usernameBySessionId.containsKey(session.getId())) {
+            session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Reconnect to change account"));
+            return;
+        }
         String token = payload.path("token").asText("");
         authenticate(session, token);
+    }
+
+
+    /** Broadcast only authenticated, authorized, rate-limited ephemeral presence. */
+    private void handleTyping(WebSocketSession origin, String actor, JsonNode payload) {
+        if (payload.toString().length() > 256
+                || !payload.path("active").isBoolean()) return;
+        String kind = payload.path("kind").asText("");
+        String id = payload.path("id").asText("");
+        if (kind.length() > 16 || id.isBlank() || id.length() > 128) return;
+        boolean active = payload.path("active").asBoolean();
+        long now = System.currentTimeMillis();
+        // At most one typing event per socket per second, including STOP.
+        Long prev = lastTypingAtBySocket.put(origin.getId(), now);
+        if (prev != null && now - prev < 1000) return;
+        try {
+            var audience = typingService.authorizedRecipients(actor, kind, id);
+            String wire = objectMapper.createObjectNode()
+                    .put("type", "CHAT_TYPING")
+                    .set("typing", objectMapper.createObjectNode()
+                            .put("kind", kind.toLowerCase(Locale.ROOT))
+                            .put("conversationId", "direct".equalsIgnoreCase(kind)
+                                    ? actor.toLowerCase(Locale.ROOT) : audience.conversationId())
+                            .put("username", actor)
+                            .put("active", active))
+                    .toString();
+            for (String username : audience.usernames()) {
+                if (username.equalsIgnoreCase(actor)) continue;
+                Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+                if (sockets == null) continue;
+                for (WebSocketSession recipient : sockets) {
+                    try { send(recipient, wire); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Fail closed: never disclose a conversation's existence or its users.
+        }
     }
 
     private void authenticate(WebSocketSession session, String token) throws IOException {
@@ -59,6 +117,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             Profile profile = profileRepository.findUserByUsername(username).orElse(null);
 
             boolean profileActive = profile != null
+                    && profile.getModerationSuspendedAt() == null
                     && !Boolean.FALSE.equals(profile.getNotLocked())
                     && !Boolean.FALSE.equals(profile.getEnabled());
 
@@ -73,6 +132,7 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             }
 
             usernameBySessionId.put(session.getId(), username);
+            versionBySessionId.put(session.getId(), profile.getTokenVersion());
             sessionsByUsername
                     .computeIfAbsent(username, ignored -> new CopyOnWriteArraySet<>())
                     .add(session);
@@ -83,6 +143,65 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
                     .toString());
         } catch (RuntimeException exception) {
             session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Invalid token"));
+        }
+    }
+
+    /**
+     * A server-confirmed direct read cursor, sent only to the authenticated
+     * original sender. The caller must revalidate friendship/blocks. This
+     * socket event is emitted after the cursor transaction commits.
+     */
+    public void publishDirectReadReceipt(
+            String senderUsername, String readerUsername, long lastReadMessageId) {
+        if (senderUsername == null || readerUsername == null
+                || senderUsername.equalsIgnoreCase(readerUsername)
+                || lastReadMessageId <= 0) return;
+        Set<WebSocketSession> sockets = sessionsByUsername.get(senderUsername);
+        if (sockets == null || sockets.isEmpty()) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "CHAT_READ_RECEIPT")
+                    .set("receipt", objectMapper.createObjectNode()
+                            .put("peerUsername", readerUsername)
+                            .put("lastReadMessageId", lastReadMessageId))
+                    .toString();
+            for (WebSocketSession socket : sockets) {
+                if (!socket.isOpen()) continue;
+                try { send(socket, payload); } catch (IOException ignored) { }
+            }
+        } catch (RuntimeException ignored) {
+            // Polling the persisted GET remains the recovery path.
+        }
+    }
+
+    /**
+     * Own read events are private: the original reader already passed the
+     * authenticated HTTP access check. Send only to their authenticated
+     * WebSocket sessions (not to community topics or message recipients).
+     */
+    public void publishOwnInboxRead(
+            String username, String kind, String conversationId, long lastReadMessageId) {
+        if (username == null || username.isBlank()
+                || !("direct".equals(kind) || "community".equals(kind)
+                    || "session".equals(kind))
+                || conversationId == null || conversationId.isBlank()
+                || lastReadMessageId <= 0) return;
+        Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+        if (sockets == null || sockets.isEmpty()) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "INBOX_OWN_READ_UPDATED")
+                    .set("read", objectMapper.createObjectNode()
+                            .put("kind", kind)
+                            .put("conversationId", conversationId)
+                            .put("lastReadMessageId", lastReadMessageId))
+                    .toString();
+            for (WebSocketSession socket : sockets) {
+                if (!socket.isOpen()) continue;
+                try { send(socket, payload); } catch (IOException ignored) { }
+            }
+        } catch (RuntimeException ignored) {
+            // WebSocket failures never roll back the committed cursor.
         }
     }
 
@@ -110,6 +229,28 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
             }
         } catch (RuntimeException ignored) {
             // Realtime delivery must never roll back a persisted chat message.
+        }
+    }
+
+    /** Private group notifications go only to the authenticated current members. */
+    public void publishPrivateGroupEvent(Set<String> recipients, Long groupId, Object message) {
+        if (recipients == null || recipients.isEmpty() || groupId == null) return;
+        try {
+            var payload = objectMapper.createObjectNode()
+                    .put("type", message == null ? "PRIVATE_GROUP_UPDATED" : "PRIVATE_GROUP_MESSAGE")
+                    .put("groupId", groupId);
+            if (message != null) payload.set("message", objectMapper.valueToTree(message));
+            var wire = payload.toString();
+            for (String member : recipients) {
+                var sockets = sessionsByUsername.get(member);
+                if (sockets == null) continue;
+                for (var socket : sockets) {
+                    if (!socket.isOpen()) continue;
+                    try { send(socket, wire); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Persisted group state wins; viewers can still poll on reconnect.
         }
     }
 
@@ -148,16 +289,136 @@ public class ChatRealtimeGateway extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * Send to individual authenticated member sockets, never to a public
+     * community topic. Newly removed members are not included in recipients.
+     */
+    public void publishCommunityChatMessage(
+            Set<String> usernames, CommunityTimelineEntryResponse message) {
+        if (usernames == null || usernames.isEmpty() || message == null) return;
+        try {
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "COMMUNITY_CHAT_MESSAGE")
+                    .set("message", objectMapper.valueToTree(message))
+                    .toString();
+            for (String username : usernames) {
+                Set<WebSocketSession> sessions = sessionsByUsername.get(username);
+                if (sessions == null) continue;
+                for (WebSocketSession session : sessions) {
+                    if (!session.isOpen()) continue;
+                    try {
+                        send(session, payload);
+                    } catch (IOException ignored) {
+                        // History remains authoritative when a socket fails.
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Never roll back a committed message because of realtime failure.
+        }
+    }
+
+    public void publishChatReaction(Set<String> usernames, ChatReactionChangedEvent reaction) {
+        if (usernames == null || usernames.isEmpty() || reaction == null) return;
+        try {
+            // Project only public reaction fields. The domain event also
+            // holds private recipients for server-side fan-out.
+            var details = objectMapper.createObjectNode()
+                    .put("kind", reaction.kind())
+                    .put("conversationId", reaction.conversationId())
+                    .put("messageId", reaction.messageId())
+                    .put("actorUsername", reaction.actorUsername());
+            details.set("counts", objectMapper.valueToTree(reaction.counts()));
+            if (reaction.emoji() == null) details.putNull("emoji");
+            else details.put("emoji", reaction.emoji());
+            String payload = objectMapper.createObjectNode()
+                    .put("type", "CHAT_REACTION_CHANGED")
+                    .set("reaction", details)
+                    .toString();
+            for (String username : usernames) {
+                Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+                if (sockets == null) continue;
+                for (WebSocketSession socket : sockets) {
+                    if (!socket.isOpen()) continue;
+                    try { send(socket, payload); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) { }
+    }
+
+    /** Server-side call state only: no LiveKit token or secret goes over the socket. */
+    public void publishDirectCallEvent(String caller, String peer, String callId,
+            String media, String state, String actor, java.time.Instant expiresAt) {
+        if (caller == null || peer == null || callId == null) return;
+        try {
+            var details = objectMapper.createObjectNode()
+                    .put("callId", callId)
+                    .put("caller", caller)
+                    .put("peer", peer)
+                    .put("media", media)
+                    .put("status", state)
+                    .put("actor", actor)
+                    .put("expiresAt", expiresAt.toString());
+            String wire = objectMapper.createObjectNode()
+                    .put("type", "DIRECT_CALL_EVENT")
+                    .set("call", details).toString();
+            for (String username : Set.of(caller, peer)) {
+                Set<WebSocketSession> sockets = sessionsByUsername.get(username);
+                if (sockets == null) continue;
+                for (WebSocketSession socket : sockets) {
+                    if (!socket.isOpen()) continue;
+                    try { send(socket, wire); } catch (IOException ignored) { }
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // An unavailable recipient cannot fail the authenticated HTTP request.
+        }
+    }
+
+    /**
+     * Guard both outgoing private events and incoming chat control frames.
+     * Authentication at handshake time alone does not revoke already-open sockets
+     * after account moderation, password reset, role changes or logout.
+     * Fail closed on storage errors; never deliver private data on uncertainty.
+     */
+    private boolean isCurrentAuthenticatedSession(WebSocketSession session) {
+        String username = usernameBySessionId.get(session.getId());
+        Long authenticatedVersion = versionBySessionId.get(session.getId());
+        if (username == null || authenticatedVersion == null) return false;
+        try {
+            return profileRepository.findUserByUsername(username)
+                    .filter(profile -> profile.getModerationSuspendedAt() == null
+                            && Boolean.TRUE.equals(profile.getEnabled())
+                            && Boolean.TRUE.equals(profile.getNotLocked())
+                            && profile.getTokenVersion() == authenticatedVersion)
+                    .isPresent();
+        } catch (RuntimeException failedLookup) {
+            return false;
+        }
+    }
+
+    private void closeRevokedSession(WebSocketSession session) throws IOException {
+        // The Angular client treats 1003 as a terminal credential failure.
+        // 1008 would cause a reconnect loop with the revoked token.
+        afterConnectionClosed(session, CloseStatus.NOT_ACCEPTABLE);
+        session.close(CloseStatus.NOT_ACCEPTABLE.withReason("Session expired"));
+    }
+
     private void send(WebSocketSession session, String payload) throws IOException {
         synchronized (session) {
-            if (session.isOpen()) {
-                session.sendMessage(new TextMessage(payload));
+            if (!session.isOpen()) return;
+            if (!isCurrentAuthenticatedSession(session)) {
+                closeRevokedSession(session);
+                return;
             }
+            session.sendMessage(new TextMessage(payload));
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        lastTypingAtBySocket.remove(session.getId());
+        versionBySessionId.remove(session.getId());
         String username = usernameBySessionId.remove(session.getId());
         if (username == null) {
             return;

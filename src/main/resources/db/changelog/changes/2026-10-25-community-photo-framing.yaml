@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-community-photo-framing-v1
+      author: desporto24
+      comment: "Optional non-destructive photo framing; existing GIFs remain animated and unmodified."
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community
+            columns:
+              - column: { name: photo_zoom, type: DOUBLE PRECISION }
+              - column: { name: photo_focus_x, type: DOUBLE PRECISION }
+              - column: { name: photo_focus_y, type: DOUBLE PRECISION }
+        - sql:
+            dbms: postgresql
+            sql: |
+              ALTER TABLE desporto24.community
+                ADD CONSTRAINT ck_community_photo_zoom
+                  CHECK (photo_zoom IS NULL OR (photo_zoom >= 1.0 AND photo_zoom <= 3.0)),
+                ADD CONSTRAINT ck_community_photo_focus_x
+                  CHECK (photo_focus_x IS NULL OR (photo_focus_x >= 0 AND photo_focus_x <= 100)),
+                ADD CONSTRAINT ck_community_photo_focus_y
+                  CHECK (photo_focus_y IS NULL OR (photo_focus_y >= 0 AND photo_focus_y <= 100));

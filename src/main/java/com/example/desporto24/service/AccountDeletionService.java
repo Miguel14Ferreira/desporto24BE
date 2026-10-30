@@ -69,6 +69,7 @@ public class AccountDeletionService {
     private final FriendRepository friendRepository;
     private final FriendRequestRepository friendRequestRepository;
     private final NotificationsRepository notificationsRepository;
+    private final com.example.desporto24.repository.NotificationPreferencesRepository notificationPreferencesRepository;
     private final ConfirmationTokenRepository confirmationTokenRepository;
     private final MFAVerificationRepository mfaVerificationRepository;
     private final PasswordHashService passwordHashService;
@@ -131,6 +132,7 @@ public class AccountDeletionService {
                 originalUsername, originalUsername);
         notificationsRepository.deleteByUsernameOrRelatedUsername(
                 originalUsername, originalUsername);
+        notificationPreferencesRepository.deleteById(originalUsername);
         confirmationTokenRepository.deleteByProfile(originalUsername);
         mfaVerificationRepository.deleteByPerfil(originalUsername);
 

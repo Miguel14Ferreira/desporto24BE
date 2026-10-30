@@ -12,6 +12,7 @@ import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 import com.example.desporto24.enumeration.TournamentParticipantStatus;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantResponse;
 import com.example.desporto24.model.dto.community.CommunityTournamentParticipantsPageResponse;
@@ -80,10 +81,10 @@ public class CommunityTournamentService {
         TournamentEntryType type = request.entryType() == null
                 ? TournamentEntryType.INDIVIDUAL : request.entryType();
         if (type == TournamentEntryType.TEAM &&
-                (request.playersPerTeam() == null || request.playersPerTeam() < 1
-                        || request.playersPerTeam() > 30 || selectedSport == null)) {
+                (selectedSport == null || (request.playersPerTeam() != null
+                        && (request.playersPerTeam() < 1 || request.playersPerTeam() > 30)))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Escolhe modalidade e tamanho da equipa (1 a 30 jogadores)");
+                    "Escolhe uma modalidade e, se definires um tamanho de equipa, usa 1 a 30 jogadores");
         }
         if (type == TournamentEntryType.INDIVIDUAL && request.playersPerTeam() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -124,6 +125,31 @@ public class CommunityTournamentService {
                     "Os critérios de desempate são exclusivos de campeonatos por equipas");
         }
 
+        TournamentScoringMode scoringMode = request.scoringMode();
+        if (scoringMode == TournamentScoringMode.CHESS_HALF_POINTS) {
+            // Existing competitions have null mode and retain their historical rules.
+            // Only new individual Xadrez leagues may opt into half-point standings.
+            if (type != TournamentEntryType.INDIVIDUAL
+                    || !"xadrez".equalsIgnoreCase(selectedSport)
+                    || !Integer.valueOf(2).equals(request.winPoints())
+                    || !Integer.valueOf(1).equals(request.drawPoints())
+                    || !Integer.valueOf(0).equals(request.lossPoints())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Xadrez: vitória 1, empate ½, derrota 0 (pontos internos 2/1/0)");
+            }
+        }
+
+        if (scoringMode == TournamentScoringMode.RACE_POINTS) {
+            if (type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || !CommunityTournamentRaceService.supportsRaceChampionship(selectedSport)
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Campeonatos por posições disponíveis para Karting, BMX Racing, Ciclismo, Mountain Bike, Ciclocrosse, provas em linha de Estrada e Scratch de Pista individual");
+            }
+        }
+
         TournamentTeamTieBreakPriority tieBreakPriority = request.teamTieBreakPriority() == null
                 ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
                 : request.teamTieBreakPriority();
@@ -132,6 +158,9 @@ public class CommunityTournamentService {
                 .community(community)
                 .name(request.name().trim())
                 .sport(selectedSport)
+                .scoringMode(scoringMode)
+                .racePointsByPlace(scoringMode == TournamentScoringMode.RACE_POINTS
+                        ? CommunityTournamentRaceService.DEFAULT_POINTS : null)
                 .entryType(type)
                 .playersPerTeam(request.playersPerTeam())
                 .roundRobinLegs(roundRobinLegs)

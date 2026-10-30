@@ -4,6 +4,8 @@ import com.example.desporto24.exception.EmailNotVerifiedException;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.security.DistributedAuthRateLimiter;
+import java.time.Duration;
 import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -33,6 +35,9 @@ public class LoginAttemptService {
     private final PasswordHashService passwordHashService;
     private final Cache<String, Integer> failures;
 
+    @Autowired(required = false)
+    private DistributedAuthRateLimiter distributedAttempts;
+
     @Autowired
     public LoginAttemptService(ProfileRepository profileRepository, PasswordHashService passwordHashService) {
         this(profileRepository, passwordHashService, Ticker.systemTicker());
@@ -51,6 +56,9 @@ public class LoginAttemptService {
     }
 
     public void requireAttemptAllowed(String username) {
+        if (distributedAttempts != null) {
+            distributedAttempts.requireAllowed("login", username, MAXIMUM_NUMBER_OF_ATTEMPTS);
+        }
         Integer count = failures.getIfPresent(normalize(username));
         if (count != null && count >= MAXIMUM_NUMBER_OF_ATTEMPTS) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
@@ -74,9 +82,18 @@ public class LoginAttemptService {
             throw new BadCredentialsException(INCORRECT_CREDENTIALS);
         }
         failures.invalidate(normalize(username));
+        if (distributedAttempts != null) {
+            distributedAttempts.clearAfterSuccess("login", username);
+        }
     }
 
     private int recordFailure(String username) {
+        // Unlike the bounded local cache, the shared counter survives app
+        // restarts and prevents cross-instance brute force attempts.
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("login", username,
+                    MAXIMUM_NUMBER_OF_ATTEMPTS, Duration.ofMinutes(LOCK_WINDOW_MINUTES));
+        }
         final int[] count = new int[1];
         failures.asMap().compute(normalize(username), (key, previous) -> {
             count[0] = previous == null

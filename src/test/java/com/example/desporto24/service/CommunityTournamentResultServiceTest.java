@@ -111,6 +111,30 @@ class CommunityTournamentResultServiceTest {
     }
 
     @Test
+    void newChessLeagueAcceptsOnlyWinLossOrDrawOutcomes() {
+        tournament.setScoringMode(
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        manager(CommunityRole.OWNER);
+        tournamentLocked();
+        for (var invalid : java.util.List.of(
+                new RecordCommunityTournamentMatchResultRequest(1, 1),
+                new RecordCommunityTournamentMatchResultRequest(2, 0),
+                new RecordCommunityTournamentMatchResultRequest(2, 1))) {
+            assertEquals(400, assertThrows(ResponseStatusException.class, () ->
+                    service.recordResult(7L, 9L, 21L, "owner", invalid))
+                    .getStatusCode().value());
+        }
+        verifyNoInteractions(matches);
+        matchFound();
+        saving();
+        var draw = service.recordResult(7L, 9L, 21L, "owner",
+                new RecordCommunityTournamentMatchResultRequest(0, 0));
+        assertEquals(0, draw.homeScore());
+        assertEquals(0, draw.awayScore());
+        assertEquals(TournamentMatchStatus.COMPLETED, draw.status());
+    }
+
+    @Test
     void correctionPreservesInitialCompletionTime() {
         manager(CommunityRole.ADMIN);
         tournamentLocked();

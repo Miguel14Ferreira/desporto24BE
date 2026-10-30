@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-auth-rate-limit-v1
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: auth_rate_limit_bucket
+            columns:
+              - column:
+                  name: bucket_key
+                  type: VARCHAR(64)
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: attempt_count
+                  type: INTEGER
+                  constraints: { nullable: false }
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: { nullable: false }
+        - createIndex:
+            tableName: auth_rate_limit_bucket
+            indexName: idx_auth_rate_bucket_expiry
+            columns:
+              - column: { name: expires_at }

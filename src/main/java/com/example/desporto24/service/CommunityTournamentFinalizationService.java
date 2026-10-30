@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 
 import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.TournamentStatus;
@@ -47,6 +48,10 @@ public class CommunityTournamentFinalizationService {
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
         }
+        if (tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "O campeonato de Karting deve ser encerrado pela classificação por corridas");
+        }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "A conclusão de competições por equipas requer classificação por equipas");
@@ -79,7 +84,9 @@ public class CommunityTournamentFinalizationService {
         }
 
         var leader = rows.get(0);
-        boolean tied = rows.size() > 1 && equalSportingRank(leader, rows.get(1));
+        boolean tied = rows.size() > 1 && (tournament.getScoringMode() == TournamentScoringMode.CHESS_HALF_POINTS
+                ? leader.points() == rows.get(1).points() && leader.won() == rows.get(1).won()
+                : equalSportingRank(leader, rows.get(1)));
         tournament.setChampionTied(tied);
         tournament.setChampionProfileId(tied ? null : leader.profileId());
         tournament.setChampionUsername(tied ? null : leader.username());

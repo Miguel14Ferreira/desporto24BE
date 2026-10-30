@@ -19,6 +19,7 @@ import com.example.desporto24.service.interfaces.FriendService;
 import com.example.desporto24.service.interfaces.NotificationService;
 import com.example.desporto24.service.interfaces.ProfileService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -35,6 +36,7 @@ import static com.example.desporto24.constant.UserImplConstant.FRIEND_REQUEST_SE
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FriendServiceImpl implements FriendService {
 
     private final ProfileService profileService;
@@ -44,6 +46,9 @@ public class FriendServiceImpl implements FriendService {
     private final NotificationService notificationService;
     private final ProfileRepository profileRepository;
     private final UserBlockService userBlockService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
 
     @Value("${ui.app.url}")
     private String uiAppUrl;
@@ -82,9 +87,23 @@ public class FriendServiceImpl implements FriendService {
         FriendRequest newFriendRequest = new FriendRequest(token, formattedDate, profile1.getUsername(), profile2.getUsername());
         friendRequestService.saveFriendRequest(newFriendRequest);
 
-        emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Desporto24",
-                buildNewFriendRequestEmail(profile1.getUsername()));
+        // The request and its in-app action must not depend on optional email delivery.
         saveNotification(profile2.getUsername(), formattedDate, profile1.getUsername(), token);
+
+        try {
+            // A transient preferences lookup error must not fail an already persisted
+            // friendship request or accidentally opt a recipient into optional mail.
+            if (preferenceService == null || preferenceService.allowsOptionalEmailCategory(
+                    profile2.getUsername(), com.example.desporto24.service.NotificationPreferencesService.FRIEND_REQUEST)) {
+                emailService.send(profile2.getEmail(), "Pedido de amizade | Friend request — Jynlo",
+                        buildNewFriendRequestEmail(profile1.getUsername()));
+            }
+        } catch (RuntimeException optionalEmailFailure) {
+            // The request and in-app action remain available after either a preferences
+            // lookup error or a mail provider outage. Never bypass a failed opt-out check.
+            log.warn("Optional friend request email skipped; the friendship request remains pending",
+                    optionalEmailFailure);
+        }
     }
 
     private boolean areAlreadyFriends(ProfileDTO profile1, ProfileDTO profile2) {
@@ -107,7 +126,7 @@ public class FriendServiceImpl implements FriendService {
             String friendRequestToken) {
         String subject = "Tu tens um novo pedido de amizade!";
         String message = "Olá, tu recebeste um novo pedido de amizade vindo de " + senderUsername + ". Tu podes aceitar ou rejeitar este pedido.";
-        String signature = "Cumprimentos, DESPORTO24";
+        String signature = "Cumprimentos, Jynlo";
 
         Notifications notification = new Notifications(
                 subject,

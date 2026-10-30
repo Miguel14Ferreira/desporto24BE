@@ -29,6 +29,15 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import com.example.desporto24.storage.PrivateChatFileStorage;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,6 +53,15 @@ import java.util.Optional;
 @Transactional
 public class CommunityManagementService {
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
+    @Autowired
+    private CommunityCreationQuotaService creationQuota;
+
+    @Autowired(required = false)
+    private com.example.desporto24.repository.venue.VenueRepository venueRepository;
+
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final CommunityInviteRepository inviteRepository;
@@ -55,10 +73,16 @@ public class CommunityManagementService {
     @Autowired(required = false)
     private MediaStorage mediaStorage;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired(required = false)
+    private PrivateChatFileStorage privateChatStorage;
+
     public CommunityResponse create(String username, CreateCommunityRequest request) {
         Profile owner = profile(username);
-
         List<String> sports = normalizeSports(request.sports(), request.sport());
+        creationQuota.reserveCreate(owner);
         Community community = Community.builder()
                 .name(request.name().trim())
                 .description(trimToNull(request.description()))
@@ -91,6 +115,14 @@ public class CommunityManagementService {
      * Stores the organizer's choice of modules without deleting seasons, scores or
      * tournaments. Sessions remain available for every community.
      */
+    public CommunityResponse updateSessionCreationPolicy(Long communityId, String username,
+            boolean membersCanCreateSessions) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        community.setMembersCanCreateSessions(membersCanCreateSessions);
+        return toResponse(communityRepository.save(community), actor);
+    }
+
     public CommunityResponse updateFeatures(Long communityId, String username,
             UpdateCommunityFeaturesRequest request) {
         Profile actor = profile(username);
@@ -100,6 +132,11 @@ public class CommunityManagementService {
         community.setIndividualTournamentsEnabled(request.individualTournamentsEnabled());
         community.setTeamTournamentsEnabled(request.teamTournamentsEnabled());
         return toResponse(communityRepository.save(community), actor);
+    }
+
+    @Transactional(readOnly = true)
+    public CommunityCreationQuotaService.Quota creationQuota(String username) {
+        return creationQuota.quota(profile(username));
     }
 
     @Transactional(readOnly = true)
@@ -258,6 +295,64 @@ public class CommunityManagementService {
         notifyJoinDecision(request, actor, false);
     }
 
+    /** The habitual venue is optional and can be changed without altering past games. */
+    public CommunityResponse updateDefaultVenue(Long communityId, String username, Long venueId) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        if (venueId != null && venueId <= 0) {
+            throw new IllegalArgumentException("Recinto inválido");
+        }
+        com.example.desporto24.model.venue.Venue venue = null;
+        if (venueId != null) {
+            venue = venueRepository.findById(venueId)
+                    .orElseThrow(() -> new IllegalArgumentException("Recinto não encontrado"));
+        }
+        community.setDefaultVenue(venue);
+        // Switching to a catalogued venue clears a previously saved GPS/Maps point.
+        clearHabitualCoordinates(community);
+        return toResponse(communityRepository.save(community), actor);
+    }
+
+    /** Saves a habitual point without claiming it is a catalogue venue or a verified address.
+     * The client resolves Google Maps links before submission; GPS requires device permission. */
+    public CommunityResponse updateHabitualLocation(Long communityId, String username,
+                                                      String source, Double latitude,
+                                                      Double longitude, String city, String address) {
+        Profile actor = profile(username);
+        Community community = requireAdmin(communityId, actor).getCommunity();
+        if (!"MAPS".equals(source) && !"GPS".equals(source)) {
+            throw new IllegalArgumentException("Seleciona Google Maps ou Estou no recinto");
+        }
+        if (latitude == null || longitude == null || !Double.isFinite(latitude)
+                || !Double.isFinite(longitude) || Math.abs(latitude) > 90
+                || Math.abs(longitude) > 180) {
+            throw new IllegalArgumentException("A localização precisa de coordenadas válidas");
+        }
+        community.setDefaultVenue(null);
+        community.setHabitualLocationSource(source);
+        community.setHabitualLatitude(latitude);
+        community.setHabitualLongitude(longitude);
+        community.setHabitualCity(trimBounded(city, 160));
+        community.setHabitualAddress(trimBounded(address, 350));
+        return toResponse(communityRepository.save(community), actor);
+    }
+
+    private void clearHabitualCoordinates(Community community) {
+        community.setHabitualLocationSource(null);
+        community.setHabitualLatitude(null);
+        community.setHabitualLongitude(null);
+        community.setHabitualCity(null);
+        community.setHabitualAddress(null);
+    }
+
+    private String trimBounded(String value, int limit) {
+        String result = trimToNull(value);
+        if (result != null && result.length() > limit) {
+            throw new IllegalArgumentException("A localidade ou morada é demasiado longa");
+        }
+        return result;
+    }
+
     public CommunityResponse updateSports(Long communityId, String username,
                                           UpdateCommunitySportsRequest request) {
         Profile actor = profile(username);
@@ -283,10 +378,67 @@ public class CommunityManagementService {
         return toResponse(saved, actor);
     }
 
-    public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
+    /**
+     * Saves photo positioning without re-encoding or re-uploading the image.
+     * Animated GIF frames and other media remain unchanged in storage.
+     */
+    private static String validatedPhotoFitMode(String mode, double zoom, double focusX, double focusY) {
+        String normalized = (mode == null || mode.isBlank()) ? "COVER" : mode;
+        if (!"COVER".equals(normalized) && !"SHOW_ALL".equals(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Modo de enquadramento inválido");
+        }
+        double minZoom = "SHOW_ALL".equals(normalized) ? 0.6 : 1.0;
+        if (!Double.isFinite(zoom) || zoom < minZoom || zoom > 3.0
+                || !Double.isFinite(focusX) || focusX < 0 || focusX > 100
+                || !Double.isFinite(focusY) || focusY < 0 || focusY > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enquadramento inválido");
+        }
+        return normalized;
+    }
+
+    // Legacy callers keep the existing COVER behavior.
+    public CommunityResponse updatePhotoFraming(
+            Long communityId, String username, double zoom, double focusX, double focusY,
+            String expectedPhotoUrl) {
+        return updatePhotoFraming(communityId, username, zoom, focusX, focusY,
+                expectedPhotoUrl, "COVER");
+    }
+
+    /**
+     * Saves crop or SHOW_ALL layout as presentation metadata only. It never
+     * fetches, flattens, transcodes or overwrites the underlying animated GIF.
+     */
+    public CommunityResponse updatePhotoFraming(
+            Long communityId, String username, double zoom, double focusX, double focusY,
+            String expectedPhotoUrl, String fitMode) {
         Profile actor = profile(username);
         requireAdmin(communityId, actor);
+        String validatedMode = validatedPhotoFitMode(fitMode, zoom, focusX, focusY);
+        Community group = community(communityId);
+        if (expectedPhotoUrl == null || !expectedPhotoUrl.equals(group.getPhotoUrl())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A fotografia foi alterada. Atualiza a página antes de ajustar");
+        }
+        if (group.getPhotoUrl() == null || group.getPhotoUrl().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta comunidade ainda não tem fotografia");
+        }
+        group.setPhotoFitMode(validatedMode);
+        group.setPhotoZoom(zoom);
+        group.setPhotoFocusX(focusX);
+        group.setPhotoFocusY(focusY);
+        return toResponse(communityRepository.save(group), actor);
+    }
 
+    public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo) {
+        return updatePhoto(communityId, username, photo, "COVER", 1, 50, 50);
+    }
+
+    public CommunityResponse updatePhoto(Long communityId, String username, MultipartFile photo,
+            String fitMode, double zoom, double focusX, double focusY) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        String validatedMode = validatedPhotoFitMode(fitMode, zoom, focusX, focusY);
         if (mediaStorage == null) {
             throw new IllegalStateException("Media storage is not configured");
         }
@@ -296,12 +448,15 @@ public class CommunityManagementService {
 
         Community community = community(communityId);
         String previousPhotoUrl = community.getPhotoUrl();
-        var uri = mediaStorage.store(
-                "communities/" + community.getId() + "/" + UUID.randomUUID(),
-                photo
-        );
+        // Keep all GIF frames intact: only layout metadata is saved for SHOW_ALL.
+        var uri = mediaStorage.storeCommunityPhoto(
+                "communities/" + community.getId() + "/" + UUID.randomUUID(), photo);
 
         community.setPhotoUrl(uri.toString());
+        community.setPhotoFitMode(validatedMode);
+        community.setPhotoZoom(zoom);
+        community.setPhotoFocusX(focusX);
+        community.setPhotoFocusY(focusY);
         Community saved = communityRepository.save(community);
         deleteCommunityPhoto(previousPhotoUrl, communityId);
         return toResponse(saved, actor);
@@ -314,6 +469,10 @@ public class CommunityManagementService {
         Community community = community(communityId);
         String photoUrl = community.getPhotoUrl();
         community.setPhotoUrl(null);
+        community.setPhotoFitMode(null);
+        community.setPhotoZoom(null);
+        community.setPhotoFocusX(null);
+        community.setPhotoFocusY(null);
         Community saved = communityRepository.save(community);
         deleteCommunityPhoto(photoUrl, communityId);
         return toResponse(saved, actor);
@@ -483,6 +642,81 @@ public class CommunityManagementService {
         eventPublisher.publishEvent(new CommunityMembershipEndedEvent(communityId, current.getId()));
     }
 
+    /**
+     * Permanently removes a community and only its dependent records, including
+     * members, requests, chat, competitions, historic imports, Stories and sessions.
+     * Shared accounts and unrelated communities are never deletion targets.
+     */
+    public void deleteCommunity(Long communityId, String username, String confirmationName) {
+        Profile actor = profile(username);
+        requireOwner(communityId, actor);
+        // This lock serializes with transfers of ownership and new FK references.
+        Community community = communityRepository.lockForDeletion(communityId)
+                .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
+        if (!community.getOwner().getId().equals(actor.getId())) {
+            throw new SecurityException("Apenas o proprietário pode eliminar a comunidade");
+        }
+        if (confirmationName == null || !community.getName().equals(confirmationName)) {
+            throw new IllegalArgumentException("Escreve exatamente o nome da comunidade para confirmar");
+        }
+
+        // Read storage keys before rows are removed. Storage deletion is
+        // deliberately postponed until after successful database commit.
+        String photoUrl = community.getPhotoUrl();
+        Set<String> publicMediaKeys = new LinkedHashSet<>(jdbcTemplate.queryForList("""
+                SELECT image_storage_key FROM community_timeline_entry
+                  WHERE community_id = ? AND image_storage_key IS NOT NULL
+                UNION
+                SELECT video_storage_key FROM community_timeline_entry
+                  WHERE community_id = ? AND video_storage_key IS NOT NULL
+                UNION
+                SELECT media_storage_key FROM social_story
+                  WHERE community_id = ? AND media_storage_key IS NOT NULL
+                """, String.class, communityId, communityId, communityId));
+        Set<String> privateMediaKeys = new LinkedHashSet<>(jdbcTemplate.queryForList("""
+                SELECT attachment_key FROM community_timeline_entry
+                  WHERE community_id = ? AND attachment_key IS NOT NULL
+                """, String.class, communityId));
+
+        try {
+            Integer removed = jdbcTemplate.queryForObject(
+                    "SELECT desporto24.delete_community_subtree(?)", Integer.class, communityId);
+            if (removed == null || removed != 1) {
+                throw new IllegalStateException("A eliminação não foi concluída");
+            }
+        } catch (DataAccessException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Uma referência inesperada impediu a eliminação. Nenhum dado foi apagado", exception);
+        }
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deleteCommunityPhoto(photoUrl, communityId);
+                    if (mediaStorage != null) {
+                        for (String key : publicMediaKeys) {
+                            try {
+                                mediaStorage.delete(key);
+                            } catch (RuntimeException failure) {
+                                log.warn("Public media cleanup failed for community {}", communityId, failure);
+                            }
+                        }
+                    }
+                    if (privateChatStorage != null) {
+                        for (String key : privateMediaKeys) {
+                            try {
+                                privateChatStorage.delete(key);
+                            } catch (RuntimeException failure) {
+                                log.warn("Private media cleanup failed for community {}", communityId, failure);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
     public CommunityResponse transferOwnership(
             Long communityId,
             String username,
@@ -491,6 +725,9 @@ public class CommunityManagementService {
         CommunityMember currentMembership = requireOwner(communityId, current);
 
         Profile newOwner = profile(request.username().trim());
+        if (!newOwner.getId().equals(current.getId())) {
+            creationQuota.requireTransferCapacity(newOwner);
+        }
         CommunityMember newOwnerMembership = memberRepository
                 .findByCommunityIdAndProfileId(communityId, newOwner.getId())
                 .orElseThrow(() -> new IllegalArgumentException("O novo Owner tem de ser membro da comunidade"));
@@ -543,7 +780,15 @@ public class CommunityManagementService {
                         ? (community.getSport() == null ? List.of() : List.of(community.getSport()))
                         : List.copyOf(community.getSports()),
                 community.isIndividualTournamentsEnabled(),
-                community.isTeamTournamentsEnabled()
+                community.isTeamTournamentsEnabled(),
+                community.getPhotoZoom(), community.getPhotoFocusX(),
+                community.getPhotoFocusY(), community.getPhotoFitMode(),
+                community.getDefaultVenue() == null ? null : community.getDefaultVenue().getId(),
+                community.getDefaultVenue() == null ? null : community.getDefaultVenue().getName(),
+                community.getHabitualLocationSource(),
+                community.getHabitualLatitude(), community.getHabitualLongitude(),
+                community.getHabitualCity(), community.getHabitualAddress(),
+                community.isMembersCanCreateSessions()
         );
     }
 
@@ -572,7 +817,10 @@ public class CommunityManagementService {
         notification.setRelatedUsername(actor.getUsername());
         notification.setType(NotificationType.COMMUNITY_INVITE);
         notification.setRead(false);
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 
     private void notifyJoinRequestCreated(Community community, Profile requester) {
@@ -623,7 +871,10 @@ public class CommunityManagementService {
         notification.setCommunityId(community.getId());
         notification.setType(type);
         notification.setRead(false);
-        notificationsRepository.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notificationsRepository.save(notification);
+        }
     }
 
     private CommunityInviteResponse toInviteResponse(CommunityInvite invite) {

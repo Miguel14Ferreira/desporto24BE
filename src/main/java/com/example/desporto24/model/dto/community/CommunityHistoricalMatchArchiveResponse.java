@@ -9,5 +9,12 @@ public record CommunityHistoricalMatchArchiveResponse(
         String entryType,
         String sourceFilename,
         Instant createdAt,
-        List<CommunityHistoricalMatchPreviewResponse.MatchRow> rows
-) {}
+        List<CommunityHistoricalMatchPreviewResponse.MatchRow> rows,
+        Long tournamentId
+) {
+    public CommunityHistoricalMatchArchiveResponse(Long id, String title, String entryType,
+            String sourceFilename, Instant createdAt,
+            List<CommunityHistoricalMatchPreviewResponse.MatchRow> rows) {
+        this(id, title, entryType, sourceFilename, createdAt, rows, null);
+    }
+}

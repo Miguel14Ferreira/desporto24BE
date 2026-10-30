@@ -7,6 +7,7 @@ import com.example.desporto24.filter.JwtAuthenticationEntryPoint;
 import com.example.desporto24.filter.JwtAuthorizationFilter;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.RefreshTokenSessionRepository;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
 import com.example.desporto24.service.CommunityHistoricalMatchPreviewService;
@@ -51,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The application uses a custom anonymous authentication entry point returning
  * 403 (rather than 401). Keep expectations aligned with that explicit policy.
  */
-@WebMvcTest(controllers = CommunityController.class)
+@WebMvcTest(controllers = {CommunityController.class, SessionGuestRequestController.class})
 @AutoConfigureMockMvc(addFilters = false)
 @Import({
         SecurityConfiguration.class,
@@ -73,6 +74,7 @@ class CommunitySecurityFilterChainTest {
 
     @MockitoBean private JWTokenProvider tokens;
     @MockitoBean private ProfileRepository profiles;
+    @MockitoBean private RefreshTokenSessionRepository refreshSessionRepository;
     @MockitoBean private CommunityManagementService communities;
     @MockitoBean private CommunityCompetitionService competitions;
     @MockitoBean private CommunityHistoricalPlayerLinkService historicalPlayers;
@@ -81,6 +83,9 @@ class CommunitySecurityFilterChainTest {
     @MockitoBean private CommunityHistoricalMatchPreviewService previews;
     @MockitoBean private CommunityHistoricalMatchArchiveService historicalMatches;
     @MockitoBean private CommunitySessionService sessions;
+    @MockitoBean private com.example.desporto24.service.SessionGuestRequestService guests;
+    @MockitoBean private com.example.desporto24.service.interfaces.SessionService publicSessionService;
+    @MockitoBean private com.example.desporto24.service.CommunitySessionResultService sessionResults;
 
     @BeforeEach
     void configureAccounts() {
@@ -121,6 +126,58 @@ class CommunitySecurityFilterChainTest {
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(communities);
+    }
+
+    @Test
+    void signedGuestConfirmedRosterIsPostOnlyAndDoesNotRequireAccount() throws Exception {
+        when(guests.confirmedPlayers(42L, "signed-invite")).thenReturn(List.of(
+                new com.example.desporto24.service.SessionGuestRequestService.ConfirmedPlayer(
+                        "guest:8","Fresco",false)));
+        mvc.perform(post("/api/sessions/42/guest-confirmed-players")
+                .contentType("application/json")
+                .content("{\"token\":\"signed-invite\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Fresco"));
+        mvc.perform(get("/api/sessions/42/guest-confirmed-players"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/sessions/42/guest-link"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void confirmedGuestsGetRequiresAuthenticationAndNeverExposesOrganizerNotes() throws Exception {
+        when(guests.confirmedGuestsForMember(42L,"fixture-member")).thenReturn(List.of(
+                new com.example.desporto24.service.SessionGuestRequestService.ConfirmedGuest(
+                        8L,"oal",null)));
+        mvc.perform(get("/api/sessions/42/guest-confirmed-guests"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/sessions/42/guest-confirmed-guests")
+                .header("Authorization","Bearer fixture-member-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("oal"))
+                .andExpect(jsonPath("$[0].note").doesNotExist());
+        verify(guests,times(1)).confirmedGuestsForMember(42L,"fixture-member");
+    }
+
+    @Test
+    void ownGuestCorrectionsAreAnonymousPostOnlyWhileNameOwnershipIsReceiptChecked() throws Exception {
+        String receipt="r".repeat(43);
+        when(guests.changeGuestIdentity(eq(42L),any())).thenReturn(
+                new com.example.desporto24.service.SessionGuestRequestService.GuestReceipt(
+                        receipt,"APPROVED","Fresco"));
+        when(guests.cancelByReceipt(eq(42L),any())).thenReturn(
+                new com.example.desporto24.service.SessionGuestRequestService.GuestReceipt(
+                        receipt,"CANCELLED","Fresco"));
+        mvc.perform(post("/api/sessions/42/guest-requests/change-player")
+                .contentType("application/json")
+                .content("{\"receipt\":\""+receipt+"\",\"playerId\":null,\"newName\":\"Fresco\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.playerName").value("Fresco"));
+        mvc.perform(post("/api/sessions/42/guest-requests/cancel-self")
+                .contentType("application/json")
+                .content("{\"receipt\":\""+receipt+"\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
+        mvc.perform(get("/api/sessions/42/guest-requests/change-player"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

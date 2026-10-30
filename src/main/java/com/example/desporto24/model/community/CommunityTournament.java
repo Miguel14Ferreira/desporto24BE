@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentEntryType;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -57,6 +58,20 @@ public class CommunityTournament {
     @Column(name = "players_per_team")
     private Integer playersPerTeam;
 
+    // Null preserves the meaning of existing competitions and their stored results.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scoring_mode", length = 40)
+    private TournamentScoringMode scoringMode;
+
+    // A Karting championship snapshots its own community-defined per-place points.
+    @Column(name = "race_points_by_place", length = 160)
+    private String racePointsByPlace;
+
+    // Saved upon closing a Karting championship. Preserves races, points
+    // and podiums even if the original community rounds are edited later.
+    @Column(name = "race_final_snapshot_json", columnDefinition = "text")
+    private String raceFinalSnapshotJson;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     @Builder.Default
@@ -78,6 +93,11 @@ public class CommunityTournament {
     @Column(name = "loss_points", nullable = false)
     @Builder.Default
     private int lossPoints = 0;
+
+    // Historical tournaments are immutable snapshots backed by imported match archive rows.
+    // They do not create artificial user profiles or editable live fixtures.
+    @Column(name = "historical_archive_id", unique = true)
+    private Long historicalArchiveId;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

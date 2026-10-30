@@ -1,0 +1,19 @@
+# DRAFT ONLY, not included in db.changelog-master.yaml.
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-braganca-two-pavilions-DRAFT-v1
+      author: jynlo-venues
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        onFail: HALT
+        tableExists:
+          schemaName: desporto24
+          tableName: venue
+      changes:
+        - sqlFile:
+            path: 2026-10-28-braganca-two-pavilions-OPT-IN.sql
+            relativeToChangelogFile: true
+            encoding: UTF-8
+            splitStatements: true
+            endDelimiter: ;

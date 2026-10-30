@@ -1,0 +1,81 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-22-community-timeline
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_timeline_entry
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_community_timeline_entry
+                    nullable: false
+              - column:
+                  name: community_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: author_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: kind
+                  type: VARCHAR(8)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: body
+                  type: VARCHAR(2000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_timeline_entry
+            baseColumnNames: community_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community
+            referencedColumnNames: id
+            constraintName: fk_community_timeline_community
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_timeline_entry
+            baseColumnNames: author_profile_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: profile
+            referencedColumnNames: id
+            constraintName: fk_community_timeline_author
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_timeline_entry
+            indexName: idx_community_timeline_kind_recent
+            columns:
+              - column:
+                  name: community_id
+              - column:
+                  name: kind
+              - column:
+                  name: created_at
+                  descending: true
+              - column:
+                  name: id
+                  descending: true
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.community_timeline_entry
+              ADD CONSTRAINT ck_community_timeline_kind
+              CHECK (kind IN ('POST', 'CHAT'))

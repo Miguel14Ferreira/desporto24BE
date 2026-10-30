@@ -1,0 +1,94 @@
+name: Read-only nine-venue release gate PostgreSQL16
+
+on:
+  pull_request:
+    branches: ['feature/desporto24-preview-deploy']
+    paths:
+      - 'src/main/resources/db/changelog/venue-imports/preflight-nine-source-backed-READONLY-20261026.sql'
+      - '.github/workflows/venue-nine-readonly-preflight-ci.yml'
+      - 'docs/venue-imports/nine-venue-final-readonly-preflight-20261026.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: isolated_venue_review
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d isolated_venue_review"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: isolated_venue_review
+      PGUSER: postgres
+      PGPASSWORD: test_only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create synthetic venue aliases and SELECT-only credentials
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -qq -y postgresql-client
+          fi
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA desporto24;
+          CREATE TABLE desporto24.venue (
+            id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            name VARCHAR(140) NOT NULL,
+            city VARCHAR(120) NOT NULL,
+            district VARCHAR(120),
+            address VARCHAR(255),
+            source_reference VARCHAR(255)
+          );
+          INSERT INTO desporto24.venue(name,city,district,address,source_reference)
+          VALUES
+           ('Pavilhão da EB 2/3 Mem Ramires', 'Santarém', 'Santarém',
+            'Rua Doutor Virgílio Arruda, 2000-217 Santarém',
+            'JYNLO:OFFICIAL:SANTAREM:MEM-RAMIRES'),
+           ('Pavilhão Desportivo da Cidade', 'Castelo Branco', 'Castelo Branco',
+            'Avenida Rotary, 6000-087 Castelo Branco', NULL),
+           ('Pavilhão Sidónio Serpa', 'Ponta Delgada', 'Açores',
+            'Rua da Juventude - local desportivo', NULL);
+          CREATE ROLE venue_readonly LOGIN PASSWORD 'readonly_test_only';
+          GRANT USAGE ON SCHEMA desporto24 TO venue_readonly;
+          GRANT SELECT ON desporto24.venue TO venue_readonly;
+          SQL
+      - name: All nine candidates reviewed under a read-only transaction
+        env:
+          PGPASSWORD: readonly_test_only
+          PGUSER: venue_readonly
+        run: |
+          set -euo pipefail
+          query=src/main/resources/db/changelog/venue-imports/preflight-nine-source-backed-READONLY-20261026.sql
+          psql -X -A -t -F '|' -v ON_ERROR_STOP=1 -f "$query" > "$RUNNER_TEMP/jynlo-nine-preflight-output.txt"
+          grep -F '|SOURCE_REF_ALREADY_EXISTS|' "$RUNNER_TEMP/jynlo-nine-preflight-output.txt"
+          grep -F '|SAME_ADDRESS_CITY|' "$RUNNER_TEMP/jynlo-nine-preflight-output.txt"
+          grep -F '|POSSIBLE_ALIAS_REVIEW|' "$RUNNER_TEMP/jynlo-nine-preflight-output.txt"
+          grep -F '|NO_POTENTIAL_MATCH_REVIEW|' "$RUNNER_TEMP/jynlo-nine-preflight-output.txt"
+          test "$(grep -c '^JYNLO:OFFICIAL:' "$RUNNER_TEMP/jynlo-nine-preflight-output.txt")" = "9"
+          echo "PASS: 9 draft candidates, existing ref + postal alias + distinct alias detected"
+      - name: Assert query never modified production-like fixture
+        run: |
+          set -euo pipefail
+          test "$(psql -X -A -t -c 'SELECT COUNT(*) FROM desporto24.venue;')" = "3"
+          echo "PASS: SELECT gate did not insert, update or remove records"
+      - name: Confirm no real datasource, credentials or network export used
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'INSERT INTO|UPDATE desporto24|DELETE FROM|ALTER TABLE|DROP TABLE' \
+            src/main/resources/db/changelog/venue-imports/preflight-nine-source-backed-READONLY-20261026.sql
+          echo "PASS: all fixture data is synthetic; query has no writes"

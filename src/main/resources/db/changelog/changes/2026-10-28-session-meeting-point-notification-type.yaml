@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-session-meeting-point-notification-type
+      author: jynlo
+      comment: "Allow session meeting point update alerts without weakening notification-type validation"
+      preConditions:
+        onFail: HALT
+        tableExists:
+          schemaName: desporto24
+          tableName: notifications
+      changes:
+        - sql:
+            dbms: postgresql
+            sql: |-
+              ALTER TABLE desporto24.notifications
+                DROP CONSTRAINT IF EXISTS notifications_type_check;
+              ALTER TABLE desporto24.notifications
+                ADD CONSTRAINT notifications_type_check
+                CHECK (type IS NULL OR type IN (
+                  'WAITLIST_PROMOTED',
+                  'SESSION_REMOVED',
+                  'SESSION_CANCELLED',
+                  'SESSION_MEETING_POINT_UPDATED',
+                  'SESSION_POST_GAME_REVIEW',
+                  'ATTENDANCE_DISPUTE_ACCEPTED',
+                  'ATTENDANCE_DISPUTE_REJECTED',
+                  'CHAT_MESSAGE',
+                  'COMMUNITY_INVITE',
+                  'COMMUNITY_JOIN_REQUEST',
+                  'COMMUNITY_JOIN_ACCEPTED',
+                  'COMMUNITY_JOIN_REJECTED',
+                  'SESSION_INVITE',
+                  'VENUE_EDIT_DECISION'
+                ));

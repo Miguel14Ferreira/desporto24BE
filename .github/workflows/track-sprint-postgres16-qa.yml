@@ -1,0 +1,58 @@
+name: Olympic Sprint isolated PostgreSQL 16 QA
+# Disposable PG16 service; never Render or production credentials.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [feature/desporto24-preview-deploy]
+    paths:
+      - 'src/test/java/com/example/desporto24/service/CommunityTrackSprintPostgres16Test.java'
+      - 'src/main/resources/db/changelog/changes/2026-10-24-track-sprint-series-v1.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-community-track-sprint-bracket8.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-track-sprint-qualification16.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-sprint-official-200m-tie-decisions.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-track-sprint-incident-decisions.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-track-sprint-disciplinary-rulings.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-sprint-three-up-rerun-approval.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-track-sprint-final-interruption.yaml'
+      - 'src/main/resources/db/changelog/changes/2026-10-25-sprint-official-two-up-award.yaml'
+      - '.github/workflows/track-sprint-postgres16-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sprint-pg16-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  postgres-contract:
+    name: Sprint relational integrity with fictional riders
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sprint_bracket_qa
+          POSTGRES_USER: qa
+          POSTGRES_PASSWORD: local_test_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U qa -d sprint_bracket_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AES_ENCRYPTION_KEY: ciKey1
+      JYNLO_TEST_PG_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/sprint_bracket_qa
+      JYNLO_TEST_PG_USERNAME: qa
+      JYNLO_TEST_PG_PASSWORD: local_test_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify real Sprint migrations and constraints
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTrackSprintPostgres16Test test

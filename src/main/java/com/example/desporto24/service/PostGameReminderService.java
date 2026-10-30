@@ -29,6 +29,9 @@ public class PostGameReminderService {
     private static final int BATCH_SIZE = 25;
 
     private final SessionRepository sessionRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final NotificationsRepository notificationsRepository;
 
     @Transactional
@@ -64,7 +67,10 @@ public class PostGameReminderService {
 
             session.setPostGameReviewReminderSentAt(now);
             sessionRepository.save(session);
-            notificationsRepository.save(notification);
+            if (preferenceService == null ||
+                    preferenceService.allowsInApp(notification.getUsername(), notification)) {
+                notificationsRepository.save(notification);
+            }
         }
     }
 

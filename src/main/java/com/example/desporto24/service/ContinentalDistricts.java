@@ -6,13 +6,14 @@ import java.util.Set;
 import java.util.Locale;
 import java.text.Normalizer;
 
-/** Canonical mainland Portugal district names; empty means unrestricted legacy search. */
+/** Canonical Portuguese district and autonomous-region labels; empty means unrestricted search. */
 public final class ContinentalDistricts {
     private ContinentalDistricts() {}
     public static final Set<String> NAMES = Set.of(
             "Aveiro", "Beja", "Braga", "Bragança", "Castelo Branco", "Coimbra",
             "Évora", "Faro", "Guarda", "Leiria", "Lisboa", "Portalegre",
-            "Porto", "Santarém", "Setúbal", "Viana do Castelo", "Vila Real", "Viseu");
+            "Porto", "Santarém", "Setúbal", "Viana do Castelo", "Vila Real", "Viseu",
+            "Açores", "Madeira");
     private static final Map<String,String> CANONICAL = NAMES.stream().collect(Collectors.toUnmodifiableMap(
             ContinentalDistricts::fold, value -> value));
 
@@ -24,7 +25,7 @@ public final class ContinentalDistricts {
     public static String normalizeOptional(String district) {
         if (district == null || district.isBlank()) return null;
         String canonical = CANONICAL.get(fold(district));
-        if (canonical == null) throw new IllegalArgumentException("Distrito de Portugal continental inválido");
+        if (canonical == null) throw new IllegalArgumentException("Distrito ou região autónoma de Portugal inválido");
         return canonical;
     }
 

@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-28-community-habitual-location
+      author: desporto24
+      preConditions:
+        onFail: MARK_RAN
+        not:
+          columnExists:
+            tableName: community
+            columnName: habitual_location_source
+      changes:
+        - addColumn:
+            tableName: community
+            columns:
+              - column:
+                  name: habitual_location_source
+                  type: VARCHAR(8)
+              - column:
+                  name: habitual_latitude
+                  type: DOUBLE PRECISION
+              - column:
+                  name: habitual_longitude
+                  type: DOUBLE PRECISION
+              - column:
+                  name: habitual_city
+                  type: VARCHAR(160)
+              - column:
+                  name: habitual_address
+                  type: VARCHAR(350)

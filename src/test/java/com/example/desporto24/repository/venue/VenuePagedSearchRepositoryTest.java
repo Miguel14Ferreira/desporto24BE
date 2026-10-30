@@ -73,6 +73,164 @@ class VenuePagedSearchRepositoryTest {
         assertEquals(1, fallback.getContent().size());
     }
 
+
+    @Test
+    void ranksExactNameThenPrefixBeforeSubstringAcrossPageBoundaries() {
+        persist("Alto Campo Central", "Lisboa", "Futsal");
+        persist("Campo Norte", "Lisboa", "Futsal");
+        persist("Campo", "Lisboa", "Futsal");
+        entityManager.flush();
+        entityManager.clear();
+
+        var first = repository.suggest("campo", "", "futsal", "", PageRequest.of(0, 1));
+        var second = repository.suggest("campo", "", "futsal", "", PageRequest.of(1, 1));
+        var third = repository.suggest("campo", "", "futsal", "", PageRequest.of(2, 1));
+
+        assertEquals("Campo", first.getContent().getFirst().getName());
+        assertEquals("Campo Norte", second.getContent().getFirst().getName());
+        assertEquals("Alto Campo Central", third.getContent().getFirst().getName());
+        assertTrue(first.hasNext());
+        assertTrue(second.hasNext());
+        assertFalse(third.hasNext());
+    }
+
+    @Test
+    void ranksExactCityAndCompleteVenueDetailsBeforePaginationNotJustWithinOnePage() {
+        persistWithInfo("A - Lisboa Metropolitana", "Grande Lisboa", "Futsal", "Rua A", 38.7, -9.1, "Pavilhão");
+        persistWithInfo("B - Lisboa incompleto", "Lisboa", null, "", null, null, null);
+        persistWithInfo("C - Lisboa confirmado", "Lisboa", "Futsal", "Rua C", 38.72, -9.12, "Pavilhão");
+        persistWithInfo("D - Lisboa GPS", "Lisboa", "Futsal", "", 38.73, -9.13, "Campo");
+        persistWithInfo("E - Lisboa sem localização", "Lisboa", "Futsal", "", null, null, null);
+        entityManager.flush();
+        entityManager.clear();
+
+        var ordered = java.util.stream.IntStream.range(0, 5)
+                .mapToObj(page -> repository.suggest("", "lisboa", "", "", PageRequest.of(page, 1)))
+                .toList();
+
+        assertEquals(java.util.List.of(
+                "C - Lisboa confirmado", "D - Lisboa GPS",
+                "E - Lisboa sem localização", "B - Lisboa incompleto",
+                "A - Lisboa Metropolitana"),
+                ordered.stream().map(p -> p.getContent().getFirst().getName()).toList());
+        assertEquals(5, ordered.stream().map(p -> p.getContent().getFirst().getId()).distinct().count());
+        assertTrue(ordered.get(3).hasNext());
+        assertFalse(ordered.get(4).hasNext());
+    }
+
+    @Test
+    void stableTieOrderUsesNameCityAndImmutableIdAcrossPages() {
+        persistWithInfo("Campo Igual", "Lisboa", "Padel", "Rua A", null, null, "Campo");
+        persistWithInfo("Campo Igual", "Lisboa", "Padel", "Rua A", null, null, "Campo");
+        persistWithInfo("Campo Igual", "Lisboa", "Padel", "Rua A", null, null, "Campo");
+        entityManager.flush();
+        entityManager.clear();
+
+        var first = repository.suggest("", "", "", "", PageRequest.of(0, 1));
+        var middle = repository.suggest("", "", "", "", PageRequest.of(1, 1));
+        var last = repository.suggest("", "", "", "", PageRequest.of(2, 1));
+        assertTrue(first.hasNext());
+        assertTrue(middle.hasNext());
+        assertFalse(last.hasNext());
+        long firstId = first.getContent().getFirst().getId();
+        long middleId = middle.getContent().getFirst().getId();
+        long lastId = last.getContent().getFirst().getId();
+        assertTrue(firstId < middleId && middleId < lastId);
+    }
+
+
+    @Test
+    void computesCityReferenceFromExactAccentedLocalityAndValidCoordinatesOnly() {
+        persistWithInfo("GPS Cacém", "Cacém", "Padel", "Rua A", 38.765, -9.3, "Campo");
+        persistWithInfo("GPS Cacém B", "Cacém", "Padel", "Rua B", 38.775, -9.4, "Campo");
+        persistWithInfo("Without GPS", "Cacém", "Padel", "Rua C", null, null, "Campo");
+        persistWithInfo("GPS Agualva", "Agualva", "Padel", "Rua D", 40.0, -8.0, "Campo");
+        persistWithInfo("Invalid GPS", "Cacém", "Padel", "Rua E", 180.0, 0.0, "Campo");
+        entityManager.flush();
+        entityManager.clear();
+
+        Object[] origin = repository.nearbyCityReference("cacem").getFirst();
+        assertEquals(2L, ((Number) origin[2]).longValue());
+        assertEquals(38.77, ((Number) origin[0]).doubleValue(), 0.001);
+        assertEquals(-9.35, ((Number) origin[1]).doubleValue(), 0.001);
+        Object[] missing = repository.nearbyCityReference("localidade inexistente").getFirst();
+        assertEquals(0L, ((Number) missing[2]).longValue());
+    }
+
+
+    @Test
+    void adminGpsReviewPaginatesBySavedEvidenceWithoutDroppingSparseRecords() {
+        persistWithInfo("Z Sem Morada", "Sintra", "Padel", "", null, null, "Campo");
+        persistWithInfo("B Com Morada", "Sintra", "Padel", "Rua B", null, null, "Campo");
+        persistWithInfo("A Com Morada", "Sintra", "Padel", "Rua A", null, null, "Campo");
+        persistWithInfo("C Com GPS", "Sintra", "Padel", "Rua C", 38.7, -9.2, "Campo");
+        entityManager.flush();
+        entityManager.clear();
+        var first = repository.missingGpsReview("", PageRequest.of(0, 1));
+        var next = repository.missingGpsReview("", PageRequest.of(1, 1));
+        var last = repository.missingGpsReview("", PageRequest.of(2, 1));
+        assertEquals("A Com Morada", first.getContent().getFirst().getName());
+        assertEquals("B Com Morada", next.getContent().getFirst().getName());
+        assertEquals("Z Sem Morada", last.getContent().getFirst().getName());
+        assertTrue(first.hasNext());
+        assertTrue(next.hasNext());
+        assertFalse(last.hasNext());
+        assertEquals(3, java.util.stream.Stream.of(first, next, last)
+                .flatMap(p -> p.getContent().stream()).map(Venue::getId).distinct().count());
+        assertEquals(0, repository.missingGpsReview("Porto", PageRequest.of(0, 20)).getContent().size());
+    }
+
+    @Test
+    void uppercaseAccentInVenueNameAndCityIsFoundAndPagedDeterministically() {
+        persistWithInfo("Complexo Desportivo de Évora", "Évora", "Atletismo;Futebol",
+                "Estrada das Alcáçovas", null, null, "Complexo desportivo");
+        persistWithInfo("Piscinas Municipais de Évora", "Évora", "Natação",
+                "Avenida X", null, null, "Piscina");
+        persistWithInfo("Complexo Desportivo de Évora", "Vendas Novas", "Atletismo",
+                "Rua Y", null, null, "Complexo desportivo");
+        entityManager.flush();
+        entityManager.clear();
+
+        var exact = repository.suggest("complexo desportivo de evora", "evora",
+                "atletismo", "", PageRequest.of(0, 36));
+        assertEquals(1, exact.getContent().size());
+        assertEquals("Complexo Desportivo de Évora", exact.getContent().getFirst().getName());
+        assertEquals("Évora", exact.getContent().getFirst().getCity());
+
+        var first = repository.suggest("evora", "evora", "", "", PageRequest.of(0, 1));
+        var second = repository.suggest("evora", "evora", "", "", PageRequest.of(1, 1));
+        assertEquals(1, first.getContent().size());
+        assertEquals(1, second.getContent().size());
+        assertNotEquals(first.getContent().getFirst().getId(), second.getContent().getFirst().getId());
+        assertTrue(first.hasNext());
+        assertFalse(second.hasNext());
+    }
+
+    @Test
+    void uppercaseAccentsInSportAndExactNearbyLocalityAlsoWork() {
+        persistWithInfo("Piscina de Évora", "Évora", "NATAÇÃO",
+                "Estrada Z", 38.561, -7.920, "Piscina");
+        entityManager.flush();
+        entityManager.clear();
+
+        var swim = repository.suggest("", "evora", "natacao", "", PageRequest.of(0, 36));
+        assertEquals(1, swim.getContent().size());
+        assertEquals("Piscina de Évora", swim.getContent().getFirst().getName());
+
+        Object[] nearby = repository.nearbyCityReference("evora").getFirst();
+        assertEquals(1L, ((Number) nearby[2]).longValue());
+        assertEquals(38.561, ((Number) nearby[0]).doubleValue(), 0.000001);
+        assertEquals(-7.920, ((Number) nearby[1]).doubleValue(), 0.000001);
+    }
+
+    private void persistWithInfo(String name, String city, String sports, String address,
+                                 Double latitude, Double longitude, String type) {
+        entityManager.persist(Venue.builder().name(name).city(city).sports(sports)
+                .address(address).latitude(latitude).longitude(longitude).venueType(type)
+                .informationSource(Venue.InformationSource.COMMUNITY)
+                .createdAt(Instant.now()).build());
+    }
+
     private void persist(String name, String city, String sports) {
         entityManager.persist(Venue.builder()
                 .name(name).city(city).address("Rua A")

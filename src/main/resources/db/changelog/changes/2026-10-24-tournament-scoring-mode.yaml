@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-tournament-scoring-mode
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: scoring_mode
+                  type: VARCHAR(40)

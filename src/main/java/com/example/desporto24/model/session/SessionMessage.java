@@ -24,13 +24,40 @@ public class SessionMessage {
     @JoinColumn(name = "session_id", nullable = false)
     private Session session;
 
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "sender_profile_id", nullable = false)
+    /** Exactly one real author: registered profile OR verified guest booking. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_profile_id")
     private Profile senderProfile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_guest_request_id")
+    private SessionGuestRequest senderGuestRequest;
 
     @Column(nullable = false, length = 2000)
     private String body;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "edited_at")
+    private Instant editedAt;
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    // Immutable server-owned quote; parent must belong to this session.
+    @Column(name = "reply_to_message_id")
+    private Long replyToMessageId;
+    @Column(name = "reply_to_sender", length = 128)
+    private String replyToSender;
+    @Column(name = "reply_to_text", length = 2000)
+    private String replyToText;
+
+    @Column(name = "attachment_key", length = 240)
+    private String attachmentKey;
+    @Column(name = "attachment_name", length = 160)
+    private String attachmentName;
+    @Column(name = "attachment_mime_type", length = 60)
+    private String attachmentMimeType;
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
 }

@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-inline-speed-jury-evidence-v1
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_inline_speed_tiebreak
+            columns:
+              - column: {name: evidence_type, type: VARCHAR(32)}
+              - column: {name: evidence_reference, type: VARCHAR(500)}
+        - addColumn:
+            tableName: community_inline_speed_tiebreak_revision
+            columns:
+              - column: {name: evidence_type, type: VARCHAR(32)}
+              - column: {name: evidence_reference, type: VARCHAR(500)}

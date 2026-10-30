@@ -372,8 +372,9 @@ class SessionCreationServiceTest {
                 .thenReturn(Optional.of(creator));
         when(communityRepository.findById(12L))
                 .thenReturn(Optional.of(community));
-        when(communityMemberRepository.existsByCommunityIdAndProfileId(12L, 7L))
-                .thenReturn(true);
+        when(communityMemberRepository.findByCommunityIdAndProfileId(12L, 7L))
+                .thenReturn(Optional.of(com.example.desporto24.model.community.CommunityMember.builder()
+                        .role(com.example.desporto24.enumeration.CommunityRole.MEMBER).build()));
         when(sessionRepository.save(any(Session.class)))
                 .thenAnswer(invocation -> {
                     Session saved = invocation.getArgument(0);
@@ -463,8 +464,11 @@ class SessionCreationServiceTest {
                 profileRepository,
                 communityRepository,
                 communityMemberRepository,
+                mock(com.example.desporto24.repository.community.CommunitySeasonRepository.class),
+                mock(com.example.desporto24.repository.session.SessionCommunityShareRepository.class),
                 venueRepository,
                 participantRepository,
+                mock(com.example.desporto24.repository.session.SessionGuestRequestRepository.class),
                 exclusionRepository,
                 waitlistRepository,
                 sessionViewMapper,

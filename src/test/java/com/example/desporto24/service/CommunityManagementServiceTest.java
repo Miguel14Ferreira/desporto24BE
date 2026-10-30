@@ -39,6 +39,44 @@ import static org.mockito.Mockito.*;
 
 class CommunityManagementServiceTest {
     @Test
+    void ownersAndAdminsChooseWhoMayCreateCommunitySessions() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile owner = new Profile(); owner.setId(1L); owner.setUsername("owner");
+        Profile admin = new Profile(); admin.setId(2L); admin.setUsername("admin");
+        Profile player = new Profile(); player.setId(3L); player.setUsername("player");
+        Community group = Community.builder().id(7L).name("Futsal").owner(owner).build();
+        org.junit.jupiter.api.Assertions.assertTrue(group.isMembersCanCreateSessions());
+        when(communities.findById(7L)).thenReturn(Optional.of(group));
+        when(communities.save(group)).thenReturn(group);
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(profiles.findUserByUsernameIgnoreCase("admin")).thenReturn(Optional.of(admin));
+        when(profiles.findUserByUsernameIgnoreCase("player")).thenReturn(Optional.of(player));
+        when(members.findByCommunityIdAndProfileId(eq(7L), anyLong())).thenAnswer(inv -> {
+            long id = inv.getArgument(1);
+            Profile profile = id == 1L ? owner : id == 2L ? admin : player;
+            return Optional.of(CommunityMember.builder().community(group).profile(profile)
+                    .role(id == 1L ? CommunityRole.OWNER : id == 2L ? CommunityRole.ADMIN
+                            : CommunityRole.MEMBER).build());
+        });
+        when(members.findByCommunityIdOrderByJoinedAtAsc(7L)).thenReturn(List.of());
+        CommunityManagementService service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        var restricted = service.updateSessionCreationPolicy(7L, "owner", false);
+        assertEquals(false, restricted.membersCanCreateSessions());
+        assertEquals(false, group.isMembersCanCreateSessions());
+        assertThrows(SecurityException.class,
+                () -> service.updateSessionCreationPolicy(7L, "player", true));
+        assertEquals(false, group.isMembersCanCreateSessions());
+        var reopened = service.updateSessionCreationPolicy(7L, "admin", true);
+        assertEquals(true, reopened.membersCanCreateSessions());
+        verify(communities, times(2)).save(group);
+    }
+
+    @Test
     void ownerConfiguresOptionalModulesWithoutDeletingAnyCommunityHistory() {
         CommunityRepository communities = mock(CommunityRepository.class);
         CommunityMemberRepository members = mock(CommunityMemberRepository.class);
@@ -65,6 +103,146 @@ class CommunityManagementServiceTest {
         assertEquals(true, changed.individualTournamentsEnabled());
         assertEquals(false, changed.teamTournamentsEnabled());
         verify(communities).save(group);
+    }
+
+    @Test
+    void adminsCanSetAndClearHabitualVenueWithoutChangingPastSessions() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        com.example.desporto24.repository.venue.VenueRepository venues =
+                mock(com.example.desporto24.repository.venue.VenueRepository.class);
+        Profile owner = new Profile();
+        owner.setId(8L);
+        owner.setUsername("owner");
+        Community group = Community.builder().id(9L).owner(owner)
+                .name("Grupo").build();
+        var membership = CommunityMember.builder().community(group).profile(owner)
+                .role(CommunityRole.OWNER).build();
+        var venue = new com.example.desporto24.model.venue.Venue();
+        venue.setId(55L);
+        venue.setName("Pavilhão");
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(9L, 8L)).thenReturn(Optional.of(membership));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(9L)).thenReturn(List.of(membership));
+        when(venues.findById(55L)).thenReturn(Optional.of(venue));
+        when(communities.save(group)).thenReturn(group);
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "venueRepository", venues);
+
+        var updated = service.updateDefaultVenue(9L, "owner", 55L);
+        assertEquals(55L, updated.defaultVenueId());
+        assertEquals("Pavilhão", updated.defaultVenueName());
+        assertEquals(venue, group.getDefaultVenue());
+
+        var cleared = service.updateDefaultVenue(9L, "owner", null);
+        assertEquals(null, cleared.defaultVenueId());
+        assertEquals(null, group.getDefaultVenue());
+        verify(communities, times(2)).save(group);
+    }
+
+    @Test
+    void adminCanSaveMapsAndGpsPointsAndSwitchBackToExistingVenue() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        var venues = mock(com.example.desporto24.repository.venue.VenueRepository.class);
+        Profile owner = new Profile();
+        owner.setId(8L);
+        owner.setUsername("owner");
+        Community community = Community.builder().id(9L).owner(owner)
+                .name("Grupo").build();
+        CommunityMember membership = CommunityMember.builder().community(community)
+                .profile(owner).role(CommunityRole.OWNER).build();
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.findByCommunityIdAndProfileId(9L, 8L)).thenReturn(Optional.of(membership));
+        when(members.findByCommunityIdOrderByJoinedAtAsc(9L)).thenReturn(List.of(membership));
+        when(communities.save(community)).thenReturn(community);
+        var venue = new com.example.desporto24.model.venue.Venue();
+        venue.setId(55L);
+        venue.setName("Pavilhão");
+        when(venues.findById(55L)).thenReturn(Optional.of(venue));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        ReflectionTestUtils.setField(service, "venueRepository", venues);
+
+        var maps = service.updateHabitualLocation(9L, "owner",
+                "MAPS", 38.7, -9.2, "Lisboa", "Rua Teste");
+        assertEquals("MAPS", maps.habitualLocationSource());
+        assertEquals(38.7, maps.habitualLatitude());
+        assertEquals(-9.2, maps.habitualLongitude());
+        assertEquals(null, maps.defaultVenueId());
+
+        var gps = service.updateHabitualLocation(9L, "owner",
+                "GPS", 38.71, -9.21, null, null);
+        assertEquals("GPS", gps.habitualLocationSource());
+        assertEquals(null, gps.habitualAddress());
+        assertEquals(38.71, community.getHabitualLatitude());
+
+        var updated = service.updateDefaultVenue(9L, "owner", 55L);
+        assertEquals(55L, updated.defaultVenueId());
+        assertEquals(null, updated.habitualLocationSource());
+        assertEquals(null, community.getHabitualLatitude());
+        verify(communities, times(3)).save(community);
+    }
+
+    @Test
+    void rejectsInvalidHabitualCoordinatesAndUnauthorizedMembers() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        var owner = new Profile(); owner.setId(8L); owner.setUsername("owner");
+        var member = new Profile(); member.setId(10L); member.setUsername("member");
+        Community group = Community.builder().id(9L).owner(owner).build();
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(members.findByCommunityIdAndProfileId(9L, 8L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(owner)
+                        .role(CommunityRole.OWNER).build()));
+        when(members.findByCommunityIdAndProfileId(9L, 10L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(member)
+                        .role(CommunityRole.MEMBER).build()));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateHabitualLocation(9L, "owner", "MAPS",
+                        Double.NaN, -9.2, "Lisboa", "Rua"));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateHabitualLocation(9L, "owner", "MAPS",
+                        91.0, -9.2, "Lisboa", "Rua"));
+        assertThrows(IllegalArgumentException.class, () ->
+                service.updateHabitualLocation(9L, "owner", "OTHER",
+                        38.7, -9.2, "Lisboa", "Rua"));
+        assertThrows(SecurityException.class, () ->
+                service.updateHabitualLocation(9L, "member", "GPS",
+                        38.7, -9.2, "Lisboa", "Rua"));
+        verify(communities, never()).save(any());
+    }
+
+    @Test
+    void aRegularMemberCannotChangeHabitualVenue() {
+        CommunityRepository communities = mock(CommunityRepository.class);
+        CommunityMemberRepository members = mock(CommunityMemberRepository.class);
+        ProfileRepository profiles = mock(ProfileRepository.class);
+        Profile member = new Profile();
+        member.setId(10L);
+        member.setUsername("member");
+        Community group = Community.builder().id(9L).owner(member).build();
+        when(profiles.findUserByUsernameIgnoreCase("member")).thenReturn(Optional.of(member));
+        when(members.findByCommunityIdAndProfileId(9L, 10L)).thenReturn(Optional.of(
+                CommunityMember.builder().community(group).profile(member)
+                        .role(CommunityRole.MEMBER).build()));
+        var service = new CommunityManagementService(communities, members,
+                mock(CommunityInviteRepository.class), mock(CommunityJoinRequestRepository.class),
+                profiles, mock(NotificationsRepository.class), mock(ApplicationEventPublisher.class));
+        assertThrows(SecurityException.class, () ->
+                service.updateDefaultVenue(9L, "member", 55L));
+        verify(communities, never()).save(any());
     }
 
     @Test
@@ -113,7 +291,7 @@ class CommunityManagementServiceTest {
                 .thenReturn(List.of(membership));
         when(communities.findById(10L)).thenReturn(Optional.of(community));
         when(communities.save(community)).thenReturn(community);
-        when(storage.store(anyString(), same(upload))).thenReturn(
+        when(storage.storeCommunityPhoto(anyString(), same(upload))).thenReturn(
                 URI.create("https://cdn.example.test/communities/10/new-photo"));
         CommunityManagementService service = new CommunityManagementService(
                 communities, members, mock(CommunityInviteRepository.class),
@@ -151,7 +329,7 @@ class CommunityManagementServiceTest {
                 .thenReturn(List.of(membership));
         when(communities.findById(10L)).thenReturn(Optional.of(community));
         when(communities.save(community)).thenReturn(community);
-        when(storage.store(anyString(), same(upload))).thenReturn(
+        when(storage.storeCommunityPhoto(anyString(), same(upload))).thenReturn(
                 URI.create("https://cdn.example.test/communities/10/first-photo"));
         CommunityManagementService service = new CommunityManagementService(
                 communities, members, mock(CommunityInviteRepository.class),

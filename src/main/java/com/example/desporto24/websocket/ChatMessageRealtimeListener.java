@@ -13,9 +13,19 @@ public class ChatMessageRealtimeListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onChatMessageCreated(ChatMessageCreatedEvent event) {
-        chatRealtimeGateway.publishChatMessage(
-                event.message().getUsername2(),
-                event.message()
-        );
+        if (event == null || event.message() == null) return;
+        var message = event.message();
+        String sender = message.getUsername1();
+        String recipient = message.getUsername2();
+        // Message state is committed before delivery. The original sender's
+        // other authenticated sockets must receive the same server-owned ID,
+        // so their thread updates without polling or inventing a new message.
+        if (recipient != null && !recipient.isBlank()) {
+            chatRealtimeGateway.publishChatMessage(recipient, message);
+        }
+        if (sender != null && !sender.isBlank()
+                && !sender.equalsIgnoreCase(recipient)) {
+            chatRealtimeGateway.publishChatMessage(sender, message);
+        }
     }
 }

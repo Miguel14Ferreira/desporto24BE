@@ -1,5 +1,10 @@
 package com.example.desporto24.register.Notifications;
 import com.example.desporto24.enumeration.NotificationType;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import java.io.IOException;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,8 +22,19 @@ public class Notifications {
     private Long id;
     @Column(nullable = false)
     private String subject;
+    // Historical chat notifications may still contain the internal GIPHY envelope.
+    // Only sanitize API JSON output; do not rewrite the JPA field or chat history.
+    @JsonSerialize(using = SafeNotificationMessageSerializer.class)
     @Column(nullable = false,columnDefinition = "text")
     private String message;
+
+    public static final class SafeNotificationMessageSerializer extends JsonSerializer<String> {
+        @Override
+        public void serialize(String value, JsonGenerator generator,
+                              SerializerProvider provider) throws IOException {
+            generator.writeString(value.startsWith("[JYNLO:GIPHY:1]") ? "🎞️ GIF" : value);
+        }
+    }
     @Column(nullable = false)
     private String greeting;
     @Column(nullable = false)
@@ -40,6 +56,12 @@ public class Notifications {
 
     @Column(name = "community_id")
     private Long communityId;
+
+    @Column(name = "venue_id")
+    private Long venueId;
+
+    @Column(name = "venue_edit_suggestion_id")
+    private Long venueEditSuggestionId;
 
     @Column(name = "related_username")
     private String relatedUsername;

@@ -104,6 +104,15 @@ class SessionInviteServiceTest {
         assertEquals("jogador", notice.getValue().getUsername());
     }
 
+    private void arrangeSuccessfulInvite() {
+        when(profiles.findUserByUsernameIgnoreCase("jogador")).thenReturn(Optional.of(recipient));
+        when(invites.save(any(SessionInvite.class))).thenAnswer(call -> {
+            SessionInvite value = call.getArgument(0);
+            value.setId(99L);
+            return value;
+        });
+    }
+
     @Test
     void rejectsNonOrganizer() {
         prepare();
@@ -131,11 +140,11 @@ class SessionInviteServiceTest {
     }
 
     @Test
-    void rejectsPrivateSession() {
+    void permitsPrivateSessionForOrganiser() {
         prepare();
         session.setPrivateGame(true);
-        assertFailure(HttpStatus.CONFLICT, "jogador");
-        verifyNoInteractions(invites);
+        arrangeSuccessfulInvite();
+        assertEquals(99L, service.invite(1L, "organizador", "jogador"));
     }
 
     @Test
@@ -147,11 +156,11 @@ class SessionInviteServiceTest {
     }
 
     @Test
-    void rejectsCommunityOnlySession() {
+    void permitsCommunityOnlySessionForOrganiser() {
         prepare();
         session.setAudience(SessionAudience.COMMUNITY_ONLY);
-        assertFailure(HttpStatus.CONFLICT, "jogador");
-        verifyNoInteractions(invites);
+        arrangeSuccessfulInvite();
+        assertEquals(99L, service.invite(1L, "organizador", "jogador"));
     }
 
     @Test
@@ -213,7 +222,7 @@ class SessionInviteServiceTest {
     void acceptsUsingExistingJoinService() {
         SessionInvite invite = pending();
         JoinSessionResponse joined = new JoinSessionResponse(JoinState.PARTICIPANT, null);
-        when(sessionService.join(eq(1L), any(), eq("jogador"))).thenReturn(joined);
+        when(sessionService.joinWithInvitation(1L, 55L, "jogador")).thenReturn(joined);
         assertSame(joined, service.accept(1L, 55L, "jogador"));
         assertEquals(SessionInviteStatus.ACCEPTED, invite.getStatus());
         assertNotNull(invite.getRespondedAt());
@@ -252,7 +261,7 @@ class SessionInviteServiceTest {
     @Test
     void failedJoinDoesNotMarkInvitationAccepted() {
         SessionInvite invite = pending();
-        when(sessionService.join(eq(1L), any(), eq("jogador")))
+        when(sessionService.joinWithInvitation(1L, 55L, "jogador"))
                 .thenThrow(new IllegalStateException("Session already started"));
         assertThrows(IllegalStateException.class, () -> service.accept(1L, 55L, "jogador"));
         assertEquals(SessionInviteStatus.PENDING, invite.getStatus());
@@ -274,7 +283,37 @@ class SessionInviteServiceTest {
         assertEquals(55L, result.get(0).id());
         assertEquals(1L, result.get(0).sessionId());
         assertEquals("organizador", result.get(0).inviterUsername());
+        assertEquals(0, result.get(0).participantCount());
+        assertEquals(SessionStatus.OPEN, result.get(0).status());
+        assertNull(result.get(0).city());
+        verify(participants).countBySessionIdAndState(1L,ParticipantState.ACTIVE);
         verify(invites).findByInviteeIdAndStatusOrderByCreatedAtDesc(20L, SessionInviteStatus.PENDING);
+    }
+
+
+    @Test
+    void pendingInboxShowsGameMetadataWithoutPrivateAddressOrPlayerNames() {
+        when(profiles.findUserByUsername("jogador")).thenReturn(Optional.of(recipient));
+        SessionInvite invite=new SessionInvite();
+        invite.setId(15L);
+        invite.setInviter(owner);
+        invite.setSession(session);
+        invite.setCreatedAt(Instant.parse("2026-10-27T18:00:00Z"));
+        session.setCity("Lisboa");
+        session.setAddress("Rua Privada 123");
+        session.setSport("Futebol");
+        session.setMaxParticipants(10);
+        session.setExternalConfirmedParticipants(2);
+        when(participants.countBySessionIdAndState(1L,ParticipantState.ACTIVE)).thenReturn(5L);
+        when(invites.findByInviteeIdAndStatusOrderByCreatedAtDesc(
+                20L,SessionInviteStatus.PENDING)).thenReturn(java.util.List.of(invite));
+        var pending=service.pendingFor("jogador");
+        assertEquals(7,pending.getFirst().participantCount());
+        assertEquals(10,pending.getFirst().maxParticipants());
+        assertEquals("Futebol",pending.getFirst().sport());
+        assertEquals("Lisboa",pending.getFirst().city());
+        assertNotNull(pending.getFirst().gameDate());
+        assertEquals("organizador",pending.getFirst().inviterUsername());
     }
 
 }

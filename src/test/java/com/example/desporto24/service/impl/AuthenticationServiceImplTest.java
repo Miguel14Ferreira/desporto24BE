@@ -18,6 +18,8 @@ import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
+import com.example.desporto24.security.DistributedAuthRateLimiter;
+import java.time.Duration;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.service.LoginAttemptService;
 import com.example.desporto24.service.PilotEventService;
@@ -28,6 +30,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -94,7 +98,7 @@ class AuthenticationServiceImplTest {
         verify(confirmationTokenService).saveConfirmationToken(token.capture());
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"),
-                eq("Recupera a tua palavra-passe | Reset your password — Desporto24"), html.capture());
+                eq("Recupera a tua palavra-passe | Reset your password — Jynlo"), html.capture());
         assertEquals("<fixture-user>", token.getValue().getProfile());
         assertTrue(html.getValue().contains("https://example.test/login/resetPassword/" + token.getValue().getToken()));
         assertTrue(html.getValue().contains("Definir palavra-passe / Reset password"));
@@ -213,6 +217,175 @@ class AuthenticationServiceImplTest {
                 .handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
     }
 
+
+    @Test
+    void passwordLoginAcceptsCaseInsensitiveEmailAndUsesCanonicalUsernameForRateLimits() {
+        Profile profile = activeProfile(false);
+        profile.setEmail("fixture@example.test");
+        ProfileDTO input = credentials();
+        input.setUsername("FiXtUrE@ExAmPlE.TeSt");
+        when(profileRepository.findTop2ByEmailIgnoreCase("FiXtUrE@ExAmPlE.TeSt"))
+                .thenReturn(java.util.List.of(profile));
+        when(profileRepository.save(profile)).thenReturn(profile);
+        when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("token-email");
+        when(profileMapper.toDto(profile)).thenReturn(safeProfile());
+
+        LoginResponse result = service().login(input);
+
+        assertEquals("token-email", result.token());
+        verify(loginAttemptService).requireAttemptAllowed("FiXtUrE@ExAmPlE.TeSt");
+        verify(loginAttemptService).handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+        verify(profileRepository, never()).findAll(any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    void phoneLoginAcceptsNationalAndInternationalFormattingOfEncryptedNumber() {
+        for (String phone : new String[]{"912345678", "912 345 678", "+351 912 345 678",
+                "00351 912 345 678"}) {
+            reset(profileRepository, jwtTokenProvider, profileMapper, loginAttemptService);
+            Profile profile = activeProfile(false);
+            ProfileDTO input = credentials();
+            input.setUsername(phone);
+            when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(profile)));
+            when(profileRepository.save(profile)).thenReturn(profile);
+            when(jwtTokenProvider.generateJwtToken(any(ProfilePrincipal.class))).thenReturn("token-phone");
+            when(profileMapper.toDto(profile)).thenReturn(safeProfile());
+
+            LoginResponse result = service().login(input);
+
+            assertEquals("token-phone", result.token(), phone);
+            verify(loginAttemptService).requireAttemptAllowed(phone);
+            verify(loginAttemptService).handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+        }
+    }
+
+    @Test
+    void ambiguousPhoneAcrossCountryCodesCannotSelectAnAccount() {
+        Profile portugal = activeProfile(false);
+        portugal.setId(1L);
+        Profile abroad = activeProfile(false);
+        abroad.setId(2L);
+        abroad.setUsername("different-user");
+        abroad.setIndicativePhone("44");
+        ProfileDTO input = credentials();
+        input.setUsername("912345678");
+        when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        java.util.List.of(portugal, abroad)));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
+    }
+
+    @Test
+    void phoneLikeUsernameCannotSilentlyAuthenticateAnotherAccountsPhone() {
+        Profile usernameOwner = activeProfile(false);
+        usernameOwner.setId(1L);
+        usernameOwner.setUsername("912345678");
+        usernameOwner.setPhone(null);
+        Profile phoneOwner = activeProfile(false);
+        phoneOwner.setId(2L);
+        ProfileDTO input = credentials();
+        input.setUsername("912345678");
+        when(profileRepository.findUserByUsernameIgnoreCase("912345678"))
+                .thenReturn(Optional.of(usernameOwner));
+        when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        java.util.List.of(phoneOwner)));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
+    }
+
+    @Test
+    void emailLikeUsernameCollisionFailsClosedWithoutIssuingJwt() {
+        Profile usernameOwner = activeProfile(false);
+        usernameOwner.setId(1L);
+        Profile emailOwner = activeProfile(false);
+        emailOwner.setId(2L);
+        ProfileDTO input = credentials();
+        input.setUsername("someone@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase("someone@example.test"))
+                .thenReturn(Optional.of(usernameOwner));
+        when(profileRepository.findTop2ByEmailIgnoreCase("someone@example.test"))
+                .thenReturn(java.util.List.of(emailOwner));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void legacyCaseFoldedDuplicateEmailNeverAuthenticatesArbitrarily() {
+        Profile first = activeProfile(false);
+        first.setId(1L);
+        Profile second = activeProfile(false);
+        second.setId(2L);
+        second.setUsername("second-account");
+        ProfileDTO input = credentials();
+        input.setUsername("fixture@example.test");
+        when(profileRepository.findTop2ByEmailIgnoreCase("fixture@example.test"))
+                .thenReturn(java.util.List.of(first, second));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+
+        verifyNoInteractions(jwtTokenProvider);
+        verify(loginAttemptService, never()).handleLoginAttempt(anyString(), anyString(), any());
+    }
+
+    @Test
+    void unknownEmailAndUnknownPhoneCountAgainstLoginAttemptLimiter() {
+        for (String unknown : new String[]{"nobody@example.test", "+447700900999"}) {
+            reset(profileRepository, loginAttemptService);
+            ProfileDTO input = credentials();
+            input.setUsername(unknown);
+            if (unknown.startsWith("+")) {
+                when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                        .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of()));
+            }
+            assertThrows(BadCredentialsException.class, () -> service().login(input));
+            verify(loginAttemptService).requireAttemptAllowed(unknown);
+            verify(loginAttemptService).recordMissingAccountAttempt(unknown);
+            verifyNoInteractions(jwtTokenProvider);
+        }
+    }
+
+    @Test
+    void emailLoginPreservesExistingMfaChallengeWithoutIssuingJwt() {
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        ProfileDTO input = credentials();
+        input.setUsername("fixture@example.test");
+        when(profileRepository.findTop2ByEmailIgnoreCase("fixture@example.test"))
+                .thenReturn(java.util.List.of(profile));
+
+        LoginResponse result = service().login(input);
+
+        assertTrue(result.mfaRequired());
+        assertNull(result.token());
+        verify(mfaVerificationService).saveConfirmationMFA(any(MFAVerification.class));
+        verify(loginAttemptService).handleLoginAttempt(TEST_USERNAME, TEST_PASSWORD, profile);
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void incorrectCountryCodeCannotMatchUnrelatedEncryptedPhone() {
+        ProfileDTO input = credentials();
+        input.setUsername("+44912345678");
+        when(profileRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(
+                        java.util.List.of(activeProfile(false))));
+
+        assertThrows(BadCredentialsException.class, () -> service().login(input));
+        verify(loginAttemptService).recordMissingAccountAttempt("+44912345678");
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
     @Test
     void registrationInitializesSecureAccountDefaults() {
         RegistrationRequest request = new RegistrationRequest(
@@ -265,7 +438,7 @@ class AuthenticationServiceImplTest {
         ));
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"),
-                eq("Confirma o teu email | Confirm your email — Desporto24"), html.capture());
+                eq("Confirma o teu email | Confirm your email — Jynlo"), html.capture());
         assertTrue(html.getValue().contains("Confirmar email / Confirm email"));
         assertTrue(html.getValue().contains("15 minutos"));
         assertTrue(html.getValue().contains("15 minutes"));
@@ -441,6 +614,38 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void passwordLoginWithEnabledMfaButMissingSecretFailsClosed() {
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(null);
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+
+        ResponseStatusException denied = assertThrows(ResponseStatusException.class,
+                () -> service().login(credentials()));
+
+        assertEquals(HttpStatus.FORBIDDEN, denied.getStatusCode());
+        assertTrue(profile.getMFA(), "A missing secret must NEVER disable MFA");
+        verify(profileRepository, never()).save(any(Profile.class));
+        verifyNoInteractions(jwtTokenProvider, mfaVerificationService);
+    }
+
+    @Test
+    void passwordLoginWithEnabledMfaButBlankSecretFailsClosed() {
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret("   ");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+
+        ResponseStatusException denied = assertThrows(ResponseStatusException.class,
+                () -> service().login(credentials()));
+
+        assertEquals(HttpStatus.FORBIDDEN, denied.getStatusCode());
+        assertTrue(profile.getMFA());
+        verify(profileRepository, never()).save(any(Profile.class));
+        verifyNoInteractions(jwtTokenProvider, mfaVerificationService);
+    }
+
+    @Test
     void mfaEnabledLoginDoesNotGenerateJwtUntilChallengeIsConfirmed() {
         Profile profile = activeProfile(true);
         // Configured MFA uses an authenticator secret, not an SMS challenge.
@@ -481,6 +686,149 @@ class AuthenticationServiceImplTest {
         verify(totpService).verify(totpSecret, "wrong");
         verifyNoInteractions(jwtTokenProvider);
         verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void distributedMfaLimitBlocksBeforeEvenCheckingAuthenticatorCode() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(challenge));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        DistributedAuthRateLimiter shared = mock(DistributedAuthRateLimiter.class);
+        doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS))
+                .when(shared).reserveAttempt("mfa-confirm", TEST_USERNAME, 5, Duration.ofMinutes(15));
+        AuthenticationServiceImpl instance = service();
+        ReflectionTestUtils.setField(instance, "distributedAttempts", shared);
+
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "123456")));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verifyNoInteractions(totpService, jwtTokenProvider);
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void mfaChallengeRejectsSixthGuessWithoutCallingTotp() {
+        MFAVerification challenge = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        String secret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(secret, profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(challenge));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(totpService.verify(secret, "wrong")).thenReturn(false);
+
+        AuthenticationServiceImpl instance = service();
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong")));
+        }
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong")));
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verify(totpService, times(5)).verify(secret, "wrong");
+        verifyNoInteractions(jwtTokenProvider);
+    }
+
+    @Test
+    void newMfaChallengeCannotBypassTheSameAccountsFiveGuessBudget() {
+        MFAVerification first = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        MFAVerification second = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        second.setChallengeId("another-challenge");
+        Profile profile = activeProfile(true);
+        String secret = "JBSWY3DPEHPK3PXP";
+        profile.setMfaSecret(AES.encryptString(secret, profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(first));
+        when(mfaVerificationService.getByChallengeId("another-challenge"))
+                .thenReturn(Optional.of(second));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(totpService.verify(secret, "wrong")).thenReturn(false);
+
+        AuthenticationServiceImpl instance = service();
+        for (int i = 0; i < 3; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> instance.confirmMfa(new MfaConfirmRequest(TEST_CHALLENGE_ID, "wrong")));
+        }
+        for (int i = 0; i < 2; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> instance.confirmMfa(new MfaConfirmRequest("another-challenge", "wrong")));
+        }
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.confirmMfa(new MfaConfirmRequest("another-challenge", "wrong")));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verify(totpService, times(5)).verify(secret, "wrong");
+        verifyNoInteractions(jwtTokenProvider);
+        verify(mfaVerificationService, never()).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void resendingMfaChallengeConsumesOldChallengeAndCreatesNewOne() {
+        MFAVerification first = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(first));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
+                .thenReturn(true);
+
+        LoginResponse rotated = service().resendMfa(TEST_CHALLENGE_ID);
+
+        assertTrue(rotated.mfaRequired());
+        assertNotNull(rotated.challengeId());
+        assertNotEquals(TEST_CHALLENGE_ID, rotated.challengeId());
+        assertNull(rotated.token());
+        verify(mfaVerificationService).confirmIfPending(eq(TEST_CHALLENGE_ID), any());
+        verify(mfaVerificationService).saveConfirmationMFA(argThat(challenge ->
+                rotated.challengeId().equals(challenge.getChallengeId())));
+    }
+
+    @Test
+    void differentResendChallengeIdDoesNotResetAccountCooldown() {
+        MFAVerification first = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        MFAVerification second = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        second.setChallengeId("another-challenge");
+        Profile profile = activeProfile(true);
+        profile.setMfaSecret(AES.encryptString("JBSWY3DPEHPK3PXP", profile.getUserId()));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(first));
+        when(mfaVerificationService.getByChallengeId("another-challenge"))
+                .thenReturn(Optional.of(second));
+        when(profileRepository.findUserByUsername(TEST_USERNAME))
+                .thenReturn(Optional.of(profile));
+        when(mfaVerificationService.confirmIfPending(eq(TEST_CHALLENGE_ID), any()))
+                .thenReturn(true);
+        AuthenticationServiceImpl instance = service();
+
+        instance.resendMfa(TEST_CHALLENGE_ID);
+        ResponseStatusException blocked = assertThrows(ResponseStatusException.class,
+                () -> instance.resendMfa("another-challenge"));
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, blocked.getStatusCode());
+        verify(mfaVerificationService, times(1)).saveConfirmationMFA(any(MFAVerification.class));
+        verify(mfaVerificationService, times(1)).confirmIfPending(anyString(), any());
+    }
+
+    @Test
+    void alreadyConfirmedMfaChallengeCannotBeResent() {
+        MFAVerification used = challenge(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
+        used.setConfirmedAt(LocalDateTime.now(ZoneOffset.UTC));
+        when(mfaVerificationService.getByChallengeId(TEST_CHALLENGE_ID))
+                .thenReturn(Optional.of(used));
+
+        assertThrows(SMSAlreadyConfirmedException.class, () -> service().resendMfa(TEST_CHALLENGE_ID));
+
+        verifyNoInteractions(profileRepository);
+        verify(mfaVerificationService, never()).saveConfirmationMFA(any(MFAVerification.class));
     }
 
     @Test

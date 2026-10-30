@@ -1,6 +1,8 @@
 package com.example.desporto24.service.impl;
 
 import com.example.desporto24.exception.*;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.example.desporto24.enumeration.Role;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.Status;
@@ -17,6 +19,8 @@ import com.example.desporto24.register.token.ConfirmationTokenService;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.security.TotpService;
+import com.example.desporto24.security.DistributedAuthRateLimiter;
+import java.time.Duration;
 import com.example.desporto24.mapper.ProfileMapper;
 import com.example.desporto24.service.EmailService;
 import com.example.desporto24.email.TransactionalEmailTemplate;
@@ -33,6 +37,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -48,6 +54,7 @@ import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.security.SecureRandom;
 
 import static com.example.desporto24.constant.FileConstant.*;
@@ -71,6 +78,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private static final int USER_ID_LENGTH = 10;
     private static final String TERMS_VERSION = "2026-10-01";
     private static final String PRIVACY_VERSION = "2026-10-01";
+    // This is per-instance protection. Edge/distributed throttling remains a separate task.
+    private final Cache<String, Integer> mfaAttempts = CacheBuilder.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(10_000)
+            .build();
+    // A new MFA challenge must not reset the account's guess budget.
+    // This prevents repeated /mfa/resend or fresh login challenges from
+    // multiplying TOTP attempts. A shared edge limiter is still needed for
+    // deployments with more than one API instance.
+    private final Cache<String, Integer> mfaAccountAttempts = CacheBuilder.newBuilder()
+            .expireAfterWrite(15, TimeUnit.MINUTES)
+            .maximumSize(10_000)
+            .build();
+    private final Cache<String, Boolean> mfaResendCooldown = CacheBuilder.newBuilder()
+            .expireAfterWrite(60, TimeUnit.SECONDS)
+            .maximumSize(10_000)
+            .build();
 
     private final LoginAttemptService loginAttemptService;
     private final ProfileService profileService;
@@ -95,6 +119,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Autowired(required = false)
     private MediaStorage mediaStorage;
 
+    @Autowired(required = false)
+    private DistributedAuthRateLimiter distributedAttempts;
+
     @Override
     public LoginResponse login(ProfileDTO credentials) {
         String suppliedUsername = credentials.getUsername() == null
@@ -103,7 +130,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         // Throttle before looking up a user: unknown usernames must not bypass
         // failed-login limits or reveal whether an account exists.
         loginAttemptService.requireAttemptAllowed(suppliedUsername);
-        Profile profile = profileRepository.findUserByUsernameIgnoreCase(suppliedUsername)
+        Profile profile = resolvePasswordLoginIdentity(suppliedUsername)
                 .orElseThrow(() -> {
                     loginAttemptService.recordMissingAccountAttempt(suppliedUsername);
                     return new BadCredentialsException(INCORRECT_CREDENTIALS);
@@ -112,10 +139,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         validateProfileStatus(profile);
         loginAttemptService.handleLoginAttempt(profile.getUsername(), credentials.getPassword(), profile);
 
+        // An inconsistent MFA configuration must not silently downgrade the
+        // account to password-only login. Recovery must be an explicit,
+        // separately authorized operation.
         if (Boolean.TRUE.equals(profile.getMFA())
                 && (profile.getMfaSecret() == null || profile.getMfaSecret().isBlank())) {
-            profile.setMFA(false);
-            profileRepository.save(profile);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "A configuração MFA desta conta necessita de recuperação.");
         }
 
         if (Boolean.TRUE.equals(profile.getMFA())
@@ -132,6 +162,115 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         return completedLogin(profile);
+    }
+
+    /**
+     * Resolve only an unambiguous account. The existing login body continues
+     * using "username" for backwards compatibility; it can now contain a
+     * username, email or phone. Password/MFA/JWT checks use the canonical
+     * Profile.username exactly as before.
+     *
+     * Phone numbers are encrypted with a per-profile AES key and cannot be
+     * queried by plaintext. Use paginated reads only for phone-shaped inputs,
+     * and fail closed on shared national numbers or identifier collisions.
+     * A keyed, indexed lookup is preferable if this account base grows large.
+     */
+    private Optional<Profile> resolvePasswordLoginIdentity(String identifier) {
+        Optional<Profile> byUsername = profileRepository.findUserByUsernameIgnoreCase(identifier);
+
+        if (identifier.indexOf('@') >= 0) {
+            // Legacy databases might hold emails differing only by case.
+            // Never pick an arbitrary account, and never leak that ambiguity.
+            java.util.List<Profile> emailMatches = profileRepository.findTop2ByEmailIgnoreCase(identifier);
+            if (emailMatches.size() > 1) {
+                throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+            }
+            return uniqueIdentity(byUsername,
+                    emailMatches.stream().findFirst());
+        }
+
+        String phone = canonicalInputPhone(identifier);
+        if (phone == null) return byUsername;
+
+        Profile match = byUsername.orElse(null);
+        boolean hasPhoneMatch = false;
+        boolean ambiguous = false;
+        int pageNumber = 0;
+        org.springframework.data.domain.Page<Profile> page;
+        do {
+            page = profileRepository.findAll(
+                    org.springframework.data.domain.PageRequest.of(pageNumber++, 200));
+            for (Profile candidate : page.getContent()) {
+                if (!matchesStoredPhone(candidate, phone)) continue;
+                if (hasPhoneMatch && !sameIdentity(match, candidate)) {
+                    ambiguous = true;
+                    break;
+                }
+                if (match != null && !sameIdentity(match, candidate)) {
+                    ambiguous = true;
+                    break;
+                }
+                match = candidate;
+                hasPhoneMatch = true;
+            }
+            if (ambiguous) break;
+        } while (page.hasNext());
+
+        // A numeric username is still supported. But an identifier pointing
+        // at a different phone owner must not silently select either account.
+        if (ambiguous) throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        return Optional.ofNullable(match);
+    }
+
+    private Optional<Profile> uniqueIdentity(Optional<Profile> first, Optional<Profile> second) {
+        if (first.isPresent() && second.isPresent()
+                && !sameIdentity(first.get(), second.get())) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+        return first.isPresent() ? first : second;
+    }
+
+    private boolean sameIdentity(Profile one, Profile two) {
+        return one == two
+                || (one != null && two != null && one.getId() != null
+                        && one.getId().equals(two.getId()));
+    }
+
+    /** Canonical phone: national digits or +country-code-and-digits. */
+    private String canonicalInputPhone(String input) {
+        if (input == null || input.length() > 40
+                || !input.matches("[+0-9() .-]+")) {
+            return null;
+        }
+        String compact = input.replaceAll("[() .-]", "");
+        if (compact.startsWith("00")) compact = "+" + compact.substring(2);
+        if (!compact.matches("\\+?[0-9]{7,15}")) return null;
+        return compact;
+    }
+
+    private boolean matchesStoredPhone(Profile profile, String canonicalInput) {
+        if (profile.getPhone() == null || profile.getPhone().isBlank()
+                || profile.getUserId() == null || profile.getUserId().isBlank()) return false;
+        final String stored;
+        try {
+            stored = decryptString(profile.getPhone(), profile.getUserId());
+        } catch (RuntimeException invalidLegacyValue) {
+            // Historical or damaged ciphertext is never interpreted as an ID.
+            return false;
+        }
+        if (stored == null) return false;
+        String local = stored.replaceAll("[() +.-]", "");
+        if (!local.matches("[0-9]{4,15}")) return false;
+
+        String prefix = profile.getIndicativePhone() == null
+                ? "" : profile.getIndicativePhone().replaceAll("[() +.-]", "");
+        if (prefix.startsWith("00")) prefix = prefix.substring(2);
+        if (!prefix.isEmpty() && !prefix.matches("[0-9]{1,4}")) return false;
+
+        String international = prefix.isBlank() ? local : prefix + local;
+        return canonicalInput.startsWith("+")
+                ? !prefix.isBlank() && canonicalInput.substring(1).equals(international)
+                : canonicalInput.equals(local) || canonicalInput.equals(international);
     }
 
     @Override
@@ -165,13 +304,36 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
+    @Transactional
     public LoginResponse resendMfa(String challengeId) {
         MFAVerification previousChallenge = mfaVerificationService.getByChallengeId(challengeId)
                 .orElseThrow(() -> new SMSNotFoundException(SMS_FAIL));
+        validateMfaCodeExpiryAndConfirmation(previousChallenge);
 
         Profile profile = profileRepository.findUserByUsername(previousChallenge.getPerfil())
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
         validateProfileStatus(profile);
+        if (!Boolean.TRUE.equals(profile.getMFA())
+                || profile.getMfaSecret() == null || profile.getMfaSecret().isBlank()) {
+            throw new BadCredentialsException(SMS_FAIL);
+        }
+
+        String account = profile.getUsername().trim().toLowerCase(Locale.ROOT);
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("mfa-resend", account, 1, Duration.ofSeconds(60));
+        }
+        // Reserving per account prevents chaining fresh challenge IDs to
+        // bypass the old per-challenge endpoint cooldown.
+        if (mfaResendCooldown.asMap().putIfAbsent(account, Boolean.TRUE) != null) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Tenta novamente dentro de 60 segundos.");
+        }
+        // Single-use rotation: both concurrent resend requests cannot mint
+        // a usable challenge from the same predecessor.
+        if (!mfaVerificationService.confirmIfPending(
+                previousChallenge.getChallengeId(), LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
+        }
 
         MFAVerification challenge = createMfaChallenge(profile);
         return new LoginResponse(
@@ -198,6 +360,24 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new BadCredentialsException(SMS_FAIL);
         }
 
+        // Reserve a try atomically BEFORE checking the TOTP. Concurrent requests
+        // cannot bypass the five-attempt limit for the same MFA challenge.
+        int attemptNumber = mfaAttempts.asMap().merge(
+                challenge.getChallengeId(), 1, (previous, increment) -> Math.min(6, previous + increment));
+        if (attemptNumber > 5) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Demasiadas tentativas de confirmação. Inicia sessão novamente.");
+        }
+        String account = profile.getUsername().trim().toLowerCase(Locale.ROOT);
+        if (distributedAttempts != null) {
+            distributedAttempts.reserveAttempt("mfa-confirm", account, 5, Duration.ofMinutes(15));
+        }
+        int accountAttempt = mfaAccountAttempts.asMap().merge(
+                account, 1, (previous, increment) -> Math.min(6, previous + increment));
+        if (accountAttempt > 5) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Demasiadas tentativas MFA. Tenta novamente mais tarde.");
+        }
         String secret = decryptString(profile.getMfaSecret(), profile.getUserId());
         String normalizedCode = request.code().trim();
         if (!totpService.verify(secret, normalizedCode)) {
@@ -207,6 +387,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         LocalDateTime confirmedAt = LocalDateTime.now(ZoneOffset.UTC);
         if (!mfaVerificationService.confirmIfPending(challenge.getChallengeId(), confirmedAt)) {
             throw new SMSAlreadyConfirmedException(SMS_ALREADY_CONFIRMED);
+        }
+        mfaAttempts.invalidate(challenge.getChallengeId());
+        mfaAccountAttempts.invalidate(account);
+        mfaResendCooldown.invalidate(account);
+        if (distributedAttempts != null) {
+            distributedAttempts.clearAfterSuccess("mfa-confirm", account);
+            distributedAttempts.clearAfterSuccess("mfa-resend", account);
         }
 
         return completedLogin(profile);
@@ -366,7 +553,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                             ? "&returnCommunityId=" + returnCommunityId
                             : "");
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Desporto24",
+        emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Jynlo",
                 buildRegistrationEmail(profileDTO.getUsername(), link));
 
         createWelcomeNotification(profileDTO, token);
@@ -406,7 +593,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String subject = "Bem-vindo ao nosso site, " + profileDTO.getUsername() + "!";
         String message = "Aqui podes explorar todas as sessões desportivas que estão a decorrer neste momento. Para mais detalhes, basta clicar em qualquer uma delas. Além disso, tens a opção de atualizar o teu perfil ou criar a tua própria sessão desportiva.";
         String greeting = "Bons jogos,";
-        String signature = "DESPORTO24";
+        String signature = "JYNLO";
 
         Notifications notification = new Notifications(
                 subject, message, greeting, signature, formattedDate, false, false, false, true, token, profileDTO.getUsername()
@@ -445,7 +632,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String link = uiAppUrl.replaceAll("/+$", "")
                 + "/login/resetPassword/" + token;
         log.info("Password reset link created for {}", profileDTO.getUsername());
-        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Desporto24",
+        emailService.send(profileDTO.getEmail(), "Recupera a tua palavra-passe | Reset your password — Jynlo",
                 buildResetPasswordEmail(profileDTO.getUsername(), link));
     }
 
@@ -534,9 +721,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String buildResetPasswordEmail(String name, String link) {
         return TransactionalEmailTemplate.render(
                 "Recupera a tua palavra-passe",
-                "Olá " + name + ", recebemos um pedido para definir uma nova palavra-passe para a tua conta Desporto24.",
+                "Olá " + name + ", recebemos um pedido para definir uma nova palavra-passe para a tua conta Jynlo.",
                 "Reset your password",
-                "Hi " + name + ", we received a request to set a new password for your Desporto24 account.",
+                "Hi " + name + ", we received a request to set a new password for your Jynlo account.",
                 "Definir palavra-passe / Reset password",
                 link,
                 "O link expira em 15 minutos. Se não fizeste este pedido, podes ignorar este email. A tua palavra-passe só será alterada quando definires uma nova.",
@@ -547,9 +734,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private String buildRegistrationEmail(String name, String link) {
         return TransactionalEmailTemplate.render(
                 "Confirma o teu email",
-                "Olá " + name + ", obrigado por te registares no Desporto24. Confirma o teu email para ativar a conta.",
+                "Olá " + name + ", obrigado por te registares no Jynlo. Confirma o teu email para ativar a conta.",
                 "Confirm your email",
-                "Hi " + name + ", thank you for registering with Desporto24. Confirm your email to activate your account.",
+                "Hi " + name + ", thank you for registering with Jynlo. Confirm your email to activate your account.",
                 "Confirmar email / Confirm email",
                 link,
                 "O link expira em 15 minutos. Se não criaste esta conta, podes ignorar este email.",

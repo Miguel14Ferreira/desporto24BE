@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-venue-edit-suggestions-v1
+      author: jynlo
+      changes:
+        - createTable:
+            tableName: venue_edit_suggestion
+            columns:
+              - column: {name: id, type: BIGINT, autoIncrement: true, constraints: {primaryKey: true, primaryKeyName: pk_venue_edit_suggestion, nullable: false}}
+              - column: {name: venue_id, type: BIGINT, constraints: {nullable: false}}
+              - column: {name: status, type: VARCHAR(16), defaultValue: PENDING, constraints: {nullable: false}}
+              - column: {name: changes_json, type: TEXT, constraints: {nullable: false}}
+              - column: {name: before_json, type: TEXT, constraints: {nullable: false}}
+              - column: {name: reason, type: VARCHAR(1000), constraints: {nullable: false}}
+              - column: {name: submitted_by_username, type: VARCHAR(120), constraints: {nullable: false}}
+              - column: {name: submitted_at, type: TIMESTAMP WITH TIME ZONE, constraints: {nullable: false}}
+              - column: {name: reviewed_by_username, type: VARCHAR(120)}
+              - column: {name: reviewed_at, type: TIMESTAMP WITH TIME ZONE}
+              - column: {name: decision_note, type: VARCHAR(1000)}
+        - addForeignKeyConstraint:
+            constraintName: fk_venue_edit_suggestion_venue
+            baseTableName: venue_edit_suggestion
+            baseColumnNames: venue_id
+            referencedTableName: venue
+            referencedColumnNames: id
+        - createIndex:
+            tableName: venue_edit_suggestion
+            indexName: idx_venue_edit_suggestion_review
+            columns:
+              - column: {name: status}
+              - column: {name: submitted_at}
+        - createIndex:
+            tableName: venue_edit_suggestion
+            indexName: idx_venue_edit_suggestion_submitter
+            columns:
+              - column: {name: venue_id}
+              - column: {name: submitted_by_username}

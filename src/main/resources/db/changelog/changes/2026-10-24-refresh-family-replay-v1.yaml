@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-refresh-family-replay-v1
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: refresh_token_session
+            columns:
+              - column:
+                  name: family_id
+                  type: VARCHAR(36)
+              - column:
+                  name: revoked_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - createIndex:
+            tableName: refresh_token_session
+            indexName: idx_refresh_family_lookup
+            columns:
+              - column: { name: family_id }

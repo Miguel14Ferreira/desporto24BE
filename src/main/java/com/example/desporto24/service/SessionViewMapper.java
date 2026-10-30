@@ -64,7 +64,10 @@ public class SessionViewMapper {
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 joinedByViewer,
                 waitlistedByViewer,
-                session.getRecurrenceSeriesId()
+                session.getRecurrenceSeriesId(),
+                session.getCommunity() == null ? null : session.getCommunity().getId(),
+                session.getSeasonCompetition() == null ? null
+                        : session.getSeasonCompetition().getCommunity().getId()
         );
     }
 
@@ -89,7 +92,10 @@ public class SessionViewMapper {
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 joinedSessionIds.contains(session.getId()),
                 waitlistedSessionIds.contains(session.getId()),
-                session.getRecurrenceSeriesId()
+                session.getRecurrenceSeriesId(),
+                session.getCommunity() == null ? null : session.getCommunity().getId(),
+                session.getSeasonCompetition() == null ? null
+                        : session.getSeasonCompetition().getCommunity().getId()
         );
     }
 
@@ -143,7 +149,11 @@ public class SessionViewMapper {
                 waitlistEntry.isPresent(),
                 waitlistPosition,
                 session.getGamePhoto(),
-                session.getVenue() == null ? null : venueService.toResponse(session.getVenue()),
+                // The venue response includes its street address, GPS coordinates and ID.
+                // Never reveal the exact meeting point through this nested DTO
+                // while the top-level session address is intentionally hidden.
+                canSeeExactAddress && session.getVenue() != null
+                        ? venueService.toResponse(session.getVenue()) : null,
                 session.getAudience() == null ? SessionAudience.PUBLIC : session.getAudience(),
                 session.getRecurrenceSeriesId(),
                 session.getProblemType(),
@@ -151,7 +161,17 @@ public class SessionViewMapper {
                 session.getCommunity() == null ? null : session.getCommunity().getId(),
                 canSharePublicly,
                 session.getExternalConfirmedParticipants() == null
-                        ? 0 : session.getExternalConfirmedParticipants()
+                        ? 0 : session.getExternalConfirmedParticipants(),
+                session.getRegistrationOpeningMode() == null
+                        ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
+                        : session.getRegistrationOpeningMode(),
+                session.getRegistrationOpensAt(),
+                TeamBalancingSportPolicy.isEligible(session),
+                session.getPlayFormat(),
+                // This may specify an entry gate, so keep it private just like
+                // the precise street and nested venue GPS coordinates.
+                canSeeExactAddress ? session.getMeetingPointInstructions() : null,
+                SessionMinimumPlayers.required(session)
         );
     }
 }

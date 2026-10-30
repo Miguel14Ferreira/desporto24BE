@@ -139,6 +139,29 @@ class CommunityTournamentStandingsServiceTest {
     }
 
     @Test
+    void chessModeUsesHalfPointIntegerStorageAndWinsBeforeGoals() {
+        memberAndTournament();
+        tournament.setScoringMode(
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        tournament.setWinPoints(2);
+        tournament.setDrawPoints(1);
+        tournament.setLossPoints(0);
+        // ana: one win and one loss => 2 half-points = 1 point.
+        // bruno: two draws => 2 half-points = 1 point.
+        // Wins break the tie without inventing a chess 'goal difference'.
+        table(List.of(ana, bruno, carla), List.of(
+                result(1L, ana, carla, 1, 0),
+                result(2L, bruno, carla, 0, 0),
+                result(3L, bruno, ana, 0, 0)
+        ));
+        var table = service.standings(7L, 9L, "viewer");
+        assertEquals("ana", table.standings().get(0).username());
+        assertEquals(3L, table.standings().get(0).points()); // 1 win + 1 draw
+        assertEquals("bruno", table.standings().get(1).username());
+        assertEquals(2L, table.standings().get(1).points()); // two draws
+    }
+
+    @Test
     void customTournamentPointConfigurationIsRespected() {
         memberAndTournament();
         tournament.setWinPoints(5);

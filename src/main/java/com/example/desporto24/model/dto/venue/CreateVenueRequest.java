@@ -101,6 +101,7 @@ public record CreateVenueRequest(
         this(name, city, address, sports, venueType, ownershipType, surfaceType, environmentType, indoor, changingRooms, changingRoomTypes, toilets, lockers, showers, stands, drinkingFountain, accessible, firstAid, aed, medicalStation, lifeguard, staffOnSite, securitySurveillance, cafe, restaurant, vendingMachines, sportsShop, wifi, phoneCharging, nearbyRadiusMeters, nearbyPharmacy, nearbyAtm, services, transport, openingHours, priceInfo, website, contact, parking, freeParking, lighting, latitude, longitude, null);
     }
     /** Blank postal address is valid only alongside a complete mainland GPS pair. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @AssertTrue(message = "Indica uma morada ou uma localização GPS válida")
     public boolean isValidVenueLocation() {
         boolean anyGps = latitude != null || longitude != null;

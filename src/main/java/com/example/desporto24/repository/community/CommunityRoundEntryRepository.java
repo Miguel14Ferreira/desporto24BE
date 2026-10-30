@@ -21,4 +21,12 @@ public interface CommunityRoundEntryRepository extends JpaRepository<CommunityRo
         """)
     List<CommunityRoundEntry> findEntriesForProfile(@Param("profileId") Long profileId);
     void deleteByRoundId(Long roundId);
+
+    /** Player IDs linked to this exact season before its entries are deleted. */
+    @Query("select distinct entry.communityPlayer.id from CommunityRoundEntry entry " +
+           "where entry.round.community.id = :communityId and entry.round.season.id = :seasonId")
+    List<Long> findHistoricalPlayerIdsBySeason(
+            @Param("communityId") Long communityId, @Param("seasonId") Long seasonId);
+
+    boolean existsByCommunityPlayerId(Long playerId);
 }

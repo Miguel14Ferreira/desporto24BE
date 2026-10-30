@@ -2,6 +2,9 @@ package com.example.desporto24.filter;
 import com.example.desporto24.utility.JWTokenProvider;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.RefreshTokenSessionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Instant;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +27,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     private final JWTokenProvider jwTokenProvider;
     private final ProfileRepository profileRepository;
+
+    @Autowired
+    private RefreshTokenSessionRepository refreshTokenSessions;
 
     public JwtAuthorizationFilter(
             JWTokenProvider jwTokenProvider,
@@ -51,15 +57,26 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
                 boolean profileActive = profile != null
                         && profile.getModerationSuspendedAt() == null
-                        && !Boolean.FALSE.equals(profile.getNotLocked())
-                        && !Boolean.FALSE.equals(profile.getEnabled());
+                        && Boolean.TRUE.equals(profile.getNotLocked())
+                        && Boolean.TRUE.equals(profile.getEnabled());
 
                 boolean currentTokenVersion = profile != null
                         && profile.getTokenVersion()
                         == jwTokenProvider.getTokenVersion(token);
 
+                String familyId = jwTokenProvider.getAccessTokenFamilyId(token);
+                // A revoked device must lose bearer access immediately. Old
+                // access JWTs (issued before family binding) expire naturally.
+                boolean sessionActive = familyId == null
+                        || (refreshTokenSessions != null && profile != null
+                        && profile.getId() != null
+                        && refreshTokenSessions
+                            .existsByProfileIdAndFamilyIdAndConsumedAtIsNullAndRevokedAtIsNullAndExpiresAtAfter(
+                                    profile.getId(), familyId, Instant.now()));
+
                 if (profileActive
                         && currentTokenVersion
+                        && sessionActive
                         && jwTokenProvider.isTokenValid(username, token)
                         && SecurityContextHolder.getContext().getAuthentication() == null) {
                     List<GrantedAuthority> authorities =

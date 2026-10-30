@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-26-sprint-flagrant-before-bell
+      author: desporto24
+      changes:
+        - addColumn:
+            tableName: community_track_sprint_incident
+            columns:
+              - column: { name: flagrant_offending_rider, type: VARCHAR(100) }
+              - column: { name: flagrant_non_fault_rider, type: VARCHAR(100) }
+              - column: { name: flagrant_chosen_start_position, type: VARCHAR(8) }
+              - column: { name: flagrant_before_cutoff_confirmed, type: BOOLEAN }
+              - column: { name: flagrant_starter_stopped_confirmed, type: BOOLEAN }

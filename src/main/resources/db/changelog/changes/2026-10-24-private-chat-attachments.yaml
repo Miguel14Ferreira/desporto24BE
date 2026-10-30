@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-24-private-chat-attachments
+      author: desporto24
+      comment: "One optional encrypted-access-only file per direct chat message. Existing text-only messages are unchanged."
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: chat
+            columns:
+              - column: { name: attachment_key, type: VARCHAR(240) }
+              - column: { name: attachment_name, type: VARCHAR(160) }
+              - column: { name: attachment_mime_type, type: VARCHAR(60) }
+              - column: { name: attachment_size, type: BIGINT }

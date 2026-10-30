@@ -128,6 +128,73 @@ class CommunityTournamentScheduleServiceTest {
     }
 
     @Test
+    void thirtyTwoIndividualPlayersGenerateCompleteLeagueWithoutDuplicateGamesOrDoubleBookings() {
+        manager(CommunityRole.OWNER);
+        lockedTournament();
+        confirmed(roster(32));
+        when(members.existsByCommunityIdAndProfileId(eq(7L), anyLong())).thenReturn(true);
+        var saved = savedMatches();
+        var summary = service.generate(7L, 9L, "owner");
+
+        assertEquals(32, summary.participantCount());
+        assertEquals(31, summary.roundCount());
+        assertEquals(496, summary.matchCount());
+        assertEquals(496, saved.size());
+        Set<String> distinctPairs = new HashSet<>();
+        for (int round = 1; round <= 31; round++) {
+            Set<Long> active = new HashSet<>();
+            int fixtures = 0;
+            for (var match : saved) {
+                if (match.getRoundNumber() != round) continue;
+                fixtures++;
+                long a = match.getHomeParticipant().getProfile().getId();
+                long b = match.getAwayParticipant().getProfile().getId();
+                assertTrue(active.add(a), "Player booked twice in round " + round);
+                assertTrue(active.add(b), "Player booked twice in round " + round);
+                assertTrue(distinctPairs.add(Math.min(a,b) + ":" + Math.max(a,b)),
+                        "Duplicate head-to-head pairing");
+            }
+            assertEquals(16, fixtures, "Each round needs sixteen independent matches");
+            assertEquals(32, active.size(), "Every confirmed player should compete in each round");
+        }
+        assertEquals(496, distinctPairs.size());
+    }
+
+    @Test
+    void thirtyOneIndividualPlayersReceiveExactlyOneByePerRound() {
+        manager(CommunityRole.ADMIN);
+        lockedTournament();
+        confirmed(roster(31));
+        when(members.existsByCommunityIdAndProfileId(eq(7L), anyLong())).thenReturn(true);
+        var saved = savedMatches();
+        var summary = service.generate(7L, 9L, "owner");
+
+        assertEquals(31, summary.roundCount());
+        assertEquals(465, summary.matchCount());
+        Set<String> pairs = new HashSet<>();
+        for (int round = 1; round <= 31; round++) {
+            Set<Long> playersThisRound = new HashSet<>();
+            for (var match : saved) {
+                if (match.getRoundNumber() != round) continue;
+                long a = match.getHomeParticipant().getProfile().getId();
+                long b = match.getAwayParticipant().getProfile().getId();
+                assertTrue(playersThisRound.add(a));
+                assertTrue(playersThisRound.add(b));
+                assertTrue(pairs.add(Math.min(a,b) + ":" + Math.max(a,b)));
+            }
+            assertEquals(30, playersThisRound.size(),
+                    "Exactly one player rests each round");
+        }
+        assertEquals(465, pairs.size());
+        for (long id = 1; id <= 31; id++) {
+            final long playerId = id;
+            assertEquals(30, saved.stream().filter(m ->
+                    m.getHomeParticipant().getProfile().getId() == playerId
+                    || m.getAwayParticipant().getProfile().getId() == playerId).count());
+        }
+    }
+
+    @Test
     void fivePlayersGetOneByePerRoundAndEveryPairOnce() {
         manager(CommunityRole.ADMIN);
         lockedTournament();

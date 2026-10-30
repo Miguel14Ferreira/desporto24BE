@@ -14,11 +14,14 @@ import com.example.desporto24.repository.FriendRepository;
 import com.example.desporto24.repository.NotificationsRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.service.UserBlockService;
+import com.example.desporto24.service.ChatMessagePreview;
 import com.example.desporto24.service.interfaces.ChatService;
 import com.example.desporto24.websocket.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,11 @@ import static com.example.desporto24.constant.UserImplConstant.CHAT_BLOCKED;
 @Service
 @RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.ConversationNotificationMuteService muteService;
 
     private final FriendRepository friendRepository;
     private final ChatRepository chatRepository;
@@ -47,10 +55,38 @@ public class ChatServiceImpl implements ChatService {
             throw new ChatBlockedException(CHAT_BLOCKED);
         }
 
+        attachVerifiedReply(chat);
         Chat saved = saveChatMessage(chat, new Date());
         createChatNotification(saved);
         eventPublisher.publishEvent(new ChatMessageCreatedEvent(saved));
         return saved;
+    }
+
+
+    /**
+     * Resolve quoted messages ONLY after friendship/block authorization and
+     * ONLY within the authenticated direct conversation. Never trust quoted
+     * author or text from a client. Persist a snapshot so history pagination
+     * still renders the quote when the original message is outside the page.
+     */
+    private void attachVerifiedReply(Chat chat) {
+        Long parentId = chat.getReplyToMessageId();
+        if (parentId == null) return;
+        if (parentId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+        }
+        Chat parent = chatRepository.findById(parentId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Invalid reply message"));
+        boolean forward = chat.getUsername1().equals(parent.getUsername1())
+                && chat.getUsername2().equals(parent.getUsername2());
+        boolean reverse = chat.getUsername1().equals(parent.getUsername2())
+                && chat.getUsername2().equals(parent.getUsername1());
+        if (!forward && !reverse) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid reply message");
+        }
+        chat.setReplyToSender(parent.getUsername1());
+        chat.setReplyToText(parent.getText());
     }
 
     private Chat saveChatMessage(Chat chat, Date date) {
@@ -59,10 +95,15 @@ public class ChatServiceImpl implements ChatService {
         return chat;
     }
 
+    /** The chat keeps its original GIF envelope. Alerts only store a safe summary. */
+    static String notificationPreview(String message) {
+        return ChatMessagePreview.forText(message);
+    }
+
     private void createChatNotification(Chat chat) {
         Notifications notification = new Notifications();
         notification.setSubject("Nova mensagem de " + chat.getUsername1());
-        notification.setMessage(chat.getText());
+        notification.setMessage(ChatMessagePreview.forMessage(chat));
         notification.setGreeting("");
         notification.setSignature("");
         notification.setCreatedAt(Instant.now().toString());
@@ -76,7 +117,55 @@ public class ChatServiceImpl implements ChatService {
         notification.setType(NotificationType.CHAT_MESSAGE);
         notification.setSessionId(null);
         notification.setRead(false);
-        notificationsRepository.save(notification);
+        boolean enabled = preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification);
+        boolean muted = muteService != null && muteService.muted(
+                notification.getUsername(), "direct",
+                chat.getUsername1().toLowerCase(java.util.Locale.ROOT));
+        if (enabled && !muted) notificationsRepository.save(notification);
+    }
+
+    @Override
+    @Transactional
+    public Chat editMessage(String actor, String peer, Long messageId, String text) {
+        Chat message = ownedMessage(actor, peer, messageId);
+        String normalized = com.example.desporto24.service.ChatMessageMutationPolicy.editText(
+                text, message.getDate() == null ? null : message.getDate().toInstant(),
+                Instant.now(), message.getDeletedAt(), message.getAttachmentKey() != null);
+        message.setText(normalized);
+        message.setEditedAt(Instant.now());
+        chatRepository.saveAndFlush(message);
+        eventPublisher.publishEvent(new ChatMessageCreatedEvent(message));
+        return message;
+    }
+
+    @Override
+    @Transactional
+    public Chat deleteMessage(String actor, String peer, Long messageId) {
+        Chat message = ownedMessage(actor, peer, messageId);
+        com.example.desporto24.service.ChatMessageMutationPolicy.requireNotDeleted(message.getDeletedAt());
+        message.setText("");
+        message.setDeletedAt(Instant.now());
+        chatRepository.saveAndFlush(message);
+        // Historical reply snapshots may quote this text. Redact them too.
+        chatRepository.redactRepliesToDeleted(message.getId(), "[message deleted]");
+        eventPublisher.publishEvent(new ChatMessageCreatedEvent(message));
+        return message;
+    }
+
+    private Chat ownedMessage(String actor, String peer, Long messageId) {
+        Friend friend = requireFriendship(actor, peer);
+        if (friend.isChatBlocked()) throw new ChatBlockedException(CHAT_BLOCKED);
+        if (messageId == null || messageId <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
+        }
+        Chat message = chatRepository.findById(messageId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found"));
+        if (!actor.equalsIgnoreCase(message.getUsername1())
+                || !peer.equalsIgnoreCase(message.getUsername2())) {
+            throw new AccessDeniedException("Only the message author may change this message");
+        }
+        return message;
     }
 
     @Override

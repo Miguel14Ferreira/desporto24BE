@@ -13,6 +13,8 @@ import com.example.desporto24.email.TransactionalEmailTemplate;
 public class CommunityInviteEmailListener {
 
     private final EmailSender emailSender;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private NotificationPreferencesService preferenceService;
     private final String uiAppUrl;
 
     public CommunityInviteEmailListener(
@@ -29,16 +31,26 @@ public class CommunityInviteEmailListener {
         }
 
         try {
+            // A failed opt-out check must not send optional mail or turn the
+            // already-committed invitation into an apparent request failure.
+            if (preferenceService != null
+                    && !preferenceService.allowsOptionalEmailAddress(event.recipientEmail(),
+                            com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE)) {
+                return;
+            }
             emailSender.send(event.recipientEmail(), "Convite para uma comunidade | Community invitation — Jynlo",
                     buildEmail(event));
         } catch (RuntimeException exception) {
-            // The invitation and in-app notification have already been committed.
-            log.warn("Could not send email for community invitation {}", event.inviteId(), exception);
+            // No email was sent on a preference lookup error; invitation remains committed.
+            log.warn("Optional community invitation email skipped for invitation {}", event.inviteId(), exception);
         }
     }
 
     private String buildEmail(CommunityInviteCreatedEvent event) {
-        String link = uiAppUrl.replaceAll("/+$", "") + "/menu/communities";
+        // The recipient's invite inbox, not the generic communities discovery landing.
+        // AuthenticationGuard preserves this target across login/registration.
+        String link = uiAppUrl.replaceAll("/+$", "")
+                + "/menu/communities?view=mine&invite=" + event.inviteId();
         return TransactionalEmailTemplate.render(
                 "Convite para uma comunidade",
                 "@" + event.inviterUsername() + " convidou-te para a comunidade " + event.communityName()

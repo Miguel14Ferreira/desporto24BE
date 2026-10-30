@@ -2,6 +2,7 @@ package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
 import com.example.desporto24.service.VenueMapLinkService;
+import com.example.desporto24.service.VenueSuggestionService;
 import com.example.desporto24.service.VenuePhotoService;
 import com.example.desporto24.service.VenueService;
 import com.example.desporto24.service.VenueSportConditionService;
@@ -15,7 +16,8 @@ import static org.mockito.Mockito.*;
 class VenuePagedSearchControllerTest {
     private final VenueService service = mock(VenueService.class);
     private final VenueController controller = new VenueController(
-            service, mock(VenueMapLinkService.class), mock(VenuePhotoService.class),
+            service, mock(VenueSuggestionService.class), mock(VenueMapLinkService.class),
+            mock(com.example.desporto24.service.VenueReverseGeocodeService.class), mock(VenuePhotoService.class),
             mock(VenueSportConditionService.class));
 
     @Test
@@ -25,6 +27,13 @@ class VenuePagedSearchControllerTest {
         var response = controller.suggest("  Pavilhão ", " Lisboa ", "Futsal", 2);
         assertEquals(2, response.page());
         verify(service).suggest("  Pavilhão ", " Lisboa ", "Futsal", 2, null);
+        verify(service, never()).search(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void routesNearbyCitySearchWithoutReinterpretingGpsOrDistrictFilters() {
+        controller.nearbyCity("Cacém", "Padel", 2, 25);
+        verify(service).nearbyCity("Cacém", "Padel", 2, 25);
         verify(service, never()).search(any(), any(), any(), any(), any());
     }
 

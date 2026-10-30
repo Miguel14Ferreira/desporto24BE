@@ -14,7 +14,7 @@ import java.util.Map;
 public class EmailService implements EmailSender {
 
     private static final String RESEND_EMAILS_URL = "https://api.resend.com/emails";
-    private static final String DEFAULT_SUBJECT = "Desporto24";
+    private static final String DEFAULT_SUBJECT = "Jynlo";
 
     private final RestClient restClient = RestClient.create();
 
@@ -29,10 +29,10 @@ public class EmailService implements EmailSender {
         String from = RuntimeSecrets.require("RESEND_FROM_EMAIL");
 
         Map<String, Object> payload = Map.of(
-                "from", from,
+                "from", senderDisplayName(from),
                 "to", new String[]{to},
-                "subject", subject,
-                "html", html
+                "subject", currentBrand(subject),
+                "html", currentBrand(html)
         );
 
         try {
@@ -53,6 +53,23 @@ public class EmailService implements EmailSender {
             log.error("Failed to send email through Resend to {}", to, exception);
             throw exception;
         }
+    }
+
+    /**
+     * Last-mile safeguard for legacy transactional templates. Do not rewrite
+     * links or identifiers such as d24sports.com; only the retired display
+     * name is normalized when composing the outgoing email.
+     */
+    static String currentBrand(String value) {
+        return value == null ? "" : value.replaceAll("(?i)desporto\\s*24", "Jynlo");
+    }
+
+    /** Keep the configured sender address intact, changing only the display label. */
+    static String senderDisplayName(String configuredFrom) {
+        int addressStart = configuredFrom.indexOf('<');
+        if (addressStart < 0) return configuredFrom;
+        return currentBrand(configuredFrom.substring(0, addressStart))
+                + configuredFrom.substring(addressStart);
     }
 
     private record ResendSendResponse(String id) {

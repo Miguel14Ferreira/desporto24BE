@@ -12,6 +12,14 @@ import org.springframework.stereotype.Component;
 public class MediaStorageProperties {
     private String provider = "local";
     private String localRoot = "./data/media";
+    // Never place private conversation files inside the publicly served /media root.
+    private String privateRoot = "./data/chat-private";
+    // Dedicated non-public S3/R2 bucket; intentionally no fallback to the public bucket.
+    private String privateBucket = "";
+    // Least-privilege credentials scoped to the private R2 bucket only.
+    // Public feed media credentials must never be reused for private chat.
+    private String privateAccessKey = "";
+    private String privateSecretKey = "";
     private String publicBaseUrl = "";
     private S3 s3 = new S3();
 

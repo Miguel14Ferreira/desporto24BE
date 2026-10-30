@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface CommunityJoinRequestRepository extends JpaRepository<CommunityJoinRequest, Long> {
 
+    long countByCommunityId(Long communityId);
+
     Optional<CommunityJoinRequest> findByCommunityIdAndRequesterIdAndStatus(
             Long communityId,
             Long requesterId,

@@ -35,8 +35,145 @@ public record CreateSessionRequest(
         SessionRecurrence recurrence,
         @Min(2) @Max(52) Integer recurrenceOccurrences,
         // Excludes the organiser, who is automatically registered in Jynlo.
-        @Min(0) @Max(99) Integer externalConfirmedParticipants
+        @Min(0) @Max(99) Integer externalConfirmedParticipants,
+        com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+        Instant registrationOpensAt,
+        // First week's additional kickoffs. The first kickoff remains gameDate.
+        @Size(max = 6) java.util.List<@NotNull Instant> additionalWeeklyGameDates,
+        // IANA zone keeps the same local weekday/time across DST transitions.
+        @Size(max = 64) String recurrenceTimeZone,
+        com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+        @Size(max = 5) java.util.List<@NotNull Long> communityShareIds,
+        Long seasonCompetitionCommunityId,
+        boolean confirmActivateRankings,
+        @Size(max = 240)
+        @Pattern(regexp = "^[^\\p{Cc}]*$", message = "O ponto de encontro deve ter uma única linha")
+        String meetingPointInstructions,
+        @Min(2) @Max(100) Integer minParticipants
 ) {
+    /** Previous request shape remains source-compatible for tests and integrations. */
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+            java.util.List<Long> communityShareIds,
+            Long seasonCompetitionCommunityId, boolean confirmActivateRankings,
+            String meetingPointInstructions) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount, privateGame,
+                password, latitude, longitude, communityId, venueId, recurrence,
+                recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, additionalWeeklyGameDates,
+                recurrenceTimeZone, playFormat, communityShareIds,
+                seasonCompetitionCommunityId, confirmActivateRankings,
+                meetingPointInstructions, null);
+    }
+    /** Source compatibility for the previous complete request constructor. */
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+            java.util.List<Long> communityShareIds,
+            Long seasonCompetitionCommunityId, boolean confirmActivateRankings) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId, venueId,
+                recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, additionalWeeklyGameDates,
+                recurrenceTimeZone, playFormat, communityShareIds,
+                seasonCompetitionCommunityId, confirmActivateRankings, null);
+    }
+
+    // Preserve the pre-season-game request signature for existing callers.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat,
+            java.util.List<Long> communityShareIds) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId,
+                venueId, recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, additionalWeeklyGameDates,
+                recurrenceTimeZone, playFormat, communityShareIds, null, false);
+    }
+    // Backwards-compatible canonical constructor for existing 20-field clients/tests.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone,
+            com.example.desporto24.enumeration.SessionPlayFormat playFormat) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId,
+                venueId, recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, additionalWeeklyGameDates,
+                recurrenceTimeZone, playFormat, java.util.List.of());
+    }
+
+    // Preserve all 19-field callers of the former canonical record constructor.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt, java.util.List<Instant> additionalWeeklyGameDates,
+            String recurrenceTimeZone) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId, venueId,
+                recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt,
+                additionalWeeklyGameDates, recurrenceTimeZone, null);
+    }
+
+    // Keep all existing 17-field callers source-compatible.
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants,
+            com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode,
+            Instant registrationOpensAt) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId, venueId,
+                recurrence, recurrenceOccurrences, externalConfirmedParticipants,
+                registrationOpeningMode, registrationOpensAt, null, null);
+    }
+
+    // Preserve legacy service/controller/test callers (15-argument constructor).
+    public CreateSessionRequest(
+            String sport, Instant gameDate, String city, String address,
+            Integer maxParticipants, BigDecimal priceAmount, boolean privateGame,
+            String password, Double latitude, Double longitude, Long communityId,
+            Long venueId, SessionRecurrence recurrence, Integer recurrenceOccurrences,
+            Integer externalConfirmedParticipants) {
+        this(sport, gameDate, city, address, maxParticipants, priceAmount,
+                privateGame, password, latitude, longitude, communityId,
+                venueId, recurrence, recurrenceOccurrences,
+                externalConfirmedParticipants, null, null);
+    }
     // Keep existing Java callers compatible with the former record constructor.
     public CreateSessionRequest(
             String sport,

@@ -56,6 +56,18 @@ public class SecurityConfiguration {
                                 .policy("camera=(), microphone=(), geolocation=()")))
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Guest endpoints are narrowly POST-only; approval and viewing
+                        // pending names remain authenticated organizer actions.
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/sessions/*/guest-preview",
+                                "/api/sessions/*/guest-roster",
+                                "/api/sessions/*/guest-confirmed-players",
+                                "/api/sessions/*/guest-requests",
+                                "/api/sessions/*/guest-requests/status",
+                                "/api/sessions/*/guest-requests/cancel-self",
+                                "/api/sessions/*/guest-requests/change-player",
+                                "/api/sessions/*/messages/guest-chat/read",
+                                "/api/sessions/*/messages/guest-chat/send").permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/ws/chat/**").permitAll()

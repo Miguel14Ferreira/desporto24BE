@@ -33,6 +33,7 @@ class CommunityHistoricalMatchArchiveServiceTest {
     @Mock private CommunityMemberRepository members;
     @Mock private CommunityRepository communities;
     @Mock private CommunityHistoricalMatchArchiveRepository archives;
+    @Mock private CommunityTournamentRepository tournaments;
     @Mock private CommunityHistoricalMatchArchiveRowRepository rows;
     @InjectMocks private CommunityHistoricalMatchArchiveService service;
 
@@ -87,6 +88,63 @@ class CommunityHistoricalMatchArchiveServiceTest {
         assertTrue(captor.getValue().get(1).isPotentialDuplicate());
         assertEquals("2020-10-01", captor.getValue().get(1).getSourceDate());
         verifyNoInteractions(profiles, members);
+    }
+
+    @Test
+    void createsCompletedHistoricalTournamentWithoutInventingRealPlayersOrFixtures() {
+        var source = List.of(new CommunityHistoricalMatchPreviewResponse.MatchRow(
+                2, "CNG A", "CNG B", 3, 1, "2024-05-10", "J1", false));
+        when(previewService.preview(7L, "owner", file, mapping))
+                .thenReturn(new CommunityHistoricalMatchPreviewResponse(
+                        "Dados", 1, 1, 0, List.of(), source));
+        Community community = new Community();
+        community.setId(7L);
+        when(communities.findById(7L)).thenReturn(Optional.of(community));
+        when(archives.save(any())).thenAnswer(inv -> {
+            CommunityHistoricalMatchArchive item = inv.getArgument(0);
+            item.setId(91L);
+            return item;
+        });
+        when(tournaments.save(any())).thenAnswer(inv -> {
+            CommunityTournament tournament = inv.getArgument(0);
+            tournament.setId(51L);
+            return tournament;
+        });
+
+        var result = service.confirm(7L, "owner", file, mapping,
+                new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Futebol", "LEAGUE"));
+
+        assertEquals(51L, result.tournamentId());
+        assertEquals(1, result.rows().size());
+        verify(tournaments).save(argThat(t -> t.getCommunity() == community
+                && t.getHistoricalArchiveId() == 91L
+                && t.getStatus() == com.example.desporto24.enumeration.TournamentStatus.COMPLETED
+                && t.getEntryType() == com.example.desporto24.enumeration.TournamentEntryType.TEAM
+                && "Futebol".equals(t.getSport())));
+        verify(rows).saveAll(any());
+        verifyNoInteractions(profiles, members);
+    }
+
+    @Test
+    void invalidHistoricalTournamentSettingsNeverWriteArchiveOrTournament() {
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "", "LEAGUE")));
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Futebol", "GROUP_KNOCKOUT")));
+        // A malformed request must not invent a modality or a default league.
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Modalidade inventada", "LEAGUE")));
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Futebol", null)));
+        assertThrows(IllegalArgumentException.class, () -> service.confirm(7L, "owner",
+                file, mapping, new CommunityHistoricalMatchArchiveConfirmRequest(
+                        "Torneio 2024", "TEAM", true, "Futebol", " ")));
+        verifyNoInteractions(previewService, archives, rows, tournaments);
     }
 
     @Test

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "approvedForGps": false,
+  "approvedForMerge": false,
+  "writeActions": 0,
+  "reviewScope": "Existing Jynlo public catalogue identifiers only. A related OSM coordinate never implies a verified pool/court/entrance.",
+  "cases": [
+    {
+      "caseId": "AVEIRO-SAO-JACINTO-POOL-299-447",
+      "relation": "POTENTIAL_DUPLICATE_POOL",
+      "target": {
+        "id": 299,
+        "name": "Piscina Municipal de São Jacinto",
+        "city": "São Jacinto",
+        "district": "Aveiro"
+      },
+      "related": {
+        "id": 447,
+        "name": "Piscinas de São Jacinto",
+        "city": "Aveiro",
+        "district": "Aveiro"
+      },
+      "sourceUrls": [
+        "https://www.cm-aveiro.pt/visitantes/piscina-municipal-de-sao-jacinto",
+        "https://api.d24sports.com/api/venues/447",
+        "https://www.cm-aveiro.pt/municipio/comunicacao/noticias?news_list_82_page=8",
+        "https://cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao",
+        "https://www.jf-saojacinto.pt/ver_conteudo/4",
+        "https://www.openstreetmap.org/way/152241544"
+      ],
+      "reviewReason": "Possibly the same physical pool under differing names and city/locality labels; municipal 2025 requalification altered pool basins and surrounding facilities. A pre-existing OSM GPS-only venue does not verify a current entrance nor justify duplicating or merging records. Additional independently published clues: municipality used singular and plural naming in 2026; parish locates pools inside the Ria-Mar sports complex; OSM way 152241544 is a historic Bing-derived pool area, not a current entrance. HIGH-PRIORITY HUMAN identity review only.",
+      "identityEvidence": {
+        "officialSingularName": "Piscina Municipal de São Jacinto",
+        "officialSingularSourceUrl": "https://cm-aveiro.pt/municipio/comunicacao/noticias/noticia/piscina-municipal-de-sao-jacinto-ultrapassa-as-5-000-utilizacoes-neste-verao",
+        "officialPluralName": "Piscinas Municipais de São Jacinto",
+        "officialPluralSourceUrl": "https://www.cm-aveiro.pt/municipio/comunicacao/noticias?news_list_82_page=8",
+        "officialPluralPublicationDate": "2026-07-24",
+        "parishStreet": "Avenida Ria-Mar",
+        "parishSourceUrl": "https://www.jf-saojacinto.pt/ver_conteudo/4",
+        "osmWayId": 152241544,
+        "osmWayUrl": "https://www.openstreetmap.org/way/152241544",
+        "osmGeometry": "LEISURE_SWIMMING_POOL_POLYGON_NOT_ENTRANCE",
+        "osmMappedFrom": "Bing imagery (as described by OSM way source tag), last edit more than 3 years before review",
+        "sourceDoesNotProveCurrentEntrance": true,
+        "sourceDoesNotProveSamePhysicalFacility": true
+      }
+    },
+    {
+      "caseId": "BRAGA-MAXIMINOS-POOL-295-912",
+      "relation": "COMPLEX_VS_SPECIFIC_FACILITY",
+      "target": {
+        "id": 295,
+        "name": "Piscina Climatizada do Complexo Desportivo de Maximinos",
+        "city": "Braga",
+        "district": "Braga"
+      },
+      "related": {
+        "id": 912,
+        "name": "Complexo Desportivo de Maximinos",
+        "city": "Braga",
+        "district": "Braga"
+      },
+      "sourceUrls": [
+        "https://www.cm-braga.pt/pt/1201/viver/desporto/equipamentos-desportivas/item/item-1-6262",
+        "https://api.d24sports.com/api/venues/912"
+      ],
+      "reviewReason": "A complex-level OSM point is not proof of the indoor pool's exact location or accessible entrance. Keep pool ID 295 distinct pending geometry and source review."
+    },
+    {
+      "caseId": "FOJO-MIRA-VS-GAIA-286-2377",
+      "relation": "DIFFERENT_DISTRICT_NAME_COLLISION",
+      "target": {
+        "id": 286,
+        "name": "Campo de Padel do Fojo",
+        "city": "Mira",
+        "district": "Coimbra"
+      },
+      "related": {
+        "id": 2377,
+        "name": "Golfe da Quinta do Fojo",
+        "city": "Vila Nova de Gaia",
+        "district": "Porto"
+      },
+      "sourceUrls": [
+        "https://www.cm-mira.pt/node/4084",
+        "https://api.d24sports.com/api/venues/2377"
+      ],
+      "reviewReason": "Shared word Fojo is a false-name match across different municipalities and districts: Mira padel is not Gaia golf. Reject coordinates from the related venue."
+    }
+  ]
+}

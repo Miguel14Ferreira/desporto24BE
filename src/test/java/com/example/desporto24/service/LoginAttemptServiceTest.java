@@ -3,6 +3,9 @@ package com.example.desporto24.service;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.security.PasswordHashService;
+import com.example.desporto24.security.DistributedAuthRateLimiter;
+import org.springframework.test.util.ReflectionTestUtils;
+import java.time.Duration;
 import com.google.common.base.Ticker;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -25,6 +28,36 @@ class LoginAttemptServiceTest {
         @Override public long read() { return timeNanos.get(); }
     };
     private final LoginAttemptService guard = new LoginAttemptService(profiles, hashes, ticker);
+
+    @Test
+    void productionSharedLimiterChecksAndRecordsFailuresAndClearsOnSuccess() {
+        DistributedAuthRateLimiter distributed = mock(DistributedAuthRateLimiter.class);
+        ReflectionTestUtils.setField(guard, "distributedAttempts", distributed);
+        Profile profile = activeProfile();
+        when(hashes.matchesAndUpgrade(profile, "bad")).thenReturn(false);
+        when(hashes.matchesAndUpgrade(profile, "good")).thenReturn(true);
+
+        guard.requireAttemptAllowed("  fixture-USER ");
+        assertThrows(BadCredentialsException.class,
+                () -> guard.handleLoginAttempt(USER, "bad", profile));
+        guard.handleLoginAttempt(USER, "good", profile);
+
+        verify(distributed, atLeastOnce()).requireAllowed("login", USER, 5);
+        verify(distributed).reserveAttempt("login", USER, 5, Duration.ofMinutes(15));
+        verify(distributed).clearAfterSuccess("login", USER);
+    }
+
+    @Test
+    void sharedLimitRejectionHappensBeforePasswordVerification() {
+        DistributedAuthRateLimiter distributed = mock(DistributedAuthRateLimiter.class);
+        ReflectionTestUtils.setField(guard, "distributedAttempts", distributed);
+        doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS))
+                .when(distributed).requireAllowed("login", USER, 5);
+
+        assertThrows(ResponseStatusException.class,
+                () -> guard.handleLoginAttempt(USER, "any", activeProfile()));
+        verifyNoInteractions(hashes);
+    }
 
     private Profile activeProfile() {
         Profile profile = new Profile();

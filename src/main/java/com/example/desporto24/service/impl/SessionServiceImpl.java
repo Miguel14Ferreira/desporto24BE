@@ -15,6 +15,8 @@ import com.example.desporto24.model.Profile;
 import com.example.desporto24.model.community.Community;
 import com.example.desporto24.model.venue.Venue;
 import com.example.desporto24.model.Session;
+import com.example.desporto24.model.session.SessionCommunityShare;
+import com.example.desporto24.repository.session.SessionCommunityShareRepository;
 import com.example.desporto24.model.dto.session.CreateSessionRequest;
 import com.example.desporto24.model.dto.session.MySessionsResponse;
 import com.example.desporto24.model.dto.session.JoinSessionRequest;
@@ -26,9 +28,13 @@ import com.example.desporto24.model.dto.session.SessionSummaryResponse;
 import com.example.desporto24.model.dto.session.SessionParticipantResponse;
 import com.example.desporto24.model.session.SessionParticipant;
 import com.example.desporto24.model.session.SessionWaitlist;
+import com.example.desporto24.model.session.SessionInvite;
+import com.example.desporto24.enumeration.SessionInviteStatus;
+import com.example.desporto24.repository.session.SessionInviteRepository;
 import com.example.desporto24.repository.ProfileRepository;
 import com.example.desporto24.repository.SessionRepository;
 import com.example.desporto24.repository.community.CommunityMemberRepository;
+import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityRepository;
 import com.example.desporto24.repository.venue.VenueRepository;
 import com.example.desporto24.repository.session.SessionParticipantRepository;
@@ -36,6 +42,7 @@ import com.example.desporto24.repository.session.SessionOrganizerExclusionReposi
 import com.example.desporto24.repository.session.SessionWaitlistRepository;
 import com.example.desporto24.security.PasswordHashService;
 import com.example.desporto24.service.SessionDistanceCalculator;
+import com.example.desporto24.service.SessionDiscoveryLocationGrid;
 import com.example.desporto24.service.SessionViewMapper;
 import com.example.desporto24.service.SessionCapacity;
 import com.example.desporto24.service.SessionNotificationService;
@@ -76,8 +83,11 @@ public class SessionServiceImpl implements SessionService {
     private final ProfileRepository profileRepository;
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
+    private final CommunitySeasonRepository communitySeasonRepository;
+    private final SessionCommunityShareRepository sessionCommunityShareRepository;
     private final VenueRepository venueRepository;
     private final SessionParticipantRepository participantRepository;
+    private final com.example.desporto24.repository.session.SessionGuestRequestRepository sessionGuestRequests;
     private final SessionOrganizerExclusionRepository exclusionRepository;
     private final SessionWaitlistRepository waitlistRepository;
     private final SessionViewMapper sessionViewMapper;
@@ -91,6 +101,27 @@ public class SessionServiceImpl implements SessionService {
 
     @Autowired(required = false)
     private MediaStorage mediaStorage;
+
+    /** Invitation verification is deliberately scoped to its named recipient. */
+    @Autowired(required = false)
+    private SessionInviteRepository directInviteRepository;
+
+    /**
+     * Enforce the community owner's choice server-side on all creation paths:
+     * direct, multi-community, multipart and recurring series.
+     */
+    private void requireCanCreateCommunitySession(Community community, Profile creator) {
+        var member = communityMemberRepository
+                .findByCommunityIdAndProfileId(community.getId(), creator.getId())
+                .orElseThrow(() -> new AccessDeniedException(
+                        "Só membros da comunidade podem criar sessões associadas"));
+        if (!community.isMembersCanCreateSessions()
+                && member.getRole() != com.example.desporto24.enumeration.CommunityRole.ADMIN
+                && member.getRole() != com.example.desporto24.enumeration.CommunityRole.OWNER) {
+            throw new AccessDeniedException(
+                    "Apenas administradores podem criar sessões nesta comunidade");
+        }
+    }
 
     @Override
     @Transactional
@@ -109,11 +140,73 @@ public class SessionServiceImpl implements SessionService {
             linkedCommunity = communityRepository.findById(request.communityId())
                     .orElseThrow(() -> new IllegalArgumentException("Comunidade não encontrada"));
 
-            if (!communityMemberRepository.existsByCommunityIdAndProfileId(
-                    linkedCommunity.getId(), creator.getId())) {
-                throw new AccessDeniedException(
-                        "Só membros da comunidade podem criar sessões associadas"
-                );
+            requireCanCreateCommunitySession(linkedCommunity, creator);
+        }
+
+        // Publish one shared, members-only session across selected communities.
+        // Every game in a recurring series shares its own memberships and attendance.
+        List<Long> shareIds = request.communityShareIds() == null
+                ? List.of() : request.communityShareIds();
+        if (shareIds.size() > 5 || shareIds.stream().anyMatch(id -> id == null || id <= 0)
+                || new LinkedHashSet<>(shareIds).size() != shareIds.size()) {
+            throw new IllegalArgumentException("Seleciona até 5 comunidades distintas");
+        }
+        if (!shareIds.isEmpty() && (request.communityId() != null || request.privateGame())) {
+            throw new IllegalArgumentException(
+                    "As sessões partilhadas entre comunidades não utilizam palavra-passe");
+        }
+        List<Community> sharedCommunities = shareIds.isEmpty() ? List.of()
+                : communityRepository.findAllById(shareIds);
+        if (sharedCommunities.size() != shareIds.size()) {
+            throw new IllegalArgumentException("Uma das comunidades selecionadas não existe");
+        }
+        for (Community community : sharedCommunities) {
+            requireCanCreateCommunitySession(community, creator);
+        }
+
+        // A game counts for a season ONLY when exactly one community is selected.
+        // Never let a client choose one standings destination from multiple groups.
+        Long soleCommunityId = linkedCommunity != null ? linkedCommunity.getId()
+                : shareIds.size() == 1 ? shareIds.get(0) : null;
+        Long standingsCommunityId = request.seasonCompetitionCommunityId();
+        if (standingsCommunityId != null && !standingsCommunityId.equals(soleCommunityId)) {
+            throw new IllegalArgumentException(
+                    "Um jogo de época só pode pertencer a uma única comunidade");
+        }
+        if (standingsCommunityId == null && request.confirmActivateRankings()) {
+            throw new IllegalArgumentException(
+                    "A ativação das classificações exige a opção de jogo de época");
+        }
+
+        com.example.desporto24.model.community.CommunitySeason seasonCompetition = null;
+        if (standingsCommunityId != null) {
+            // Community membership was already verified for both direct and shared games.
+            // Every member may enable rankings and start the default season, with consent.
+            Community destination = linkedCommunity != null ? linkedCommunity
+                    : sharedCommunities.get(0);
+            if (!destination.isRankingsEnabled()) {
+                if (!request.confirmActivateRankings()) {
+                    throw new IllegalArgumentException(
+                            "Confirma a ativação das classificações e estatísticas");
+                }
+                destination.setRankingsEnabled(true);
+                communityRepository.save(destination);
+            }
+            var existingSeason = communitySeasonRepository
+                    .findByCommunityIdAndActiveTrue(standingsCommunityId);
+            if (existingSeason.isPresent()) {
+                seasonCompetition = existingSeason.get();
+            } else {
+                java.time.ZonedDateTime localDate = request.gameDate()
+                        .atZone(java.time.ZoneId.of("Europe/Lisbon"));
+                seasonCompetition = communitySeasonRepository.save(
+                        com.example.desporto24.model.community.CommunitySeason.builder()
+                                .community(destination)
+                                .name("Época " + localDate.getYear())
+                                .startsAt(Instant.now())
+                                .createdAt(Instant.now())
+                                .active(true)
+                                .build());
             }
         }
 
@@ -121,6 +214,8 @@ public class SessionServiceImpl implements SessionService {
         if (!SportsCatalog.ALLOWED.contains(sport)) {
             throw new IllegalArgumentException("Desporto inválido");
         }
+        // Reject incompatible formats before recurring sessions are persisted.
+        com.example.desporto24.service.SessionPlayFormatPolicy.resolve(sport, request.playFormat());
 
         Venue linkedVenue = null;
         if (request.venueId() != null) {
@@ -155,23 +250,28 @@ public class SessionServiceImpl implements SessionService {
         SessionRecurrence recurrence = request.recurrence() == null
                 ? SessionRecurrence.NONE
                 : request.recurrence();
-        int occurrences = 1;
-        long intervalDays = 0;
+        if (recurrence != SessionRecurrence.NONE && linkedCommunity == null && sharedCommunities.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Recurring sessions must belong to a community");
+        }
 
-        if (recurrence != SessionRecurrence.NONE) {
-            if (linkedCommunity == null) {
-                throw new IllegalArgumentException(
-                        "Recurring sessions must belong to a community"
-                );
-            }
-            if (request.recurrenceOccurrences() == null) {
-                throw new IllegalArgumentException(
-                        "Recurring sessions require recurrenceOccurrences"
-                );
-            }
+        // Preflight every weekly slot and call-up time *before* saving anything.
+        // The planner also rejects oversized batches, collisions and past slots.
+        var planned = com.example.desporto24.service.CommunitySessionSchedule
+                .expand(request, Instant.now());
 
-            occurrences = request.recurrenceOccurrences();
-            intervalDays = recurrence == SessionRecurrence.WEEKLY ? 7 : 14;
+        var openingMode = request.registrationOpeningMode() == null
+                ? com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
+                : request.registrationOpeningMode();
+        if (openingMode != com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE
+                && linkedCommunity == null && sharedCommunities.isEmpty()) {
+            throw new IllegalArgumentException("Só sessões de comunidades podem ter convocatórias");
+        }
+        if (openingMode == com.example.desporto24.enumeration.RegistrationOpeningMode.SCHEDULED
+                && (request.registrationOpensAt() == null
+                    || !request.registrationOpensAt().isAfter(Instant.now())
+                    || !request.registrationOpensAt().isBefore(request.gameDate()))) {
+            throw new IllegalArgumentException("A abertura tem de ser futura e anterior ao jogo");
         }
 
         String recurrenceSeriesId = recurrence == SessionRecurrence.NONE
@@ -179,23 +279,26 @@ public class SessionServiceImpl implements SessionService {
                 : UUID.randomUUID().toString();
 
         Session firstSaved = null;
-        for (int occurrence = 0; occurrence < occurrences; occurrence++) {
-            Instant gameDate = request.gameDate().plus(
-                    intervalDays * occurrence,
-                    ChronoUnit.DAYS
-            );
+        for (var occurrence : planned) {
             Session saved = saveCreatedSession(
                     request,
                     photo,
                     creator,
                     linkedCommunity,
+                    !sharedCommunities.isEmpty(),
                     linkedVenue,
+                    seasonCompetition,
                     sport,
-                    gameDate,
-                    recurrenceSeriesId
+                    occurrence.kickoff(),
+                    recurrenceSeriesId,
+                    openingMode,
+                    occurrence.registrationOpensAt()
             );
-            if (firstSaved == null) {
-                firstSaved = saved;
+            if (firstSaved == null) firstSaved = saved;
+            // Every occurrence is visible in each selected community, not just
+            // the first game of a recurring series.
+            for (Community community : sharedCommunities) {
+                sessionCommunityShareRepository.save(new SessionCommunityShare(saved, community));
             }
         }
 
@@ -207,19 +310,30 @@ public class SessionServiceImpl implements SessionService {
             MultipartFile photo,
             Profile creator,
             Community linkedCommunity,
+            boolean memberOnlyCrosspost,
             Venue linkedVenue,
+            com.example.desporto24.model.community.CommunitySeason seasonCompetition,
             String sport,
             Instant gameDate,
-            String recurrenceSeriesId) {
+            String recurrenceSeriesId,
+            com.example.desporto24.enumeration.RegistrationOpeningMode openingMode,
+            Instant registrationOpensAt) {
         Instant now = Instant.now();
         Session session = new Session();
         session.setProfile(creator);
         session.setUserId(creator.getUserId());
         session.setSport(sport);
+        session.setPlayFormat(com.example.desporto24.service.SessionPlayFormatPolicy
+                .resolve(sport, request.playFormat()));
         session.setGameDate(Date.from(gameDate));
         session.setCity(linkedVenue == null ? request.city() : linkedVenue.getCity());
         session.setAddress(linkedVenue == null ? request.address() : linkedVenue.getAddress());
+        String arrivalNote = request.meetingPointInstructions();
+        session.setMeetingPointInstructions(arrivalNote == null || arrivalNote.isBlank()
+                ? null : arrivalNote.trim());
         session.setMaxParticipants(request.maxParticipants());
+        session.setMinParticipants(com.example.desporto24.service.SessionMinimumPlayers.validate(
+                request.minParticipants(), request.sport(), request.maxParticipants()));
         session.setExternalConfirmedParticipants(
                 request.externalConfirmedParticipants() == null ? 0 : request.externalConfirmedParticipants());
         session.setPriceAmount(request.priceAmount() == null ? BigDecimal.ZERO : request.priceAmount());
@@ -241,9 +355,13 @@ public class SessionServiceImpl implements SessionService {
         session.setCreated_at(Date.from(now));
         session.setUpdatedAt(now);
         session.setCommunity(linkedCommunity);
-        session.setAudience(linkedCommunity == null ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
+        session.setAudience(linkedCommunity == null && !memberOnlyCrosspost
+                ? SessionAudience.PUBLIC : SessionAudience.COMMUNITY_ONLY);
         session.setVenue(linkedVenue);
+        session.setSeasonCompetition(seasonCompetition);
         session.setRecurrenceSeriesId(recurrenceSeriesId);
+        session.setRegistrationOpeningMode(openingMode);
+        session.setRegistrationOpensAt(registrationOpensAt);
 
         Session saved = sessionRepository.save(session);
 
@@ -300,6 +418,49 @@ public class SessionServiceImpl implements SessionService {
                 session.getGamePhoto());
     }
 
+    private boolean canAccessCommunitySession(Session session, Profile viewer) {
+        // Old sessions may predate SessionAudience. A linked community
+        // without an explicit PUBLIC audience is still members-only.
+        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() == null) {
+            // Membership of ANY selected community grants access, not a public link.
+            if (sessionCommunityShareRepository.isMemberOfSharedCommunity(
+                    session.getId(), viewer.getId())) return true;
+            // Keep an existing participant's details accessible if the user
+            // has since left the community; do not grant a new registration.
+            return participantRepository.existsBySessionIdAndProfileIdAndState(
+                    session.getId(), viewer.getId(), ParticipantState.ACTIVE)
+                    || waitlistRepository.findBySessionIdAndProfileId(
+                            session.getId(), viewer.getId()).isPresent();
+        }
+        if (session.getCommunity() == null
+                || session.getAudience() == SessionAudience.PUBLIC) {
+            return true;
+        }
+        if (communityMemberRepository.existsByCommunityIdAndProfileId(
+                session.getCommunity().getId(), viewer.getId())) return true;
+        // Changing a public session back to community-only cannot strand people
+        // who already joined or were waitlisted while it was publicly open.
+        // This does not grant new outside users the ability to enroll.
+        return participantRepository.existsBySessionIdAndProfileIdAndState(
+                    session.getId(), viewer.getId(), ParticipantState.ACTIVE)
+                || waitlistRepository.findBySessionIdAndProfileId(session.getId(), viewer.getId())
+                    .isPresent();
+    }
+
+    private boolean hasPendingDirectInvitation(Session session, Profile viewer) {
+        return directInviteRepository != null
+                && directInviteRepository.findBySessionIdAndInviteeIdAndStatus(
+                        session.getId(), viewer.getId(), SessionInviteStatus.PENDING).isPresent();
+    }
+
+    private void requireCommunitySessionAccess(Session session, Profile viewer) {
+        if (!canAccessCommunitySession(session, viewer)
+                && !hasPendingDirectInvitation(session, viewer)) {
+            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        }
+    }
+
     @Override
     @Transactional(readOnly = true)
     public SessionDetailResponse getById(Long sessionId, String username) {
@@ -307,12 +468,7 @@ public class SessionServiceImpl implements SessionService {
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile viewer = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
-                && session.getCommunity() != null
-                && !communityMemberRepository.existsByCommunityIdAndProfileId(
-                        session.getCommunity().getId(), viewer.getId())) {
-            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
-        }
+        requireCommunitySessionAccess(session, viewer);
         return sessionViewMapper.toDetail(session, viewer);
     }
 
@@ -324,12 +480,7 @@ public class SessionServiceImpl implements SessionService {
         Profile viewer = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
-                && session.getCommunity() != null
-                && !communityMemberRepository.existsByCommunityIdAndProfileId(
-                        session.getCommunity().getId(), viewer.getId())) {
-            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
-        }
+        requireCommunitySessionAccess(session, viewer);
 
         if (session.getRecurrenceSeriesId() == null || session.getRecurrenceSeriesId().isBlank()) {
             return List.of(sessionViewMapper.toSummary(session, null, viewer));
@@ -351,10 +502,7 @@ public class SessionServiceImpl implements SessionService {
                 .findSessionIdsByProfile(sessionIds, viewer.getId());
 
         return seriesSessions.stream()
-                .filter(item -> item.getAudience() != SessionAudience.COMMUNITY_ONLY
-                        || item.getCommunity() == null
-                        || communityMemberRepository.existsByCommunityIdAndProfileId(
-                                item.getCommunity().getId(), viewer.getId()))
+                .filter(item -> canAccessCommunitySession(item, viewer))
                 .map(item -> sessionViewMapper.toSummary(
                         item, null, participantCounts, joinedSessionIds, waitlistedSessionIds))
                 .toList();
@@ -439,10 +587,17 @@ public class SessionServiceImpl implements SessionService {
             Set<Long> joinedSessionIds,
             Set<Long> waitlistedSessionIds) {
         Double distanceKm = null;
-        if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null) {
+        if (hasCoordinates && session.getLatitude() != null && session.getLongitude() != null
+                && Double.isFinite(session.getLatitude()) && Double.isFinite(session.getLongitude())
+                && Math.abs(session.getLatitude()) <= 90 && Math.abs(session.getLongitude()) <= 180) {
+            // No direct or indirect access to the precise coordinates through
+            // the anonymous discovery endpoint. The same approximate distance
+            // drives returned values, sorting and radius inclusion.
+            var publicPoint = SessionDiscoveryLocationGrid.approximate(
+                    session.getLatitude(), session.getLongitude());
             distanceKm = distanceCalculator.kilometres(
                     criteria.latitude(), criteria.longitude(),
-                    session.getLatitude(), session.getLongitude());
+                    publicPoint.latitude(), publicPoint.longitude());
         }
         return sessionViewMapper.toSummary(
                 session, distanceKm, participantCounts, joinedSessionIds, waitlistedSessionIds);
@@ -499,7 +654,8 @@ public class SessionServiceImpl implements SessionService {
                         participant.getProfile().getUsername(),
                         participant.getAttendanceStatus(),
                         participant.getJoinedAt(),
-                        participant.getTeamCode()
+                        participant.getTeamCode(),
+                        participant.getProfile().getProfilePicUrl()
                 ))
                 .toList();
     }
@@ -507,17 +663,56 @@ public class SessionServiceImpl implements SessionService {
     @Override
     @Transactional
     public JoinSessionResponse join(Long sessionId, JoinSessionRequest request, String username) {
+        return joinInternal(sessionId, request, username, null, null);
+    }
+
+    @Override
+    @Transactional
+    public JoinSessionResponse joinWithGuestToken(Long sessionId, String token, String username) {
+        return joinInternal(sessionId, new JoinSessionRequest(null), username, token, null);
+    }
+
+    @Override
+    @Transactional
+    public JoinSessionResponse joinWithInvitation(Long sessionId, Long inviteId, String username) {
+        return joinInternal(sessionId, new JoinSessionRequest(null), username, null, inviteId);
+    }
+
+    private JoinSessionResponse joinInternal(
+            Long sessionId, JoinSessionRequest request, String username, String guestToken, Long inviteId) {
         Session session = sessionRepository.findByIdForUpdate(sessionId)
                 .orElseThrow(() -> new SessionNotFound("Session not found"));
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
 
         assertJoinable(session);
-        if (session.getAudience() == SessionAudience.COMMUNITY_ONLY
-                && session.getCommunity() != null
-                && !communityMemberRepository.existsByCommunityIdAndProfileId(
-                        session.getCommunity().getId(), profile.getId())) {
-            throw new AccessDeniedException("Esta sessão está reservada à comunidade");
+        // Only a recipient-bound, still-pending invite can waive session-only
+        // access restrictions. Regular joins and guest-link joins are unchanged.
+        boolean directInvitation = inviteId != null;
+        if (directInvitation) {
+            if (directInviteRepository == null) throw new AccessDeniedException("Convite indisponível");
+            SessionInvite invite = directInviteRepository.findById(inviteId)
+                    .orElseThrow(() -> new AccessDeniedException("Convite indisponível"));
+            if (!invite.getSession().getId().equals(sessionId)
+                    || !invite.getInvitee().getId().equals(profile.getId())
+                    || invite.getStatus() != SessionInviteStatus.PENDING) {
+                throw new AccessDeniedException("Este convite não te pertence ou já foi respondido");
+            }
+        }
+        if (!directInvitation && guestToken == null && session.getAudience() == SessionAudience.COMMUNITY_ONLY
+                && session.getCommunity() == null
+                && !sessionCommunityShareRepository.isMemberOfSharedCommunity(
+                        sessionId, profile.getId())) {
+            throw new AccessDeniedException("Esta sessão está reservada aos membros das comunidades");
+        }
+        if (!directInvitation) {
+            if (guestToken == null) requireCommunitySessionAccess(session, profile);
+            else requireValidGuestToken(session, guestToken);
+        }
+        if (!com.example.desporto24.service.SessionRegistrationOpening.isOpen(session, Instant.now())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "A convocatória ainda não abriu");
         }
         Instant joinAt = Instant.now();
         reliabilityService.requireJoinAllowed(profile, joinAt);
@@ -539,7 +734,7 @@ public class SessionServiceImpl implements SessionService {
             );
         }
 
-        if (Boolean.TRUE.equals(session.getPrivateGame())) {
+        if (Boolean.TRUE.equals(session.getPrivateGame()) && !directInvitation) {
             String supplied = request == null ? null : request.password();
             if (supplied == null
                     || session.getPasswordHash() == null
@@ -592,6 +787,95 @@ public class SessionServiceImpl implements SessionService {
         );
     }
 
+    /** Update only private arrival instructions, not the catalogue venue or
+     * its reference point. Row locking serializes concurrent organizer edits.
+     */
+    @Override
+    @Transactional
+    public SessionDetailResponse updateMeetingPoint(
+            Long sessionId, String instructions, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireCreator(session, actor);
+        if ((session.getStatus() != SessionStatus.OPEN && session.getStatus() != SessionStatus.FULL)
+                || session.getGameDate() == null
+                || !session.getGameDate().toInstant().isAfter(Instant.now())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "O ponto de encontro só pode ser alterado antes do início da sessão");
+        }
+        if (instructions != null && (instructions.length() > 240
+                || instructions.codePoints().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Instruções de chegada inválidas");
+        }
+        String normalized = instructions == null || instructions.isBlank()
+                ? null : instructions.trim();
+        if (!java.util.Objects.equals(normalized, session.getMeetingPointInstructions())) {
+            session.setMeetingPointInstructions(normalized);
+            session.setUpdatedAt(Instant.now());
+            sessionRepository.save(session);
+            // Only a genuine change sends an in-app alert. The alert itself
+            // deliberately contains neither the private note nor venue GPS.
+            sessionNotificationService.notifyMeetingPointUpdated(session);
+        }
+        return sessionViewMapper.toDetail(session, actor);
+    }
+
+    @Override
+    @Transactional
+    public SessionDetailResponse openRegistration(Long sessionId, String username) {
+        Session session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new SessionNotFound("Session not found"));
+        Profile actor = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        requireCreator(session, actor);
+        if (session.getCommunity() == null
+                || session.getRegistrationOpeningMode()
+                    != com.example.desporto24.enumeration.RegistrationOpeningMode.MANUAL) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT, "Esta convocatória não está pendente");
+        }
+        assertJoinable(session);
+        session.setRegistrationOpeningMode(
+                com.example.desporto24.enumeration.RegistrationOpeningMode.IMMEDIATE);
+        session.setRegistrationOpensAt(null);
+        session.setUpdatedAt(Instant.now());
+        sessionRepository.save(session);
+        return sessionViewMapper.toDetail(session, actor);
+    }
+
+    /**
+     * Scoped 256-bit organizer invitation. It authorizes joining this session
+     * only, never community membership, browsing or roster access.
+     * All normal exclusion, reliability, capacity and waitlist checks still run.
+     */
+    private void requireValidGuestToken(Session session, String token) {
+        if ((session.getAudience() != SessionAudience.PUBLIC
+                    && session.getAudience() != SessionAudience.COMMUNITY_ONLY)
+                || Boolean.TRUE.equals(session.getPrivateGame())
+                || Boolean.FALSE.equals(session.getEnabled())
+                || session.getGuestLinkHash() == null
+                || token == null || !token.matches("[A-Za-z0-9_-]{43}")) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.NOT_FOUND, "Convite indisponível");
+        }
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String encoded = java.util.HexFormat.of().formatHex(digest);
+            if (!java.security.MessageDigest.isEqual(
+                    session.getGuestLinkHash().getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                    encoded.getBytes(java.nio.charset.StandardCharsets.US_ASCII))) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Convite indisponível");
+            }
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
     private void assertJoinable(Session session) {
         if (session.getStatus() == SessionStatus.CANCELLED
                 || session.getStatus() == SessionStatus.COMPLETED) {
@@ -633,6 +917,14 @@ public class SessionServiceImpl implements SessionService {
                 || active + externalConfirmed > max) {
             throw new IllegalArgumentException(
                     "Confirmed external players exceed available session capacity");
+        }
+
+        // Approved guest claims already occupy numbered external seats.
+        // The manual legacy counter must never silently evict those guests.
+        long approvedGuests = sessionGuestRequests.countBySessionIdAndStatus(
+                sessionId, com.example.desporto24.model.session.SessionGuestRequest.State.APPROVED);
+        if (externalConfirmed < approvedGuests) {
+            throw new IllegalArgumentException("External seats cannot be below approved guest requests");
         }
 
         int previous = session.getExternalConfirmedParticipants() == null
@@ -753,6 +1045,15 @@ public class SessionServiceImpl implements SessionService {
         Instant now = Instant.now();
         if (session.getGameDate() == null || session.getGameDate().toInstant().isAfter(now)) {
             throw new IllegalStateException("Session cannot be completed before it starts");
+        }
+
+        if (session.getMinParticipants() != null) {
+            long active = participantRepository.countBySessionIdAndState(
+                    sessionId, ParticipantState.ACTIVE);
+            int total = com.example.desporto24.service.SessionCapacity.totalConfirmed(session, active);
+            if (total < com.example.desporto24.service.SessionMinimumPlayers.required(session)) {
+                throw new IllegalStateException("O mínimo de jogadores não foi atingido. A sessão não se realizou");
+            }
         }
 
         session.setStatus(SessionStatus.COMPLETED);

@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""Match a small allowlisted set of official Porto venue contact pages to Jynlo.
+
+Read-only. Never fetches source websites, extracts phone numbers, submits a
+suggestion, updates a venue, or assumes a public page permits bulk reuse.
+This identifies *possible records to review*; it is not a contact importer.
+"""
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+import json
+from pathlib import Path
+import re
+from urllib.parse import urlsplit
+
+from audit_venue_public_contacts import (
+    check_catalogue, contact_kind, fold, load_public_catalogue,
+)
+
+OFFICIAL_HOSTS = frozenset(("www.agoraporto.pt",))
+SECONDARY_OFFICIAL_HOSTS = OFFICIAL_HOSTS | {"desporto.agoraporto.pt"}
+MANIFEST_FIELDS = frozenset(("reviewed_on", "scope", "reuse_status", "facilities"))
+FACILITY_FIELDS = frozenset((
+    "name", "aliases", "city", "district", "street_hint", "source_url",
+    "source_label", "review_note", "secondary_source_url",
+))
+MAX_FACILITIES = 10
+MAX_REVIEW_HINTS = 3
+# Generic words do not identify a particular swimming pool or sports centre.
+GENERIC_TOKENS = frozenset((
+    "piscina", "piscinas", "municipal", "municipais", "engenheiro",
+    "eng", "campo", "desportivo", "desportiva", "complexo", "porto",
+))
+
+
+def normalized_name(value):
+    """Conservative punctuation-insensitive match, never fuzzy similarity."""
+    return re.sub(r"[^a-z0-9]+", " ", fold(value)).strip()
+
+
+def valid_official_url(value, hosts):
+    """Check a reference URL's origin without fetching or trusting its contents."""
+    parsed = urlsplit(str(value or ""))
+    return (parsed.scheme == "https" and parsed.hostname in hosts and
+            not parsed.username and not parsed.password and not parsed.port and
+            bool(parsed.path) and not parsed.query and not parsed.fragment)
+
+
+def verify_manifest(manifest):
+    if not isinstance(manifest, dict):
+        raise ValueError("Source manifest must be a JSON object")
+    if set(manifest) - MANIFEST_FIELDS:
+        raise ValueError("Unexpected manifest fields: source data must be references only")
+    sources = manifest.get("facilities")
+    if not isinstance(sources, list) or not 1 <= len(sources) <= MAX_FACILITIES:
+        raise ValueError("Expected between 1 and 10 manually checked facility references")
+    if not manifest.get("reviewed_on") or not manifest.get("reuse_status"):
+        raise ValueError("Missing review date or reuse disclosure")
+    seen_urls = set()
+    seen_names = set()
+    for item in sources:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid facility reference")
+        if set(item) - FACILITY_FIELDS:
+            raise ValueError("Unexpected facility fields: never store contacts in the manifest")
+        if item.get("city") != "Porto" or item.get("district") != "Porto":
+            raise ValueError("Pilot may only include facilities in Porto city and district")
+        name = normalized_name(item.get("name"))
+        if not name or name in seen_names:
+            raise ValueError("Duplicate/invalid official venue name")
+        seen_names.add(name)
+        if not valid_official_url(item.get("source_url"), OFFICIAL_HOSTS):
+            raise ValueError("Source must be an exact official HTTPS facility URL")
+        if "secondary_source_url" in item and not valid_official_url(
+                item["secondary_source_url"], SECONDARY_OFFICIAL_HOSTS):
+            raise ValueError("Secondary source must be an official HTTPS reference")
+        if item["source_url"] in seen_urls:
+            raise ValueError("Duplicate official source URL")
+        seen_urls.add(item["source_url"])
+        if not item.get("street_hint") or not item.get("source_label"):
+            raise ValueError("Manual facility street/name provenance is required")
+        aliases = item.get("aliases", [])
+        if not isinstance(aliases, list) or len(aliases) > 3 or \
+                any(not isinstance(x, str) or not normalized_name(x) for x in aliases):
+            raise ValueError("Aliases must be limited to explicitly reviewed facility names")
+        if len({name, *(normalized_name(x) for x in aliases)}) != len(aliases) + 1:
+            raise ValueError("Duplicate venue aliases")
+    return sources
+
+
+def check_street(address, hint):
+    """Does not infer a street from coordinates, and never certifies an address."""
+    if not isinstance(address, str) or not address.strip() or \
+            "confirmar" in fold(address) or "localizacao no mapa" in fold(address):
+        return "MORADA_NAO_CONFIRMADA"
+    # Punctuation-insensitive, but intentionally no fuzzy address matching.
+    if normalized_name(hint) not in normalized_name(address):
+        return "MORADA_DIVERGENTE_REVER"
+    return "MORADA_COMPATIVEL_REVER"
+
+
+
+def possible_name_hints(catalogue, item):
+    """Hints only: two distinctive whole tokens + Porto; never assign IDs.
+
+    This is deliberately less permissive than fuzzy text similarity and cannot
+    promote candidates to an exact/approved match.
+    """
+    tokens = {token for token in normalized_name(item["name"]).split()
+              if len(token) >= 5 and token not in GENERIC_TOKENS}
+    if len(tokens) < 2:
+        return []
+    possible = []
+    for venue in catalogue:
+        if fold(venue.get("city")) != fold(item["city"]) or \
+                fold(venue.get("district")) != fold(item["district"]):
+            continue
+        observed = set(normalized_name(venue.get("name")).split())
+        if tokens.issubset(observed):
+            possible.append({
+                "id": venue["id"],
+                "name": venue.get("name") or "",
+                "street_review": check_street(venue.get("address"), item["street_hint"]),
+                # Only a boolean: never export the public catalogue's phone/email.
+                "has_existing_contact": contact_kind(venue.get("contact")) != "without_contact",
+            })
+            if len(possible) > MAX_REVIEW_HINTS:
+                # An ambiguous set must not be truncated to an arbitrary top 3.
+                return []
+    return sorted(possible, key=lambda entry: entry["id"])
+
+
+def pilot(catalogue, manifest):
+    check_catalogue(catalogue)
+    sources = verify_manifest(manifest)
+    name_index = {}
+    for venue in catalogue:
+        key = normalized_name(venue.get("name"))
+        if key:
+            name_index.setdefault(key, []).append(venue)
+    rows = []
+    for item in sources:
+        aliases = (item["name"], *item.get("aliases", []))
+        candidates = {v["id"]: v for alias in aliases
+                      for v in name_index.get(normalized_name(alias), [])}
+        status = "SEM_NOME_EXATO_NA_JYNLO"
+        venue_id = None
+        address_status = "NAO_AVALIADA"
+        if len(candidates) > 1:
+            status = "NOME_DUPLICADO_REVER"
+        elif len(candidates) == 1:
+            match = next(iter(candidates.values()))
+            if fold(match.get("city")) != fold(item["city"]) or \
+                    fold(match.get("district")) != fold(item["district"]):
+                status = "LOCALIDADE_DIVERGENTE_REVER"
+            else:
+                venue_id = match["id"]
+                address_status = check_street(match.get("address"), item["street_hint"])
+                if contact_kind(match.get("contact")) != "without_contact":
+                    status = "CONTACTO_EXISTENTE_NAO_SOBRESCREVER"
+                elif address_status != "MORADA_COMPATIVEL_REVER":
+                    status = address_status
+                else:
+                    status = "POSSIVEL_MATCH_REVISAO_HUMANA"
+        hints = (possible_name_hints(catalogue, item)
+                 if status == "SEM_NOME_EXATO_NA_JYNLO" else [])
+        rows.append({
+            "official_name": item["name"],
+            "jynlo_venue_id": venue_id,
+            "status": status,
+            "address_status": address_status,
+            "manual_name_hints": hints,
+            "official_source": item["source_url"],
+            "reviewed_on": manifest["reviewed_on"],
+        })
+    return {
+        "warning": "Only official source references, NOT phone numbers, approvals or reusable bulk data",
+        "catalogue_count": len(catalogue),
+        "status_counts": dict(sorted(Counter(row["status"] for row in rows).items())),
+        "results": rows,
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--venues-json", type=Path)
+    group.add_argument("--live-public-api", action="store_true")
+    parser.add_argument("--sources-json", type=Path, required=True)
+    parser.add_argument("--output-json", type=Path, required=True)
+    args = parser.parse_args()
+    catalogue = (load_public_catalogue() if args.live_public_api
+                 else json.loads(args.venues_json.read_text(encoding="utf-8")))
+    manifest = json.loads(args.sources_json.read_text(encoding="utf-8"))
+    result = pilot(catalogue, manifest)
+    args.output_json.parent.mkdir(parents=True, exist_ok=True)
+    args.output_json.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+                                encoding="utf-8")
+    print("Porto municipality source-reference pilot:", result["status_counts"])
+    print("No contact extracted, copied, approved or changed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

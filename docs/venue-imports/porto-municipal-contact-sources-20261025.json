@@ -1,0 +1,41 @@
+{
+  "reviewed_on": "2026-10-25",
+  "scope": "Municipal sports facilities in city of Porto, district Porto. Source URLs only, never raw phone numbers or bulk extraction.",
+  "reuse_status": "individual-page facts observed; permission for bulk redistribution NOT confirmed",
+  "facilities": [
+    {
+      "name": "Piscina Municipal da Constituição",
+      "aliases": [],
+      "city": "Porto",
+      "district": "Porto",
+      "street_hint": "Almirante Leote do Rêgo",
+      "source_url": "https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-da-constituicao",
+      "source_label": "Ágora — página oficial da instalação"
+    },
+    {
+      "name": "Piscina Municipal de Cartes",
+      "aliases": [],
+      "city": "Porto",
+      "district": "Porto",
+      "street_hint": "Alameda de Cartes",
+      "source_url": "https://www.agoraporto.pt/piscinas-municipais/piscina-municipal-de-cartes",
+      "source_label": "Ágora — página oficial da instalação",
+      "review_note": "As duas páginas oficiais Ágora indicam códigos postais diferentes (4300-008 e 4300-088); não corrigir a morada ou publicar telefone sem confirmação presencial/administrativa.",
+      "secondary_source_url": "https://desporto.agoraporto.pt/Desporto/Centers"
+    },
+    {
+      "name": "Piscina Municipal Eng.º Armando Pimentel",
+      "aliases": [
+        "Piscina Municipal Engenheiro Armando Pimentel",
+        "ARMANDO PIMENTEL, PISCINA ENGº",
+        "Piscina Eng. Armando Pimentel"
+      ],
+      "city": "Porto",
+      "district": "Porto",
+      "street_hint": "Diogo Botelho",
+      "source_url": "https://www.agoraporto.pt/desporto/piscina-municipal-eng-o-armando-pimentel",
+      "source_label": "Ágora — página oficial da instalação",
+      "secondary_source_url": "https://desporto.agoraporto.pt/Desporto/Centers"
+    }
+  ]
+}

@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Date;
+import java.time.Instant;
+import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -49,6 +51,7 @@ public class JWTokenProvider {
                 .withIssuedAt(new Date()).withSubject(profilePrincipal.getUsername())
                 .withClaim(TOKEN_VERSION, profilePrincipal.getProfile().getTokenVersion())
                 .withClaim(TOKEN_TYPE, REFRESH_TOKEN_TYPE)
+                .withJWTId(UUID.randomUUID().toString())
                 .withExpiresAt(new Date(System.currentTimeMillis() + refreshExpirationTimeMs))
                 .sign(HMAC512(secret.getBytes()));
     }
@@ -59,6 +62,40 @@ public class JWTokenProvider {
         return REFRESH_TOKEN_TYPE.equals(type)
                 && StringUtils.isNotEmpty(username)
                 && !isTokenExpired(verifier, token);
+    }
+
+    /**
+     * Bind a freshly generated access token to the browser login family.
+     * All original authorities, token version and expiry remain signed.
+     * Older unbound access tokens continue working only until normal expiry.
+     */
+    public String bindAccessTokenToFamily(String token, String family) {
+        var verified = getJWTVerifier().verify(token);
+        if (!ACCESS_TOKEN_TYPE.equals(verified.getClaim(TOKEN_TYPE).asString())
+                || family == null || family.isBlank()) {
+            throw new JWTVerificationException("Invalid access token family");
+        }
+        return JWT.create().withIssuer(DESPORTO_24).withAudience(DESPORTO_24_ADMINISTRATION)
+                .withIssuedAt(verified.getIssuedAt())
+                .withSubject(verified.getSubject())
+                .withArrayClaim(AUTHORITIES, verified.getClaim(AUTHORITIES).asArray(String.class))
+                .withClaim(TOKEN_VERSION, verified.getClaim(TOKEN_VERSION).asLong())
+                .withClaim(TOKEN_TYPE, ACCESS_TOKEN_TYPE)
+                .withClaim("session_family", family)
+                .withExpiresAt(verified.getExpiresAt())
+                .sign(HMAC512(secret.getBytes()));
+    }
+
+    public String getAccessTokenFamilyId(String token) {
+        return getJWTVerifier().verify(token).getClaim("session_family").asString();
+    }
+
+    public String getRefreshTokenId(String token) {
+        return getJWTVerifier().verify(token).getId();
+    }
+
+    public Instant getRefreshTokenExpiry(String token) {
+        return getJWTVerifier().verify(token).getExpiresAt().toInstant();
     }
 
     public List<GrantedAuthority> getAuthorities(String token){
@@ -80,7 +117,7 @@ public class JWTokenProvider {
     public boolean isTokenValid(String username, String token){
         JWTVerifier verifier = getJWTVerifier();
         String type = verifier.verify(token).getClaim(TOKEN_TYPE).asString();
-        return (type == null || ACCESS_TOKEN_TYPE.equals(type))
+        return ACCESS_TOKEN_TYPE.equals(type)
                 && StringUtils.isNotEmpty(username)
                 && !isTokenExpired(verifier, token);
     }
@@ -107,7 +144,10 @@ public class JWTokenProvider {
         JWTVerifier verifier;
         try{
             Algorithm algorithm = HMAC512(secret);
-            verifier = JWT.require(algorithm).withIssuer(DESPORTO_24).build();
+            verifier = JWT.require(algorithm)
+                    .withIssuer(DESPORTO_24)
+                    .withAudience(DESPORTO_24_ADMINISTRATION)
+                    .build();
         }catch (JWTVerificationException exception){
             throw new JWTVerificationException(TOKEN_CANNOT_BE_VERIFIED);
         }

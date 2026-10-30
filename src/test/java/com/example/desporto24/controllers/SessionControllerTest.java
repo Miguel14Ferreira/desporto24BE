@@ -153,12 +153,12 @@ class SessionControllerTest {
                 2
         );
         when(authentication.getName()).thenReturn("miguel");
-        when(sessionTeamSuggestionService.confirm(7L, "miguel")).thenReturn(suggestion);
+        when(sessionTeamSuggestionService.confirm(7L, "miguel", "FORM")).thenReturn(suggestion);
 
-        SessionTeamSuggestionResponse response = controller.confirmTeams(7L, authentication);
+        SessionTeamSuggestionResponse response = controller.confirmTeams(7L, "FORM", authentication);
 
         assertSame(suggestion, response);
-        verify(sessionTeamSuggestionService).confirm(7L, "miguel");
+        verify(sessionTeamSuggestionService).confirm(7L, "miguel", "FORM");
     }
 
     @Test
@@ -172,12 +172,12 @@ class SessionControllerTest {
                 2
         );
         when(authentication.getName()).thenReturn("miguel");
-        when(sessionTeamSuggestionService.suggest(7L, "miguel")).thenReturn(suggestion);
+        when(sessionTeamSuggestionService.suggest(7L, "miguel", "EXCEL_POINTS")).thenReturn(suggestion);
 
-        SessionTeamSuggestionResponse response = controller.teamSuggestion(7L, authentication);
+        SessionTeamSuggestionResponse response = controller.teamSuggestion(7L, "EXCEL_POINTS", authentication);
 
         assertSame(suggestion, response);
-        verify(sessionTeamSuggestionService).suggest(7L, "miguel");
+        verify(sessionTeamSuggestionService).suggest(7L, "miguel", "EXCEL_POINTS");
     }
 
     @Test

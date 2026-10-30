@@ -26,5 +26,7 @@ public interface CommunityInviteRepository extends JpaRepository<CommunityInvite
             @Param("invitedProfileId") Long invitedProfileId,
             @Param("status") CommunityInviteStatus status);
 
+    long countByCommunityId(Long communityId);
+
     long deleteByInvitedProfileIdOrInvitedById(Long invitedProfileId, Long invitedById);
 }

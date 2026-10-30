@@ -1,0 +1,41 @@
+name: Municipal venue expansion read-only deduplication
+
+on:
+  pull_request:
+    branches: ['feature/desporto24-preview-deploy']
+    paths:
+      - 'scripts/audit_municipal_expansion_candidates.py'
+      - 'scripts/test_audit_municipal_expansion_candidates.py'
+      - 'docs/venue-imports/other-districts-13-official-facilities-20261019.json'
+      - '.github/workflows/municipal-venue-expansion-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tests offline, no network or database
+        run: |
+          python3 -m py_compile scripts/audit_municipal_expansion_candidates.py
+          python3 -m unittest discover -s scripts -p 'test_audit_municipal_expansion_candidates.py' -v
+      - name: Read-only public LIVE catalogue and compare municipal candidates
+        run: |
+          mkdir -p /tmp/jynlo-expansion-readonly
+          python3 scripts/audit_municipal_expansion_candidates.py \
+            --live-public-api \
+            --sources-json docs/venue-imports/other-districts-13-official-facilities-20261019.json \
+            --output-json /tmp/jynlo-expansion-readonly/municipal-candidate-review.json
+      - name: Publish public candidate IDs and names only (no phone details)
+        uses: actions/upload-artifact@v4
+        with:
+          name: municipal-venue-candidate-readonly-review
+          path: /tmp/jynlo-expansion-readonly/municipal-candidate-review.json
+          retention-days: 7

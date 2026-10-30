@@ -28,6 +28,55 @@ import static org.springframework.http.HttpStatus.OK;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final com.example.desporto24.service.NotificationPreferencesService preferenceService;
+    private final com.example.desporto24.service.ConversationNotificationMuteService muteService;
+    private final com.example.desporto24.service.InboxSummaryService inboxSummaryService;
+    private final com.example.desporto24.service.PrivateGroupService privateGroupService;
+
+
+    @GetMapping("/me/preferences")
+    public com.example.desporto24.model.dto.NotificationPreferencesRequest myPreferences(
+            Authentication authentication) {
+        return preferenceService.get(authentication.getName());
+    }
+
+    @PutMapping("/me/preferences")
+    public com.example.desporto24.model.dto.NotificationPreferencesRequest updatePreferences(
+            Authentication authentication,
+            @RequestBody com.example.desporto24.model.dto.NotificationPreferencesRequest request) {
+        return preferenceService.update(authentication.getName(), request);
+    }
+
+    @GetMapping("/me/conversation-mutes")
+    public java.util.List<com.example.desporto24.service.ConversationNotificationMuteService.ConversationMute> myConversationMutes(
+            Authentication authentication) {
+        return muteService.list(authentication.getName());
+    }
+
+    @PutMapping("/me/conversation-mutes")
+    public com.example.desporto24.service.ConversationNotificationMuteService.ConversationMute updateConversationMute(
+            Authentication authentication,
+            @RequestBody com.example.desporto24.service.ConversationNotificationMuteService.ChangeMute request) {
+        if (request == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid conversation");
+        }
+        String kind = com.example.desporto24.service.ConversationNotificationMuteService.kind(request.kind());
+        String key = com.example.desporto24.service.ConversationNotificationMuteService.key(kind, request.id());
+        // Recheck current membership before writing: do not let callers create
+        // arbitrary mute records that reveal or imply another user's chat.
+        if ("private".equals(kind)) {
+            privateGroupService.get(authentication.getName(), Long.valueOf(key));
+        } else {
+            var summaries = inboxSummaryService.summaries(authentication.getName(),
+                new com.example.desporto24.model.dto.chat.InboxRequest(java.util.List.of(
+                    new com.example.desporto24.model.dto.chat.InboxRequest.Conversation(kind, key))));
+            if (summaries.isEmpty()) {
+                throw new org.springframework.security.access.AccessDeniedException("No accessible conversation");
+            }
+        }
+        return muteService.update(authentication.getName(), kind, key, request.muted());
+    }
 
     @GetMapping("/me")
     public ResponseEntity<List<Notifications>> getMyNotifications(Authentication authentication) {

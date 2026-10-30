@@ -2,6 +2,7 @@ package com.example.desporto24.controllers;
 
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.service.CommunityCreationQuotaService;
 import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
 import com.example.desporto24.model.community.CommunityRoundEntry;
 import com.example.desporto24.enumeration.CommunityMatchResult;
@@ -14,7 +15,7 @@ import static org.mockito.Mockito.*;
 class AdminPlayerControllerTest {
     private final ProfileRepository repository = mock(ProfileRepository.class);
     private final CommunityRoundEntryRepository entries = mock(CommunityRoundEntryRepository.class);
-    private final AdminPlayerController controller = new AdminPlayerController(repository, entries);
+    private final AdminPlayerController controller = new AdminPlayerController(repository, entries, mock(CommunityCreationQuotaService.class));
 
     @Test
     void blankSearchDoesNotListEveryone() {

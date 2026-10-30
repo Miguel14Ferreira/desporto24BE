@@ -23,7 +23,8 @@ class CommunityInviteEmailListenerTest {
         assertTrue(body.contains("owner&lt;script&gt;"));
         assertTrue(body.contains("CNG &amp; Friends"));
         assertFalse(body.contains("<script>"));
-        assertTrue(body.contains("href=\"https://d24sports.com/menu/communities\""));
+        assertTrue(body.contains("href=\"https://d24sports.com/menu/communities?view=mine&amp;invite=7\""));
+        assertTrue(body.contains("view=mine&amp;invite=7"));
         assertTrue(body.contains("Ver convite / View invitation"));
         assertTrue(body.contains("lang=\"en\""));
         assertTrue(body.contains("<table role=\"presentation\""));
@@ -40,6 +41,40 @@ class CommunityInviteEmailListenerTest {
         assertDoesNotThrow(() -> listener.onCommunityInviteCreated(
                 new CommunityInviteCreatedEvent(7L, "friend@example.test", "owner", "CNG")));
         verify(sender).send(eq("friend@example.test"), anyString(), anyString());
+    }
+
+    @Test
+    void disabledCommunityInvitationEmailsAreNotDelivered() {
+        EmailSender sender = mock(EmailSender.class);
+        NotificationPreferencesService preferences = mock(NotificationPreferencesService.class);
+        when(preferences.allowsOptionalEmailAddress("friend@example.test",
+                com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE))
+                .thenReturn(false);
+        CommunityInviteEmailListener listener = new CommunityInviteEmailListener(
+                sender, "https://d24sports.com");
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                listener, "preferenceService", preferences);
+
+        assertDoesNotThrow(() -> listener.onCommunityInviteCreated(
+                new CommunityInviteCreatedEvent(9L, "friend@example.test", "owner", "CNG")));
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void preferenceLookupOutageNeverSendsMailOrFailsCommittedCommunityInvitation() {
+        EmailSender sender = mock(EmailSender.class);
+        NotificationPreferencesService preferences = mock(NotificationPreferencesService.class);
+        when(preferences.allowsOptionalEmailAddress("friend@example.test",
+                com.example.desporto24.enumeration.NotificationType.COMMUNITY_INVITE))
+                .thenThrow(new IllegalStateException("Preferences temporarily unavailable"));
+        CommunityInviteEmailListener listener = new CommunityInviteEmailListener(
+                sender, "https://d24sports.com");
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                listener, "preferenceService", preferences);
+
+        assertDoesNotThrow(() -> listener.onCommunityInviteCreated(
+                new CommunityInviteCreatedEvent(10L, "friend@example.test", "owner", "CNG")));
+        verifyNoInteractions(sender);
     }
 
     @Test

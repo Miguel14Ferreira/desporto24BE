@@ -31,6 +31,9 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      long countRecentLoginsSince(@Param("since") java.util.Date since);
 
      Optional<Profile> findUserByEmail(String email);
+     Optional<Profile> findUserByEmailIgnoreCase(String email);
+     /** At most two: case-folded duplicate emails must fail login closed. */
+     List<Profile> findTop2ByEmailIgnoreCase(String email);
      Optional<Profile> findUserByUsername(String username);
      Optional<Profile> findUserByUsernameIgnoreCase(String username);
      Optional<Profile> findUserByPhone(String phone);
@@ -39,6 +42,10 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
      @Lock(LockModeType.PESSIMISTIC_WRITE)
      @Query("SELECT p FROM Profile p WHERE p.id = :id")
      Optional<Profile> findForRoleChange(@Param("id") Long id);
+
+     @Lock(LockModeType.PESSIMISTIC_WRITE)
+     @Query("SELECT p FROM Profile p WHERE p.id = :id")
+     Optional<Profile> lockForCommunityQuota(@Param("id") Long id);
 
      Optional<Profile> findByGoogleSubject(String googleSubject);
 

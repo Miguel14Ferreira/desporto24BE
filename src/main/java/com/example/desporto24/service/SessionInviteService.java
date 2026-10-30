@@ -30,6 +30,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SessionInviteService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.example.desporto24.service.NotificationPreferencesService preferenceService;
+
     private final SessionRepository sessions;
     private final ProfileRepository profiles;
     private final SessionInviteRepository invites;
@@ -55,9 +58,6 @@ public class SessionInviteService {
                 || session.getGameDate() == null
                 || !session.getGameDate().toInstant().isAfter(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A sessão já não aceita convites.");
-        }
-        if (session.getAudience() != SessionAudience.PUBLIC || Boolean.TRUE.equals(session.getPrivateGame())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Os convites estão disponíveis apenas para sessões públicas.");
         }
         Profile recipient = profiles.findUserByUsernameIgnoreCase(recipientUsername.trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Jogador não encontrado."));
@@ -92,7 +92,10 @@ public class SessionInviteService {
         notification.setSessionId(sessionId);
         notification.setType(NotificationType.SESSION_INVITE);
         notification.setRead(false);
-        notifications.save(notification);
+        if (preferenceService == null ||
+                preferenceService.allowsInApp(notification.getUsername(), notification)) {
+            notifications.save(notification);
+        }
         return inviteId;
     }
     @Transactional(readOnly = true)
@@ -101,15 +104,24 @@ public class SessionInviteService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         return invites.findByInviteeIdAndStatusOrderByCreatedAtDesc(actor.getId(), SessionInviteStatus.PENDING)
                 .stream()
-                .map(invite -> new PendingSessionInvite(
-                        invite.getId(),
-                        invite.getSession().getId(),
-                        invite.getInviter().getUsername(),
-                        invite.getCreatedAt()))
-                .toList();
+                .map(invite -> {
+                    Session game = invite.getSession();
+                    // Metadata is scoped to the authenticated invitee; do not disclose
+                    // street addresses, passwords or the participant roster.
+                    int attending = SessionCapacity.totalConfirmed(game,
+                            participants.countBySessionIdAndState(game.getId(), ParticipantState.ACTIVE));
+                    return new PendingSessionInvite(
+                            invite.getId(), game.getId(), invite.getInviter().getUsername(),
+                            invite.getCreatedAt(), game.getSport(), game.getCity(),
+                            game.getGameDate() == null ? null : game.getGameDate().toInstant(),
+                            game.getMaxParticipants(), attending, game.getStatus());
+                }).toList();
     }
 
-    public record PendingSessionInvite(Long id, Long sessionId, String inviterUsername, Instant createdAt) {}
+    public record PendingSessionInvite(
+            Long id, Long sessionId, String inviterUsername, Instant createdAt,
+            String sport, String city, Instant gameDate,
+            Integer maxParticipants, Integer participantCount, SessionStatus status) {}
 
     @Transactional
     public JoinSessionResponse accept(Long sessionId, Long inviteId, String username) {
@@ -118,7 +130,7 @@ public class SessionInviteService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão não encontrada."));
         SessionInvite invite = findPendingInvite(sessionId, inviteId, username);
         // Reuse all existing eligibility, capacity, exclusion and waitlist rules.
-        JoinSessionResponse result = sessionService.join(sessionId, new JoinSessionRequest(null), username);
+        JoinSessionResponse result = sessionService.joinWithInvitation(sessionId, inviteId, username);
         invite.setStatus(SessionInviteStatus.ACCEPTED);
         invite.setRespondedAt(Instant.now());
         invites.save(invite);

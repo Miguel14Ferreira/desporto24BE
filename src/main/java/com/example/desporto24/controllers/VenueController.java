@@ -5,6 +5,7 @@ import com.example.desporto24.model.dto.venue.CreateVenueSportConditionRequest;
 import com.example.desporto24.model.dto.venue.VenuePhotoResponse;
 import com.example.desporto24.model.dto.venue.VenueResponse;
 import com.example.desporto24.model.dto.venue.VenueSearchPageResponse;
+import com.example.desporto24.model.dto.venue.VenueNearbyCityPageResponse;
 import com.example.desporto24.model.dto.venue.VenueSportConditionResponse;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkRequest;
 import com.example.desporto24.model.dto.venue.ResolveVenueMapLinkResponse;
@@ -29,7 +30,9 @@ import java.util.List;
 public class VenueController {
 
     private final VenueService venueService;
+    private final com.example.desporto24.service.VenueSuggestionService suggestionService;
     private final VenueMapLinkService venueMapLinkService;
+    private final com.example.desporto24.service.VenueReverseGeocodeService reverseGeocodeService;
     private final VenuePhotoService venuePhotoService;
     private final VenueSportConditionService venueSportConditionService;
 
@@ -57,9 +60,33 @@ public class VenueController {
         return venueService.suggest(name, city, sport, page, district);
     }
 
+    /**
+     * Opt-in nearby-locality search around the approximate reference derived
+     * from real saved GPS of venues in an exact city. No device location used.
+     */
+    @GetMapping("/nearby-city")
+    public VenueNearbyCityPageResponse nearbyCity(
+            @RequestParam String city,
+            @RequestParam(required = false) String sport,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") double radiusKm) {
+        return venueService.nearbyCity(city, sport, page, radiusKm);
+    }
+
     /** Retain the old Java caller signature; HTTP clients use the district-aware endpoint. */
     public VenueSearchPageResponse suggest(String name, String city, String sport, int page) {
         return suggest(name, city, sport, page, null);
+    }
+
+    /**
+     * Interactive, authenticated GPS lookup; device coordinates are shared only
+     * after a user actively clicks "Use current location".
+     */
+    @GetMapping("/reverse-location")
+    public com.example.desporto24.service.VenueReverseGeocodeService.ReverseLocation reverseLocation(
+            @RequestParam double latitude, @RequestParam double longitude,
+            @RequestParam(required = false) Double accuracyMeters) {
+        return reverseGeocodeService.reverse(latitude, longitude, accuracyMeters);
     }
 
     @PostMapping("/resolve-map-link")
@@ -83,12 +110,13 @@ public class VenueController {
         return venueSportConditionService.list(id);
     }
 
+    /** Public submissions are private suggestions until approved by an administrator. */
     @PostMapping
-    public ResponseEntity<VenueResponse> create(
+    public ResponseEntity<com.example.desporto24.model.dto.venue.VenueSuggestionResponse> create(
             @RequestBody @Valid CreateVenueRequest request,
             Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(venueService.create(request, authentication.getName()));
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(suggestionService.submit(request, authentication.getName()));
     }
 
     @PostMapping(value = "/{id}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

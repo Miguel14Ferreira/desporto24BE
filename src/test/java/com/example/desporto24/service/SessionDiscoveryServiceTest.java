@@ -64,8 +64,11 @@ class SessionDiscoveryServiceTest {
                 profileRepository,
                 communityRepository,
                 communityMemberRepository,
+                mock(com.example.desporto24.repository.community.CommunitySeasonRepository.class),
+                mock(com.example.desporto24.repository.session.SessionCommunityShareRepository.class),
                 venueRepository,
                 participantRepository,
+                mock(com.example.desporto24.repository.session.SessionGuestRequestRepository.class),
                 exclusionRepository,
                 waitlistRepository,
                 sessionViewMapper,
@@ -208,13 +211,13 @@ class SessionDiscoveryServiceTest {
     @Test
     void coordinatesUseDefaultTwentyFiveKilometreRadiusAndSortByDistance() {
         Session near = session(1L, "Futebol", "Queluz", 38.75, -9.25, 5, false, 10, 2);
-        Session nearer = session(2L, "Futebol", "Amadora", 38.76, -9.24, 0, false, 10, 4);
+        Session nearer = session(2L, "Futebol", "Amadora", 38.82, -9.18, 0, false, 10, 4);
         Session far = session(3L, "Futebol", "Sintra", 38.80, -9.40, 0, false, 10, 1);
 
         stubCandidates(near, nearer, far);
-        when(distanceCalculator.kilometres(38.75, -9.25, near.getLatitude(), near.getLongitude())).thenReturn(10.0);
-        when(distanceCalculator.kilometres(38.75, -9.25, nearer.getLatitude(), nearer.getLongitude())).thenReturn(3.0);
-        when(distanceCalculator.kilometres(38.75, -9.25, far.getLatitude(), far.getLongitude())).thenReturn(30.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, SessionDiscoveryLocationGrid.approximate(near.getLatitude(), near.getLongitude()).latitude(), SessionDiscoveryLocationGrid.approximate(near.getLatitude(), near.getLongitude()).longitude())).thenReturn(10.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, SessionDiscoveryLocationGrid.approximate(nearer.getLatitude(), nearer.getLongitude()).latitude(), SessionDiscoveryLocationGrid.approximate(nearer.getLatitude(), nearer.getLongitude()).longitude())).thenReturn(3.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, SessionDiscoveryLocationGrid.approximate(far.getLatitude(), far.getLongitude()).latitude(), SessionDiscoveryLocationGrid.approximate(far.getLatitude(), far.getLongitude()).longitude())).thenReturn(30.0);
         stubSummary(near, 10.0, 2);
         stubSummary(nearer, 3.0, 4);
         stubSummary(far, 30.0, 1);
@@ -232,12 +235,12 @@ class SessionDiscoveryServiceTest {
     void appliesDistanceAndAvailabilityBeforeReturningEligibleSessions() {
         Session fullNearby = session(1L, "Futebol", "Lisboa", 38.75, -9.25, 0, false, 4, 4);
         Session farAway = session(2L, "Futebol", "Sintra", 38.85, -9.40, 0, false, 10, 2);
-        Session eligible = session(3L, "Futebol", "Amadora", 38.76, -9.24, 0, false, 10, 2);
+        Session eligible = session(3L, "Futebol", "Amadora", 38.82, -9.18, 0, false, 10, 2);
 
         stubCandidates(fullNearby, farAway, eligible);
-        when(distanceCalculator.kilometres(38.75, -9.25, fullNearby.getLatitude(), fullNearby.getLongitude())).thenReturn(2.0);
-        when(distanceCalculator.kilometres(38.75, -9.25, farAway.getLatitude(), farAway.getLongitude())).thenReturn(40.0);
-        when(distanceCalculator.kilometres(38.75, -9.25, eligible.getLatitude(), eligible.getLongitude())).thenReturn(3.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, SessionDiscoveryLocationGrid.approximate(fullNearby.getLatitude(), fullNearby.getLongitude()).latitude(), SessionDiscoveryLocationGrid.approximate(fullNearby.getLatitude(), fullNearby.getLongitude()).longitude())).thenReturn(2.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, SessionDiscoveryLocationGrid.approximate(farAway.getLatitude(), farAway.getLongitude()).latitude(), SessionDiscoveryLocationGrid.approximate(farAway.getLatitude(), farAway.getLongitude()).longitude())).thenReturn(40.0);
+        when(distanceCalculator.kilometres(38.75, -9.25, SessionDiscoveryLocationGrid.approximate(eligible.getLatitude(), eligible.getLongitude()).latitude(), SessionDiscoveryLocationGrid.approximate(eligible.getLatitude(), eligible.getLongitude()).longitude())).thenReturn(3.0);
         stubSummary(fullNearby, 2.0, 4);
         stubSummary(farAway, 40.0, 2);
         stubSummary(eligible, 3.0, 2);
@@ -252,6 +255,50 @@ class SessionDiscoveryServiceTest {
                 anyCollection(), any(Date.class), anyString(), anyString(), anyString(),
                 nullable(Date.class), nullable(Date.class), nullable(Boolean.class), anyBoolean(),
                 nullable(BigDecimal.class), nullable(BigDecimal.class), any());
+    }
+
+    @Test
+    void multipleOriginAndRadiusProbesCannotPinpointPrivateSessionWithinCoarseCell() {
+        Session first = session(50L, "Futebol", "Lisboa", 38.721, -9.280, 0, true, 10, 2);
+        Session second = session(51L, "Futebol", "Lisboa", 38.749, -9.230, 0, true, 10, 2);
+        stubCandidates(first, second);
+        SessionDistanceCalculator realDistance = new SessionDistanceCalculator();
+
+        when(distanceCalculator.kilometres(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenAnswer(inv -> realDistance.kilometres(
+                        inv.getArgument(0), inv.getArgument(1),
+                        inv.getArgument(2), inv.getArgument(3)));
+        when(sessionViewMapper.toSummary(any(Session.class), anyDouble(),
+                anyMap(), anySet(), anySet())).thenAnswer(inv -> {
+                    Session source = inv.getArgument(0);
+                    Double distance = inv.getArgument(1);
+                    return new SessionSummaryResponse(
+                            source.getId(), source.getSport(), source.getCity(),
+                            source.getGameDate().toInstant(), distance, 2, 10,
+                            source.getPriceAmount(), true, source.getStatus());
+                });
+
+        for (double[] origin : new double[][] {
+                {38.70, -9.22}, {38.80, -9.36}, {38.74, -9.25}
+        }) {
+            for (double radius : new double[] {0.1, 1.0, 3.0, 5.0, 10.0, 25.0}) {
+                var found = service.discover(criteria(
+                        null, null, null, null, origin[0], origin[1], radius,
+                        null, true, null, "distance"));
+                // No radius threshold may distinguish these distinct exact
+                // locations: both are represented by the SAME public cell.
+                assertTrue(found.isEmpty() || found.size() == 2,
+                        "No fine-grained radius probe may reveal which exact location is closer");
+                if (found.size() == 2) {
+                    assertEquals(found.get(0).distanceKm(), found.get(1).distanceKm());
+                }
+            }
+        }
+
+        verify(distanceCalculator, never()).kilometres(
+                anyDouble(), anyDouble(), eq(first.getLatitude()), eq(first.getLongitude()));
+        verify(distanceCalculator, never()).kilometres(
+                anyDouble(), anyDouble(), eq(second.getLatitude()), eq(second.getLongitude()));
     }
 
     @Test

@@ -5,6 +5,9 @@ import com.example.desporto24.exception.EmailNotFoundException;
 import com.example.desporto24.exception.UserNotFoundException;
 import com.example.desporto24.model.dto.ProfileDTO;
 import com.example.desporto24.model.dto.auth.LoginResponse;
+import com.example.desporto24.model.dto.auth.DeviceSessionResponse;
+import com.example.desporto24.utility.JWTokenProvider;
+import java.util.List;
 import com.example.desporto24.model.dto.auth.GoogleAuthResponse;
 import com.example.desporto24.model.dto.auth.GoogleCredentialRequest;
 import com.example.desporto24.model.dto.auth.GoogleRegistrationRequest;
@@ -17,6 +20,7 @@ import com.example.desporto24.service.interfaces.AuthenticationService;
 import com.example.desporto24.service.GoogleAuthenticationService;
 import com.example.desporto24.security.SensitiveActionRateLimiter;
 import com.example.desporto24.security.RefreshOriginValidator;
+import com.example.desporto24.security.RefreshTokenRotationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -49,6 +53,8 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
     private final SensitiveActionRateLimiter sensitiveActionRateLimiter;
     private final RefreshOriginValidator refreshOriginValidator;
+    private final RefreshTokenRotationService refreshTokenRotationService;
+    private final JWTokenProvider jwtTokens;
     private final GoogleAuthenticationService googleAuthenticationService;
 
     @Value("${desporto.app.refreshExpirationMs:604800000}")
@@ -119,7 +125,92 @@ public class AuthenticationController {
         }
 
         LoginResponse result = authenticationService.refresh(refreshToken);
-        return withRefreshCookie(result);
+        String username = result.profile() == null ? null : result.profile().getUsername();
+        if (username == null || username.isBlank()) {
+            throw new BadCredentialsException(INCORRECT_CREDENTIALS);
+        }
+        String rotatedToken = authenticationService.createRefreshToken(username);
+        // Do not return a new access JWT or cookie until the previous refresh
+        // token is consumed atomically in the shared database.
+        String family = refreshTokenRotationService.rotate(refreshToken, rotatedToken, username);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie(rotatedToken).toString())
+                .body(withBoundToken(result, family));
+    }
+
+    /**
+     * Lists only the authenticated user's unrevoked, unexpired refresh families.
+     * Never returns raw refresh cookies, hashes, IP addresses or User-Agent.
+     */
+    @GetMapping("/sessions")
+    public List<DeviceSessionResponse> listDeviceSessions(
+            Authentication authentication,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        requireSignedIn(authentication);
+        return refreshTokenRotationService.activeSessions(
+                authentication.getName(), accessFamily(authorization));
+    }
+
+    /**
+     * Keep this browser signed in while revoking all other refresh families.
+     * Requires a family-bound bearer JWT and an exact allowed browser Origin.
+     */
+    @DeleteMapping("/sessions/others")
+    public ResponseEntity<Void> revokeOtherDeviceSessions(
+            Authentication authentication,
+            @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        requireSignedIn(authentication);
+        refreshOriginValidator.requireAllowedOrigin(origin);
+        refreshTokenRotationService.revokeOtherDevices(
+                authentication.getName(), accessFamily(authorization));
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/sessions/{familyId}")
+    public ResponseEntity<Void> revokeDeviceSession(
+            @PathVariable String familyId,
+            Authentication authentication,
+            @RequestHeader(value = HttpHeaders.ORIGIN, required = false) String origin,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        requireSignedIn(authentication);
+        refreshOriginValidator.requireAllowedOrigin(origin);
+        refreshTokenRotationService.revokeDevice(authentication.getName(), familyId);
+        if (familyId.equals(accessFamily(authorization))) {
+            return ResponseEntity.noContent()
+                    .header(HttpHeaders.SET_COOKIE, clearRefreshCookie().toString())
+                    .build();
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    private String accessFamily(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) return null;
+        return jwtTokens.getAccessTokenFamilyId(authorization.substring(7));
+    }
+
+    private void requireSignedIn(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null || authentication.getName().isBlank()
+                || "anonymousUser".equals(authentication.getName())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "É necessário iniciar sessão.");
+        }
+    }
+
+    private LoginResponse withBoundToken(LoginResponse result, String family) {
+        if (family == null) return result;
+        return new LoginResponse(result.mfaRequired(), result.challengeId(),
+                result.challengeExpiresAt(),
+                jwtTokens.bindAccessTokenToFamily(result.token(), family), result.profile());
+    }
+
+    private GoogleAuthResponse withBoundToken(GoogleAuthResponse result, String family) {
+        if (family == null) return result;
+        return new GoogleAuthResponse(result.onboardingRequired(), result.email(),
+                result.fullName(), result.pictureUrl(), result.mfaRequired(),
+                result.challengeId(), result.challengeExpiresAt(),
+                jwtTokens.bindAccessTokenToFamily(result.token(), family), result.profile());
     }
 
     @PostMapping("/mfa/resend")
@@ -220,9 +311,10 @@ public class AuthenticationController {
         }
 
         String refreshToken = authenticationService.createRefreshToken(username);
+        String family = refreshTokenRotationService.registerIssued(username, refreshToken);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(refreshToken).toString())
-                .body(result);
+                .body(withBoundToken(result, family));
     }
 
     private ResponseEntity<GoogleAuthResponse> withGoogleRefreshCookie(GoogleAuthResponse result) {
@@ -232,9 +324,10 @@ public class AuthenticationController {
         }
 
         String refreshToken = authenticationService.createRefreshToken(username);
+        String family = refreshTokenRotationService.registerIssued(username, refreshToken);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(refreshToken).toString())
-                .body(result);
+                .body(withBoundToken(result, family));
     }
 
     private ResponseCookie refreshCookie(String token) {

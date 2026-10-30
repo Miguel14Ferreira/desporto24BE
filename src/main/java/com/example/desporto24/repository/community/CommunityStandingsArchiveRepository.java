@@ -10,4 +10,8 @@ import java.util.Optional;
 public interface CommunityStandingsArchiveRepository extends JpaRepository<CommunityStandingsArchive, Long> {
     List<CommunityStandingsArchive> findByCommunityIdOrderByCreatedAtDescIdDesc(Long communityId, Pageable pageable);
     Optional<CommunityStandingsArchive> findByIdAndCommunityId(Long id, Long communityId);
+    Optional<CommunityStandingsArchive> findFirstByCommunityIdAndEntryTypeOrderByCreatedAtDescIdDesc(
+            Long communityId, String entryType);
+    boolean existsByCommunityIdAndSeasonId(Long communityId, Long seasonId);
+    List<CommunityStandingsArchive> findByCommunityIdAndSeasonId(Long communityId, Long seasonId);
 }

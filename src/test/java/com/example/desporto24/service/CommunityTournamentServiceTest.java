@@ -107,6 +107,109 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsExplicitKartingRaceModeWithItsOwnPointsAndNoFakeMatchRules() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var request = new CreateCommunityTournamentRequest(
+                "Campeonato de Karting", null, null, null, "Karting",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+        var created = service.create(7L, "owner", request);
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
+                created.scoringMode());
+        var saved = org.mockito.ArgumentCaptor.forClass(CommunityTournament.class);
+        verify(tournamentRepository).save(saved.capture());
+        assertEquals("25,18,15,12,10,8,6,4,2,1",
+                saved.getValue().getRacePointsByPlace());
+        assertEquals(TournamentStatus.DRAFT, saved.getValue().getStatus());
+    }
+
+    @Test
+    void createsBmxRacingChampionshipWithoutAllowingFakeFootballScoring() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var request = new CreateCommunityTournamentRequest(
+                "Liga BMX Racing", null, null, null, "BMX",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+        var result = service.create(7L, "owner", request);
+        assertEquals("BMX", result.sport());
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
+                result.scoringMode());
+        verify(tournamentRepository).save(argThat(t -> "BMX".equals(t.getSport())
+                && "25,18,15,12,10,8,6,4,2,1".equals(t.getRacePointsByPlace())));
+
+        var bad = new CreateCommunityTournamentRequest(
+                "Liga BMX inválida", 3, 1, 0, "BMX",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", bad)).getStatusCode());
+        verify(tournamentRepository, times(1)).save(any(CommunityTournament.class));
+    }
+
+    @Test
+    void createsCommunityDefinedCyclingMountainBikeAndCyclocrossRaceChampionships() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        for (String sport : List.of("Ciclismo", "Mountain Bike", "Ciclocrosse", "Ciclismo de Estrada", "Ciclismo de Pista")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Campeonato " + sport, null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+            var created = service.create(7L, "owner", request);
+            assertEquals(sport, created.sport());
+            assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS,
+                    created.scoringMode());
+        }
+        verify(tournamentRepository, times(5)).save(argThat(t ->
+                "25,18,15,12,10,8,6,4,2,1".equals(t.getRacePointsByPlace())
+                && t.getStatus() == TournamentStatus.DRAFT));
+    }
+
+    @Test
+    void doesNotEnableOtherCyclingSubdisciplinesOrUnofficialDuelRules() {
+        actingAsOwner(CommunityRole.OWNER);
+        for (String sport : List.of("Corrida de obstáculos",
+                "Triatlo", "Corrida")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Liga não suportada", null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", request)).getStatusCode());
+        }
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsRaceModeForFootballOrTeamCompetitions() {
+        actingAsOwner(CommunityRole.OWNER);
+        for (var sport : List.of("Futebol", "Natação")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Campeonato", null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", request)).getStatusCode());
+        }
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
     void legacyCreationSnapshotsCommunityPrimarySportOrLeavesSportless() {
         community.setSport("Padel");
         actingAsOwner(CommunityRole.OWNER);
@@ -243,19 +346,66 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
-    void teamCompetitionsRequireTheirOwnSportAndRosterSize() {
+    void teamCompetitionsAllowOpenRostersButStillRequireSportAndValidFixedSizes() {
         actingAsOwner(CommunityRole.OWNER);
-        var noSize = new CreateCommunityTournamentRequest(
-                "Liga", null, null, null, "Futebol", TournamentEntryType.TEAM, null);
-        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
-                assertThrows(ResponseStatusException.class,
-                        () -> service.create(7L, "owner", noSize)).getStatusCode());
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var open = new CreateCommunityTournamentRequest(
+                "Liga aberta", null, null, null, "Karting", TournamentEntryType.TEAM, null);
+        var created = service.create(7L, "owner", open);
+        assertEquals(TournamentEntryType.TEAM, created.entryType());
+        assertEquals("Karting", created.sport());
+        assertNull(created.playersPerTeam());
+
+        for (int invalid : List.of(0, 31)) {
+            var illegal = new CreateCommunityTournamentRequest(
+                    "Liga", null, null, null, "Futebol", TournamentEntryType.TEAM, invalid);
+            assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.create(7L, "owner", illegal)).getStatusCode());
+        }
         var noSport = new CreateCommunityTournamentRequest(
-                "Liga", null, null, null, null, TournamentEntryType.TEAM, 5);
+                "Liga", null, null, null, null, TournamentEntryType.TEAM, null);
         assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
                 assertThrows(ResponseStatusException.class,
                         () -> service.create(7L, "owner", noSport)).getStatusCode());
-        verifyNoInteractions(tournamentRepository);
+        verify(tournamentRepository, times(1)).save(any(CommunityTournament.class));
+    }
+
+    @Test
+    void chessHalfPointsAreSnapshottedOnlyForNewIndividualChessLeagues() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var chess = new CreateCommunityTournamentRequest(
+                "Liga de Xadrez", 2, 1, 0, "Xadrez",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        var created = service.create(7L, "owner", chess);
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS,
+                created.scoringMode());
+        assertEquals(2, created.winPoints());
+        assertEquals(1, created.drawPoints());
+
+        var invalid = new CreateCommunityTournamentRequest(
+                "Liga falsa", 2, 1, 0, "Karting",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", invalid)).getStatusCode());
+        var invalidPoints = new CreateCommunityTournamentRequest(
+                "Liga", 3, 1, 0, "Xadrez",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.CHESS_HALF_POINTS);
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.create(7L, "owner", invalidPoints)).getStatusCode());
+        verify(tournamentRepository, times(1)).save(any(CommunityTournament.class));
     }
 
     @Test

@@ -1,0 +1,58 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-10-25-inline-speed-progression-v1
+      author: desporto24
+      changes:
+        - createTable:
+            tableName: community_inline_speed_heat
+            columns:
+              - column: {name: id, type: BIGINT, autoIncrement: true, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: tournament_id, type: BIGINT, constraints: {nullable: false}}
+              - column: {name: round_id, type: BIGINT, constraints: {nullable: false}}
+              - column: {name: stage, type: VARCHAR(12), constraints: {nullable: false}}
+              - column: {name: heat_number, type: INT, constraints: {nullable: false}}
+        - addUniqueConstraint:
+            tableName: community_inline_speed_heat
+            columnNames: round_id
+            constraintName: uk_inline_speed_round
+        - addUniqueConstraint:
+            tableName: community_inline_speed_heat
+            columnNames: tournament_id, stage, heat_number
+            constraintName: uk_inline_speed_stage_heat
+        - addForeignKeyConstraint:
+            baseTableName: community_inline_speed_heat
+            baseColumnNames: tournament_id
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+            constraintName: fk_inline_speed_tournament
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: community_inline_speed_heat
+            baseColumnNames: round_id
+            referencedTableName: community_round
+            referencedColumnNames: id
+            constraintName: fk_inline_speed_round
+            onDelete: RESTRICT
+        - createTable:
+            tableName: community_inline_speed_decision
+            columns:
+              - column: {name: id, type: BIGINT, autoIncrement: true, constraints: {primaryKey: true, nullable: false}}
+              - column: {name: tournament_id, type: BIGINT, constraints: {nullable: false}}
+              - column: {name: source_stage, type: VARCHAR(12), constraints: {nullable: false}}
+              - column: {name: target_stage, type: VARCHAR(12), constraints: {nullable: false}}
+              - column: {name: qualified_player_ids, type: TEXT, constraints: {nullable: false}}
+              - column: {name: source_fingerprint, type: VARCHAR(64), constraints: {nullable: false}}
+              - column: {name: judge_reason, type: VARCHAR(500)}
+              - column: {name: confirmed_by, type: VARCHAR(100), constraints: {nullable: false}}
+              - column: {name: confirmed_at, type: TIMESTAMP WITH TIME ZONE, constraints: {nullable: false}}
+        - addUniqueConstraint:
+            tableName: community_inline_speed_decision
+            columnNames: tournament_id, source_stage
+            constraintName: uk_inline_speed_decision_stage
+        - addForeignKeyConstraint:
+            baseTableName: community_inline_speed_decision
+            baseColumnNames: tournament_id
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+            constraintName: fk_inline_speed_decision_tournament
+            onDelete: CASCADE

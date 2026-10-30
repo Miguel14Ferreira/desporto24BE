@@ -38,6 +38,9 @@ public class Session {
     private Date gameDate;
     private String city;
     private String address;
+    /** Optional arrival instructions, visible only after the player joins. */
+    @Column(name = "meeting_point_instructions", length = 240)
+    private String meetingPointInstructions;
     private String price;
     private String password;
     private Boolean privateGame;
@@ -45,13 +48,25 @@ public class Session {
     private Boolean enabled;
     private Date created_at;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "play_format", length = 16)
+    private com.example.desporto24.enumeration.SessionPlayFormat playFormat;
+
     @Column(name = "max_participants")
     private Integer maxParticipants;
+    
+    /** Minimum required for a playable activity; legacy rows use sport defaults. */
+    @Column(name = "min_participants")
+    private Integer minParticipants;
 
     // Counts confirmed people without a Jynlo membership. The creator is already an ACTIVE participant.
     @Builder.Default
     @Column(name = "external_confirmed_participants", nullable = false)
     private Integer externalConfirmedParticipants = 0;
+
+    /** SHA-256 digest of a one-time issued 256-bit WhatsApp sharing token. */
+    @Column(name="guest_link_hash",length=64)
+    private String guestLinkHash;
 
     @Column(name = "price_amount", precision = 10, scale = 2)
     private BigDecimal priceAmount;
@@ -97,6 +112,19 @@ public class Session {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "venue_id")
     private Venue venue;
+
+    /** Explicit opt-in: the game counts towards this specific season after an
+     * administrator confirms its result. Unset for ordinary sessions. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "season_competition_id")
+    private com.example.desporto24.model.community.CommunitySeason seasonCompetition;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_opening_mode", length = 16)
+    private com.example.desporto24.enumeration.RegistrationOpeningMode registrationOpeningMode;
+
+    @Column(name = "registration_opens_at")
+    private Instant registrationOpensAt;
 
     @Column(name = "recurrence_series_id", length = 36)
     private String recurrenceSeriesId;
