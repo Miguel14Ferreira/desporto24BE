@@ -69,16 +69,23 @@ def main():
         # Archive exact historical tip before destructive action; fail closed if tag exists.
         recovery = "git/refs"
         tag = "refs/tags/archive/allowlisted-merged-20261030/" + branch
-        archived_status, _ = github("POST", recovery, token, {"ref": tag, "sha": sha})
-        if archived_status != 201:
-            raise RuntimeError("Recovery ref was not created: " + branch)
+        try:
+            archived_status, _ = github("POST", recovery, token, {"ref": tag, "sha": sha})
+            if archived_status != 201:
+                raise RuntimeError("Recovery ref was not created: " + branch)
+        except urllib.error.HTTPError as error:
+            if error.code != 422:
+                raise
+            _, archived = github("GET", "git/ref/tags/archive/allowlisted-merged-20261030/" + branch, token)
+            if archived["object"]["sha"] != sha:
+                raise RuntimeError("Recovery tag exists with different SHA: " + branch)
         # Check the tip once more after the archive write.
         _, final_ref = github("GET", refpath, token)
         if final_ref["object"]["sha"] != sha:
             raise RuntimeError("Branch moved after recovery tag: " + branch)
         # GitHub branch protections remain enforced; never force the deletion.
         try:
-            status, _ = github("DELETE", refpath, token)
+            status, _ = github("DELETE", "git/refs/heads/" + branch, token)
             if status != 204:
                 raise RuntimeError("Unexpected delete status %s for %s" % (status, branch))
             print("DELETED", branch, sha)
