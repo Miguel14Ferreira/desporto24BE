@@ -31,6 +31,7 @@ class AllowlistTests(unittest.TestCase):
                 self.assertTrue(body["ref"].startswith("refs/tags/archive/allowlisted-merged-20261030/"))
                 return 201, {"ref": body["ref"]}
             if method == "DELETE":
+                self.assertEqual(path, "git/refs/heads/" + branch)
                 return 204, None
             if path == "git/ref/heads/" + branch:
                 refs_seen = sum(1 for m, p in calls if m == "GET" and p == path)
