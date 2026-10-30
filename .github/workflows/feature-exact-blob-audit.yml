@@ -1,0 +1,19 @@
+name: Feature exact-blob audit
+on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Audit feature branch file equivalence
+        env:
+          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+        run: python3 scripts/audit_all_feature_blobs.py
