@@ -1,0 +1,23 @@
+name: Validate allowlisted branch cleanup
+on:
+  push:
+    branches:
+      - chore/allowlisted-branch-removal-20261030
+  pull_request:
+    paths:
+      - scripts/delete_exact_merged_branches.py
+      - scripts/test_delete_exact_merged_branches.py
+      - .github/workflows/validate-allowlisted-branch-cleanup.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and offline regression tests
+        run: |
+          python3 -m py_compile scripts/delete_exact_merged_branches.py scripts/test_delete_exact_merged_branches.py
+          python3 -m unittest discover -s scripts -p 'test_delete_exact_merged_branches.py' -v
