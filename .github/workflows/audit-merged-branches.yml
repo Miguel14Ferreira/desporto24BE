@@ -18,7 +18,7 @@ jobs:
       - name: Remove eligible branches with preserved ancestry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+          PRODUCTION_BRANCH: develop
           MIN_AGE_DAYS: '3'
-          DRY_RUN: 'false'
+          DRY_RUN: 'true'
         run: python3 scripts/safe_merged_branch_cleanup.py
