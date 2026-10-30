@@ -2,6 +2,7 @@
 """Delete only old branches proven to be Git ancestors of the canonical production branch."""
 import os, subprocess, re, json, datetime
 from urllib.request import Request, urlopen
+from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 ROOT = os.environ["GITHUB_REPOSITORY"]
 TOKEN = os.environ["GITHUB_TOKEN"]
@@ -41,8 +42,14 @@ for line in res.stdout.splitlines():
         continue
     candidates.append(name)
     if os.environ.get("DRY_RUN", "true").lower() != "false": continue
-    from urllib.parse import quote
-    result = api(f"/repos/{ROOT}/git/refs/heads/{quote(name, safe='/')}", "DELETE")
+    local_sha = git("rev-parse", "refs/remotes/origin/" + name)
+    if local_sha.returncode:
+        raise RuntimeError(f"Cannot resolve candidate SHA: {name}")
+    encoded_name = quote(name, safe="/")
+    remote_ref = api(f"/repos/{ROOT}/git/ref/heads/{encoded_name}")
+    if remote_ref["status"] != 200 or remote_ref["data"]["object"]["sha"] != local_sha.stdout.strip():
+        raise RuntimeError(f"Candidate changed remotely; aborting: {name}")
+    result = api(f"/repos/{ROOT}/git/refs/heads/{encoded_name}", "DELETE")
     if result["status"] != 204:
         raise RuntimeError(f"Unexpected branch deletion status: {result['status']} for {name}")
     deleted.append(name)
