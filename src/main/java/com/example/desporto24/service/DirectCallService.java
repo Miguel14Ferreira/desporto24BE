@@ -207,6 +207,17 @@ public class DirectCallService {
     public synchronized CallSession accept(UUID id, String actor) {
         configured();
         Call call = requireCall(id, actor);
+        if ("ACTIVE".equals(call.state)) {
+            Guest guest = guestFor(id, actor);
+            if (guest == null || guest.accepted() || !Instant.now().isBefore(guest.expiresAt())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Invitation not ringing");
+            }
+            inbox.requireConversationAccess(actor, "direct", guest.inviter());
+            guests.get(id).put(key(actor), new Guest(guest.username(), guest.inviter(), guest.expiresAt(), true));
+            CallSession accepted = access(call, actor);
+            notifyParticipantsChanged(call, actor);
+            return accepted;
+        }
         if (!actor.equalsIgnoreCase(call.peer)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
