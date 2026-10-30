@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Delete only old branches proven to be Git ancestors of the canonical production branch."""
 import os, subprocess, re, json, datetime
-from urllib.request import Request, urlopen
+import urllib.request
+from urllib.request import Request
 from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 ROOT = os.environ["GITHUB_REPOSITORY"]
@@ -13,7 +14,7 @@ ALLOWED = re.compile(r"^(audit|feat|feature|fix|chore|design|docs|ci|data|build|
 def api(path, method="GET"):
     req = Request("https://api.github.com" + path, method=method, headers={"Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
     try:
-        with urlopen(req, timeout=20) as res:
+        with urllib.request.urlopen(req, timeout=20) as res:
             body = res.read().decode()
             return {"status": res.status, "data": json.loads(body) if body else None}
     except (HTTPError, URLError) as e:
