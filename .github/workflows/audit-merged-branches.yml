@@ -1,5 +1,8 @@
 name: Audit merged branches
 on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
   workflow_dispatch:
 permissions:
   contents: read
