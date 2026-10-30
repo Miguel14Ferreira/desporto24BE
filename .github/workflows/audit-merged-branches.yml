@@ -1,0 +1,21 @@
+name: Audit merged branches
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: List eligible old branches without deleting
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+          MIN_AGE_DAYS: '3'
+          DRY_RUN: 'true'
+        run: python3 scripts/safe_merged_branch_cleanup.py
