@@ -21,6 +21,13 @@ ALLOWLIST = [
     "feat/session-meeting-point-change-notifications-20261028",
     "feat/session-meeting-point-edit-20261028",
     "feat/session-minimum-players-20261029",
+    "feat/session-roster-profile-photo-20261028",
+    "feat/session-private-meeting-instructions-20261028",
+    "feat/signed-guest-confirmed-roster-20261028",
+    "feat/unified-session-create-communities-20261027",
+    "feat/chat-media-notification-previews-20261028",
+    "feat/national-venue-coverage-offline-plan-20261028",
+    "feat/braganca-internal-readonly-preflight-20261028",
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
