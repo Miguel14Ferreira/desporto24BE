@@ -7,7 +7,7 @@ ROOT = os.environ["GITHUB_REPOSITORY"]
 TOKEN = os.environ["GITHUB_TOKEN"]
 PRODUCTION = os.environ["PRODUCTION_BRANCH"]
 CUTOFF = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=int(os.environ.get("MIN_AGE_DAYS", "3")))
-PROTECT = {"main", "master", "develop", PRODUCTION}
+PROTECT = {"main", "master", "develop", PRODUCTION, "feature/desporto24-preview-deploy"}
 ALLOWED = re.compile(r"^(audit|feat|feature|fix|chore|design|docs|ci|data|build|draft|refactor|test|tests|style|hotfix|cleanup)/")
 def api(path, method="GET"):
     req = Request("https://api.github.com" + path, method=method, headers={"Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
