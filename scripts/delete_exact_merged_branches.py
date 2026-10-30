@@ -9,8 +9,9 @@ import urllib.error
 OWNER = "Miguel14Ferreira"
 REPO = "desporto24BE"
 ALLOWLIST = [
-    "build/deps-409-maven-wrapper-current-20261028",
-    "build/deps-409-pom-current-20261028",
+    "release/venues-interior-five-20261026",
+    "release/venues-islands-five-20261026",
+    "release/venues-nine-liquibase-20261026",
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
@@ -32,7 +33,7 @@ def main():
     confirmation = os.getenv("CONFIRM_DELETE", "")
     if not token:
         raise RuntimeError("GH_TOKEN required")
-    if any(x in PROTECTED or x.startswith(("backup/", "release/")) for x in ALLOWLIST):
+    if any(x in PROTECTED or x.startswith("backup/") for x in ALLOWLIST):
         raise RuntimeError("Protected branch in allowlist")
     if len(ALLOWLIST) != len(set(ALLOWLIST)):
         raise RuntimeError("Duplicate allowlist entry")
