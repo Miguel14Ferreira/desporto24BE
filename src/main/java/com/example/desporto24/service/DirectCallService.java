@@ -258,9 +258,95 @@ public class DirectCallService {
 
     public synchronized void end(UUID id, String actor) {
         Call call = requireCall(id, actor);
+        Guest leaving = guestFor(id, actor);
+        if (leaving != null && leaving.accepted()) {
+            guests.get(id).remove(key(actor));
+            gateway.publishDirectCallEvent(call.caller, actor, id.toString(), call.media,
+                    "ENDED", actor, Instant.now());
+            notifyParticipantsChanged(call, actor);
+            return;
+        }
         calls.remove(id);
+        var invited = guests.remove(id);
         gateway.publishDirectCallEvent(call.caller, call.peer, id.toString(), call.media,
                 "ENDED", actor, Instant.now());
+        if (invited != null) for (Guest guest : invited.values()) {
+            gateway.publishDirectCallEvent(call.caller, guest.username(), id.toString(), call.media,
+                    "ENDED", actor, Instant.now());
+        }
+    }
+
+    /** Only an accepted member can invite an existing contact, never an outsider. */
+    public synchronized void invite(UUID id, String actor, String recipient) {
+        configured();
+        Call call = requireCall(id, actor);
+        if (!"ACTIVE".equals(call.state) || !isConnectedParticipant(call, actor))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Call not active");
+        if (recipient == null || recipient.isBlank() || recipient.length() > 128
+                || recipient.equalsIgnoreCase(actor) || isParticipant(call, recipient)
+                || guestFor(id, recipient) != null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid invitee");
+        inbox.requireConversationAccess(actor, "direct", recipient);
+        for (Call other : calls.values()) {
+            if (!other.id().equals(id) && ("RINGING".equals(other.state()) || "ACTIVE".equals(other.state()))
+                    && isParticipant(other, recipient))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Already in a call");
+        }
+        LinkedHashMap<String, Guest> list = guests.computeIfAbsent(id, ignored -> new LinkedHashMap<>());
+        list.entrySet().removeIf(e -> !e.getValue().accepted()
+                && !Instant.now().isBefore(e.getValue().expiresAt()));
+        if (list.size() >= MAX_PARTICIPANTS - 2)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Call full");
+        Instant expiry = Instant.now().plusSeconds(RING_SECONDS);
+        list.put(key(recipient), new Guest(recipient, actor, expiry, false));
+        gateway.publishDirectCallEvent(actor, recipient, id.toString(), call.media(),
+                "RINGING", actor, expiry);
+        notifyParticipantsChanged(call, actor);
+    }
+
+    /** Only current participants can inspect participants and invitations. */
+    public synchronized CallMembers members(UUID id, String actor) {
+        Call call = requireCall(id, actor);
+        if (!"ACTIVE".equals(call.state()) || !isConnectedParticipant(call, actor))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        List<Member> participants = new ArrayList<>();
+        participants.add(member(call.caller()));
+        participants.add(member(call.peer()));
+        List<String> pending = new ArrayList<>();
+        var list = guests.get(id);
+        if (list != null) for (Guest guest : list.values()) {
+            if (guest.accepted()) participants.add(member(guest.username()));
+            else if (Instant.now().isBefore(guest.expiresAt())) pending.add(guest.username());
+        }
+        return new CallMembers(List.copyOf(participants), List.copyOf(pending));
+    }
+
+    private Member member(String username) {
+        var profile = profiles.findUserByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return new Member(username, "jynlo-user-" + profile.getId());
+    }
+
+    private void notifyParticipantsChanged(Call call, String actor) {
+        gateway.publishDirectCallEvent(call.caller(), call.peer(), call.id().toString(),
+                call.media(), "MEMBERS_CHANGED", actor, call.expiresAt());
+        var list = guests.get(call.id());
+        if (list != null) for (Guest guest : list.values()) {
+            if (guest.accepted())
+                gateway.publishDirectCallEvent(call.caller(), guest.username(),
+                        call.id().toString(), call.media(), "MEMBERS_CHANGED", actor, call.expiresAt());
+        }
+    }
+
+    private static String key(String username) { return username.toLowerCase(Locale.ROOT); }
+    private Guest guestFor(UUID id, String username) {
+        var map = guests.get(id);
+        return map == null || username == null ? null : map.get(key(username));
+    }
+    private boolean isConnectedParticipant(Call call, String username) {
+        Guest guest = guestFor(call.id(), username);
+        return call.caller().equalsIgnoreCase(username) || call.peer().equalsIgnoreCase(username)
+                || (guest != null && guest.accepted());
     }
 
     private Call requireCall(UUID id, String actor) {
