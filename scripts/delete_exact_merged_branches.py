@@ -9,27 +9,18 @@ import urllib.error
 OWNER = "Miguel14Ferreira"
 REPO = "desporto24BE"
 ALLOWLIST = [
-    "audit/live-public-venue-coverage-20261028",
-    "audit/official-braganca-guarda-venue-preflight-20261028",
-    "audit/sao-jacinto-299-447-official-osm-provenance-20261028",
-    "chore/reconcile-develop-production-20261030",
-    "docs/braganca-regulation-rectifications-20261028",
-    "fix/community-session-visibility-back-20261027",
-    "fix/deps-guava-3372-checker-20261028",
-    "fix/gif-chat-notification-preview-20261028",
-    "fix/gif-notification-legacy-api-preview-20261028",
-    "fix/gps-reverse-address-20261027",
-    "fix/guest-approval-cancellation-20261027",
-    "fix/guest-signed-endpoint-security-20261028",
-    "fix/invite-exact-pin-login-share-20261029",
-    "fix/invite-member-rsvp-simple-20261029",
-    "fix/livekit-probe-http-diagnostics-20261028",
-    "fix/livekit-provider-readiness-20261028",
-    "fix/livekit-readiness-startup-20261028",
-    "fix/participant-confirmed-guest-roster-20261028",
-    "fix/private-group-photo-current-head-20261028",
-    "fix/profile-security-notifications-only-20261028",
-    "fix/reverse-location-both-sources-20261027"
+    "fix/direct-call-pending-invite-recovery-20261028",
+    "fix/session-meeting-point-notification-db-constraint-20261028",
+    "fix/venue-remove-startup-import-20261028",
+    "fix/venue-street-from-photon-20261027",
+    "feat/community-session-creation-policy-20261028",
+    "feat/confirmed-guest-private-meeting-point-20261028",
+    "feat/conversation-notification-mutes-20261028",
+    "feat/guest-receipt-session-chat-20261029",
+    "feat/guest-self-cancel-reservation-20261028",
+    "feat/session-meeting-point-change-notifications-20261028",
+    "feat/session-meeting-point-edit-20261028",
+    "feat/session-minimum-players-20261029",
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
