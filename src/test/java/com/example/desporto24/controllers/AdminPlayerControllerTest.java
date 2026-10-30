@@ -15,7 +15,7 @@ import static org.mockito.Mockito.*;
 class AdminPlayerControllerTest {
     private final ProfileRepository repository = mock(ProfileRepository.class);
     private final CommunityRoundEntryRepository entries = mock(CommunityRoundEntryRepository.class);
-    private final AdminPlayerController controller = new AdminPlayerController(repository, mock(CommunityCreationQuotaService.class), entries);
+    private final AdminPlayerController controller = new AdminPlayerController(repository, entries, mock(CommunityCreationQuotaService.class));
 
     @Test
     void blankSearchDoesNotListEveryone() {
