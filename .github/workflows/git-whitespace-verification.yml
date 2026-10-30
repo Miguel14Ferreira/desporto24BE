@@ -1,0 +1,19 @@
+name: Git whitespace-only verification
+on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify safe whitespace diff candidates
+        env:
+          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+        run: python3 scripts/audit_git_whitespace_diff.py
