@@ -9,20 +9,27 @@ import urllib.error
 OWNER = "Miguel14Ferreira"
 REPO = "desporto24BE"
 ALLOWLIST = [
-    "fix/account-security-notice-preference-visibility-20261028",
-    "fix/braganca-legacy-pavilion-dedup-20261028",
-    "fix/community-guest-existing-account-20261027",
-    "fix/braganca-preflight-atomic-report-20261028",
-    "audit/arroios-284-official-gis-pitch-20261027",
-    "audit/braganca-arnaldo-nearby-live-20261028",
-    "audit/braganca-municipality-collision-and-macedo-access-20261028",
-    "audit/braganca-pavilions-arrival-transit-evidence-20261028",
-    "audit/braganca-public-alias-scan-20261028",
-    "audit/braganca-three-rural-pavilions-20261028",
-    "audit/braganca-two-pavilions-source-gps-20261028",
-    "audit/guarda-municipal-historical-gps-20261028",
-    "audit/known-venue-gps-collisions-20261027",
-    "audit/municipal-gis-points-readonly-20261027"
+    "audit/live-public-venue-coverage-20261028",
+    "audit/official-braganca-guarda-venue-preflight-20261028",
+    "audit/sao-jacinto-299-447-official-osm-provenance-20261028",
+    "chore/reconcile-develop-production-20261030",
+    "docs/braganca-regulation-rectifications-20261028",
+    "fix/community-session-visibility-back-20261027",
+    "fix/deps-guava-3372-checker-20261028",
+    "fix/gif-chat-notification-preview-20261028",
+    "fix/gif-notification-legacy-api-preview-20261028",
+    "fix/gps-reverse-address-20261027",
+    "fix/guest-approval-cancellation-20261027",
+    "fix/guest-signed-endpoint-security-20261028",
+    "fix/invite-exact-pin-login-share-20261029",
+    "fix/invite-member-rsvp-simple-20261029",
+    "fix/livekit-probe-http-diagnostics-20261028",
+    "fix/livekit-provider-readiness-20261028",
+    "fix/livekit-readiness-startup-20261028",
+    "fix/participant-confirmed-guest-roster-20261028",
+    "fix/private-group-photo-current-head-20261028",
+    "fix/profile-security-notifications-only-20261028",
+    "fix/reverse-location-both-sources-20261027"
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
