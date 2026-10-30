@@ -1,11 +1,11 @@
-name: Audit merged branches
+name: Clean safely merged old branches
 on:
   push:
     branches:
       - chore/safe-merged-branch-cleanup-20261030
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   pull-requests: read
 jobs:
   audit:
@@ -15,10 +15,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: List eligible old branches without deleting
+      - name: Remove eligible branches with preserved ancestry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCTION_BRANCH: feature/desporto24-preview-deploy
           MIN_AGE_DAYS: '3'
-          DRY_RUN: 'true'
+          DRY_RUN: 'false'
         run: python3 scripts/safe_merged_branch_cleanup.py
