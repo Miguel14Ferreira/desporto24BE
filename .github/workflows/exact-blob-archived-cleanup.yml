@@ -1,0 +1,22 @@
+name: Exact-blob archived cleanup
+on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate exact file matches with no deletion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+          DRY_RUN: 'true'
+        run: python3 scripts/cleanup_exact_blob_branches.py
