@@ -1,0 +1,23 @@
+name: Archived exact-merged-PR branch batch
+on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact merged PR SHA candidates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+          DRY_RUN: 'true'
+          LIMIT: '25'
+        run: python3 scripts/archive_exact_merged_pr_heads.py
