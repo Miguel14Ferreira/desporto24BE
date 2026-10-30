@@ -1,0 +1,19 @@
+name: Review QA candidate diffs
+on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Show exact QA differences
+        env:
+          PRODUCTION_BRANCH: feature/desporto24-preview-deploy
+          CANDIDATES: qa/specialized-tournament-http-pg16-20261026,qa/tournament-scale-individual-team-20261026
+        run: python3 scripts/review_whitespace_qa_diffs.py
