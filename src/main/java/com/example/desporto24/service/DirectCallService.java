@@ -263,7 +263,7 @@ public class DirectCallService {
             guests.get(id).remove(key(actor));
             if (leaving.accepted())
                 gateway.publishDirectCallEvent(call.caller, actor, id.toString(), call.media,
-                        "ENDED", actor, Instant.now());
+                        "LEFT", actor, Instant.now());
             notifyParticipantsChanged(call, actor);
             return;
         }
