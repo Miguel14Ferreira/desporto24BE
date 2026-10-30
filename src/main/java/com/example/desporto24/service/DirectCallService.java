@@ -259,10 +259,11 @@ public class DirectCallService {
     public synchronized void end(UUID id, String actor) {
         Call call = requireCall(id, actor);
         Guest leaving = guestFor(id, actor);
-        if (leaving != null && leaving.accepted()) {
+        if (leaving != null) {
             guests.get(id).remove(key(actor));
-            gateway.publishDirectCallEvent(call.caller, actor, id.toString(), call.media,
-                    "ENDED", actor, Instant.now());
+            if (leaving.accepted())
+                gateway.publishDirectCallEvent(call.caller, actor, id.toString(), call.media,
+                        "ENDED", actor, Instant.now());
             notifyParticipantsChanged(call, actor);
             return;
         }
