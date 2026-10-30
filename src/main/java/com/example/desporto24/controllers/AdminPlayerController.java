@@ -1,6 +1,8 @@
 package com.example.desporto24.controllers;
 
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.community.CommunityRoundEntryRepository;
+import com.example.desporto24.enumeration.CommunityMatchResult;
 import com.example.desporto24.service.CommunityCreationQuotaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +21,7 @@ import java.util.Locale;
 public class AdminPlayerController {
     private static final int PAGE_SIZE = 20;
     private final ProfileRepository profileRepository;
+    private final CommunityRoundEntryRepository roundEntryRepository;
     private final CommunityCreationQuotaService communityCreationQuota;
 
     @GetMapping("/{id}/community-limit")
@@ -70,6 +73,31 @@ public class AdminPlayerController {
                 .toList();
         return new PlayerSearchResponse(players, page, results.hasNext());
     }
+
+    // Sport statistics are deliberately opt-in, avoiding an expensive query for
+    // every row in the paginated administration search.
+    @GetMapping("/{id}/stats")
+    public PlayerStatsResponse statistics(@PathVariable Long id) {
+        if (id == null || id <= 0 || !profileRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not found");
+        }
+        var entries = roundEntryRepository.findEntriesForProfile(id);
+        long games = entries.size();
+        long wins = entries.stream().filter(entry -> entry.getResult() == CommunityMatchResult.WIN).count();
+        long draws = entries.stream().filter(entry -> entry.getResult() == CommunityMatchResult.DRAW).count();
+        long losses = entries.stream().filter(entry -> entry.getResult() == CommunityMatchResult.LOSS).count();
+        long goals = entries.stream().mapToLong(entry -> entry.getGoals()).sum();
+        long assists = entries.stream().mapToLong(entry -> entry.getAssists()).sum();
+        long mvps = entries.stream().filter(entry -> entry.isMvp()).count();
+        long cleanSheets = entries.stream().filter(entry -> entry.isCleanSheet()).count();
+        double winRate = games == 0 ? 0.0 : Math.round(10000.0 * wins / games) / 100.0;
+        return new PlayerStatsResponse(id, games, wins, draws, losses,
+                goals, assists, mvps, cleanSheets, winRate);
+    }
+
+    public record PlayerStatsResponse(
+            Long playerId, long games, long wins, long draws, long losses,
+            long goals, long assists, long mvps, long cleanSheets, double winRate) {}
 
     public record PlayerSummary(
             Long id, String username, String fullName, String nickname,
