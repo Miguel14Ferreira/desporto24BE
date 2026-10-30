@@ -1,0 +1,19 @@
+name: Develop exact-file redundancy audit
+on:
+  push:
+    branches:
+      - chore/safe-merged-branch-cleanup-20261030
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cross-check changed files against synchronized develop
+        env:
+          PRODUCTION_BRANCH: develop
+        run: python3 scripts/audit_exact_file_branch_equivalence.py
