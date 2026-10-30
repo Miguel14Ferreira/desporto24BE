@@ -8,7 +8,7 @@ permissions:
   pull-requests: read
 jobs:
   archive:
-    if: "!contains(github.event.head_commit.message, '[qa archived]')"
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
