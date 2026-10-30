@@ -18,6 +18,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCTION_BRANCH: feature/desporto24-preview-deploy
-          DRY_RUN: 'false'
+          DRY_RUN: 'true'
           LIMIT: '25'
         run: python3 scripts/archive_exact_merged_pr_heads.py
