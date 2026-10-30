@@ -53,8 +53,8 @@ def main():
         sha = before["object"]["sha"]
         # Native compare uses the commit DAG, so 'behind' or 'identical' means
         # the exact branch tip is an ancestor of the inspected develop.
-        _, comparison = github("GET", "compare/" + sha + "..." + base["object"]["sha"], token)
-        if comparison["ahead_by"] < 0 or comparison["status"] not in ("behind", "identical"):
+        _, comparison = github("GET", "compare/" + base["object"]["sha"] + "..." + sha, token)
+        if comparison["ahead_by"] != 0 or comparison["status"] not in ("behind", "identical"):
             raise RuntimeError("Branch not an ancestor of develop: " + branch)
         # Reject active PR heads regardless of their base.
         _, prs = github("GET", "pulls?state=open&head=" + OWNER + ":" + branch.replace("/", "%2F") + "&per_page=100", token)
