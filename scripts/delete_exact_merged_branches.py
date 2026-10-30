@@ -28,6 +28,20 @@ ALLOWLIST = [
     "feat/chat-media-notification-previews-20261028",
     "feat/national-venue-coverage-offline-plan-20261028",
     "feat/braganca-internal-readonly-preflight-20261028",
+    "integration/auth-security-20261020",
+    "integration/validated-offline-venues-20261020",
+    "integration/validated-preview-merge-20261020",
+    "qa/community-role-matrix-20261020",
+    "qa/sprint-two-up-official-decision-regression-20261025",
+    "qa/track-sprint-authenticated-pg16-20261025",
+    "qa/track-sprint-chromium-real-backend-20261025",
+    "qa/track-sprint-pg16-integrity-20261025",
+    "qa/venue-concurrent-admin-decisions-20261025",
+    "qa/venue-moderation-real-http-pg16-20261025",
+    "test/account-lock-recovery-isolated-http-20261028",
+    "test/braganca-synthetic-pg16-readonly-preflight-20261028",
+    "test/guest-balance-ten-players-20261028",
+    "validation/be-auth-integration-20261020",
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
