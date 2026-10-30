@@ -36,7 +36,7 @@ class FakeResponse:
 
 
 class CleanupTests(unittest.TestCase):
-    def execute(self, dry_run="true", remote_sha="abc123", raise_api=False):
+    def execute(self, dry_run="true", remote_sha="abc123", raise_api=False, tree_equivalent=False):
         requests = []
 
         def fake_git(args, **kwargs):
@@ -44,7 +44,9 @@ class CleanupTests(unittest.TestCase):
             if "for-each-ref" in cmd:
                 return completed(cmd, stdout="feature/old-merged\t" + OLD + "\n")
             if "merge-base" in cmd:
-                return completed(cmd)
+                return completed(cmd, code=1 if tree_equivalent else 0)
+            if "diff" in cmd:
+                return completed(cmd, code=0 if tree_equivalent else 1)
             if "rev-parse" in cmd:
                 return completed(cmd, stdout="abc123\n")
             raise AssertionError("Unexpected git command " + str(cmd))
@@ -87,6 +89,12 @@ class CleanupTests(unittest.TestCase):
         requests, output = self.execute()
         self.assertFalse(any(method == "DELETE" for method, _ in requests))
         self.assertEqual(json.loads(output)["candidates"], 1)
+
+    def test_divergent_history_with_equal_tree_is_reported_not_deleted(self):
+        requests, output = self.execute(dry_run="false", tree_equivalent=True)
+        self.assertFalse(any(method == "DELETE" for method, _ in requests))
+        self.assertEqual(json.loads(output)["content_equivalent_count"], 1)
+        self.assertEqual(json.loads(output)["candidates"], 0)
 
     def test_api_error_fails_closed(self):
         requests, _ = self.execute(raise_api=True)
