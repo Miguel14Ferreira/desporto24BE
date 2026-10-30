@@ -1,0 +1,33 @@
+name: Delete exact merged branches (manual, recoverable)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type DELETE_EXACT_ALLOWLIST to enable deletion; otherwise dry run"
+        required: true
+        default: "DRY_RUN"
+        type: string
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: manual-exact-merged-branch-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+      - name: Validate cleanup Python and tests before any mutation
+        run: |
+          python3 -m py_compile scripts/delete_exact_merged_branches.py scripts/test_delete_exact_merged_branches.py
+          python3 -m unittest discover -s scripts -p 'test_delete_exact_merged_branches.py' -v
+      - name: Review or delete exact allowlist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONFIRM_DELETE: ${{ inputs.confirmation }}
+        run: python3 scripts/delete_exact_merged_branches.py
