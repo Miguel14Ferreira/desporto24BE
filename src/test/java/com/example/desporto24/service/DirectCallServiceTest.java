@@ -115,6 +115,77 @@ class DirectCallServiceTest {
         assertThrows(ResponseStatusException.class, () -> calls.accept(outgoing.callId(), "bea"));
     }
 
+
+    @Test
+    void invitesOnlyAuthorizedRecipientsAndIssuesRoomTokensAfterAccept() {
+        Profile carlos = mock(Profile.class);
+        lenient().when(carlos.getId()).thenReturn(14L);
+        lenient().when(profiles.findUserByUsernameIgnoreCase("carlos")).thenReturn(Optional.of(carlos));
+        var call = calls.start("ana","bea","voice");
+        calls.accept(call.callId(),"bea");
+        assertEquals(HttpStatus.NOT_FOUND,assertThrows(ResponseStatusException.class,
+                () -> calls.accept(call.callId(),"carlos")).getStatusCode());
+        calls.invite(call.callId(),"bea","carlos");
+        verify(inbox).requireConversationAccess("bea","direct","carlos");
+        var invitation = calls.pendingFor("carlos");
+        assertNotNull(invitation);
+        assertEquals("bea",invitation.caller());
+        assertEquals("carlos",invitation.peer());
+        assertNull(calls.pendingFor("mallory"));
+        assertEquals(HttpStatus.FORBIDDEN,assertThrows(ResponseStatusException.class,
+                () -> calls.members(call.callId(),"carlos")).getStatusCode());
+        var extra = calls.accept(call.callId(),"carlos");
+        assertEquals("jynlo-user-14",JWT.decode(extra.token()).getSubject());
+        assertEquals(JWT.decode(call.token()).getClaim("video").asMap().get("room"),
+                JWT.decode(extra.token()).getClaim("video").asMap().get("room"));
+        assertEquals(3,calls.members(call.callId(),"ana").participants().size());
+        assertTrue(calls.members(call.callId(),"ana").pending().isEmpty());
+        calls.end(call.callId(),"carlos");
+        assertEquals(2,calls.members(call.callId(),"ana").participants().size());
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
+                () -> calls.members(call.callId(),"carlos")).getStatusCode());
+    }
+
+    @Test
+    void declinedOrExpiredGuestNeverTerminatesTheExistingRoom() {
+        var call=calls.start("ana","bea","video");
+        calls.accept(call.callId(),"bea");
+        calls.invite(call.callId(),"ana","carlos");
+        calls.decline(call.callId(),"carlos");
+        assertNull(calls.pendingFor("carlos"));
+        assertEquals(2,calls.members(call.callId(),"ana").participants().size());
+        calls.invite(call.callId(),"ana","carlos");
+        calls.end(call.callId(),"carlos"); // timer expired while invitation pending
+        assertEquals(2,calls.members(call.callId(),"bea").participants().size());
+        assertNull(calls.pendingFor("carlos"));
+        assertEquals(HttpStatus.BAD_REQUEST,assertThrows(ResponseStatusException.class,
+                () -> calls.invite(call.callId(),"ana","ana")).getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND,assertThrows(ResponseStatusException.class,
+                () -> calls.invite(call.callId(),"outsider","other")).getStatusCode());
+    }
+
+    @Test
+    void rejectsBlockedInviteesAndRevokesTokensWhenOriginalCallEnds() {
+        Profile carlos = mock(Profile.class);
+        lenient().when(carlos.getId()).thenReturn(14L);
+        lenient().when(profiles.findUserByUsernameIgnoreCase("carlos")).thenReturn(Optional.of(carlos));
+        var call=calls.start("ana","bea","voice");
+        calls.accept(call.callId(),"bea");
+        doThrow(new org.springframework.security.access.AccessDeniedException("blocked"))
+                .when(inbox).requireConversationAccess("ana","direct","mallory");
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> calls.invite(call.callId(),"ana","mallory"));
+        calls.invite(call.callId(),"ana","carlos");
+        assertEquals(HttpStatus.BAD_REQUEST,assertThrows(ResponseStatusException.class,
+                () -> calls.invite(call.callId(),"ana","carlos")).getStatusCode());
+        calls.accept(call.callId(),"carlos");
+        calls.end(call.callId(),"ana");
+        assertThrows(ResponseStatusException.class,()->calls.members(call.callId(),"carlos"));
+        assertNull(calls.pendingFor("carlos"));
+        verify(gateway).publishDirectCallEvent(eq("ana"),eq("carlos"),
+                eq(call.callId().toString()),eq("voice"),eq("ENDED"),eq("ana"),any());
+    }
+
     @Test
     void neverStartsWithoutProviderSettings() {
         ReflectionTestUtils.setField(calls, "apiSecret", "");
