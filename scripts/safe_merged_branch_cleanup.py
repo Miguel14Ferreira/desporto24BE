@@ -2,7 +2,7 @@
 """Delete only old branches proven to be Git ancestors of the canonical production branch."""
 import os, subprocess, re, json, datetime
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 ROOT = os.environ["GITHUB_REPOSITORY"]
 TOKEN = os.environ["GITHUB_TOKEN"]
 PRODUCTION = os.environ["PRODUCTION_BRANCH"]
@@ -13,16 +13,17 @@ def api(path, method="GET"):
     req = Request("https://api.github.com" + path, method=method, headers={"Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
     try:
         with urlopen(req, timeout=20) as res:
-            return json.loads(res.read().decode() or "{}")
-    except HTTPError as e:
-        print(f"HTTP {e.code} for {method} {path}: {e.read().decode()[:400]}")
-        return None
+            body = res.read().decode()
+            return {"status": res.status, "data": json.loads(body) if body else None}
+    except (HTTPError, URLError) as e:
+        raise RuntimeError(f"GitHub API failed for {method} {path}: {e}") from e
 def git(*args):
     return subprocess.run(["git", *args], capture_output=True, text=True)
 open_heads = set()
 for page in range(1, 30):
     prs = api(f"/repos/{ROOT}/pulls?state=open&per_page=100&page={page}")
-    if prs is None: raise RuntimeError("Could not list open pull requests; abort")
+    if prs["status"] != 200: raise RuntimeError("Unexpected pull request response; abort")
+    prs = prs["data"]
     open_heads.update(p["head"]["ref"] for p in prs if p["head"]["repo"] and p["head"]["repo"]["full_name"] == ROOT)
     if len(prs) < 100: break
 else: raise RuntimeError("Unexpected PR pagination; abort")
@@ -42,7 +43,7 @@ for line in res.stdout.splitlines():
     if os.environ.get("DRY_RUN", "true").lower() != "false": continue
     from urllib.parse import quote
     result = api(f"/repos/{ROOT}/git/refs/heads/{quote(name, safe='/')}", "DELETE")
-    if result is None:
-        # Successful GitHub delete returns 204 with empty body; check remote again later.
-        deleted.append(name)
+    if result["status"] != 204:
+        raise RuntimeError(f"Unexpected branch deletion status: {result['status']} for {name}")
+    deleted.append(name)
 print(json.dumps({"repository": ROOT, "production": PRODUCTION, "dry_run": os.environ.get("DRY_RUN", "true"), "candidates":len(candidates), "deleted_attempts":len(deleted), "candidate_names":candidates[:150]}, indent=2))
