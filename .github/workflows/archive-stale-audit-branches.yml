@@ -23,8 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Verify checked-out revision equals dispatch SHA
+        env:
+          EXPECTED_RUN_SHA: ${{ github.sha }}
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          echo "PINNED_RUN_SHA=$actual_sha"
+          test "$actual_sha" = "$EXPECTED_RUN_SHA"
       - name: Validate safety tests before any mutation
         run: |
           python3 -m py_compile scripts/archive_stale_audit_branches.py scripts/test_archive_stale_audit_branches.py
