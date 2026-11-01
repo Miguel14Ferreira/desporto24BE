@@ -23,6 +23,24 @@ EXPECTED = {
     "audit/venue-district-coverage-report-20261018": "d174dde8f940a6ee425e616eed595cbe1c92b6d1",
     "audit/venue-national-review-plan-20261018": "f515b47568d4e265c16fffc22e7ffd1b8ffdaf9e",
 }
+EXPECTED.update({
+    "chore/allowlisted-be-two-merged-20261101": "7c61de274ef0ceafc95169b8044bc34f407cd44f",
+    "chore/archive-stale-audits-be-20261101": "608c0ec08e6a129cd37aac9db49d7dc2d71e852c",
+    "chore/be-cleanup-next-integrated-20261030": "27a40d46e3a011c25e3fc2591d8283633cad24bf",
+    "chore/be-integrated-qa-cleanup-20261030": "538a7be332bf03845aef497758caa25b9a476bc9",
+    "chore/be-next-verified-cleanup-20261030": "936592ad99e7bf09740321bb2b8b360b0ed1b160",
+    "chore/cleanup-verified-batch2-20261030": "df28e3a30d01400824fd72f5d4aa138152aa3379",
+    "chore/expand-verified-branch-allowlist-20261030": "334ea330b3f803c56589878e1b09c0eabade6bf3",
+    "chore/extend-be-verified-cleanup-20261030": "71c1af3711a31c34334e6c3753bc798e0218c23e",
+    "chore/verified-release-cleanup-20261030": "0c6f585f93e8cb6b7b725c4890fea89aa1b0a132",
+})
+EXPECTED.update({
+    "chore/allowlisted-branch-removal-20261030": "fd7653c16304130f10c202253369e6f29b377949",
+    "chore/consolidated-cleanup-audit-20261030": "bcc6893645e01d46c00387f4c5f98365d99d2c7c",
+    "chore/content-equivalence-audit-20261030": "f771a1fdaf510908f961e0d9d4c8c293a945d09e",
+    "chore/recoverable-manual-branch-cleanup-20261030": "56f0d661e3b64f1a0c9516e51d8b93e265abf215",
+})
+CHORE_ARCHIVE_PREFIX = "archive/cleanup-scaffolding-20261101/"
 ARCHIVE_PREFIX = "archive/stale-audit-20261101/"
 MIN_AGE_DAYS = 7
 
@@ -43,8 +61,10 @@ def api(method, path, token, body=None):
         raise
 
 def ensure_branch_safe(name, sha, token):
-    if not name.startswith(("audit/", "analysis/")):
+    if not name.startswith(("audit/", "analysis/", "chore/")):
         raise RuntimeError("Not an approved obsolete-audit namespace: " + name)
+    if name.startswith("chore/") and name not in EXPECTED:
+        raise RuntimeError("Unpinned chore branch: " + name)
     if len(sha) != 40 or any(c not in "0123456789abcdef" for c in sha):
         raise RuntimeError("Invalid pinned SHA: " + name)
     ref = "git/ref/heads/" + urllib.parse.quote(name, safe="/")
@@ -64,13 +84,13 @@ def ensure_branch_safe(name, sha, token):
     if status != 200:
         raise RuntimeError("Cannot verify commit date: " + name)
     stamp = datetime.datetime.fromisoformat(commit["commit"]["committer"]["date"].replace("Z", "+00:00"))
-    if datetime.datetime.now(datetime.timezone.utc) - stamp < datetime.timedelta(days=MIN_AGE_DAYS):
+    if datetime.datetime.now(datetime.timezone.utc) - stamp < datetime.timedelta(days=0 if name.startswith("chore/") else MIN_AGE_DAYS):
         print("SKIP_RECENT", name)
         return None
     return ref
 
 def archive_and_delete(name, sha, token):
-    tag_path = ARCHIVE_PREFIX + name
+    tag_path = (CHORE_ARCHIVE_PREFIX if name.startswith("chore/") else ARCHIVE_PREFIX) + name
     tag_ref = "git/ref/tags/" + urllib.parse.quote(tag_path, safe="/")
     status, existing = api("GET", tag_ref, token)
     if status == 404:

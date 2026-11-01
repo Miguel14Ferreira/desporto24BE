@@ -15,6 +15,10 @@ class SafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'namespace'):
             archive.ensure_branch_safe('feature/production', SHA, 'token')
 
+    def test_rejects_unpinned_chore_branch(self):
+        with self.assertRaisesRegex(RuntimeError, 'Unpinned chore branch'):
+            archive.ensure_branch_safe('chore/unlisted', SHA, 'token')
+
     def test_rejects_invalid_sha(self):
         with self.assertRaisesRegex(RuntimeError, 'SHA'):
             archive.ensure_branch_safe(NAME, 'oops', 'token')
