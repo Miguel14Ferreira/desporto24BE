@@ -28,6 +28,11 @@ class SafetyTests(unittest.TestCase):
         with patch.object(archive, 'api', side_effect=[(200, {'object': {'sha': SHA}}), (200, [{'number': 10}])]):
             self.assertIsNone(archive.ensure_branch_safe(NAME, SHA, 'token'))
 
+    def test_rejects_unavailable_pr_lookup(self):
+        with patch.object(archive, 'api', side_effect=[(200, {'object': {'sha': SHA}}), (404, None)]):
+            with self.assertRaisesRegex(RuntimeError, 'Cannot verify open PRs'):
+                archive.ensure_branch_safe(NAME, SHA, 'token')
+
     def test_never_deletes_without_verified_tag(self):
         with patch.object(archive, 'api', side_effect=[(404, None), (201, {}), (404, None)]) as req:
             with self.assertRaisesRegex(RuntimeError, 'verification failed'):
