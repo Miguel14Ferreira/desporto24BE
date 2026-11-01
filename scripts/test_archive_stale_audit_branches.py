@@ -99,5 +99,41 @@ class SafetyTests(unittest.TestCase):
         with patch.object(archive, 'api', side_effect=replies):
             self.assertEqual(archive.ensure_branch_safe(name, sha, 'token'), 'git/ref/heads/' + name)
 
+
+    def test_rejects_unpinned_feat_branch(self):
+        with self.assertRaisesRegex(RuntimeError, 'Unpinned feat branch'):
+            archive.ensure_branch_safe('feat/unlisted', SHA, 'token')
+
+    def test_feat_requires_exact_merged_pr_head(self):
+        name = 'feat/community-default-venue-20261028'
+        sha = archive.EXPECTED[name]
+        commit = {'commit': {'committer': {'date': '2026-10-28T00:00:00Z'}}}
+        mismatched_pr = {'merged_at': '2026-10-28T10:00:00Z', 'head': {'sha': 'b'*40}, 'merge_commit_sha': 'c'*40}
+        replies = [(200, {'object': {'sha': sha}}), (200, []), (200, commit), (200, [mismatched_pr])]
+        with patch.object(archive, 'api', side_effect=replies):
+            with self.assertRaisesRegex(RuntimeError, 'No merged PR with exact feat head SHA'):
+                archive.ensure_branch_safe(name, sha, 'token')
+
+    def test_feat_accepts_exact_merged_pr_ancestor(self):
+        name = 'feat/community-default-venue-20261028'
+        sha = archive.EXPECTED[name]
+        commit = {'commit': {'committer': {'date': '2026-10-28T00:00:00Z'}}}
+        merged_pr = {'merged_at': '2026-10-28T10:00:00Z', 'head': {'sha': sha}, 'merge_commit_sha': 'c'*40}
+        replies = [(200, {'object': {'sha': sha}}), (200, []), (200, commit),
+                   (200, [merged_pr]), (200, {'ahead_by': 0, 'status': 'behind'})]
+        with patch.object(archive, 'api', side_effect=replies):
+            self.assertEqual(archive.ensure_branch_safe(name, sha, 'token'), 'git/ref/heads/' + name)
+
+    def test_chore_rejects_merge_not_in_develop(self):
+        name = 'chore/archive-six-merged-fixes-be-20261101'
+        sha = archive.EXPECTED[name]
+        commit = {'commit': {'committer': {'date': '2026-11-01T00:00:00Z'}}}
+        merged_pr = {'merged_at': '2026-11-01T02:31:37Z', 'head': {'sha': sha}, 'merge_commit_sha': 'c'*40}
+        replies = [(200, {'object': {'sha': sha}}), (200, []), (200, commit),
+                   (200, [merged_pr]), (200, {'ahead_by': 1, 'status': 'diverged'})]
+        with patch.object(archive, 'api', side_effect=replies):
+            with self.assertRaisesRegex(RuntimeError, 'not an ancestor'):
+                archive.ensure_branch_safe(name, sha, 'token')
+
 if __name__ == '__main__':
     unittest.main()
