@@ -98,6 +98,9 @@ EXPECTED.update({
 FEAT_ARCHIVE_PREFIX = "archive/verified-merged-feat-20261101/"
 FIX_ARCHIVE_PREFIX = "archive/merged-fix-20261101/"
 RELEASE_ARCHIVE_PREFIX = "archive/merged-release-20261101/"
+EXPECTED.update({
+    "chore/next-safe-cleanup-be-20261101": "1effa7966f628d93016a3fd50f0e71b8fc01cc1e",
+})
 CHORE_ARCHIVE_PREFIX = "archive/cleanup-scaffolding-20261101/"
 ARCHIVE_PREFIX = "archive/stale-audit-20261101/"
 MIN_AGE_DAYS = 7
