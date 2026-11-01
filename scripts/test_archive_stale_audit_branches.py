@@ -135,5 +135,27 @@ class SafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'not an ancestor'):
                 archive.ensure_branch_safe(name, sha, 'token')
 
+
+    def test_new_fix_batch_requires_exact_merged_head(self):
+        name = 'fix/venue-response-district-20261020'
+        sha = archive.EXPECTED[name]
+        commit = {'commit': {'committer': {'date': '2026-10-20T00:00:00Z'}}}
+        pr = {'merged_at': '2026-10-20T10:00:00Z', 'head': {'sha': 'b'*40}, 'merge_commit_sha': 'c'*40}
+        replies = [(200, {'object': {'sha': sha}}), (200, []), (200, commit), (200, [pr])]
+        with patch.object(archive, 'api', side_effect=replies):
+            with self.assertRaisesRegex(RuntimeError, 'No merged PR with exact fix head SHA'):
+                archive.ensure_branch_safe(name, sha, 'token')
+
+    def test_new_feat_batch_requires_ancestor(self):
+        name = 'feat/jynlo-connect-group-invites-20261030'
+        sha = archive.EXPECTED[name]
+        commit = {'commit': {'committer': {'date': '2026-10-30T00:00:00Z'}}}
+        pr = {'merged_at': '2026-10-30T10:00:00Z', 'head': {'sha': sha}, 'merge_commit_sha': 'c'*40}
+        replies = [(200, {'object': {'sha': sha}}), (200, []), (200, commit),
+                   (200, [pr]), (200, {'ahead_by': 1, 'status': 'diverged'})]
+        with patch.object(archive, 'api', side_effect=replies):
+            with self.assertRaisesRegex(RuntimeError, 'not an ancestor'):
+                archive.ensure_branch_safe(name, sha, 'token')
+
 if __name__ == '__main__':
     unittest.main()
