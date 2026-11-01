@@ -85,5 +85,19 @@ class SafetyTests(unittest.TestCase):
         with patch.object(archive, 'api', side_effect=replies):
             self.assertEqual(archive.ensure_branch_safe(name, sha, 'token'), 'git/ref/heads/' + name)
 
+    def test_rejects_unpinned_fix_branch(self):
+        with self.assertRaisesRegex(RuntimeError, 'Unpinned fix branch'):
+            archive.ensure_branch_safe('fix/unlisted', SHA, 'token')
+
+    def test_fix_requires_exact_merged_pr_ancestor(self):
+        name = 'fix/community-cancelled-sessions-20261028'
+        sha = archive.EXPECTED[name]
+        old_commit = {'commit': {'committer': {'date': '2026-10-28T00:00:00Z'}}}
+        merged_pr = {'merged_at': '2026-10-28T10:00:00Z', 'head': {'sha': sha}, 'merge_commit_sha': 'b'*40}
+        replies = [(200, {'object': {'sha': sha}}), (200, []), (200, old_commit),
+                   (200, [merged_pr]), (200, {'ahead_by': 0, 'status': 'behind'})]
+        with patch.object(archive, 'api', side_effect=replies):
+            self.assertEqual(archive.ensure_branch_safe(name, sha, 'token'), 'git/ref/heads/' + name)
+
 if __name__ == '__main__':
     unittest.main()
