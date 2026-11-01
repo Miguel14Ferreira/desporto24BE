@@ -22,6 +22,8 @@ EXPECTED = {
     "audit/repair-existing-java-tests-20261019": "d1bd5f7e129ca819800ff0438dba1d46fc7dc05e",
     "audit/venue-district-coverage-report-20261018": "d174dde8f940a6ee425e616eed595cbe1c92b6d1",
     "audit/venue-national-review-plan-20261018": "f515b47568d4e265c16fffc22e7ffd1b8ffdaf9e",
+    "audit/national-18-live-public-count-20261022": "90671fc04db5737900a128eed181071a79fee6c8",
+    "audit/venues-national-live-public-reconcile-20261021": "21ed8dcf89fd5ca4ee057d328163005f4ee76ff7",
 }
 EXPECTED.update({
     "chore/allowlisted-be-two-merged-20261101": "7c61de274ef0ceafc95169b8044bc34f407cd44f",
