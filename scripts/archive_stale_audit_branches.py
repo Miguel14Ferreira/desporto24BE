@@ -101,6 +101,9 @@ RELEASE_ARCHIVE_PREFIX = "archive/merged-release-20261101/"
 EXPECTED.update({
     "chore/next-safe-cleanup-be-20261101": "1effa7966f628d93016a3fd50f0e71b8fc01cc1e",
 })
+EXPECTED.update({
+    "chore/archive-next-cleanup-be-20261101": "dc1a792b139d6788ea598124acb112e47a4d087a",
+})
 CHORE_ARCHIVE_PREFIX = "archive/cleanup-scaffolding-20261101/"
 ARCHIVE_PREFIX = "archive/stale-audit-20261101/"
 MIN_AGE_DAYS = 7
