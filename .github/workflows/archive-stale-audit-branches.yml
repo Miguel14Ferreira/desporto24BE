@@ -6,7 +6,10 @@ on:
         description: 'DRY_RUN or ARCHIVE_AND_DELETE_EXACT_AUDITS'
         required: true
         default: DRY_RUN
-        type: string
+        type: choice
+        options:
+          - DRY_RUN
+          - ARCHIVE_AND_DELETE_EXACT_AUDITS
 permissions:
   contents: write
   pull-requests: read
