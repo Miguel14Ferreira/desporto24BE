@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - DRY_RUN
+          - AUDIT_MERGED_CANDIDATES
           - ARCHIVE_AND_DELETE_EXACT_AUDITS
 permissions:
   contents: write
@@ -40,4 +41,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONFIRM_DELETE: ${{ inputs.confirmation }}
+          DISCOVER_MERGED_CANDIDATES: ${{ inputs.confirmation == 'AUDIT_MERGED_CANDIDATES' && '1' || '0' }}
         run: python3 scripts/archive_stale_audit_branches.py
