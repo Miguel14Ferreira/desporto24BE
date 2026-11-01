@@ -52,6 +52,15 @@ EXPECTED.update({
     "release/venue-data-37-isolated-20261021": "dd3f3054cc8ad1c0373cf8a4c3612b2e060484df",
     "release/venues-leiria-setubal-braganca-20261021": "6ff2051667789f492f467d1f0daa835686e02c41",
 })
+EXPECTED.update({
+    "fix/allowlisted-delete-ref-path-20261030": "a961d5926a4ccb63d1fb04edf7e27aa9da9b9df9",
+    "fix/community-cancelled-sessions-20261028": "b52730bce1e44e9ec8e7997585ce6589e1f0ac29",
+    "fix/guest-instant-confirmed-attendance-20261028": "f1bb2ba6d42cccdd059a5e85397265372da0a99f",
+    "fix/season-game-single-community-20261028": "22305cd2cfa42776dc9829cf6551c1d2dec2d073",
+    "fix/session-invite-private-community-20261029": "55ed6ddb4f8cad879c3319ea80586b34d0381470",
+    "fix/session-preset-objectmapper-runtime-20261028": "84e4e69b4fcb723e2717c09a670cb341fe31b663",
+})
+FIX_ARCHIVE_PREFIX = "archive/merged-fix-20261101/"
 RELEASE_ARCHIVE_PREFIX = "archive/merged-release-20261101/"
 CHORE_ARCHIVE_PREFIX = "archive/cleanup-scaffolding-20261101/"
 ARCHIVE_PREFIX = "archive/stale-audit-20261101/"
@@ -74,12 +83,14 @@ def api(method, path, token, body=None):
         raise
 
 def ensure_branch_safe(name, sha, token):
-    if not name.startswith(("audit/", "analysis/", "chore/", "release/")):
+    if not name.startswith(("audit/", "analysis/", "chore/", "release/", "fix/")):
         raise RuntimeError("Not an approved obsolete-audit namespace: " + name)
     if name.startswith("chore/") and name not in EXPECTED:
         raise RuntimeError("Unpinned chore branch: " + name)
     if name.startswith("release/") and name not in EXPECTED:
         raise RuntimeError("Unpinned release branch: " + name)
+    if name.startswith("fix/") and name not in EXPECTED:
+        raise RuntimeError("Unpinned fix branch: " + name)
     if len(sha) != 40 or any(c not in "0123456789abcdef" for c in sha):
         raise RuntimeError("Invalid pinned SHA: " + name)
     ref = "git/ref/heads/" + urllib.parse.quote(name, safe="/")
@@ -99,10 +110,10 @@ def ensure_branch_safe(name, sha, token):
     if status != 200:
         raise RuntimeError("Cannot verify commit date: " + name)
     stamp = datetime.datetime.fromisoformat(commit["commit"]["committer"]["date"].replace("Z", "+00:00"))
-    if datetime.datetime.now(datetime.timezone.utc) - stamp < datetime.timedelta(days=0 if name.startswith("chore/") else MIN_AGE_DAYS):
+    if datetime.datetime.now(datetime.timezone.utc) - stamp < datetime.timedelta(days=0 if name.startswith(("chore/", "fix/")) else MIN_AGE_DAYS):
         print("SKIP_RECENT", name)
         return None
-    if name.startswith("release/"):
+    if name.startswith(("release/", "fix/")):
         closed_status, closed_prs = api("GET", "pulls?state=closed&head=" + urllib.parse.quote(OWNER + ":" + name, safe="") + "&per_page=100", token)
         if closed_status != 200 or not isinstance(closed_prs, list):
             raise RuntimeError("Cannot verify merged release PR: " + name)
@@ -120,7 +131,7 @@ def ensure_branch_safe(name, sha, token):
     return ref
 
 def archive_and_delete(name, sha, token):
-    tag_path = (RELEASE_ARCHIVE_PREFIX if name.startswith("release/") else CHORE_ARCHIVE_PREFIX if name.startswith("chore/") else ARCHIVE_PREFIX) + name
+    tag_path = (FIX_ARCHIVE_PREFIX if name.startswith("fix/") else RELEASE_ARCHIVE_PREFIX if name.startswith("release/") else CHORE_ARCHIVE_PREFIX if name.startswith("chore/") else ARCHIVE_PREFIX) + name
     tag_ref = "git/ref/tags/" + urllib.parse.quote(tag_path, safe="/")
     status, existing = api("GET", tag_ref, token)
     if status == 404:
