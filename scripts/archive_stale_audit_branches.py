@@ -195,10 +195,48 @@ def archive_and_delete(name, sha, token):
         raise RuntimeError("GitHub refused deletion: " + name)
     print("DELETED", name, sha, "RECOVERY_TAG", tag_path)
 
+
+# Discover only exact merged PR heads that are already ancestors of develop.
+# This is an audit report, never an implicit deletion allowlist.
+def discover_merged_candidates(token):
+    protected = {"develop", "master", "feature/desporto24-preview-deploy"}
+    page = 1
+    found = []
+    while True:
+        status, branches = api("GET", "branches?per_page=100&page=" + str(page), token)
+        if status != 200 or not isinstance(branches, list):
+            raise RuntimeError("Cannot enumerate branches")
+        for branch in branches:
+            name = branch["name"]
+            if name in protected or name.startswith(("backup/", "archive/")) or name in EXPECTED:
+                continue
+            if not name.startswith(("chore/", "feat/", "fix/", "release/")):
+                continue
+            sha = branch["commit"]["sha"]
+            status, prs = api("GET", "pulls?state=closed&head=" + urllib.parse.quote(OWNER + ":" + name, safe="") + "&per_page=100", token)
+            if status != 200 or not isinstance(prs, list):
+                raise RuntimeError("Cannot verify PRs for " + name)
+            for pr in prs:
+                if not (pr.get("merged_at") and pr.get("head", {}).get("sha") == sha and pr.get("merge_commit_sha")):
+                    continue
+                status, comparison = api("GET", "compare/develop..." + pr["merge_commit_sha"], token)
+                if status == 200 and comparison.get("ahead_by") == 0 and comparison.get("status") in ("behind", "identical"):
+                    found.append((name, sha, pr["number"]))
+                    break
+        if len(branches) < 100:
+            break
+        page += 1
+    for name, sha, number in sorted(found):
+        print("AUDIT_CANDIDATE", name, sha, "MERGED_PR", number)
+    print("AUDIT_CANDIDATES_TOTAL", len(found))
+
 def main():
     token = os.environ.get("GH_TOKEN")
     if not token:
         raise RuntimeError("GH_TOKEN required")
+    if os.environ.get("DISCOVER_MERGED_CANDIDATES") == "1":
+        discover_merged_candidates(token)
+        return
     delete = os.environ.get("CONFIRM_DELETE") == "ARCHIVE_AND_DELETE_EXACT_AUDITS"
     for name, sha in EXPECTED.items():
         if ensure_branch_safe(name, sha, token) is None:
