@@ -54,7 +54,9 @@ def ensure_branch_safe(name, sha, token):
         return None
     if status != 200 or current["object"]["sha"] != sha:
         raise RuntimeError("Branch SHA mismatch; refuse deletion: " + name)
-    _, prs = api("GET", "pulls?state=open&head=" + urllib.parse.quote(OWNER + ":" + name, safe="") + "&per_page=100", token)
+    pr_status, prs = api("GET", "pulls?state=open&head=" + urllib.parse.quote(OWNER + ":" + name, safe="") + "&per_page=100", token)
+    if pr_status != 200 or not isinstance(prs, list):
+        raise RuntimeError("Cannot verify open PRs: " + name)
     if prs:
         print("SKIP_OPEN_PR", name)
         return None
