@@ -42,6 +42,17 @@ EXPECTED.update({
     "chore/content-equivalence-audit-20261030": "f771a1fdaf510908f961e0d9d4c8c293a945d09e",
     "chore/recoverable-manual-branch-cleanup-20261030": "56f0d661e3b64f1a0c9516e51d8b93e265abf215",
 })
+EXPECTED.update({
+    "release/community-group-knockout-live-20261022": "b7dccf142f2c11d77d5d20be9b84c03aedbad4ca",
+    "release/jynlo-gps-only-address-20261021": "38ca928e6bdc765bc876ccb1af4d60316366f9b9",
+    "release/national-18-map-live-safe-20261022": "06efabb38b1e4fb4b0db2581a86d5500f398bd15",
+    "release/organizer-fair-play-exclusions-live-safe-20261022": "83e5958dc75db5872bf8693f71966bc57216d5c0",
+    "release/postgame-player-compliments-live-safe-20261022": "b6365b9c62b3661ffbb4b10950e1f44138045d33",
+    "release/postgame-venue-stars-live-safe-20261022": "48f15c53663f3e884a01cccbed753911443ce381",
+    "release/venue-data-37-isolated-20261021": "dd3f3054cc8ad1c0373cf8a4c3612b2e060484df",
+    "release/venues-leiria-setubal-braganca-20261021": "6ff2051667789f492f467d1f0daa835686e02c41",
+})
+RELEASE_ARCHIVE_PREFIX = "archive/merged-release-20261101/"
 CHORE_ARCHIVE_PREFIX = "archive/cleanup-scaffolding-20261101/"
 ARCHIVE_PREFIX = "archive/stale-audit-20261101/"
 MIN_AGE_DAYS = 7
@@ -63,10 +74,12 @@ def api(method, path, token, body=None):
         raise
 
 def ensure_branch_safe(name, sha, token):
-    if not name.startswith(("audit/", "analysis/", "chore/")):
+    if not name.startswith(("audit/", "analysis/", "chore/", "release/")):
         raise RuntimeError("Not an approved obsolete-audit namespace: " + name)
     if name.startswith("chore/") and name not in EXPECTED:
         raise RuntimeError("Unpinned chore branch: " + name)
+    if name.startswith("release/") and name not in EXPECTED:
+        raise RuntimeError("Unpinned release branch: " + name)
     if len(sha) != 40 or any(c not in "0123456789abcdef" for c in sha):
         raise RuntimeError("Invalid pinned SHA: " + name)
     ref = "git/ref/heads/" + urllib.parse.quote(name, safe="/")
@@ -89,10 +102,25 @@ def ensure_branch_safe(name, sha, token):
     if datetime.datetime.now(datetime.timezone.utc) - stamp < datetime.timedelta(days=0 if name.startswith("chore/") else MIN_AGE_DAYS):
         print("SKIP_RECENT", name)
         return None
+    if name.startswith("release/"):
+        closed_status, closed_prs = api("GET", "pulls?state=closed&head=" + urllib.parse.quote(OWNER + ":" + name, safe="") + "&per_page=100", token)
+        if closed_status != 200 or not isinstance(closed_prs, list):
+            raise RuntimeError("Cannot verify merged release PR: " + name)
+        matching = [p for p in closed_prs if p.get("merged_at") and p.get("head", {}).get("sha") == sha and p.get("merge_commit_sha")]
+        if not matching:
+            raise RuntimeError("No merged PR with exact release head SHA: " + name)
+        merged_into_develop = False
+        for pr in matching:
+            cmp_status, cmp = api("GET", "compare/develop..." + pr["merge_commit_sha"], token)
+            if cmp_status == 200 and cmp.get("ahead_by") == 0 and cmp.get("status") in ("behind", "identical"):
+                merged_into_develop = True
+                break
+        if not merged_into_develop:
+            raise RuntimeError("Release PR merge commit is not an ancestor of develop: " + name)
     return ref
 
 def archive_and_delete(name, sha, token):
-    tag_path = (CHORE_ARCHIVE_PREFIX if name.startswith("chore/") else ARCHIVE_PREFIX) + name
+    tag_path = (RELEASE_ARCHIVE_PREFIX if name.startswith("release/") else CHORE_ARCHIVE_PREFIX if name.startswith("chore/") else ARCHIVE_PREFIX) + name
     tag_ref = "git/ref/tags/" + urllib.parse.quote(tag_path, safe="/")
     status, existing = api("GET", tag_ref, token)
     if status == 404:
