@@ -88,6 +88,13 @@ EXPECTED.update({
     "fix/venue-response-district-20261020": "ba62cffb48ff34669db774a68b34d3394010cc72",
     "fix/venue-suggestion-jackson2-injection-20261025": "76787945acd1ca2ca98ef63a9d645eb5672c5e56",
 })
+
+EXPECTED.update({
+    "chore/archive-10-more-merged-feat-fix-be-20261101": "1061bc878b25337653785b621dbe08711d82450d",
+    "chore/archive-14-verified-merged-be-20261101": "933e83bc2ef21ae1765ba5073c3c259b2a423584",
+    "chore/archive-workflow-confirmation-choice-be-20261101": "788e957fc8c0b17b9f2a32728e4a9d11c710e7c2",
+    "chore/pin-archive-workflow-sha-be-20261101": "b0d4fcf3a095a2601d6967cafc2a6ff2a9c61467",
+})
 FEAT_ARCHIVE_PREFIX = "archive/verified-merged-feat-20261101/"
 FIX_ARCHIVE_PREFIX = "archive/merged-fix-20261101/"
 RELEASE_ARCHIVE_PREFIX = "archive/merged-release-20261101/"
