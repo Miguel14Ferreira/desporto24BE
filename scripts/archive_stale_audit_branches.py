@@ -76,6 +76,18 @@ EXPECTED.update({
     "feat/community-session-quick-results-20261027": "19fc9a7477504f0d7e0b06c7d842e926b77ec50a",
     "feat/guest-session-invites-20261027": "e47f7064e788ab9315909e05f921014c1ec1e132",
 })
+EXPECTED.update({
+    "feat/community-habitual-location-3-methods-20261028": "05809e9ac13bfc30b7693f73b10ec6f89fde7319",
+    "feat/jynlo-connect-group-invites-20261030": "b9a3f339d6fb962cba424c37ee3d1f0ad554c9c3",
+    "feat/member-only-multi-community-sessions-20261028": "6743b7c6bf51c0e9e24338d50dad9cf742368298",
+    "feat/post-game-community-join-20261028": "7767d1d8800f3b49565269787154ef1bf229e491",
+    "feat/session-invite-flow-context-20261028": "9c48c925a6fd730453bb5b80b8c86e2072a9c4a0",
+    "feat/session-season-games-20261028": "d487cc9cdd91c853889202d88f2b5b316c89c605",
+    "feat/user-session-presets-api-20261028": "9a49f7c4aec784d6b77a73bb59c8c1b62fa7b1c7",
+    "fix/venue-pilot-official-website-provenance-20261021": "098404f4300513fecb5b7b98f23544cc44de7488",
+    "fix/venue-response-district-20261020": "ba62cffb48ff34669db774a68b34d3394010cc72",
+    "fix/venue-suggestion-jackson2-injection-20261025": "76787945acd1ca2ca98ef63a9d645eb5672c5e56",
+})
 FEAT_ARCHIVE_PREFIX = "archive/verified-merged-feat-20261101/"
 FIX_ARCHIVE_PREFIX = "archive/merged-fix-20261101/"
 RELEASE_ARCHIVE_PREFIX = "archive/merged-release-20261101/"
