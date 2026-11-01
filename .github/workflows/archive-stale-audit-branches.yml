@@ -1,0 +1,33 @@
+name: Archive and delete exact obsolete audit branches
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'DRY_RUN or ARCHIVE_AND_DELETE_EXACT_AUDITS'
+        required: true
+        default: DRY_RUN
+        type: string
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: archive-exact-stale-audit-branches
+  cancel-in-progress: false
+jobs:
+  archive-audits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          persist-credentials: false
+      - name: Validate safety tests before any mutation
+        run: |
+          python3 -m py_compile scripts/archive_stale_audit_branches.py scripts/test_archive_stale_audit_branches.py
+          python3 -m unittest discover -s scripts -p 'test_archive_stale_audit_branches.py' -v
+      - name: Dry run or archive and delete pinned audit branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONFIRM_DELETE: ${{ inputs.confirmation }}
+        run: python3 scripts/archive_stale_audit_branches.py
