@@ -104,6 +104,11 @@ EXPECTED.update({
 EXPECTED.update({
     "chore/archive-next-cleanup-be-20261101": "dc1a792b139d6788ea598124acb112e47a4d087a",
 })
+EXPECTED.update({
+    "chore/archive-batch-be-20261101": "4167f95b6d5a7b6fe002d0d05eb9a6de3f943f02",
+    "chore/bulk-merged-branch-audit-be-20261101": "39fe12fa51c05e5ed759ed701f0846ee3f6137b1",
+    "fix/venues-directory-39-per-page-20261026": "a237c8c76b406b9bed3d84fc5032936fe3dddec7",
+})
 CHORE_ARCHIVE_PREFIX = "archive/cleanup-scaffolding-20261101/"
 ARCHIVE_PREFIX = "archive/stale-audit-20261101/"
 MIN_AGE_DAYS = 7
