@@ -12,6 +12,8 @@ ALLOWLIST = [
     "release/venues-interior-five-20261026",
     "release/venues-islands-five-20261026",
     "release/venues-nine-liquibase-20261026",
+    "draft/braganca-two-pavilions-opt-in-liquibase-20261028",
+    "fix/inline-2026-no-new-final-b-current-stack",
 ]
 PROTECTED = {"develop", "master", "main", "preview/render-fullstack", "feature/desporto24-preview-deploy"}
 
