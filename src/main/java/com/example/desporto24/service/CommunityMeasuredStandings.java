@@ -25,9 +25,13 @@ final class CommunityMeasuredStandings {
 
     static boolean valid(CommunityRoundEntryResponse entry) {
         BigDecimal mark=entry.performanceValue();
+        // Stored performance_value has scale=4; trailing zeros are not extra
+        // precision and must not invalidate a genuine 7.250m measurement.
+        if (mark==null) return false;
+        BigDecimal normalized=mark.stripTrailingZeros();
         return entry.communityPlayerId()!=null && !entry.raceDisqualified()
-                && mark!=null && mark.signum()>0 && mark.scale()<=3
-                && mark.precision()-mark.scale()<=6;
+                && normalized.signum()>0 && normalized.scale()<=3
+                && normalized.precision()-normalized.scale()<=6;
     }
 
     static List<CommunityMeasuredStandingResponse> calculate(List<CommunityRoundResponse> rounds) {

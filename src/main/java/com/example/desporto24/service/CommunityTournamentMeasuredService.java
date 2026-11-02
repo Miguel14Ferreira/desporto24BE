@@ -49,7 +49,7 @@ public class CommunityTournamentMeasuredService {
         if (!eligible(tournament,source.getCommunity().getId(),source.getSport(),
                 source.getEventType(),source.getEventDiscipline(),communityId))
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "A jornada deve ser da mesma comunidade, modalidade e prova de natação");
+                    "A jornada deve corresponder à comunidade e à mesma disciplina de atletismo");
         if (links.existsByTournamentIdAndRoundId(tournamentId,roundId))
             return calculate(communityId,tournament,username);
         if (links.findByTournamentIdOrderByIdAsc(tournamentId).size()>=MAX_ROUNDS)
@@ -64,7 +64,7 @@ public class CommunityTournamentMeasuredService {
                 || sourceRead.entries()==null
                 || sourceRead.entries().stream().filter(e->CommunityMeasuredStandings.valid(e)).count()<2)
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "A jornada deve conter marcas válidos de pelo menos dois participantes");
+                    "A jornada deve conter marcas válidas de pelo menos dois participantes");
         links.save(CommunityTournamentRaceRound.builder().round(source).tournament(tournament).build());
         if (tournament.getStatus()==TournamentStatus.DRAFT) {
             tournament.setStatus(TournamentStatus.IN_PROGRESS);
@@ -141,7 +141,7 @@ public class CommunityTournamentMeasuredService {
                 || !"Atletismo".equals(tournament.getSport())
                 || !("JUMP".equals(tournament.getEventType()) || "THROW".equals(tournament.getEventType()))
                 || tournament.getEventDiscipline()==null)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Campeonato cronometrado não encontrado");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Campeonato de marcas não encontrado");
         return tournament;
     }
 

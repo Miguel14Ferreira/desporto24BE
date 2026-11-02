@@ -47,11 +47,11 @@ class CommunityTournamentMeasuredServiceTest {
         else when(members.findByCommunityIdAndProfileId(7L,1L)).thenReturn(Optional.of(
                 CommunityMember.builder().community(community).profile(actor).role(role).build()));
     }
-    private CommunityRoundEntryResponse marked(long id,String time) {
-        BigDecimal metres=new BigDecimal(time);
+    private CommunityRoundEntryResponse marked(long id,String value) {
+        BigDecimal metres=new BigDecimal(value);
         return new CommunityRoundEntryResponse(null,"athlete"+id,"Athlete "+id,null,null,
-                CommunityMatchResult.DRAW,0,0,false,false,null,metres,null,null,
-                id+100,id,0,null,BigDecimal.ZERO,metres,false,null,metres,null,null);
+                CommunityMatchResult.DRAW,0,0,false,false,null,null,null,null,
+                id+100,id,0,null,BigDecimal.ZERO,null,false,null,metres,null,null);
     }
     private CommunityRoundResponse source(long id,String discipline) {
         return new CommunityRoundResponse(id,"Round",Instant.now(),

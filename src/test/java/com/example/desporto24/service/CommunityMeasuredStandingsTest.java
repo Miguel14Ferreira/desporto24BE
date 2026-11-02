@@ -29,6 +29,14 @@ class CommunityMeasuredStandingsTest {
         assertEquals(2,result.get(0).validMarks());
         assertEquals(3L,result.get(2).communityPlayerId());
     }
+    @Test void respectsDatabaseScalePaddingWithoutTreatingItAsExtraPrecision() {
+        var result=CommunityMeasuredStandings.calculate(List.of(round(1,
+                mark(1,"7.2500"),mark(2,"7.2499"),mark(3,"7.250"))));
+        assertEquals(2,result.size());
+        assertEquals(List.of(1,1),result.stream().map(CommunityMeasuredStandingResponse::position).toList());
+        assertEquals(0,result.get(0).bestMetres().compareTo(new BigDecimal("7.25")));
+    }
+
     @Test void excludesMissingZeroNegativeAndOverPreciseMarks() {
         var result=CommunityMeasuredStandings.calculate(List.of(round(1,
                 mark(1,null),mark(2,"0"),mark(3,"-0.2"),mark(4,"5.1234"),mark(5,"6.25"))));
