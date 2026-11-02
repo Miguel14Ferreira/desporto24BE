@@ -42,6 +42,14 @@ class CommunityTimedStandingsTest {
         assertEquals(3,result.size());
     }
 
+    @Test void trackSupportsMillisecondsButSwimmingRequiresHundredths() {
+        var first=round(1,entry(10,"ana","10.123"),entry(20,"bruno","10.125"));
+        assertEquals(2,CommunityTimedStandings.calculate(List.of(first),3).size());
+        assertEquals(0,CommunityTimedStandings.calculate(List.of(first),2).size());
+        var padded=round(2,entry(10,"ana","10.120"));
+        assertEquals(1,CommunityTimedStandings.calculate(List.of(padded),2).size());
+    }
+
     @Test void ignoresInvalidAndDisqualifiedTimeDataDefensively() {
         var valid=entry(10,"ana","31.25");
         var invalid=entry(20,"bruno","0.00");

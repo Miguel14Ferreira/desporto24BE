@@ -40,6 +40,15 @@ class CommunityFieldDisciplinesTest {
                 () -> CommunityFieldDisciplines.validate("Ciclismo de Estrada", "TRACK_SPRINT_HEAT", "SPRINT_GOLD_FINAL"));
     }
 
+    @Test void sixTrackDistancesAreTypedWhileLegacyRoundsRemainReadable() {
+        assertNull(CommunityFieldDisciplines.validate("Atletismo","TRACK",null));
+        for(String distance:new String[]{"TRACK_100","TRACK_200","TRACK_400",
+                "TRACK_800","TRACK_1500","TRACK_5000"})
+            assertEquals(distance,CommunityFieldDisciplines.validate("Atletismo","TRACK",distance));
+        assertThrows(IllegalArgumentException.class,()->
+                CommunityFieldDisciplines.validate("Atletismo","TRACK","LONG_JUMP"));
+    }
+
     @Test void racesAndOtherSportsRejectUnexpectedDiscipline() {
         assertNull(CommunityFieldDisciplines.validate("Atletismo", "TRACK", null));
         assertNull(CommunityFieldDisciplines.validate("BMX", "FREESTYLE", null));

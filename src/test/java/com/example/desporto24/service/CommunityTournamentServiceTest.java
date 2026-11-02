@@ -120,6 +120,28 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsIndividualTrackCompetitionOnlyWithTypedDistance() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation->invocation.getArgument(0));
+        var request=new CreateCommunityTournamentRequest(
+                "100 m",null,null,null,"Atletismo",TournamentEntryType.INDIVIDUAL,
+                null,null,null,TournamentFormat.LEAGUE,null,
+                com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME,
+                "TRACK","TRACK_100");
+        var created=service.create(7L,"owner",request);
+        assertEquals("TRACK_100",created.eventDiscipline());
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME,
+                created.scoringMode());
+        var noDistance=new CreateCommunityTournamentRequest(
+                "100 m",null,null,null,"Atletismo",TournamentEntryType.INDIVIDUAL,
+                null,null,null,TournamentFormat.LEAGUE,null,
+                com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME,
+                "TRACK",null);
+        assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",noDistance));
+    }
+
+    @Test
     void createsSwimmingBestTimeOnlyWithAnExplicitPoolDiscipline() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

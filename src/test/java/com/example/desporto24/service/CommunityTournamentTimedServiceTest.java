@@ -99,6 +99,30 @@ class CommunityTournamentTimedServiceTest {
         assertTrue(result.standings().isEmpty());
     }
 
+    @Test void trackOnlyListsMatchingDistanceAndExcludesHistoricalUntypedRounds() {
+        tournament.setSport("Atletismo");
+        tournament.setEventType("TRACK");
+        tournament.setEventDiscipline("TRACK_100");
+        tournament.setScoringMode(TournamentScoringMode.TRACK_BEST_TIME);
+        member(CommunityRole.MEMBER);
+        when(tournaments.findById(15L)).thenReturn(Optional.of(tournament));
+        when(links.findByTournamentIdOrderByIdAsc(15L)).thenReturn(List.of());
+        var hundred=new CommunityRoundResponse(20L,"100 m",Instant.now(),
+                List.of(timed(1,"10.123"),timed(2,"10.129")),
+                "Atletismo",null,List.of(),"TRACK","TRACK_100");
+        var twoHundred=new CommunityRoundResponse(21L,"200 m",Instant.now(),
+                List.of(timed(1,"20.123"),timed(2,"20.129")),
+                "Atletismo",null,List.of(),"TRACK","TRACK_200");
+        var legacy=new CommunityRoundResponse(22L,"Legacy",Instant.now(),
+                List.of(timed(1,"11.000"),timed(2,"12.000")),
+                "Atletismo",null,List.of(),"TRACK",null);
+        when(competition.overview(7L,"owner",null))
+                .thenReturn(overview(hundred,twoHundred,legacy));
+        var result=service.overview(7L,15L,"owner");
+        assertEquals(List.of(20L),result.availableRounds().stream()
+                .map(CommunityRoundResponse::id).toList());
+    }
+
     @Test void rejectsCompletedTournamentMutations() {
         member(CommunityRole.OWNER);
         tournament.setStatus(TournamentStatus.COMPLETED);
