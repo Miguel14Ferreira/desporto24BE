@@ -4,6 +4,7 @@ import com.example.desporto24.enumeration.CommunityRole;
 import com.example.desporto24.enumeration.CommunityVisibility;
 import com.example.desporto24.enumeration.TournamentFormat;
 import com.example.desporto24.enumeration.TournamentEntryType;
+import com.example.desporto24.enumeration.TournamentScoringMode;
 import com.example.desporto24.enumeration.TournamentTeamTieBreakPriority;
 import com.example.desporto24.enumeration.TournamentStatus;
 import com.example.desporto24.enumeration.TournamentMatchStatus;
