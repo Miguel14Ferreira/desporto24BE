@@ -150,6 +150,12 @@ public class CommunityTournamentService {
             }
         }
 
+        // An explicit event type is accepted only for an implemented result
+        // contract. Never let freestyle, timed trials or a judged heat inherit
+        // positional race or numeric match scoring by accident.
+        String tournamentEventType = CommunityTournamentEventType.validate(
+                selectedSport, request.eventType(), type, scoringMode);
+
         TournamentTeamTieBreakPriority tieBreakPriority = request.teamTieBreakPriority() == null
                 ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
                 : request.teamTieBreakPriority();
@@ -158,6 +164,7 @@ public class CommunityTournamentService {
                 .community(community)
                 .name(request.name().trim())
                 .sport(selectedSport)
+                .eventType(tournamentEventType)
                 .scoringMode(scoringMode)
                 .racePointsByPlace(scoringMode == TournamentScoringMode.RACE_POINTS
                         ? CommunityTournamentRaceService.DEFAULT_POINTS : null)

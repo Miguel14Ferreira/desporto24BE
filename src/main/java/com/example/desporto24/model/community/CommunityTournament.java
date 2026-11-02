@@ -35,6 +35,11 @@ public class CommunityTournament {
     @Column(name = "sport", length = 100)
     private String sport;
 
+    // Optional typed event selector for newly created competitions; legacy stays null.
+    // It does not change the existing result or standings engine.
+    @Column(name = "event_type", length = 64)
+    private String eventType;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "entry_type", nullable = false, length = 16)
     @Builder.Default

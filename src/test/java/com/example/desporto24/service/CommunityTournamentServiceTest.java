@@ -67,6 +67,59 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void persistsOnlyCompatibleExplicitTournamentEventTypesWithoutChangingLegacy() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var race = service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("BMX corrida", null, null, null, "BMX",
+                        TournamentEntryType.INDIVIDUAL, null, null, null,
+                        TournamentFormat.LEAGUE, null,
+                        com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS, "RACE"));
+        assertEquals("RACE", race.eventType());
+
+        var legacy = service.create(7L, "owner",
+                new CreateCommunityTournamentRequest("BMX legado", null, null, null, "BMX",
+                        TournamentEntryType.INDIVIDUAL, null, null, null,
+                        TournamentFormat.LEAGUE, null,
+                        com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS));
+        assertNull(legacy.eventType());
+    }
+
+    @Test
+    void rejectsFreestyleAndTimedEventTypesInPositionBasedRaceChampionships() {
+        actingAsOwner(CommunityRole.OWNER);
+        for (String eventType : List.of("FREESTYLE", "TRACK", "TRACK_TIME_TRIAL")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "BMX inválido", null, null, null, "BMX",
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS, eventType);
+            assertThrows(ResponseStatusException.class,
+                    () -> service.create(7L, "owner", request), eventType);
+        }
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsMismatchedChessOrTeamEventTypes() {
+        actingAsOwner(CommunityRole.OWNER);
+        var wrongChess = new CreateCommunityTournamentRequest("Xadrez", 2, 1, 0, "Xadrez",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null, null, "CHESS_GAME");
+        assertThrows(ResponseStatusException.class,
+                () -> service.create(7L, "owner", wrongChess));
+
+        var wrongTeam = new CreateCommunityTournamentRequest("Equipa", 3, 1, 0, "Futebol",
+                TournamentEntryType.TEAM, 5, null, null,
+                TournamentFormat.KNOCKOUT, null, null, "RACE");
+        assertThrows(ResponseStatusException.class,
+                () -> service.create(7L, "owner", wrongTeam));
+        verify(tournamentRepository, never()).save(any());
+    }
+
+    @Test
     void ownerCreatesDraftLeagueUsingDefaultsAndKeepsExplicitZero() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class))).thenAnswer(invocation -> {
