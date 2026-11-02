@@ -1,0 +1,46 @@
+name: Jynlo preserve and remove orphan hash-eight branch
+on:
+  push:
+    branches: [develop]
+    paths: ['.github/workflows/archive-orphan-hash-eight-20261102.yml']
+permissions:
+  contents: write
+  pull-requests: read
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify exact commit and create permanent recovery tag before deletion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.error
+          repo=os.environ['REPO']
+          assert repo=='Miguel14Ferreira/desporto24BE'
+          sha='d997b8251ae7422c5e22f8941e2f7cb8cb59a03e'
+          def api(method,path,body=None):
+              request=urllib.request.Request('https://api.github.com/repos/'+repo+path,method=method,
+                  data=None if body is None else json.dumps(body).encode(),
+                  headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                           'Accept':'application/vnd.github+json',
+                           'X-GitHub-Api-Version':'2022-11-28',
+                           'Content-Type':'application/json'})
+              with urllib.request.urlopen(request,timeout=35) as r:
+                  data=r.read();return json.loads(data) if data else {}
+          branch='git/ref/heads/%238'
+          assert api('GET','/'+branch)['object']['sha']==sha
+          assert not api('GET','/pulls?state=open&head=Miguel14Ferreira%3A%238&per_page=100')
+          tag='archive/jynlo-historical-20261102/hash-eight'
+          try:
+              assert api('GET','/git/ref/tags/'+tag)['object']['sha']==sha
+          except urllib.error.HTTPError as e:
+              if e.code!=404:raise
+              api('POST','/git/refs',{'ref':'refs/tags/'+tag,'sha':sha})
+          assert api('GET','/git/ref/tags/'+tag)['object']['sha']==sha
+          assert api('GET','/'+branch)['object']['sha']==sha
+          api('DELETE','/git/refs/heads/%238')
+          print('ARCHIVED_AND_DELETED_ORPHAN',sha,tag)
+          PY
