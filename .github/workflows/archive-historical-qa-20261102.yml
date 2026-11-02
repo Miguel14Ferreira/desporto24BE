@@ -1,0 +1,76 @@
+name: Jynlo recoverable archive of historical QA and maintenance branches
+on:
+  push:
+    branches: [develop]
+    paths: ['.github/workflows/archive-historical-qa-20261102.yml']
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: jynlo-archive-historical-qa-20261102
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Pin, archive, validate and prune obsolete auxiliary branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import os,json,re,urllib.request,urllib.error,urllib.parse
+          repo=os.environ['REPO']
+          prefixes=('qa/','test/','validation/','perf/','integration/','ops/','audit/','chore/')
+          NEVER={'develop','master','main','preview/render-fullstack','feature/desporto24-preview-deploy'}
+          def api(method,path,data=None):
+              req=urllib.request.Request('https://api.github.com/repos/'+repo+path,
+                method=method,
+                headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],
+                         'Accept':'application/vnd.github+json',
+                         'X-GitHub-Api-Version':'2022-11-28',
+                         'Content-Type':'application/json'},
+                data=None if data is None else json.dumps(data).encode())
+              with urllib.request.urlopen(req,timeout=35) as response:
+                  data=response.read()
+                  return json.loads(data) if data else {}
+          branches=[]
+          for page in range(1,7):
+              batch=api('GET','/branches?per_page=100&page='+str(page))
+              branches.extend(batch)
+              if len(batch)<100:break
+          develop=api('GET','/git/ref/heads/develop')['object']['sha']
+          candidates=[(v['name'],v['commit']['sha']) for v in branches if
+              v['name'].startswith(prefixes) and v['name'] not in NEVER
+              and not v.get('protected',False) and re.fullmatch(r'[A-Za-z0-9._/-]+',v['name'])
+              and re.fullmatch(r'[0-9a-f]{40}',v['commit']['sha'])]
+          print('SCANNED_BRANCHES',len(branches),'CANDIDATES',len(candidates),'DEVELOP',develop)
+          archived=0
+          for name,sha in candidates:
+              encoded=urllib.parse.quote(name,safe='/')
+              current=api('GET','/git/ref/heads/'+encoded)['object']['sha']
+              if current!=sha:
+                  print('SKIPPED_BRANCH_MOVED',name)
+                  continue
+              open_prs=api('GET','/pulls?state=open&head='+urllib.parse.quote(repo.split('/')[0]+':'+name,safe='')+'&per_page=100')
+              if open_prs:
+                  print('SKIPPED_OPEN_PR',name)
+                  continue
+              comparison=api('GET','/compare/'+develop+'...'+sha)
+              ahead=comparison.get('ahead_by','?')
+              behind=comparison.get('behind_by','?')
+              tag='archive/jynlo-qa-preserved-20261102/'+name
+              tagpath=urllib.parse.quote(tag,safe='/')
+              try:
+                  assert api('GET','/git/ref/tags/'+tagpath)['object']['sha']==sha,'Mismatched backup tag'
+              except urllib.error.HTTPError as exc:
+                  if exc.code!=404:raise
+                  api('POST','/git/refs',{'ref':'refs/tags/'+tag,'sha':sha})
+              assert api('GET','/git/ref/tags/'+tagpath)['object']['sha']==sha,'Backup not verifiable'
+              assert api('GET','/git/ref/heads/'+encoded)['object']['sha']==sha,'Branch moved after archive'
+              api('DELETE','/git/refs/heads/'+encoded)
+              archived+=1
+              print('ARCHIVED_AND_DELETED',name,'SHA',sha,'AHEAD',ahead,'BEHIND',behind,'TAG',tag)
+          print('ARCHIVED_TOTAL',archived,'REVIEW_SKIPPED',len(candidates)-archived)
+          PY
