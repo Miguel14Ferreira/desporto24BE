@@ -1,0 +1,62 @@
+name: Archive verified merged branches (2026-11-02)
+on:
+  push:
+    branches: [develop]
+    paths: ['.github/workflows/archive-pinned-merged-20261102.yml']
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: archive-pinned-merged-20261102
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Archive reviewed merged branch heads safely
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request, urllib.error, urllib.parse
+          repo = os.environ['REPO']
+          items = [["chore/archive-verified-batch-be-20261101","5afa843970b6c65331ce2d2a12cd098dcbf1b696"]]
+          def api(method, path, data=None):
+              req=urllib.request.Request('https://api.github.com/repos/'+repo+path,method=method,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},data=None if data is None else json.dumps(data).encode())
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  body=response.read()
+                  return json.loads(body) if body else {}
+          for name,sha in items:
+              assert re.fullmatch(r'[A-Za-z0-9._/-]+',name) and '..' not in name
+              assert re.fullmatch(r'[0-9a-f]{40}',sha)
+              assert name not in {'develop','master','main','preview/render-fullstack','feature/desporto24-preview-deploy'}
+              assert not name.startswith(('release/','backup/','archive/'))
+              branchpath=urllib.parse.quote(name,safe='/')
+              try:
+                  current=api('GET','/git/ref/heads/'+branchpath)
+              except urllib.error.HTTPError as e:
+                  if e.code==404:
+                      print('ALREADY_ABSENT',name)
+                      continue
+                  raise
+              assert current['object']['sha']==sha, 'Unexpected branch movement: '+name
+              base=api('GET','/git/ref/heads/develop')['object']['sha']
+              compare=api('GET','/compare/'+base+'...'+sha)
+              assert compare['ahead_by']==0 and compare['status'] in ('behind','identical'), 'Unmerged commits: '+name
+              prs=api('GET','/pulls?state=open&head='+urllib.parse.quote(repo.split('/')[0]+':'+name,safe='')+'&per_page=100')
+              assert not prs, 'Open pull request: '+name
+              tag='archive/verified-merged-20261102/'+name
+              tagpath=urllib.parse.quote(tag,safe='/')
+              try:
+                  old=api('GET','/git/ref/tags/'+tagpath)
+                  assert old['object']['sha']==sha, 'Archive tag mismatch: '+name
+              except urllib.error.HTTPError as e:
+                  if e.code!=404: raise
+                  api('POST','/git/refs',{'ref':'refs/tags/'+tag,'sha':sha})
+              assert api('GET','/git/ref/tags/'+tagpath)['object']['sha']==sha
+              assert api('GET','/git/ref/heads/'+branchpath)['object']['sha']==sha
+              api('DELETE','/git/refs/heads/'+branchpath)
+              print('ARCHIVED_AND_DELETED',name,sha)
+          PY
