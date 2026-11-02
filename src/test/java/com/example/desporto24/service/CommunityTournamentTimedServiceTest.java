@@ -123,6 +123,46 @@ class CommunityTournamentTimedServiceTest {
                 .map(CommunityRoundResponse::id).toList());
     }
 
+    @Test void hurdlesDoNotCombineFlat100mOr110mHurdleTimes() {
+        tournament.setSport("Atletismo");
+        tournament.setEventType("TRACK");
+        tournament.setEventDiscipline("TRACK_HURDLES_100");
+        tournament.setScoringMode(TournamentScoringMode.TRACK_BEST_TIME);
+        member(CommunityRole.MEMBER);
+        when(tournaments.findById(15L)).thenReturn(Optional.of(tournament));
+        when(links.findByTournamentIdOrderByIdAsc(15L)).thenReturn(List.of());
+        var hurdles100=new CommunityRoundResponse(30L,"100m barreiras",Instant.now(),
+                List.of(timed(1,"12.531"),timed(2,"12.633")),
+                "Atletismo",null,List.of(),"TRACK","TRACK_HURDLES_100");
+        var flat100=new CommunityRoundResponse(31L,"100m planos",Instant.now(),
+                List.of(timed(1,"11.231"),timed(2,"11.302")),
+                "Atletismo",null,List.of(),"TRACK","TRACK_100");
+        var hurdles110=new CommunityRoundResponse(32L,"110m barreiras",Instant.now(),
+                List.of(timed(1,"13.231"),timed(2,"13.302")),
+                "Atletismo",null,List.of(),"TRACK","TRACK_HURDLES_110");
+        when(competition.overview(7L,"owner",null))
+                .thenReturn(overview(hurdles100,flat100,hurdles110));
+        var result=service.overview(7L,15L,"owner");
+        assertEquals(List.of(30L),result.availableRounds().stream()
+                .map(CommunityRoundResponse::id).toList());
+    }
+
+    @Test void linkingFlatRaceToHurdlesTournamentIsRejected() {
+        tournament.setSport("Atletismo");
+        tournament.setEventType("TRACK");
+        tournament.setEventDiscipline("TRACK_HURDLES_100");
+        tournament.setScoringMode(TournamentScoringMode.TRACK_BEST_TIME);
+        member(CommunityRole.OWNER);
+        when(tournaments.findByIdForUpdate(15L)).thenReturn(Optional.of(tournament));
+        when(rounds.findById(31L)).thenReturn(Optional.of(
+                CommunityRound.builder().id(31L).community(community)
+                .sport("Atletismo").eventType("TRACK")
+                .eventDiscipline("TRACK_100").build()));
+        assertThrows(ResponseStatusException.class,()->
+                service.link(7L,15L,31L,"owner"));
+        verify(links,never()).save(any());
+    }
+
     @Test void rejectsCompletedTournamentMutations() {
         member(CommunityRole.OWNER);
         tournament.setStatus(TournamentStatus.COMPLETED);
