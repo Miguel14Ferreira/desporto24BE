@@ -49,7 +49,13 @@ jobs:
           archived=0
           for name,sha in candidates:
               encoded=urllib.parse.quote(name,safe='/')
-              current=api('GET','/git/ref/heads/'+encoded)['object']['sha']
+              try:
+                  current=api('GET','/git/ref/heads/'+encoded)['object']['sha']
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 404:
+                      print('SKIPPED_ALREADY_ABSENT',name,flush=True)
+                      continue
+                  raise
               if current!=sha:
                   print('SKIPPED_BRANCH_MOVED',name)
                   continue
@@ -69,7 +75,13 @@ jobs:
                   api('POST','/git/refs',{'ref':'refs/tags/'+tag,'sha':sha})
               assert api('GET','/git/ref/tags/'+tagpath)['object']['sha']==sha,'Backup not verifiable'
               assert api('GET','/git/ref/heads/'+encoded)['object']['sha']==sha,'Branch moved after archive'
-              api('DELETE','/git/refs/heads/'+encoded)
+              try:
+                  api('DELETE','/git/refs/heads/'+encoded)
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 404:
+                      print('DELETE_REJECTED_404',name,flush=True)
+                      continue
+                  raise
               archived+=1
               print('ARCHIVED_AND_DELETED',name,'SHA',sha,'AHEAD',ahead,'BEHIND',behind,'TAG',tag)
           print('ARCHIVED_TOTAL',archived,'REVIEW_SKIPPED',len(candidates)-archived)
