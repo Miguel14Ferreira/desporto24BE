@@ -9,5 +9,6 @@ public enum TournamentScoringMode {
     RACE_POINTS,
     SWIM_BEST_TIME,
     FIELD_BEST_MARK,
-    TRACK_BEST_TIME
+    TRACK_BEST_TIME,
+    RELAY_BEST_TIME
 }

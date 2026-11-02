@@ -1,0 +1,92 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-02-community-relay-team-heats
+      author: desporto24
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_tournament_relay_heat
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_tournament_relay_heat
+                    nullable: false
+              - column:
+                  name: tournament_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: team_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: heat_number
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: elapsed_seconds
+                  type: DECIMAL(11,3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: leg1_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: leg2_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: leg3_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: leg4_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: recorded_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: community_tournament_relay_heat
+            columnNames: tournament_id, team_id, heat_number
+            constraintName: uk_tournament_relay_heat
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_relay_heat
+            baseColumnNames: tournament_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament
+            referencedColumnNames: id
+            constraintName: fk_relay_heat_tournament
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_tournament_relay_heat
+            baseColumnNames: team_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community_tournament_team
+            referencedColumnNames: id
+            constraintName: fk_relay_heat_team
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_tournament_relay_heat
+            indexName: idx_relay_heat_tournament
+            columns:
+              - column:
+                  name: tournament_id

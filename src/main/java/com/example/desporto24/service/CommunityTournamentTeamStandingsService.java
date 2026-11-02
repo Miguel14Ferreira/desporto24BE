@@ -51,6 +51,9 @@ public class CommunityTournamentTeamStandingsService {
         var tournament = tournaments.findById(tournamentId)
                 .orElseThrow(this::notFound);
         if (!tournament.getCommunity().getId().equals(communityId)) throw notFound();
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RELAY_BEST_TIME)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Consulta os tempos de estafetas, não pontos de jogos");
         if (tournament.getFormat() != TournamentFormat.LEAGUE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "As eliminatórias usam o quadro de confrontos, não uma classificação de liga");

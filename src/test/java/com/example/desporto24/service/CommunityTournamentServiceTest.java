@@ -120,6 +120,35 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void onlyTeamRelayWithFourRunnersAndExactDistanceCanBeCreated() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(call->call.getArgument(0));
+        for(var distance:List.of("RELAY_4X100","RELAY_4X400")){
+            var request=new CreateCommunityTournamentRequest("Estafeta",null,null,null,
+                    "Atletismo",TournamentEntryType.TEAM,4,null,null,
+                    TournamentFormat.LEAGUE,null,TournamentScoringMode.RELAY_BEST_TIME,
+                    "TRACK_RELAY",distance);
+            var result=service.create(7L,"owner",request);
+            assertEquals(distance,result.eventDiscipline());
+            assertEquals(TournamentEntryType.TEAM,result.entryType());
+            assertEquals(TournamentScoringMode.RELAY_BEST_TIME,result.scoringMode());
+        }
+        for(int n:new int[]{3,5}){
+            var wrong=new CreateCommunityTournamentRequest("Estafeta",null,null,null,
+                    "Atletismo",TournamentEntryType.TEAM,n,null,null,
+                    TournamentFormat.LEAGUE,null,TournamentScoringMode.RELAY_BEST_TIME,
+                    "TRACK_RELAY","RELAY_4X100");
+            assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",wrong));
+        }
+        var flat=new CreateCommunityTournamentRequest("Estafeta",null,null,null,
+                "Atletismo",TournamentEntryType.TEAM,4,null,null,
+                TournamentFormat.LEAGUE,null,TournamentScoringMode.RELAY_BEST_TIME,
+                "TRACK_RELAY","TRACK_100");
+        assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",flat));
+    }
+
+    @Test
     void createsIndividualTrackCompetitionOnlyWithTypedDistance() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

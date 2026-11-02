@@ -165,6 +165,20 @@ public class CommunityTournamentService {
             }
         }
 
+        // Relay championships are team times, never generic match or race points.
+        if (scoringMode == TournamentScoringMode.RELAY_BEST_TIME) {
+            if (!"Atletismo".equals(selectedSport)
+                    || type != TournamentEntryType.TEAM
+                    || format != TournamentFormat.LEAGUE
+                    || !Integer.valueOf(4).equals(request.playersPerTeam())
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.roundRobinLegs() != null
+                    || request.teamTieBreakPriority() != null || request.groupCount() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Estafetas exigem equipas de quatro, liga e tempos em vez de pontos");
+            }
+        }
+
         // Pista: só tempos da mesma distância, sem jogos ou pontos por vitórias.
         if (scoringMode == TournamentScoringMode.TRACK_BEST_TIME) {
             if (!"Atletismo".equals(selectedSport)
@@ -246,9 +260,11 @@ public class CommunityTournamentService {
             throw new AccessDeniedException("Apenas Owners e Admins podem eliminar torneios");
         }
         CommunityTournament tournament = tournament(communityId, tournamentId);
-        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+        if (tournament.getStatus() == TournamentStatus.COMPLETED
+                || (tournament.getScoringMode()==TournamentScoringMode.RELAY_BEST_TIME
+                        && tournament.getStatus()!=TournamentStatus.DRAFT)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Não é possível eliminar uma competição concluída");
+                    "Não é possível eliminar uma estafeta com resultados ou uma competição concluída");
         }
 
         var matches = matchRepository.findByTournamentIdOrderByRoundNumberAscIdAsc(tournamentId);

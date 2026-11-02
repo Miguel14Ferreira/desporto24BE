@@ -55,6 +55,9 @@ public class CommunityTournamentTeamResultService {
         var tournament = tournaments.findByIdForUpdate(tournamentId)
                 .orElseThrow(this::notFound);
         if (!tournament.getCommunity().getId().equals(communityId)) throw notFound();
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RELAY_BEST_TIME)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "As estafetas exigem o endpoint de tempos coletivos");
         if (tournament.getEntryType() != TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este endpoint apenas regista resultados entre equipas");

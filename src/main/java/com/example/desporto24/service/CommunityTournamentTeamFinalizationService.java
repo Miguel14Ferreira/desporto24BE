@@ -43,6 +43,9 @@ public class CommunityTournamentTeamFinalizationService {
         var tournament = tournaments.findByIdForUpdate(tournamentId)
                 .orElseThrow(this::notFound);
         if (!tournament.getCommunity().getId().equals(communityId)) throw notFound();
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RELAY_BEST_TIME)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A classificação de estafetas ainda não suporta fecho oficial");
         if (tournament.getEntryType() != TournamentEntryType.TEAM
                 || tournament.getFormat() != TournamentFormat.LEAGUE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,

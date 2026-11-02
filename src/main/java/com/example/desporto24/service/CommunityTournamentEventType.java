@@ -23,6 +23,12 @@ final class CommunityTournamentEventType {
 
     static String validate(String sport, String requested, TournamentEntryType entryType,
                            TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.RELAY_BEST_TIME) {
+            if ("Atletismo".equals(sport) && entryType == TournamentEntryType.TEAM
+                    && "TRACK_RELAY".equals(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "As estafetas exigem equipas e tipo de prova TRACK_RELAY");
+        }
         if (scoringMode == TournamentScoringMode.TRACK_BEST_TIME) {
             if ("Atletismo".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
                     && "TRACK".equals(requested)) return requested;
@@ -73,6 +79,13 @@ final class CommunityTournamentEventType {
 
     static String validateDiscipline(String sport, String eventType,
             String requested, TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.RELAY_BEST_TIME) {
+            if ("Atletismo".equals(sport) && "TRACK_RELAY".equals(eventType)
+                    && ("RELAY_4X100".equals(requested) || "RELAY_4X400".equals(requested)))
+                return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Seleciona 4×100 m ou 4×400 m, sem misturar provas");
+        }
         if (scoringMode == TournamentScoringMode.TRACK_BEST_TIME) {
             if ("Atletismo".equals(sport) && "TRACK".equals(eventType)
                     && requested != null && TRACK_DISCIPLINES.contains(requested)) return requested;

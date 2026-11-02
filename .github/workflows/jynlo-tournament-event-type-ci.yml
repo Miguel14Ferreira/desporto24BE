@@ -18,6 +18,12 @@ on:
       - 'src/main/java/com/example/desporto24/service/CommunityTimedStandings.java'
       - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentTimedController.java'
       - 'src/main/java/com/example/desporto24/enumeration/TournamentScoringMode.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentRelayService.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityRelayStandings.java'
+      - 'src/main/java/com/example/desporto24/model/community/CommunityTournamentRelayHeat.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentRelayHeatRepository.java'
+      - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentRelayController.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityRelayStandingsTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentTimedServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTimedStandingsTest.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
@@ -40,4 +46,4 @@ jobs:
       - name: Validate tournament request, DTO, persistence and event contracts
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityFieldDisciplinesTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityFieldDisciplinesTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest,CommunityRelayStandingsTest test

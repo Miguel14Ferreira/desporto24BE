@@ -64,6 +64,9 @@ public class CommunityTournamentTeamScheduleService {
         CommunityTournament tournament = tournaments.findByIdForUpdate(tournamentId)
                 .orElseThrow(() -> notFound());
         checkScope(communityId, tournament);
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RELAY_BEST_TIME)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "As estafetas têm tempos coletivos, não confrontos entre equipas");
         if (tournament.getStatus() != TournamentStatus.DRAFT
                 || matches.existsByTournamentId(tournamentId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
