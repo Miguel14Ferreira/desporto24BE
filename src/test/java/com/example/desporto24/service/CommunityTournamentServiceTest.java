@@ -120,6 +120,44 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsSwimmingBestTimeOnlyWithAnExplicitPoolDiscipline() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var request = new CreateCommunityTournamentRequest(
+                "50 m livres", null, null, null, "Natação",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME,
+                "SWIM_LCM", "FREE_50");
+        var created = service.create(7L, "owner", request);
+        assertEquals("SWIM_LCM", created.eventType());
+        assertEquals("FREE_50", created.eventDiscipline());
+        assertEquals(com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME,
+                created.scoringMode());
+    }
+
+    @Test
+    void rejectsSwimmingTimeModeForOtherSportsOrWithoutDiscipline() {
+        actingAsOwner(CommunityRole.OWNER);
+        var noDiscipline = new CreateCommunityTournamentRequest(
+                "Natação", null, null, null, "Natação",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME,
+                "SWIM_LCM", null);
+        var wrongSport = new CreateCommunityTournamentRequest(
+                "Futebol", null, null, null, "Futebol",
+                TournamentEntryType.INDIVIDUAL, null, null, null,
+                TournamentFormat.LEAGUE, null,
+                com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME,
+                "SWIM_LCM", "FREE_50");
+        assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",noDiscipline));
+        assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",wrongSport));
+        verify(tournamentRepository,never()).save(any());
+    }
+
+    @Test
     void ownerCreatesDraftLeagueUsingDefaultsAndKeepsExplicitZero() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class))).thenAnswer(invocation -> {

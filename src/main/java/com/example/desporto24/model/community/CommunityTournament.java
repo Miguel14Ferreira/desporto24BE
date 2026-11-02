@@ -40,6 +40,10 @@ public class CommunityTournament {
     @Column(name = "event_type", length = 64)
     private String eventType;
 
+    // Required only for new discipline-specific timed competitions; historic null.
+    @Column(name = "event_discipline", length = 32)
+    private String eventDiscipline;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "entry_type", nullable = false, length = 16)
     @Builder.Default

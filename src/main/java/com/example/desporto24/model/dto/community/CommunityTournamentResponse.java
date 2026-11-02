@@ -34,8 +34,25 @@ public record CommunityTournamentResponse(
         Integer groupCount,
         TournamentScoringMode scoringMode,
         Long historicalArchiveId,
-        String eventType
+        String eventType,
+        String eventDiscipline
 ) {
+    // Preserve source compatibility for existing 26-field callers.
+    public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
+            TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
+            Instant createdAt, Instant startedAt, Instant completedAt,
+            Long championProfileId, String championUsername, String championDisplayName,
+            Long championPoints, boolean championTied, String sport,
+            TournamentEntryType entryType, Integer playersPerTeam,
+            Long championTeamId, String championTeamName, int roundRobinLegs,
+            TournamentTeamTieBreakPriority teamTieBreakPriority, Integer groupCount,
+            TournamentScoringMode scoringMode, Long historicalArchiveId, String eventType) {
+        this(id, name, format, status, winPoints, drawPoints, lossPoints,
+                createdAt, startedAt, completedAt, championProfileId, championUsername,
+                championDisplayName, championPoints, championTied, sport, entryType,
+                playersPerTeam, championTeamId, championTeamName, roundRobinLegs,
+                teamTieBreakPriority, groupCount, scoringMode, historicalArchiveId, eventType, null);
+    }
     // Backward-compatible 25-field constructor for existing Java callers.
     public CommunityTournamentResponse(Long id, String name, TournamentFormat format,
             TournamentStatus status, int winPoints, int drawPoints, int lossPoints,
@@ -182,6 +199,6 @@ public record CommunityTournamentResponse(
                 tournament.getChampionTeamId(), tournament.getChampionTeamName(),
                 tournament.getRoundRobinLegs(), tournament.getTeamTieBreakPriority(),
                 tournament.getGroupCount(), tournament.getScoringMode(), tournament.getHistoricalArchiveId(),
-                tournament.getEventType());
+                tournament.getEventType(), tournament.getEventDiscipline());
     }
 }

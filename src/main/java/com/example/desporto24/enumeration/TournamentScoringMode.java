@@ -6,5 +6,6 @@ package com.example.desporto24.enumeration;
  */
 public enum TournamentScoringMode {
     CHESS_HALF_POINTS,
-    RACE_POINTS
+    RACE_POINTS,
+    SWIM_BEST_TIME
 }

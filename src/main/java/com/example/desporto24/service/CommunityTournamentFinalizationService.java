@@ -48,7 +48,8 @@ public class CommunityTournamentFinalizationService {
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
         }
-        if (tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS) {
+        if (tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS
+                || tournament.getScoringMode() == TournamentScoringMode.SWIM_BEST_TIME) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "O campeonato de Karting deve ser encerrado pela classificação por corridas");
         }

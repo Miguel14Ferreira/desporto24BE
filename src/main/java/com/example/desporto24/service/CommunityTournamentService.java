@@ -150,11 +150,29 @@ public class CommunityTournamentService {
             }
         }
 
+        // Timed swimming championships are separate from the head-to-head
+        // and position-based engines. Never mix strokes or distances.
+        if (scoringMode == TournamentScoringMode.SWIM_BEST_TIME) {
+            if (!"Natação".equals(selectedSport)
+                    || type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.playersPerTeam() != null
+                    || request.roundRobinLegs() != null || request.teamTieBreakPriority() != null
+                    || request.groupCount() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Campeonato por tempo exige Natação individual e dispensa pontos por vitórias");
+            }
+        }
+
         // An explicit event type is accepted only for an implemented result
         // contract. Never let freestyle, timed trials or a judged heat inherit
         // positional race or numeric match scoring by accident.
         String tournamentEventType = CommunityTournamentEventType.validate(
                 selectedSport, request.eventType(), type, scoringMode);
+
+        String tournamentDiscipline = CommunityTournamentEventType.validateDiscipline(
+                selectedSport, tournamentEventType, request.eventDiscipline(), scoringMode);
 
         TournamentTeamTieBreakPriority tieBreakPriority = request.teamTieBreakPriority() == null
                 ? TournamentTeamTieBreakPriority.GOAL_DIFFERENCE_FIRST
@@ -165,6 +183,7 @@ public class CommunityTournamentService {
                 .name(request.name().trim())
                 .sport(selectedSport)
                 .eventType(tournamentEventType)
+                .eventDiscipline(tournamentDiscipline)
                 .scoringMode(scoringMode)
                 .racePointsByPlace(scoringMode == TournamentScoringMode.RACE_POINTS
                         ? CommunityTournamentRaceService.DEFAULT_POINTS : null)

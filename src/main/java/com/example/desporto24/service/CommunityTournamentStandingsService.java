@@ -59,7 +59,8 @@ public class CommunityTournamentStandingsService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
         }
 
-        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS) {
+        if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Usa a classificação por corridas do campeonato de Karting");
         }

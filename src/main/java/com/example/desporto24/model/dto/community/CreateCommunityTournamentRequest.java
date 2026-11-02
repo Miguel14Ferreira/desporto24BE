@@ -22,8 +22,18 @@ public record CreateCommunityTournamentRequest(
         TournamentFormat format,
         @Min(2) @Max(4) Integer groupCount,
         TournamentScoringMode scoringMode,
-        @Size(max = 64) String eventType
+        @Size(max = 64) String eventType,
+        @Size(max = 32) String eventDiscipline
 ) {
+    // Preserve source compatibility for 13-field callers.
+    public CreateCommunityTournamentRequest(String name, Integer winPoints,
+            Integer drawPoints, Integer lossPoints, String sport,
+            TournamentEntryType entryType, Integer playersPerTeam, Integer roundRobinLegs,
+            TournamentTeamTieBreakPriority teamTieBreakPriority, TournamentFormat format,
+            Integer groupCount, TournamentScoringMode scoringMode, String eventType) {
+        this(name, winPoints, drawPoints, lossPoints, sport, entryType, playersPerTeam,
+                roundRobinLegs, teamTieBreakPriority, format, groupCount, scoringMode, eventType, null);
+    }
     // Source compatibility for existing twelve-parameter callers.
     public CreateCommunityTournamentRequest(String name, Integer winPoints,
             Integer drawPoints, Integer lossPoints, String sport,

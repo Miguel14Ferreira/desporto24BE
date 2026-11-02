@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-02-tournament-event-discipline
+      author: desporto24
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_tournament
+            columns:
+              - column:
+                  name: event_discipline
+                  type: VARCHAR(32)

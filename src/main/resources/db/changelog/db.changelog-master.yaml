@@ -299,3 +299,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-10-29-session-253-map-pin.yaml
   - include:
       file: db/changelog/changes/2026-11-02-tournament-event-type.yaml
+  - include:
+      file: db/changelog/changes/2026-11-02-tournament-event-discipline.yaml

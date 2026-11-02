@@ -58,6 +58,11 @@ public class CommunityTournamentResultService {
         if (!tournament.getCommunity().getId().equals(communityId)) {
             throw notFound();
         }
+        if (tournament.getScoringMode() == TournamentScoringMode.SWIM_BEST_TIME
+                || tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta prova utiliza resultados das jornadas, não marcadores 1 contra 1");
+        }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este endpoint apenas regista resultados individuais");
