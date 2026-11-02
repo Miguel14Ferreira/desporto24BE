@@ -61,9 +61,10 @@ public class CommunityTournamentScheduleService {
             throw notFound();
         }
         if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS
-                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME) {
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.FIELD_BEST_MARK) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Karting usa corridas das Jornadas, não confrontos individuais");
+                    "Esta prova usa resultados das Jornadas, não confrontos individuais");
         }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -149,9 +150,10 @@ public class CommunityTournamentScheduleService {
             throw notFound();
         }
         if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS
-                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME) {
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.FIELD_BEST_MARK) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Karting usa corridas das Jornadas, não confrontos individuais");
+                    "Esta prova usa resultados das Jornadas, não confrontos individuais");
         }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Calendário por equipas ainda não disponível");

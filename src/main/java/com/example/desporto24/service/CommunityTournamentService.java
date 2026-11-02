@@ -165,6 +165,21 @@ public class CommunityTournamentService {
             }
         }
 
+        // Field championships use one exact measured discipline, never football
+        // scores, positional race points or marks from other events.
+        if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {
+            if (!"Atletismo".equals(selectedSport)
+                    || type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.playersPerTeam() != null
+                    || request.roundRobinLegs() != null || request.teamTieBreakPriority() != null
+                    || request.groupCount() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Campeonato por marcas exige Atletismo individual e dispensa pontos por vitórias");
+            }
+        }
+
         // An explicit event type is accepted only for an implemented result
         // contract. Never let freestyle, timed trials or a judged heat inherit
         // positional race or numeric match scoring by accident.

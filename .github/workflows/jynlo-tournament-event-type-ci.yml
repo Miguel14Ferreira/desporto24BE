@@ -7,6 +7,13 @@ on:
       - 'src/main/java/com/example/desporto24/model/dto/community/CreateCommunityTournamentRequest.java'
       - 'src/main/java/com/example/desporto24/model/dto/community/CommunityTournamentResponse.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentEventType.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentMeasuredService.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityMeasuredStandings.java'
+      - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentMeasuredController.java'
+      - 'src/main/java/com/example/desporto24/model/dto/community/CommunityMeasuredStandingResponse.java'
+      - 'src/main/java/com/example/desporto24/model/dto/community/CommunityTournamentMeasuredOverviewResponse.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityMeasuredStandingsTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentMeasuredServiceTest.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentTimedService.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTimedStandings.java'
       - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentTimedController.java'
@@ -33,4 +40,4 @@ jobs:
       - name: Validate tournament request, DTO, persistence and event contracts
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest test

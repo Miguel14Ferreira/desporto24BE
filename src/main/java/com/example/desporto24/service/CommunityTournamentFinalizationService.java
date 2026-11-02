@@ -49,9 +49,10 @@ public class CommunityTournamentFinalizationService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Torneio não encontrado");
         }
         if (tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS
-                || tournament.getScoringMode() == TournamentScoringMode.SWIM_BEST_TIME) {
+                || tournament.getScoringMode() == TournamentScoringMode.SWIM_BEST_TIME
+                || tournament.getScoringMode() == TournamentScoringMode.FIELD_BEST_MARK) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "O campeonato de Karting deve ser encerrado pela classificação por corridas");
+                    "Esta classificação especializada ainda não suporta finalização e arquivo");
         }
         if (tournament.getEntryType() == TournamentEntryType.TEAM) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,

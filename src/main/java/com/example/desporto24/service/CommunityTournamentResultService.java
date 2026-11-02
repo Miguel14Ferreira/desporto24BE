@@ -59,6 +59,7 @@ public class CommunityTournamentResultService {
             throw notFound();
         }
         if (tournament.getScoringMode() == TournamentScoringMode.SWIM_BEST_TIME
+                || tournament.getScoringMode() == TournamentScoringMode.FIELD_BEST_MARK
                 || tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta prova utiliza resultados das jornadas, não marcadores 1 contra 1");

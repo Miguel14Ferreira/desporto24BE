@@ -23,6 +23,12 @@ final class CommunityTournamentEventType {
 
     static String validate(String sport, String requested, TournamentEntryType entryType,
                            TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {
+            if ("Atletismo".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
+                    && ("JUMP".equals(requested) || "THROW".equals(requested))) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Seleciona uma prova individual de saltos ou lançamentos");
+        }
         if (scoringMode == TournamentScoringMode.SWIM_BEST_TIME) {
             if ("Natação".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
                     && "SWIM_LCM".equals(requested)) return "SWIM_LCM";
@@ -49,8 +55,20 @@ final class CommunityTournamentEventType {
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
             "BREAST_100", "FLY_100", "IM_200");
 
+    private static final java.util.Map<String, java.util.Set<String>> FIELD_DISCIPLINES =
+            java.util.Map.of(
+                    "JUMP", java.util.Set.of("LONG_JUMP","TRIPLE_JUMP","HIGH_JUMP","POLE_VAULT"),
+                    "THROW", java.util.Set.of("SHOT_PUT","DISCUS","JAVELIN","HAMMER"));
+
     static String validateDiscipline(String sport, String eventType,
             String requested, TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {
+            if ("Atletismo".equals(sport)
+                    && FIELD_DISCIPLINES.getOrDefault(eventType, java.util.Set.of()).contains(requested))
+                return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Escolhe uma disciplina válida de salto ou lançamento");
+        }
         if (scoringMode == TournamentScoringMode.SWIM_BEST_TIME) {
             if ("Natação".equals(sport) && "SWIM_LCM".equals(eventType)
                     && requested != null && SWIM_DISCIPLINES.contains(requested)) return requested;
