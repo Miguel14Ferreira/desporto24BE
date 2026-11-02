@@ -50,7 +50,8 @@ public class CommunityTournamentFinalizationService {
         }
         if (tournament.getScoringMode() == TournamentScoringMode.RACE_POINTS
                 || tournament.getScoringMode() == TournamentScoringMode.SWIM_BEST_TIME
-                || tournament.getScoringMode() == TournamentScoringMode.FIELD_BEST_MARK) {
+                || tournament.getScoringMode() == TournamentScoringMode.FIELD_BEST_MARK
+                || tournament.getScoringMode() == TournamentScoringMode.TRACK_BEST_TIME) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta classificação especializada ainda não suporta finalização e arquivo");
         }

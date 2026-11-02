@@ -165,6 +165,20 @@ public class CommunityTournamentService {
             }
         }
 
+        // Pista: só tempos da mesma distância, sem jogos ou pontos por vitórias.
+        if (scoringMode == TournamentScoringMode.TRACK_BEST_TIME) {
+            if (!"Atletismo".equals(selectedSport)
+                    || type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.playersPerTeam() != null
+                    || request.roundRobinLegs() != null || request.teamTieBreakPriority() != null
+                    || request.groupCount() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Campeonato de pista exige prova individual por tempo e dispensa pontos");
+            }
+        }
+
         // Field championships use one exact measured discipline, never football
         // scores, positional race points or marks from other events.
         if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {

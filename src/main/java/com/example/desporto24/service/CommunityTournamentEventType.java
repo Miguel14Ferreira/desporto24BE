@@ -23,6 +23,12 @@ final class CommunityTournamentEventType {
 
     static String validate(String sport, String requested, TournamentEntryType entryType,
                            TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.TRACK_BEST_TIME) {
+            if ("Atletismo".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
+                    && "TRACK".equals(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Seleciona uma prova individual de atletismo de pista");
+        }
         if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {
             if ("Atletismo".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
                     && ("JUMP".equals(requested) || "THROW".equals(requested))) return requested;
@@ -51,6 +57,9 @@ final class CommunityTournamentEventType {
                 "Este tipo de prova ainda não tem regras de torneio compatíveis com a modalidade");
     }
 
+    private static final java.util.Set<String> TRACK_DISCIPLINES = java.util.Set.of(
+            "TRACK_100","TRACK_200","TRACK_400","TRACK_800","TRACK_1500","TRACK_5000");
+
     private static final java.util.Set<String> SWIM_DISCIPLINES = java.util.Set.of(
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
             "BREAST_100", "FLY_100", "IM_200");
@@ -62,6 +71,12 @@ final class CommunityTournamentEventType {
 
     static String validateDiscipline(String sport, String eventType,
             String requested, TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.TRACK_BEST_TIME) {
+            if ("Atletismo".equals(sport) && "TRACK".equals(eventType)
+                    && requested != null && TRACK_DISCIPLINES.contains(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Seleciona uma das seis distâncias de pista suportadas");
+        }
         if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {
             if ("Atletismo".equals(sport)
                     && FIELD_DISCIPLINES.getOrDefault(eventType, java.util.Set.of()).contains(requested))

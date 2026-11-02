@@ -8,6 +8,8 @@ final class CommunityFieldDisciplines {
     private CommunityFieldDisciplines() {}
 
     private static final Map<String, List<String>> ATHLETICS = Map.of(
+            "TRACK", List.of("TRACK_100","TRACK_200","TRACK_400",
+                    "TRACK_800","TRACK_1500","TRACK_5000"),
             "JUMP", List.of("LONG_JUMP", "TRIPLE_JUMP", "HIGH_JUMP", "POLE_VAULT"),
             "THROW", List.of("SHOT_PUT", "DISCUS", "JAVELIN", "HAMMER")
     );
@@ -75,6 +77,8 @@ final class CommunityFieldDisciplines {
             return null;
         }
         if (requested == null || requested.isBlank()) {
+            // Historical TRACK rounds without a distance remain readable.
+            if ("Atletismo".equals(sport) && "TRACK".equals(eventType)) return null;
             throw new IllegalArgumentException("Seleciona a disciplina ou aparelho da prova");
         }
         String code = requested.trim();

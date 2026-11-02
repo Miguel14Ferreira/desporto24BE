@@ -6,7 +6,7 @@ import com.example.desporto24.model.dto.community.CommunityTimedStandingResponse
 import java.math.BigDecimal;
 import java.util.*;
 
-/** Best valid observed swimming time in one discipline; equal times share rank. */
+/** Best recorded time in a single swimming or track discipline. */
 final class CommunityTimedStandings {
     private CommunityTimedStandings() {}
     private static final class Athlete {
@@ -24,15 +24,26 @@ final class CommunityTimedStandings {
         }
     }
 
+    static boolean valid(CommunityRoundEntryResponse entry, int decimals) {
+        BigDecimal time=entry.elapsedSeconds();
+        if (time==null) return false;
+        BigDecimal normalized=time.stripTrailingZeros();
+        return entry.communityPlayerId()!=null && !entry.raceDisqualified()
+                && normalized.signum()>0 && normalized.scale()<=decimals
+                && normalized.precision()-normalized.scale()<=8;
+    }
     static List<CommunityTimedStandingResponse> calculate(List<CommunityRoundResponse> rounds) {
+        return calculate(rounds, 2);
+    }
+    static List<CommunityTimedStandingResponse> calculate(
+            List<CommunityRoundResponse> rounds, int decimals) {
         Map<Long,Athlete> byPlayer=new HashMap<>();
         for (CommunityRoundResponse round : rounds) {
             if (round.entries()==null) continue;
             for (CommunityRoundEntryResponse entry : round.entries()) {
                 BigDecimal time=entry.elapsedSeconds();
                 // Never invent identity, place, or time from unrecorded attempts.
-                if (entry.communityPlayerId()==null || entry.raceDisqualified() || time==null
-                        || time.signum()<=0 || time.scale()>2) continue;
+                if (!valid(entry,decimals)) continue;
                 Athlete athlete=byPlayer.computeIfAbsent(entry.communityPlayerId(),
                         id->new Athlete(id,entry));
                 if (athlete.best==null || time.compareTo(athlete.best)<0) athlete.best=time;

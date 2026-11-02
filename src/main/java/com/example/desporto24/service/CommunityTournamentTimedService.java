@@ -16,8 +16,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Provisional swimming championship by BEST observed time.
- * Uses only previously validated SWIM_LCM rounds with the exact same discipline.
+ * Provisional best-time championships: swimming and athletics track.
+ * Every source round must match the exact sport, type and discipline.
  * Results are NOT converted into positional race points or head-to-head wins.
  * Completed tournaments are intentionally unsupported until immutable snapshots exist.
  */
@@ -49,7 +49,7 @@ public class CommunityTournamentTimedService {
         if (!eligible(tournament,source.getCommunity().getId(),source.getSport(),
                 source.getEventType(),source.getEventDiscipline(),communityId))
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "A jornada deve ser da mesma comunidade, modalidade e prova de natação");
+                    "A jornada deve ser da mesma comunidade, modalidade e distância");
         if (links.existsByTournamentIdAndRoundId(tournamentId,roundId))
             return calculate(communityId,tournament,username);
         if (links.findByTournamentIdOrderByIdAsc(tournamentId).size()>=MAX_ROUNDS)
@@ -62,9 +62,7 @@ public class CommunityTournamentTimedService {
         if (!eligible(tournament,communityId,sourceRead.sport(),sourceRead.eventType(),
                 sourceRead.eventDiscipline(),communityId)
                 || sourceRead.entries()==null
-                || sourceRead.entries().stream().filter(e->e.communityPlayerId()!=null
-                        && !e.raceDisqualified() && e.elapsedSeconds()!=null
-                        && e.elapsedSeconds().signum()>0 && e.elapsedSeconds().scale()<=2).count()<2)
+                || sourceRead.entries().stream().filter(e->CommunityTimedStandings.valid(e, maxDecimals(tournament))).count()<2)
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "A jornada deve conter tempos válidos de pelo menos dois participantes");
         links.save(CommunityTournamentRaceRound.builder().round(source).tournament(tournament).build());
@@ -111,26 +109,32 @@ public class CommunityTournamentTimedService {
         List<CommunityRoundResponse> available=all.stream()
                 .filter(r->eligible(tournament,communityId,r.sport(),r.eventType(),r.eventDiscipline(),communityId))
                 .filter(r->!selected.contains(r.id()))
-                .filter(r->r.entries()!=null && r.entries().stream().filter(e->e.communityPlayerId()!=null
-                        && !e.raceDisqualified() && e.elapsedSeconds()!=null
-                        && e.elapsedSeconds().signum()>0 && e.elapsedSeconds().scale()<=2).count()>=2)
+                .filter(r->r.entries()!=null && r.entries().stream().filter(e->CommunityTimedStandings.valid(e, maxDecimals(tournament))).count()>=2)
                 .limit(MAX_ROUNDS).toList();
         return new CommunityTournamentTimedOverviewResponse(
                 tournament.getId(),tournament.getEventType(),tournament.getEventDiscipline(),
-                List.copyOf(linked),available,CommunityTimedStandings.calculate(linked));
+                List.copyOf(linked),available,
+                CommunityTimedStandings.calculate(linked,maxDecimals(tournament)));
     }
 
     private List<CommunityRoundResponse> allRounds(Long communityId,String username) {
         return competition.overview(communityId,username,null).rounds();
     }
 
+    private int maxDecimals(CommunityTournament tournament) {
+        return tournament.getScoringMode()==TournamentScoringMode.TRACK_BEST_TIME ? 3 : 2;
+    }
+
     private boolean eligible(CommunityTournament tournament,Long roundCommunityId,
             String sport,String eventType,String discipline,Long communityId) {
         return Objects.equals(roundCommunityId,communityId)
-                && "Natação".equals(sport) && "Natação".equals(tournament.getSport())
-                && "SWIM_LCM".equals(eventType)
+                && Objects.equals(sport,tournament.getSport())
                 && Objects.equals(eventType,tournament.getEventType())
-                && Objects.equals(discipline,tournament.getEventDiscipline());
+                && Objects.equals(discipline,tournament.getEventDiscipline())
+                && (("Natação".equals(sport) && "SWIM_LCM".equals(eventType)
+                        && tournament.getScoringMode()==TournamentScoringMode.SWIM_BEST_TIME)
+                    || ("Atletismo".equals(sport) && "TRACK".equals(eventType)
+                        && tournament.getScoringMode()==TournamentScoringMode.TRACK_BEST_TIME));
     }
 
     private CommunityTournament typed(Long communityId,Long tournamentId,boolean lock) {
@@ -139,11 +143,16 @@ public class CommunityTournamentTimedService {
                 : tournaments.findById(tournamentId))
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Campeonato não encontrado"));
         if (!tournament.getCommunity().getId().equals(communityId)
-                || tournament.getScoringMode()!=TournamentScoringMode.SWIM_BEST_TIME
+                || !(tournament.getScoringMode()==TournamentScoringMode.SWIM_BEST_TIME
+                        || tournament.getScoringMode()==TournamentScoringMode.TRACK_BEST_TIME)
                 || tournament.getEntryType()!=TournamentEntryType.INDIVIDUAL
                 || tournament.getFormat()!=TournamentFormat.LEAGUE
-                || !"Natação".equals(tournament.getSport())
-                || !"SWIM_LCM".equals(tournament.getEventType())
+                || !(("Natação".equals(tournament.getSport())
+                        && "SWIM_LCM".equals(tournament.getEventType())
+                        && tournament.getScoringMode()==TournamentScoringMode.SWIM_BEST_TIME)
+                    || ("Atletismo".equals(tournament.getSport())
+                        && "TRACK".equals(tournament.getEventType())
+                        && tournament.getScoringMode()==TournamentScoringMode.TRACK_BEST_TIME))
                 || tournament.getEventDiscipline()==null)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Campeonato cronometrado não encontrado");
         return tournament;

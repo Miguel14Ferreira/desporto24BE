@@ -8,5 +8,6 @@ public enum TournamentScoringMode {
     CHESS_HALF_POINTS,
     RACE_POINTS,
     SWIM_BEST_TIME,
-    FIELD_BEST_MARK
+    FIELD_BEST_MARK,
+    TRACK_BEST_TIME
 }

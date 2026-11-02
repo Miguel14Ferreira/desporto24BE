@@ -62,7 +62,8 @@ public class CommunityTournamentScheduleService {
         }
         if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS
                 || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME
-                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.FIELD_BEST_MARK) {
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.FIELD_BEST_MARK
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta prova usa resultados das Jornadas, não confrontos individuais");
         }
@@ -151,7 +152,8 @@ public class CommunityTournamentScheduleService {
         }
         if (tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.RACE_POINTS
                 || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.SWIM_BEST_TIME
-                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.FIELD_BEST_MARK) {
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.FIELD_BEST_MARK
+                || tournament.getScoringMode() == com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Esta prova usa resultados das Jornadas, não confrontos individuais");
         }
