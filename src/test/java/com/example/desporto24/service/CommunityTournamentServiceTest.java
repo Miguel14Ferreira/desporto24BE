@@ -139,6 +139,19 @@ class CommunityTournamentServiceTest {
                 com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME,
                 "TRACK",null);
         assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",noDistance));
+        for(String event:new String[]{"TRACK_10000","TRACK_HURDLES_100","TRACK_HURDLES_110",
+                "TRACK_HURDLES_400","TRACK_STEEPLE_3000"}) {
+            var next=new CreateCommunityTournamentRequest(event,null,null,null,"Atletismo",
+                    TournamentEntryType.INDIVIDUAL,null,null,null,TournamentFormat.LEAGUE,null,
+                    com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME,
+                    "TRACK",event);
+            assertEquals(event,service.create(7L,"owner",next).eventDiscipline());
+        }
+        var relay=new CreateCommunityTournamentRequest("4x100",null,null,null,"Atletismo",
+                TournamentEntryType.INDIVIDUAL,null,null,null,TournamentFormat.LEAGUE,null,
+                com.example.desporto24.enumeration.TournamentScoringMode.TRACK_BEST_TIME,
+                "TRACK","TRACK_RELAY_4X100");
+        assertThrows(ResponseStatusException.class,()->service.create(7L,"owner",relay));
     }
 
     @Test

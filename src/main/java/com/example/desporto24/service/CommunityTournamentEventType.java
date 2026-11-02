@@ -58,7 +58,9 @@ final class CommunityTournamentEventType {
     }
 
     private static final java.util.Set<String> TRACK_DISCIPLINES = java.util.Set.of(
-            "TRACK_100","TRACK_200","TRACK_400","TRACK_800","TRACK_1500","TRACK_5000");
+            "TRACK_100","TRACK_200","TRACK_400","TRACK_800","TRACK_1500",
+            "TRACK_5000","TRACK_10000","TRACK_HURDLES_100","TRACK_HURDLES_110",
+            "TRACK_HURDLES_400","TRACK_STEEPLE_3000");
 
     private static final java.util.Set<String> SWIM_DISCIPLINES = java.util.Set.of(
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
@@ -75,7 +77,7 @@ final class CommunityTournamentEventType {
             if ("Atletismo".equals(sport) && "TRACK".equals(eventType)
                     && requested != null && TRACK_DISCIPLINES.contains(requested)) return requested;
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Seleciona uma das seis distâncias de pista suportadas");
+                    "Seleciona uma das onze provas individuais de pista suportadas");
         }
         if (scoringMode == TournamentScoringMode.FIELD_BEST_MARK) {
             if ("Atletismo".equals(sport)

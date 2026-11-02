@@ -43,7 +43,9 @@ class CommunityFieldDisciplinesTest {
     @Test void sixTrackDistancesAreTypedWhileLegacyRoundsRemainReadable() {
         assertNull(CommunityFieldDisciplines.validate("Atletismo","TRACK",null));
         for(String distance:new String[]{"TRACK_100","TRACK_200","TRACK_400",
-                "TRACK_800","TRACK_1500","TRACK_5000"})
+                "TRACK_800","TRACK_1500","TRACK_5000","TRACK_10000",
+                "TRACK_HURDLES_100","TRACK_HURDLES_110",
+                "TRACK_HURDLES_400","TRACK_STEEPLE_3000"})
             assertEquals(distance,CommunityFieldDisciplines.validate("Atletismo","TRACK",distance));
         assertThrows(IllegalArgumentException.class,()->
                 CommunityFieldDisciplines.validate("Atletismo","TRACK","LONG_JUMP"));

@@ -9,7 +9,9 @@ final class CommunityFieldDisciplines {
 
     private static final Map<String, List<String>> ATHLETICS = Map.of(
             "TRACK", List.of("TRACK_100","TRACK_200","TRACK_400",
-                    "TRACK_800","TRACK_1500","TRACK_5000"),
+                    "TRACK_800","TRACK_1500","TRACK_5000","TRACK_10000",
+                    "TRACK_HURDLES_100","TRACK_HURDLES_110",
+                    "TRACK_HURDLES_400","TRACK_STEEPLE_3000"),
             "JUMP", List.of("LONG_JUMP", "TRIPLE_JUMP", "HIGH_JUMP", "POLE_VAULT"),
             "THROW", List.of("SHOT_PUT", "DISCUS", "JAVELIN", "HAMMER")
     );
