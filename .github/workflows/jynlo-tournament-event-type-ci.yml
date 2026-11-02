@@ -1,0 +1,30 @@
+name: Jynlo tournament event type contract CI
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/main/java/com/example/desporto24/model/community/CommunityTournament.java'
+      - 'src/main/java/com/example/desporto24/model/dto/community/CreateCommunityTournamentRequest.java'
+      - 'src/main/java/com/example/desporto24/model/dto/community/CommunityTournamentResponse.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentEventType.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
+      - 'src/main/resources/db/changelog/**'
+      - '.github/workflows/jynlo-tournament-event-type-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Validate tournament request, DTO, persistence and event contracts
+        env:
+          AES_ENCRYPTION_KEY: ciKey1
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest test
