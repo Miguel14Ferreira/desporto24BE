@@ -385,10 +385,9 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
-    void doesNotEnableOtherCyclingSubdisciplinesOrUnofficialDuelRules() {
+    void doesNotEnableUnsupportedPositionRaceSports() {
         actingAsOwner(CommunityRole.OWNER);
-        for (String sport : List.of("Corrida de obstáculos",
-                "Triatlo", "Corrida")) {
+        for (String sport : List.of("Canoagem", "Triatlo", "Remo", "Vela")) {
             var request = new CreateCommunityTournamentRequest(
                     "Liga não suportada", null, null, null, sport,
                     TournamentEntryType.INDIVIDUAL, null, null, null,
