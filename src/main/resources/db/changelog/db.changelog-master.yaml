@@ -303,3 +303,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-11-02-tournament-event-discipline.yaml
   - include:
       file: db/changelog/changes/2026-11-02-community-relay-team-heats.yaml
+  - include:
+      file: db/changelog/changes/2026-11-03-relay-finals-decisions-v1.yaml

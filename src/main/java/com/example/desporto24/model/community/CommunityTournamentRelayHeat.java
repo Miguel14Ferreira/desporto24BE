@@ -10,8 +10,8 @@ import java.time.Instant;
 /** One observed collective time and the four runners in leg order. */
 @Entity
 @Table(name="community_tournament_relay_heat",
-       uniqueConstraints=@UniqueConstraint(name="uk_tournament_relay_heat",
-           columnNames={"tournament_id","team_id","heat_number"}))
+       uniqueConstraints=@UniqueConstraint(name="uk_tournament_relay_stage_heat",
+           columnNames={"tournament_id","team_id","stage","heat_number"}))
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class CommunityTournamentRelayHeat {
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY)
@@ -24,6 +24,10 @@ public class CommunityTournamentRelayHeat {
     @JoinColumn(name="team_id",nullable=false)
     @OnDelete(action=OnDeleteAction.CASCADE)
     private CommunityTournamentTeam team;
+    @Column(name="stage",nullable=false,length=20)
+    @Builder.Default private String stage="QUALIFICATION";
+    @Column(name="decision_status",nullable=false,length=20)
+    @Builder.Default private String decisionStatus="VALID";
     @Column(name="heat_number",nullable=false)
     private int heatNumber;
     @Column(name="elapsed_seconds",nullable=false,precision=11,scale=3)

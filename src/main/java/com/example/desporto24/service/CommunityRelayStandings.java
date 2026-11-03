@@ -10,6 +10,7 @@ final class CommunityRelayStandings {
     static List<CommunityRelayStandingResponse> calculate(List<CommunityRelayHeatResponse> heats) {
         Map<Long,List<CommunityRelayHeatResponse>> byTeam=new HashMap<>();
         for(var heat:heats) {
+            if(!"VALID".equals(heat.decisionStatus())) continue;
             if(heat.teamId()==null || heat.elapsedSeconds()==null
                     || heat.elapsedSeconds().signum()<=0 || heat.runnerProfileIds()==null
                     || heat.runnerProfileIds().size()!=4

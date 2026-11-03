@@ -31,6 +31,13 @@ class CommunityRelayStandingsTest {
                 heat(3,30,"C",1,"49.200",9L,10L,11L,12L)));
         assertEquals(List.of(1,1,3),result.stream().map(CommunityRelayStandingResponse::position).toList());
     }
+    @Test void removesDisqualifiedHeatFromTeamRankings(){
+        var valid=heat(1,10,"A",1,"43.100",1L,2L,3L,4L);
+        var invalid=new CommunityRelayHeatResponse(2L,20L,"B",1,new BigDecimal("40.000"),
+                List.of(5L,6L,7L,8L),Instant.now(),"QUALIFICATION","DISQUALIFIED");
+        var result=CommunityRelayStandings.calculate(List.of(valid,invalid));
+        assertEquals(List.of(10L),result.stream().map(CommunityRelayStandingResponse::teamId).toList());
+    }
     @Test void disregardsInvalidDuplicateLegs(){
         var result=CommunityRelayStandings.calculate(List.of(
                 heat(1,10,"A",1,"44.00",1L,1L,2L,3L),

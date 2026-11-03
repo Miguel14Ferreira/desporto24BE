@@ -10,6 +10,8 @@ public interface CommunityTournamentRelayHeatRepository
         extends JpaRepository<CommunityTournamentRelayHeat,Long> {
     @EntityGraph(attributePaths={"team"})
     List<CommunityTournamentRelayHeat> findByTournamentIdOrderByHeatNumberAscTeamIdAsc(Long tournamentId);
+    Optional<CommunityTournamentRelayHeat> findByTournamentIdAndTeamIdAndStageAndHeatNumber(
+            Long tournamentId,Long teamId,String stage,int heatNumber);
     Optional<CommunityTournamentRelayHeat> findByTournamentIdAndTeamIdAndHeatNumber(
             Long tournamentId,Long teamId,int heatNumber);
 }

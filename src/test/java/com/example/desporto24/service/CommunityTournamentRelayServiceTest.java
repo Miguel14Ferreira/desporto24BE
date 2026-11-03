@@ -24,6 +24,8 @@ class CommunityTournamentRelayServiceTest {
     @Mock CommunityTournamentTeamRepository teams;
     @Mock CommunityTournamentTeamPlayerRepository roster;
     @Mock CommunityTournamentRelayHeatRepository heats;
+    @Mock CommunityTournamentRelayFinalistRepository finalists;
+    @Mock CommunityTournamentRelayDecisionRepository decisions;
     @Mock CommunityTournamentTeamService teamService;
     @InjectMocks CommunityTournamentRelayService service;
     Community community;CommunityTournament competition;CommunityTournamentTeam team;
@@ -57,7 +59,7 @@ class CommunityTournamentRelayServiceTest {
     @Test void recordsFourDistinctLegsAndStartsTournamentWithoutMatchResults(){
         manager();runners();
         when(teams.findById(30L)).thenReturn(Optional.of(team));
-        when(heats.findByTournamentIdAndTeamIdAndHeatNumber(20L,30L,1))
+        when(heats.findByTournamentIdAndTeamIdAndStageAndHeatNumber(20L,30L,"QUALIFICATION",1))
                 .thenReturn(Optional.empty());
         when(heats.findByTournamentIdOrderByHeatNumberAscTeamIdAsc(20L)).thenReturn(List.of());
         when(teamService.list(7L,20L,"owner")).thenReturn(List.of());
@@ -86,6 +88,74 @@ class CommunityTournamentRelayServiceTest {
                 new CommunityRelayHeatRequest(new BigDecimal("43.123"),List.of(11L,12L,13L,99L)),
                 "owner"));
         verify(heats,never()).saveAndFlush(any());
+    }
+    @Test void qualifyingResultsCannotChangeAfterFinalPublication(){
+        manager();
+        competition.setRelayFinalPublishedAt(java.time.Instant.now());
+        assertThrows(ResponseStatusException.class,()->service.record(7L,20L,1,30L,
+                new CommunityRelayHeatRequest(new BigDecimal("43.100"),List.of(11L,12L,13L,14L)),
+                "owner"));
+        verify(heats,never()).saveAndFlush(any());
+    }
+    @Test void onlyPublishedFinalistsCanRecordFinalHeats(){
+        manager(); competition.setStatus(TournamentStatus.IN_PROGRESS);
+        competition.setRelayFinalPublishedAt(java.time.Instant.now());
+        when(teams.findById(30L)).thenReturn(Optional.of(team));
+        var request=new CommunityRelayHeatRequest(new BigDecimal("42.123"),List.of(11L,12L,13L,14L));
+        assertThrows(ResponseStatusException.class,()->service.recordFinal(7L,20L,1,30L,request,"owner"));
+        verify(heats,never()).saveAndFlush(any());
+    }
+    @Test void publishesAtMostEightFrozenFinalistsFromValidQualificationTimes(){
+        manager(); competition.setStatus(TournamentStatus.IN_PROGRESS);
+        var teamsList=new ArrayList<CommunityTournamentTeam>();
+        var raceResults=new ArrayList<CommunityTournamentRelayHeat>();
+        for(long n=1;n<=9;n++){
+            var t=CommunityTournamentTeam.builder().id(n).name("Team "+n)
+                    .tournament(competition).build();
+            teamsList.add(t);
+            raceResults.add(CommunityTournamentRelayHeat.builder()
+                    .id(n).team(t).tournament(competition).stage("QUALIFICATION")
+                    .decisionStatus("VALID").heatNumber(1)
+                    .elapsedSeconds(new BigDecimal(40+n))
+                    .leg1ProfileId(11L).leg2ProfileId(12L)
+                    .leg3ProfileId(13L).leg4ProfileId(14L).build());
+        }
+        when(heats.findByTournamentIdOrderByHeatNumberAscTeamIdAsc(20L))
+                .thenReturn(raceResults);
+        when(teams.findByTournamentIdOrderByIdAsc(20L)).thenReturn(teamsList);
+        when(finalists.findByTournamentIdOrderBySeedAsc(20L)).thenReturn(List.of());
+        when(teamService.list(7L,20L,"owner")).thenReturn(List.of());
+        var response=service.publishFinal(7L,20L,"owner");
+        var captured=ArgumentCaptor.forClass(List.class);
+        verify(finalists).saveAllAndFlush(captured.capture());
+        assertEquals(8,captured.getValue().size());
+        assertNotNull(competition.getRelayFinalPublishedAt());
+        assertTrue(response.finalPublished());
+        assertTrue(response.finalStandings().isEmpty());
+        assertEquals(9,response.qualifyingStandings().size());
+    }
+    @Test void disqualificationKeepsTimedHeatAndAppendsJuryAudit(){
+        manager(); competition.setStatus(TournamentStatus.IN_PROGRESS);
+        var result=CommunityTournamentRelayHeat.builder().id(99L)
+                .tournament(competition).team(team).stage("QUALIFICATION")
+                .decisionStatus("VALID").heatNumber(1)
+                .elapsedSeconds(new BigDecimal("43.123"))
+                .leg1ProfileId(11L).leg2ProfileId(12L)
+                .leg3ProfileId(13L).leg4ProfileId(14L).build();
+        when(heats.findById(99L)).thenReturn(Optional.of(result));
+        when(heats.findByTournamentIdOrderByHeatNumberAscTeamIdAsc(20L)).thenReturn(List.of(result));
+        when(decisions.findByTournamentIdOrderByIdAsc(20L)).thenReturn(List.of());
+        when(teamService.list(7L,20L,"owner")).thenReturn(List.of());
+        var response=service.decide(7L,20L,99L,
+                new CommunityRelayDecisionRequest("DISQUALIFIED","Passagem do testemunho irregular"),
+                "owner");
+        assertEquals("DISQUALIFIED",result.getDecisionStatus());
+        assertTrue(response.standings().isEmpty());
+        var action=ArgumentCaptor.forClass(CommunityTournamentRelayDecision.class);
+        verify(decisions).saveAndFlush(action.capture());
+        assertEquals("VALID",action.getValue().getPreviousStatus());
+        assertEquals("DISQUALIFIED",action.getValue().getNewStatus());
+        assertEquals(99L,action.getValue().getHeat().getId());
     }
     @Test void rejectsWrongEventTypeEvenWithCorrectTeamAndRoster(){
         manager();

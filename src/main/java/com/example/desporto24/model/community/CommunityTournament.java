@@ -78,6 +78,9 @@ public class CommunityTournament {
 
     // Saved upon closing a Karting championship. Preserves races, points
     // and podiums even if the original community rounds are edited later.
+    @Column(name = "relay_final_published_at")
+    private Instant relayFinalPublishedAt;
+
     @Column(name = "race_final_snapshot_json", columnDefinition = "text")
     private String raceFinalSnapshotJson;
 

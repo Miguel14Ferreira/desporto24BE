@@ -21,6 +21,28 @@ public class CommunityTournamentRelayController {
         return relays.overview(communityId,tournamentId,authentication.getName());
     }
 
+    @PostMapping("/final/publish")
+    public CommunityRelayOverviewResponse publishFinal(@PathVariable Long communityId,
+            @PathVariable Long tournamentId,Authentication authentication){
+        return relays.publishFinal(communityId,tournamentId,authentication.getName());
+    }
+
+    @PutMapping("/final/heats/{heatNumber}/teams/{teamId}")
+    public CommunityRelayOverviewResponse recordFinal(@PathVariable Long communityId,
+            @PathVariable Long tournamentId,@PathVariable int heatNumber,
+            @PathVariable Long teamId,@Valid @RequestBody CommunityRelayHeatRequest request,
+            Authentication authentication){
+        return relays.recordFinal(communityId,tournamentId,heatNumber,teamId,request,authentication.getName());
+    }
+
+    @PutMapping("/decisions/{heatId}")
+    public CommunityRelayOverviewResponse decide(@PathVariable Long communityId,
+            @PathVariable Long tournamentId,@PathVariable Long heatId,
+            @Valid @RequestBody CommunityRelayDecisionRequest request,
+            Authentication authentication) {
+        return relays.decide(communityId,tournamentId,heatId,request,authentication.getName());
+    }
+
     @PutMapping("/heats/{heatNumber}/teams/{teamId}")
     public CommunityRelayOverviewResponse record(@PathVariable Long communityId,
             @PathVariable Long tournamentId,@PathVariable int heatNumber,
