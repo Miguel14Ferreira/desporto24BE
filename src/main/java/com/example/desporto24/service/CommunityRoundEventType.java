@@ -419,6 +419,10 @@ final class CommunityRoundEventType {
     static boolean isChampionshipRaceEvent(String sport, String eventType) {
         // Separate distances must never share the generic sport-wide points table.
         // Untyped historical race records retain their prior classification behavior.
+        if ("Natação".equals(sport) && "SWIM_LCM".equals(eventType))
+            return false; // Timed pool events compare identical stroke and distance only.
+        if ("Atletismo".equals(sport) && "TRACK".equals(eventType))
+            return false; // Track times across distances are never comparable race points.
         if ("Natação em Águas Abertas".equals(sport) && "OWS_INDIVIDUAL".equals(eventType))
             return false;
         if ("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType))

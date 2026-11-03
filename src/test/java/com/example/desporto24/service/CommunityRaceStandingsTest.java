@@ -168,6 +168,19 @@ class CommunityRaceStandingsTest {
         assertTrue(CommunityRaceStandings.calculate(List.of(newPool), List.of(rule)).isEmpty());
     }
 
+    @Test void measuredTrackDistancesAreNotMixedIntoPositionPoints() {
+        var track100 = new CommunityRoundResponse(601L, "100 m",
+                Instant.parse("2026-11-03T10:00:00Z"),
+                List.of(driver(701, 11, "Ana", 1, 0)),
+                "Atletismo", null, List.of(), "TRACK", "TRACK_100");
+        var track800 = new CommunityRoundResponse(602L, "800 m",
+                Instant.parse("2026-11-03T11:00:00Z"),
+                List.of(driver(702, 22, "Bruno", 1, 0)),
+                "Atletismo", null, List.of(), "TRACK", "TRACK_800");
+        assertTrue(CommunityRaceStandings.calculate(List.of(track100,track800),
+                List.of(new CommunityRaceRuleResponse("Atletismo",List.of(25,18)))).isEmpty());
+    }
+
     @Test void openWaterFiveAndTenKilometresNeverJoinLegacyOrPoolStandings() {
         var openFive = new CommunityRoundResponse(15L, "5 km",
                 Instant.parse("2026-10-24T10:00:00Z"),

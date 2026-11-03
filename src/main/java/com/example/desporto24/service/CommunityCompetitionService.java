@@ -2088,8 +2088,10 @@ public class CommunityCompetitionService {
                 : raceChampion == null ? null : raceChampion.username());
         season.setChampionDisplayName(champion != null ? champion.fullName()
                 : raceChampion == null ? null : raceChampion.fullName());
-        season.setChampionPoints(champion != null ? champion.points()
-                : raceChampion == null ? null : raceChampion.championshipPoints());
+        Integer recordedPoints = null;
+        if (champion != null) recordedPoints = champion.points();
+        else if (raceChampion != null) recordedPoints = raceChampion.championshipPoints();
+        season.setChampionPoints(recordedPoints);
         season.setChampionFinalized(true);
         season.setActive(false);
         season.setEndedAt(Instant.now());

@@ -13,6 +13,13 @@ class CommunityRoundEventTypeTest {
         assertFalse(CommunityTournamentRaceService.supportsRaceChampionship("Remo"));
     }
 
+    @Test void timedSwimmingAndTrackNeverCountAsGenericRacePoints() {
+        assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Natação","SWIM_LCM"));
+        assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Atletismo","TRACK"));
+        assertTrue(CommunityRoundEventType.isChampionshipRaceEvent("Natação",null)); // legacy
+        assertTrue(CommunityRoundEventType.isChampionshipRaceEvent("Karting",null));
+    }
+
     @Test void canoeSprintRequiresItsOwnEventAndNeverUsesPositionPoints() {
         assertEquals("CANOE_SPRINT", CommunityRoundEventType.validate("Canoagem Velocidade", "CANOE_SPRINT"));
         assertThrows(IllegalArgumentException.class,
