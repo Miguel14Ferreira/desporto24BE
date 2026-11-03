@@ -59,19 +59,13 @@ final class CommunityRaceStandings {
         Map<String, Map<Long, Tally>> totals = new LinkedHashMap<>();
         Map<String, String> display = new HashMap<>();
         for (CommunityRoundResponse round : rounds) {
-            // Swimming pool results have distance/stroke-specific times. Do not combine
-            // them in a sport-wide race championship or inherit generic positions.
-            if (round != null && ("Natação".equals(round.sport())
-                    && "SWIM_LCM".equals(round.eventType())
-                    || "Canoagem Velocidade".equals(round.sport())
-                    && "CANOE_SPRINT".equals(round.eventType())
-                    || "Natação em Águas Abertas".equals(round.sport())
-                    && "OWS_INDIVIDUAL".equals(round.eventType())
-                    || "Orientação".equals(round.sport())
-                    && "FOOT_ORIENTEERING".equals(round.eventType())
-                    || "Patinagem de Velocidade".equals(round.sport())
-                    && CommunityInlineSpeedResults.isInlineEvent(round.eventType()))) continue;
-            if (round == null || !CommunityRoundEventType.isRaceEvent(round.sport(), round.eventType())
+            // One shared eligibility contract for community race championships.
+            // Typed timing disciplines (including rowing 1x) must never become
+            // a sport-wide points table, even if malformed source positions exist.
+            // Untyped historical race results retain their original semantics.
+            if (round == null
+                    || !CommunityRoundEventType.isChampionshipRaceEvent(
+                            round.sport(), round.eventType())
                     || round.entries() == null) continue;
             String sport = round.sport().trim().toLowerCase(Locale.ROOT);
             CommunityRaceRuleResponse rule = bySport.get(sport);
@@ -85,13 +79,6 @@ final class CommunityRaceStandings {
                 }
             }
             if (!valid) continue;
-            // A road-cycling time trial is a separately timed discipline and
-            // must never silently count toward a road-race points table.
-            if (("Ciclismo de Estrada".equals(round.sport())
-                    && "TIME_TRIAL".equals(round.eventType()))
-                    || ("Ciclismo de Pista".equals(round.sport())
-                    && ("TRACK_TIME_TRIAL".equals(round.eventType())
-                            || "TRACK_FLYING_200".equals(round.eventType())))) continue;
             display.putIfAbsent(sport, round.sport().trim());
             Map<Long, Tally> players = totals.computeIfAbsent(sport, unused -> new HashMap<>());
             for (CommunityRoundEntryResponse entry : round.entries()) {

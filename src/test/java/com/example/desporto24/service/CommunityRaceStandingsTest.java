@@ -132,6 +132,26 @@ class CommunityRaceStandingsTest {
         assertEquals(1, first.wins());
     }
 
+    @Test void rowingSingleScullsNeverEnterGenericRacePointsEvenWithMalformedPlaces() {
+        var skiff500 = new CommunityRoundResponse(301L, "Skiff 500 m",
+                Instant.parse("2026-11-03T10:00:00Z"),
+                List.of(driver(1001, 11, "Ana", 1, 0)),
+                "Remo", null, List.of(), "ROWING_SINGLE", "SINGLE_500");
+        var skiff2000 = new CommunityRoundResponse(302L, "Skiff 2000 m",
+                Instant.parse("2026-11-03T11:00:00Z"),
+                List.of(driver(1002, 22, "Bruno", null, 0)),
+                "Remo", null, List.of(), "ROWING_SINGLE", "SINGLE_2000");
+        var karting = race(303L, "Karting", driver(1003, 33, "Carla", 1, 0));
+        var points = List.of(
+                new CommunityRaceRuleResponse("Remo", List.of(25, 18)),
+                new CommunityRaceRuleResponse("Karting", List.of(25, 18)));
+        assertTrue(CommunityRaceStandings.calculate(List.of(skiff500, skiff2000), points).isEmpty());
+        var groups = CommunityRaceStandings.calculate(List.of(skiff500, karting, skiff2000), points);
+        assertEquals(1, groups.size());
+        assertEquals("Karting", groups.get(0).sport());
+        assertEquals(25, groups.get(0).standings().get(0).championshipPoints());
+    }
+
     @Test void newPoolResultsAreIsolatedFromLegacySwimmingRaceStandings() {
         var newPool = new CommunityRoundResponse(10L, "100 m livres",
                 Instant.parse("2026-10-24T10:00:00Z"),
