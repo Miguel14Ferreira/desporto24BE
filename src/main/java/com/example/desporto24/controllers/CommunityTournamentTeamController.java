@@ -69,6 +69,15 @@ public class CommunityTournamentTeamController {
         return scheduleService.matches(communityId, tournamentId, authentication.getName(), page);
     }
 
+    @GetMapping("/{teamId}/matches")
+    public CommunityTournamentTeamMatchesPageResponse teamMatches(
+            @PathVariable Long communityId, @PathVariable Long tournamentId,
+            @PathVariable Long teamId, @RequestParam(defaultValue = "0") int page,
+            Authentication authentication) {
+        return scheduleService.teamMatches(
+                communityId, tournamentId, teamId, authentication.getName(), page);
+    }
+
     @PostMapping("/matches/{matchId}/result")
     public CommunityTournamentTeamMatchResponse recordResult(
             @PathVariable Long communityId, @PathVariable Long tournamentId,

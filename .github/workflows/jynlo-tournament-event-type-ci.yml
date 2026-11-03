@@ -47,6 +47,10 @@ on:
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentTimedServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTimedStandingsTest.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentTeamScheduleService.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentTeamMatchRepository.java'
+      - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentTeamController.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentTeamScheduleServiceTest.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentRaceService.java'
       - 'src/main/java/com/example/desporto24/service/CommunityRoundEventType.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentRaceServiceTest.java'
@@ -70,4 +74,4 @@ jobs:
       - name: Validate tournament request, DTO, persistence and event contracts
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityFieldDisciplinesTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest,CommunityRelayStandingsTest,CommunityTournamentRelayServiceTest,CommunityTournamentRaceServiceTest,CommunityRoundEventTypeTest,CommunityCanoeSprintResultsTest,CommunityRowingResultsTest,CommunityRaceStandingsTest,CommunityCompetitionServiceTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityFieldDisciplinesTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest,CommunityRelayStandingsTest,CommunityTournamentRelayServiceTest,CommunityTournamentRaceServiceTest,CommunityRoundEventTypeTest,CommunityCanoeSprintResultsTest,CommunityRowingResultsTest,CommunityRaceStandingsTest,CommunityCompetitionServiceTest,CommunityTournamentTeamScheduleServiceTest test

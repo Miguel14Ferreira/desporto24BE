@@ -395,6 +395,50 @@ class CommunityTournamentTeamScheduleServiceTest {
     }
 
     @Test
+    void teamProfileListsOnlyItsOwnPagedFixturesAndRealResults() {
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        var azuis = CommunityTournamentTeam.builder().id(20L).tournament(tournament).name("Azuis").build();
+        var verdes = CommunityTournamentTeam.builder().id(21L).tournament(tournament).name("Verdes").build();
+        when(teams.findById(20L)).thenReturn(Optional.of(azuis));
+        var match = CommunityTournamentTeamMatch.builder().id(71L).tournament(tournament)
+                .roundNumber(2).homeTeam(verdes).awayTeam(azuis)
+                .status(com.example.desporto24.enumeration.TournamentMatchStatus.COMPLETED)
+                .homeScore(2).awayScore(3).build();
+        when(matches.findByTournamentAndTeam(eq(19L), eq(20L), any(PageRequest.class)))
+                .thenReturn(new SliceImpl<>(List.of(match), PageRequest.of(0, 50), true));
+        var result = service.teamMatches(7L, 19L, 20L, "owner", 0);
+        assertEquals(1, result.matches().size());
+        assertTrue(result.hasMore());
+        assertEquals(3, result.matches().get(0).awayScore());
+        assertEquals(20L, result.matches().get(0).awayTeamId());
+        verify(matches).findByTournamentAndTeam(eq(19L), eq(20L), any(PageRequest.class));
+        verify(matches, never()).findByTournamentId(eq(19L), any(PageRequest.class));
+    }
+
+    @Test
+    void teamProfileRejectsTeamFromAnotherTournamentBeforeQueryingFixtures() {
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(members.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournaments.findById(19L)).thenReturn(Optional.of(tournament));
+        var foreignTournament = CommunityTournament.builder().id(90L).build();
+        when(teams.findById(20L)).thenReturn(Optional.of(
+                CommunityTournamentTeam.builder().id(20L).tournament(foreignTournament).build()));
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
+                () -> service.teamMatches(7L, 19L, 20L, "owner", 0)).getStatusCode());
+        verifyNoInteractions(matches);
+    }
+
+    @Test
+    void nonMemberCannotReadTeamProfileFixtures() {
+        when(profiles.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        assertThrows(AccessDeniedException.class,
+                () -> service.teamMatches(7L, 19L, 20L, "owner", 0));
+        verifyNoInteractions(teams, matches);
+    }
+
+    @Test
     void rejectsNegativePageBeforeAnyQuery() {
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
                 () -> service.matches(7L, 19L, "owner", -1)).getStatusCode());

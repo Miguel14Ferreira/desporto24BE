@@ -20,6 +20,7 @@ import com.example.desporto24.repository.community.CommunityTournamentTeamMatchR
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -190,7 +191,40 @@ public class CommunityTournamentTeamScheduleService {
                 ? Sort.by(Sort.Direction.ASC, "id")
                 : Sort.by(Sort.Direction.ASC, "roundNumber").and(Sort.by("id"));
         int pageSize = tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT ? 250 : PAGE_SIZE;
-        var slice = matches.findByTournamentId(tournamentId, PageRequest.of(page, pageSize, sort));
+        return matchPage(matches.findByTournamentId(
+                tournamentId, PageRequest.of(page, pageSize, sort)), page);
+    }
+
+    /** Strictly scoped to one real team, tournament and community. */
+    @Transactional(readOnly = true)
+    public CommunityTournamentTeamMatchesPageResponse teamMatches(
+            Long communityId, Long tournamentId, Long teamId, String username, int page) {
+        if (page < 0 || page > 1000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Página inválida");
+        }
+        Profile actor = actor(username);
+        if (!members.existsByCommunityIdAndProfileId(communityId, actor.getId())) {
+            throw new AccessDeniedException("Não pertences a esta comunidade");
+        }
+        CommunityTournament tournament = tournaments.findById(tournamentId)
+                .orElseThrow(() -> notFound());
+        checkScope(communityId, tournament);
+        CommunityTournamentTeam team = teams.findById(teamId).orElseThrow(() -> notFound());
+        if (!team.getTournament().getId().equals(tournamentId)) throw notFound();
+        if (tournament.getScoringMode()
+                == com.example.desporto24.enumeration.TournamentScoringMode.RELAY_BEST_TIME) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "As estafetas usam tempos, não confrontos");
+        }
+        var sort = tournament.getFormat() == TournamentFormat.GROUP_KNOCKOUT
+                ? Sort.by(Sort.Direction.ASC, "id")
+                : Sort.by(Sort.Direction.ASC, "roundNumber").and(Sort.by("id"));
+        return matchPage(matches.findByTournamentAndTeam(
+                tournamentId, teamId, PageRequest.of(page, PAGE_SIZE, sort)), page);
+    }
+
+    private CommunityTournamentTeamMatchesPageResponse matchPage(
+            Slice<CommunityTournamentTeamMatch> slice, int page) {
         return new CommunityTournamentTeamMatchesPageResponse(
                 slice.getContent().stream().map(game -> new CommunityTournamentTeamMatchResponse(
                         game.getId(), game.getRoundNumber(), game.getHomeTeam().getId(),
