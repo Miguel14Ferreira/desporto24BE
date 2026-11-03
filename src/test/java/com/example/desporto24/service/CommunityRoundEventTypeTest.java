@@ -128,6 +128,21 @@ class CommunityRoundEventTypeTest {
         assertFalse(CommunityTournamentRaceService.supportsRaceChampionship("Remo"));
     }
 
+    @Test void validatesPositionOnlyCommunitySeriesWithoutInventingEventFormats() {
+        for (String sport : java.util.List.of("Corrida", "Trail Running", "Corrida de obstáculos", "Motonáutica")) {
+            assertNull(CommunityRoundEventType.validate(sport, null));
+            assertTrue(CommunityRoundEventType.isRaceEvent(sport, null), sport);
+            assertTrue(CommunityRoundEventType.isChampionshipRaceEvent(sport, null), sport);
+            assertTrue(CommunityTournamentRaceService.supportsRaceChampionship(sport), sport);
+            for (String unsupported : java.util.List.of("TRACK", "TIME_TRIAL", "RACE")) {
+                assertThrows(IllegalArgumentException.class,
+                        () -> CommunityRoundEventType.validate(sport, unsupported));
+                assertFalse(CommunityRoundEventType.isChampionshipRaceEvent(sport, unsupported), sport);
+            }
+        }
+        assertFalse(CommunityTournamentRaceService.supportsRaceChampionship("Orientação"));
+    }
+
     @Test void neverConfusesFreestyleOrFieldEventsWithRaceScoring() {
         assertTrue(CommunityRoundEventType.isRaceEvent("BMX", "RACE"));
         assertTrue(CommunityRoundEventType.isRaceEvent("BMX", null)); // historic

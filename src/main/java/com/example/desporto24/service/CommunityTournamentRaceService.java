@@ -37,7 +37,8 @@ public class CommunityTournamentRaceService {
     private static final int MAX_ROUNDS = 100;
     private static final Set<String> SUPPORTED_SPORTS =
             Set.of("karting", "bmx", "ciclismo", "mountain bike", "ciclocrosse", "ciclismo de estrada", "ciclismo de pista",
-                    "automobilismo", "motociclismo", "motocross");
+                    "automobilismo", "motociclismo", "motocross",
+                    "corrida", "trail running", "corrida de obstáculos", "motonáutica");
 
     /** Explicitly limited to sports with validated generic race-result contracts. */
     public static boolean supportsRaceChampionship(String sport) {

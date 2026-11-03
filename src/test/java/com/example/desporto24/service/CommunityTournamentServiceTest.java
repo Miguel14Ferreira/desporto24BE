@@ -311,6 +311,31 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void createsCommunitySeriesForRunningTrailObstaclesAndPowerboats() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        for (String sport : List.of("Corrida", "Trail Running", "Corrida de obstáculos", "Motonáutica")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Circuito " + sport, null, null, null, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null, TournamentScoringMode.RACE_POINTS);
+            var created = service.create(7L, "owner", request);
+            assertEquals(TournamentScoringMode.RACE_POINTS, created.scoringMode(), sport);
+            assertEquals(sport, created.sport());
+            assertEquals(TournamentStatus.DRAFT, created.status());
+            var fakeFootball = new CreateCommunityTournamentRequest(
+                    "Futebol " + sport, 3, 1, 0, sport,
+                    TournamentEntryType.INDIVIDUAL, null, null, null,
+                    TournamentFormat.LEAGUE, null, TournamentScoringMode.RACE_POINTS);
+            assertThrows(ResponseStatusException.class,
+                    () -> service.create(7L, "owner", fakeFootball), sport);
+        }
+        verify(tournamentRepository, times(4)).save(argThat(t ->
+                CommunityTournamentRaceService.DEFAULT_POINTS.equals(t.getRacePointsByPlace())));
+    }
+
+    @Test
     void createsBmxRacingChampionshipWithoutAllowingFakeFootballScoring() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

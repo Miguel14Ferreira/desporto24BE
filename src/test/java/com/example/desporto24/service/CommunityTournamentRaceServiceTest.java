@@ -275,6 +275,50 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void runningRaceSeriesUsesOnlyCorridaRounds() {
+        verifiesCyclingRaceChampionship("Corrida");
+    }
+
+    @Test
+    void trailRaceSeriesUsesOnlyTrailRunningRounds() {
+        verifiesCyclingRaceChampionship("Trail Running");
+    }
+
+    @Test
+    void obstacleRaceSeriesUsesOnlyObstacleRounds() {
+        verifiesCyclingRaceChampionship("Corrida de obstáculos");
+    }
+
+    @Test
+    void powerboatRaceSeriesUsesOnlyMotonauticaRounds() {
+        verifiesCyclingRaceChampionship("Motonáutica");
+    }
+
+    @Test
+    void trailRunningRejectsDifferentSportsAndUnvalidatedEventTypes() {
+        tournament.setSport("Trail Running");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Corrida").eventType(null).build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        for (String otherSport : List.of("Corrida", "Corrida de obstáculos", "Motonáutica")) {
+            recorded.setSport(otherSport);
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        }
+        recorded.setSport("Trail Running");
+        for (String invalidType : List.of("TIME_TRIAL", "RACE", "TRACK")) {
+            recorded.setEventType(invalidType);
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        }
+        verifyNoInteractions(competition);
+        verify(links, never()).save(any());
+    }
+
+    @Test
     void ciclocrosseRejectsOtherCyclingDisciplinesAndUnsupportedEventTypes() {
         tournament.setSport("Ciclocrosse");
         admin();
