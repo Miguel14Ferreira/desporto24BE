@@ -38,6 +38,7 @@ final class CommunityRoundEventType {
             Map.entry("Musculação", List.of("STRENGTH_TRAINING")),
             Map.entry("Natação", List.of("SWIM_LCM")),
             Map.entry("Canoagem Velocidade", List.of("CANOE_SPRINT")),
+            Map.entry("Remo", List.of("ROWING_SINGLE")),
             Map.entry("Natação em Águas Abertas", List.of("OWS_INDIVIDUAL")),
             Map.entry("Orientação", List.of("FOOT_ORIENTEERING")),
             Map.entry("Patinagem de Velocidade", List.of(
@@ -152,6 +153,10 @@ final class CommunityRoundEventType {
         }
         if ("CANOE_SPRINT".equals(type)) {
             CommunityCanoeSprintResults.validate(sport, entries);
+            return;
+        }
+        if ("ROWING_SINGLE".equals(type)) {
+            CommunityRowingResults.validate(sport, entries);
             return;
         }
         if ("STRENGTH_TRAINING".equals(type)) {
@@ -389,6 +394,8 @@ final class CommunityRoundEventType {
         if ("Natação".equals(sport)) return eventType == null || "SWIM_LCM".equals(eventType);
         if ("Canoagem Velocidade".equals(sport))
             return eventType == null || "CANOE_SPRINT".equals(eventType);
+        if ("Remo".equals(sport))
+            return eventType == null || "ROWING_SINGLE".equals(eventType);
         if ("Natação em Águas Abertas".equals(sport))
             return eventType == null || "OWS_INDIVIDUAL".equals(eventType);
         if ("Orientação".equals(sport))
@@ -416,6 +423,8 @@ final class CommunityRoundEventType {
             return false;
         if ("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType))
             return false; // K1 distances are timed separately, not general race points.
+        if ("Remo".equals(sport) && "ROWING_SINGLE".equals(eventType))
+            return false; // Skiff distances never enter positional points.
         // Different routes cannot be compared without verified controls.
         if ("Orientação".equals(sport) && "FOOT_ORIENTEERING".equals(eventType))
             return false;

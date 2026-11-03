@@ -27,6 +27,9 @@ final class CommunityFieldDisciplines {
     // Individual K1 only; K2/K4 and other crews require a separate team contract.
     private static final List<String> CANOE_K1 = List.of("K1_200", "K1_500", "K1_1000");
 
+    // Single sculls 1x only. Crew boats require team-specific contracts.
+    private static final List<String> ROWING_SINGLE = List.of("SINGLE_500", "SINGLE_1000", "SINGLE_2000");
+
     // Descriptive stage for an independently recorded Sprint heat.
     // A complete bracket or best-of-three match outcome requires a separate relation.
     private static final List<String> TRACK_SPRINT_PHASES = List.of(
@@ -69,6 +72,8 @@ final class CommunityFieldDisciplines {
                 ? SWIM_LCM
                 : "Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType)
                 ? CANOE_K1
+                : "Remo".equals(sport) && "ROWING_SINGLE".equals(eventType)
+                ? ROWING_SINGLE
                 : "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
                 : "Ginástica Artística".equals(sport) && "APPARATUS".equals(eventType)
                 ? APPARATUS

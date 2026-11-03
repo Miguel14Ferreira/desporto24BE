@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Provisional best-time championships: swimming, athletics track and K1 canoe sprint.
+ * Provisional best-time championships: swimming, track, K1 canoe and rowing single sculls.
  * Every source round must match the exact sport, type and discipline.
  * Results are NOT converted into positional race points or head-to-head wins.
  * Completed tournaments are intentionally unsupported until immutable snapshots exist.
@@ -136,7 +136,8 @@ public class CommunityTournamentTimedService {
 
     private int maxDecimals(CommunityTournament tournament) {
         return tournament.getScoringMode()==TournamentScoringMode.TRACK_BEST_TIME
-                || tournament.getScoringMode()==TournamentScoringMode.CANOE_BEST_TIME ? 3 : 2;
+                || tournament.getScoringMode()==TournamentScoringMode.CANOE_BEST_TIME
+                || tournament.getScoringMode()==TournamentScoringMode.ROWING_BEST_TIME ? 3 : 2;
     }
 
     private boolean eligible(CommunityTournament tournament,Long roundCommunityId,
@@ -145,7 +146,9 @@ public class CommunityTournamentTimedService {
                 && Objects.equals(sport,tournament.getSport())
                 && Objects.equals(eventType,tournament.getEventType())
                 && Objects.equals(discipline,tournament.getEventDiscipline())
-                && (("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType)
+                && (("Remo".equals(sport) && "ROWING_SINGLE".equals(eventType)
+                        && tournament.getScoringMode()==TournamentScoringMode.ROWING_BEST_TIME)
+                    || ("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType)
                         && tournament.getScoringMode()==TournamentScoringMode.CANOE_BEST_TIME)
                     || ("Natação".equals(sport) && "SWIM_LCM".equals(eventType)
                         && tournament.getScoringMode()==TournamentScoringMode.SWIM_BEST_TIME)
@@ -159,12 +162,16 @@ public class CommunityTournamentTimedService {
                 : tournaments.findById(tournamentId))
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Campeonato não encontrado"));
         if (!tournament.getCommunity().getId().equals(communityId)
-                || !(tournament.getScoringMode()==TournamentScoringMode.SWIM_BEST_TIME
+                || !(tournament.getScoringMode()==TournamentScoringMode.ROWING_BEST_TIME
+                        || tournament.getScoringMode()==TournamentScoringMode.SWIM_BEST_TIME
                         || tournament.getScoringMode()==TournamentScoringMode.TRACK_BEST_TIME
                         || tournament.getScoringMode()==TournamentScoringMode.CANOE_BEST_TIME)
                 || tournament.getEntryType()!=TournamentEntryType.INDIVIDUAL
                 || tournament.getFormat()!=TournamentFormat.LEAGUE
-                || !(("Canoagem Velocidade".equals(tournament.getSport())
+                || !(("Remo".equals(tournament.getSport())
+                        && "ROWING_SINGLE".equals(tournament.getEventType())
+                        && tournament.getScoringMode()==TournamentScoringMode.ROWING_BEST_TIME)
+                    || ("Canoagem Velocidade".equals(tournament.getSport())
                         && "CANOE_SPRINT".equals(tournament.getEventType())
                         && tournament.getScoringMode()==TournamentScoringMode.CANOE_BEST_TIME)
                     || ("Natação".equals(tournament.getSport())

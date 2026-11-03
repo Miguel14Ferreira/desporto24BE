@@ -263,6 +263,39 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void rowing1xOnlyCreatesItsOwnBestTimeChampionships() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        for (String discipline : List.of("SINGLE_500","SINGLE_1000","SINGLE_2000")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Skiff " + discipline,null,null,null,"Remo",
+                    TournamentEntryType.INDIVIDUAL,null,null,null,
+                    TournamentFormat.LEAGUE,null,TournamentScoringMode.ROWING_BEST_TIME,
+                    "ROWING_SINGLE",discipline);
+            var created = service.create(7L,"owner",request);
+            assertEquals("ROWING_SINGLE",created.eventType());
+            assertEquals(discipline,created.eventDiscipline());
+            assertEquals(TournamentScoringMode.ROWING_BEST_TIME,created.scoringMode());
+        }
+        for (String bad : List.of("DOUBLE_2000","K1_500","SINGLE_3000")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "Incompatível",null,null,null,"Remo",
+                    TournamentEntryType.INDIVIDUAL,null,null,null,
+                    TournamentFormat.LEAGUE,null,TournamentScoringMode.ROWING_BEST_TIME,
+                    "ROWING_SINGLE",bad);
+            assertThrows(ResponseStatusException.class, () -> service.create(7L,"owner",request));
+        }
+        var football = new CreateCommunityTournamentRequest(
+                "Golos",3,1,0,"Remo",
+                TournamentEntryType.INDIVIDUAL,null,null,null,
+                TournamentFormat.LEAGUE,null,TournamentScoringMode.ROWING_BEST_TIME,
+                "ROWING_SINGLE","SINGLE_2000");
+        assertThrows(ResponseStatusException.class, () -> service.create(7L,"owner",football));
+        verify(tournamentRepository,times(3)).save(any(CommunityTournament.class));
+    }
+
+    @Test
     void canoeSprintCreatesOnlyTypedK1BestTimeTournaments() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

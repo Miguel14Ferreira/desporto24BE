@@ -150,6 +150,19 @@ public class CommunityTournamentService {
             }
         }
 
+        // Rowing: single-scull best time, one distance, no team/game points.
+        if (scoringMode == TournamentScoringMode.ROWING_BEST_TIME) {
+            if (!"Remo".equals(selectedSport)
+                    || type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.playersPerTeam() != null
+                    || request.roundRobinLegs() != null || request.teamTieBreakPriority() != null
+                    || request.groupCount() != null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Skiff 1x exige campeonato individual cronometrado, sem pontos de futebol");
+        }
+
         if (scoringMode == TournamentScoringMode.CANOE_BEST_TIME) {
             if (!"Canoagem Velocidade".equals(selectedSport)
                     || type != TournamentEntryType.INDIVIDUAL

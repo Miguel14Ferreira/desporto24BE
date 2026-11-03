@@ -4,6 +4,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CommunityRoundEventTypeTest {
+    @Test void rowing1xUsesTypedTimesInsteadOfRacePoints() {
+        assertEquals("ROWING_SINGLE", CommunityRoundEventType.validate("Remo", "ROWING_SINGLE"));
+        assertThrows(IllegalArgumentException.class, () -> CommunityRoundEventType.validate("Remo", null));
+        assertThrows(IllegalArgumentException.class, () -> CommunityRoundEventType.validate("Remo", "CANOE_SPRINT"));
+        assertTrue(CommunityRoundEventType.isRaceEvent("Remo", "ROWING_SINGLE"));
+        assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Remo", "ROWING_SINGLE"));
+        assertFalse(CommunityTournamentRaceService.supportsRaceChampionship("Remo"));
+    }
+
     @Test void canoeSprintRequiresItsOwnEventAndNeverUsesPositionPoints() {
         assertEquals("CANOE_SPRINT", CommunityRoundEventType.validate("Canoagem Velocidade", "CANOE_SPRINT"));
         assertThrows(IllegalArgumentException.class,

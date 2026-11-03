@@ -138,6 +138,31 @@ class CommunityTournamentTimedServiceTest {
         assertTrue(result.standings().isEmpty());
     }
 
+    @Test void rowing1xOnlyOffersMatchingBoatAndDistanceAtMillisecondPrecision() {
+        tournament.setSport("Remo");
+        tournament.setEventType("ROWING_SINGLE");
+        tournament.setEventDiscipline("SINGLE_2000");
+        tournament.setScoringMode(TournamentScoringMode.ROWING_BEST_TIME);
+        member(CommunityRole.MEMBER);
+        when(tournaments.findById(15L)).thenReturn(Optional.of(tournament));
+        when(links.findByTournamentIdOrderByIdAsc(15L)).thenReturn(List.of());
+        var correct = new CommunityRoundResponse(20L,"2000 m",Instant.now(),
+                List.of(timed(1,"420.123"),timed(2,"422.456")),
+                "Remo",null,List.of(),"ROWING_SINGLE","SINGLE_2000");
+        var shorter = new CommunityRoundResponse(21L,"1000 m",Instant.now(),
+                List.of(timed(1,"210.123"),timed(2,"211.456")),
+                "Remo",null,List.of(),"ROWING_SINGLE","SINGLE_1000");
+        var old = new CommunityRoundResponse(22L,"Antigo",Instant.now(),
+                List.of(timed(1,"430.123"),timed(2,"431.456")),
+                "Remo",null,List.of(),null,null);
+        var crew = new CommunityRoundResponse(23L,"Tripulação",Instant.now(),
+                List.of(timed(1,"430.123"),timed(2,"431.456")),
+                "Remo",null,List.of(),"ROWING_SINGLE","DOUBLE_2000");
+        when(competition.overview(7L,"owner",null)).thenReturn(overview(correct,shorter,old,crew));
+        assertEquals(List.of(20L),service.overview(7L,15L,"owner").availableRounds()
+                .stream().map(CommunityRoundResponse::id).toList());
+    }
+
     @Test void canoeOnlyListsMatchingK1DistanceNeverOtherBoatsOrSports() {
         tournament.setSport("Canoagem Velocidade");
         tournament.setEventType("CANOE_SPRINT");

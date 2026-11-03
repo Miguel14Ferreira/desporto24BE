@@ -23,6 +23,12 @@ final class CommunityTournamentEventType {
 
     static String validate(String sport, String requested, TournamentEntryType entryType,
                            TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.ROWING_BEST_TIME) {
+            if ("Remo".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
+                    && "ROWING_SINGLE".equals(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Remo exige prova individual de skiff 1x cronometrada");
+        }
         if (scoringMode == TournamentScoringMode.CANOE_BEST_TIME) {
             if ("Canoagem Velocidade".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
                     && "CANOE_SPRINT".equals(requested)) return requested;
@@ -76,6 +82,8 @@ final class CommunityTournamentEventType {
 
     private static final java.util.Set<String> CANOE_DISCIPLINES =
             java.util.Set.of("K1_200", "K1_500", "K1_1000");
+    private static final java.util.Set<String> ROWING_DISCIPLINES =
+            java.util.Set.of("SINGLE_500", "SINGLE_1000", "SINGLE_2000");
 
     private static final java.util.Set<String> SWIM_DISCIPLINES = java.util.Set.of(
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
@@ -88,6 +96,12 @@ final class CommunityTournamentEventType {
 
     static String validateDiscipline(String sport, String eventType,
             String requested, TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.ROWING_BEST_TIME) {
+            if ("Remo".equals(sport) && "ROWING_SINGLE".equals(eventType)
+                    && requested != null && ROWING_DISCIPLINES.contains(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Escolhe skiff 1x 500 m, 1000 m ou 2000 m, sem misturar distâncias");
+        }
         if (scoringMode == TournamentScoringMode.CANOE_BEST_TIME) {
             if ("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType)
                     && requested != null && CANOE_DISCIPLINES.contains(requested)) return requested;
