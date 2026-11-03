@@ -12,7 +12,7 @@ class CommunityRowingResultsTest {
         return new CommunityRoundEntryRequest(username,null,CommunityMatchResult.DRAW,
                 0,0,false,false,null,seconds == null ? null : new BigDecimal(seconds),null,null);
     }
-    @Test void acceptsOnlySkiff 1xIndividualTimesAtMillisecondPrecision() {
+    @Test void acceptsOnlySingleScullTimesAtMillisecondPrecision() {
         assertDoesNotThrow(() -> CommunityRowingResults.validate("Remo",
                 List.of(time("ana","47.123"),time("rui","48.700"))));
         assertThrows(IllegalArgumentException.class,()->CommunityRowingResults.validate(
