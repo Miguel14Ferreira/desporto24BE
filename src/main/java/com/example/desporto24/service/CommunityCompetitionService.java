@@ -2074,19 +2074,65 @@ public class CommunityCompetitionService {
             throw new IllegalStateException("Esta época já está encerrada");
         }
 
-        // Freeze the trophy at closure: future scoring-rule changes must not change its winner.
-        List<CommunityStandingResponse> finalStandings = standings(community, seasonId);
+        // Snapshot the applicable classification at closure. A single-sport
+        // race season with a configured points table must not inherit football
+        // W/D/L (or silently award a trophy for merely taking part).
+        AcceptedAliases aliases = acceptedAliasProfiles(communityId);
+        List<CommunityStandingResponse> finalStandings = standings(community, seasonId, aliases);
         CommunityStandingResponse champion = !finalStandings.isEmpty()
                 && finalStandings.get(0).games() > 0
                 ? finalStandings.get(0) : null;
-        season.setChampionUsername(champion == null ? null : champion.username());
-        season.setChampionDisplayName(champion == null ? null : champion.fullName());
-        season.setChampionPoints(champion == null ? null : champion.points());
+        CommunityRaceStandingResponse raceChampion = champion == null
+                ? raceChampionForSeason(community, seasonId, aliases) : null;
+        season.setChampionUsername(champion != null ? champion.username()
+                : raceChampion == null ? null : raceChampion.username());
+        season.setChampionDisplayName(champion != null ? champion.fullName()
+                : raceChampion == null ? null : raceChampion.fullName());
+        season.setChampionPoints(champion != null ? champion.points()
+                : raceChampion == null ? null : raceChampion.championshipPoints());
         season.setChampionFinalized(true);
         season.setActive(false);
         season.setEndedAt(Instant.now());
         CommunitySeason saved = seasonRepository.save(season);
         return seasonResponse(community, saved);
+    }
+
+    /**
+     * The season trophy is global: infer a racing champion only for an explicitly
+     * single-sport community, never by choosing arbitrarily among several sports.
+     * Only recorded finish positions and an opted-in points schedule are eligible.
+     * A shared first place remains unresolved rather than inventing a winner.
+     */
+    private CommunityRaceStandingResponse raceChampionForSeason(
+            Community community, Long seasonId, AcceptedAliases aliases) {
+        List<String> sports = community.getSports() != null && !community.getSports().isEmpty()
+                ? community.getSports()
+                : community.getSport() == null ? List.of() : List.of(community.getSport());
+        if (sports.size() != 1
+                || !CommunityTournamentRaceService.supportsRaceChampionship(sports.get(0)))
+            return null;
+        String sport = sports.get(0);
+        List<CommunityRaceRuleResponse> scoring = raceRuleRepository.findBySeasonId(seasonId)
+                .stream().filter(rule -> sport.equalsIgnoreCase(rule.getSport()))
+                .map(rule -> new CommunityRaceRuleResponse(rule.getSport(),
+                        CommunityRaceStandings.parsePoints(rule.getPointsByPlace()))).toList();
+        if (scoring.size() != 1) return null;
+        List<CommunityRoundResponse> results = roundRepository
+                .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(community.getId(), seasonId)
+                .stream()
+                .filter(round -> sport.equalsIgnoreCase(round.getSport())
+                        && CommunityRoundEventType.isChampionshipRaceEvent(
+                                round.getSport(), round.getEventType()))
+                .map(round -> roundResponse(round, aliases)).toList();
+        if (results.isEmpty()) return null;
+        List<CommunityRaceStandingGroupResponse> groups =
+                CommunityRaceStandings.calculate(results, scoring);
+        if (groups.size() != 1 || groups.get(0).standings().isEmpty()) return null;
+        List<CommunityRaceStandingResponse> rows = groups.get(0).standings();
+        CommunityRaceStandingResponse leader = rows.get(0);
+        return leader.position() == 1 && leader.championshipPoints() != null
+                && (rows.size() == 1 || rows.get(1).position() != 1)
+                ? leader : null;
     }
 
     public CommunityCompetitionSettingsResponse updateSettings(
