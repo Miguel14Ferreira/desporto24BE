@@ -61,8 +61,7 @@ public class CommunityTournamentTimedService {
                         "Não foi possível confirmar os resultados desta jornada"));
         if (!eligible(tournament,communityId,sourceRead.sport(),sourceRead.eventType(),
                 sourceRead.eventDiscipline(),communityId)
-                || sourceRead.entries()==null
-                || sourceRead.entries().stream().filter(e->CommunityTimedStandings.valid(e, maxDecimals(tournament))).count()<2)
+                || !hasTwoValidAthletes(sourceRead, tournament))
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "A jornada deve conter tempos válidos de pelo menos dois participantes");
         links.save(CommunityTournamentRaceRound.builder().round(source).tournament(tournament).build());
@@ -103,18 +102,32 @@ public class CommunityTournamentTimedService {
                     round.eventType(),round.eventDiscipline(),communityId))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Jornada ligada indisponível ou prova alterada; verifica os resultados");
+            // A source edited after association must not produce a plausible but
+            // incomplete table. Keep the link for the organizer to review.
+            if (!hasTwoValidAthletes(round, tournament))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Jornada associada sem dois participantes com tempos válidos; verifica os resultados");
             linked.add(round);
         }
         Set<Long> selected=saved.stream().map(link->link.getRound().getId()).collect(Collectors.toSet());
         List<CommunityRoundResponse> available=all.stream()
                 .filter(r->eligible(tournament,communityId,r.sport(),r.eventType(),r.eventDiscipline(),communityId))
                 .filter(r->!selected.contains(r.id()))
-                .filter(r->r.entries()!=null && r.entries().stream().filter(e->CommunityTimedStandings.valid(e, maxDecimals(tournament))).count()>=2)
+                .filter(r->hasTwoValidAthletes(r, tournament))
                 .limit(MAX_ROUNDS).toList();
         return new CommunityTournamentTimedOverviewResponse(
                 tournament.getId(),tournament.getEventType(),tournament.getEventDiscipline(),
                 List.copyOf(linked),available,
                 CommunityTimedStandings.calculate(linked,maxDecimals(tournament)));
+    }
+
+    /** Two different athletes, not two repeated rows for the same player. */
+    private boolean hasTwoValidAthletes(CommunityRoundResponse round, CommunityTournament tournament) {
+        return round != null && round.entries() != null
+                && round.entries().stream()
+                    .filter(e -> e != null && CommunityTimedStandings.valid(e, maxDecimals(tournament)))
+                    .map(CommunityRoundEntryResponse::communityPlayerId)
+                    .distinct().limit(2).count() == 2;
     }
 
     private List<CommunityRoundResponse> allRounds(Long communityId,String username) {

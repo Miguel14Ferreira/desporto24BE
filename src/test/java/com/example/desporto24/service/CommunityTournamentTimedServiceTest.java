@@ -78,6 +78,45 @@ class CommunityTournamentTimedServiceTest {
         assertTrue(result.standings().isEmpty());
     }
 
+    @Test void rejectsDuplicateIdentityAsTwoTimedParticipants() {
+        member(CommunityRole.OWNER);
+        when(tournaments.findByIdForUpdate(15L)).thenReturn(Optional.of(tournament));
+        when(rounds.findById(20L)).thenReturn(Optional.of(CommunityRound.builder().id(20L)
+                .community(community).sport("Natação").eventType("SWIM_LCM")
+                .eventDiscipline("FREE_50").build()));
+        // Both rows belong to the same community player; one athlete is not a race.
+        var duplicate=new CommunityRoundResponse(20L,"Duplicate",Instant.now(),
+                List.of(timed(1,"28.47"),timed(1,"28.48")),
+                "Natação",null,List.of(),"SWIM_LCM","FREE_50");
+        when(competition.overview(7L,"owner",null)).thenReturn(overview(duplicate));
+        assertEquals(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        ()->service.link(7L,15L,20L,"owner")).getStatusCode());
+        verify(links,never()).save(any());
+    }
+
+    @Test void refusesPartiallyInvalidLinkedK1ResultsAfterEditingTheSource() {
+        tournament.setSport("Canoagem Velocidade");
+        tournament.setEventType("CANOE_SPRINT");
+        tournament.setEventDiscipline("K1_500");
+        tournament.setScoringMode(TournamentScoringMode.CANOE_BEST_TIME);
+        member(CommunityRole.MEMBER);
+        when(tournaments.findById(15L)).thenReturn(Optional.of(tournament));
+        var round=CommunityRound.builder().id(20L).community(community)
+                .sport("Canoagem Velocidade").eventType("CANOE_SPRINT")
+                .eventDiscipline("K1_500").build();
+        when(links.findByTournamentIdOrderByIdAsc(15L)).thenReturn(
+                List.of(CommunityTournamentRaceRound.builder().tournament(tournament).round(round).build()));
+        var stale=new CommunityRoundResponse(20L,"500m",Instant.now(),
+                List.of(timed(1,"112.125")),
+                "Canoagem Velocidade",null,List.of(),"CANOE_SPRINT","K1_500");
+        when(competition.overview(7L,"owner",null)).thenReturn(overview(stale));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT,
+                assertThrows(ResponseStatusException.class,
+                        ()->service.overview(7L,15L,"owner")).getStatusCode());
+        verify(links,never()).delete(any());
+    }
+
     @Test void rejectsAnOtherwiseValidSwimFromTheWrongDisciplineBeforeLinking() {
         member(CommunityRole.OWNER);
         when(tournaments.findByIdForUpdate(15L)).thenReturn(Optional.of(tournament));
