@@ -24,6 +24,9 @@ final class CommunityFieldDisciplines {
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
             "BREAST_100", "FLY_100", "IM_200");
 
+    // Individual K1 only; K2/K4 and other crews require a separate team contract.
+    private static final List<String> CANOE_K1 = List.of("K1_200", "K1_500", "K1_1000");
+
     // Descriptive stage for an independently recorded Sprint heat.
     // A complete bracket or best-of-three match outcome requires a separate relation.
     private static final List<String> TRACK_SPRINT_PHASES = List.of(
@@ -64,6 +67,8 @@ final class CommunityFieldDisciplines {
                 && "OWS_INDIVIDUAL".equals(eventType) ? OPEN_WATER
                 : "Natação".equals(sport) && "SWIM_LCM".equals(eventType)
                 ? SWIM_LCM
+                : "Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType)
+                ? CANOE_K1
                 : "Atletismo".equals(sport) ? ATHLETICS.get(eventType)
                 : "Ginástica Artística".equals(sport) && "APPARATUS".equals(eventType)
                 ? APPARATUS

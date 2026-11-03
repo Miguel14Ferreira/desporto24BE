@@ -23,6 +23,12 @@ final class CommunityTournamentEventType {
 
     static String validate(String sport, String requested, TournamentEntryType entryType,
                            TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.CANOE_BEST_TIME) {
+            if ("Canoagem Velocidade".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
+                    && "CANOE_SPRINT".equals(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Canoagem Velocidade exige uma prova individual K1 cronometrada");
+        }
         if (scoringMode == TournamentScoringMode.RELAY_BEST_TIME) {
             if ("Atletismo".equals(sport) && entryType == TournamentEntryType.TEAM
                     && "TRACK_RELAY".equals(requested)) return requested;
@@ -68,6 +74,9 @@ final class CommunityTournamentEventType {
             "TRACK_5000","TRACK_10000","TRACK_HURDLES_100","TRACK_HURDLES_110",
             "TRACK_HURDLES_400","TRACK_STEEPLE_3000");
 
+    private static final java.util.Set<String> CANOE_DISCIPLINES =
+            java.util.Set.of("K1_200", "K1_500", "K1_1000");
+
     private static final java.util.Set<String> SWIM_DISCIPLINES = java.util.Set.of(
             "FREE_50", "FREE_100", "FREE_200", "BACK_100",
             "BREAST_100", "FLY_100", "IM_200");
@@ -79,6 +88,12 @@ final class CommunityTournamentEventType {
 
     static String validateDiscipline(String sport, String eventType,
             String requested, TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.CANOE_BEST_TIME) {
+            if ("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType)
+                    && requested != null && CANOE_DISCIPLINES.contains(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Escolhe K1 200 m, K1 500 m ou K1 1000 m, sem misturar provas");
+        }
         if (scoringMode == TournamentScoringMode.RELAY_BEST_TIME) {
             if ("Atletismo".equals(sport) && "TRACK_RELAY".equals(eventType)
                     && ("RELAY_4X100".equals(requested) || "RELAY_4X400".equals(requested)))

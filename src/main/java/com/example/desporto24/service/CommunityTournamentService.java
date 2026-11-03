@@ -150,6 +150,18 @@ public class CommunityTournamentService {
             }
         }
 
+        if (scoringMode == TournamentScoringMode.CANOE_BEST_TIME) {
+            if (!"Canoagem Velocidade".equals(selectedSport)
+                    || type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.playersPerTeam() != null
+                    || request.roundRobinLegs() != null || request.teamTieBreakPriority() != null
+                    || request.groupCount() != null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "K1 cronometrado exige campeonato individual sem pontos de futebol");
+        }
+
         // Timed swimming championships are separate from the head-to-head
         // and position-based engines. Never mix strokes or distances.
         if (scoringMode == TournamentScoringMode.SWIM_BEST_TIME) {

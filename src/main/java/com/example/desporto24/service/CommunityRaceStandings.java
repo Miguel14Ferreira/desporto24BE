@@ -63,6 +63,8 @@ final class CommunityRaceStandings {
             // them in a sport-wide race championship or inherit generic positions.
             if (round != null && ("Natação".equals(round.sport())
                     && "SWIM_LCM".equals(round.eventType())
+                    || "Canoagem Velocidade".equals(round.sport())
+                    && "CANOE_SPRINT".equals(round.eventType())
                     || "Natação em Águas Abertas".equals(round.sport())
                     && "OWS_INDIVIDUAL".equals(round.eventType())
                     || "Orientação".equals(round.sport())

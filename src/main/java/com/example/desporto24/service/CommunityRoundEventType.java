@@ -37,6 +37,7 @@ final class CommunityRoundEventType {
             Map.entry("Xadrez", List.of("CHESS_GAME")),
             Map.entry("Musculação", List.of("STRENGTH_TRAINING")),
             Map.entry("Natação", List.of("SWIM_LCM")),
+            Map.entry("Canoagem Velocidade", List.of("CANOE_SPRINT")),
             Map.entry("Natação em Águas Abertas", List.of("OWS_INDIVIDUAL")),
             Map.entry("Orientação", List.of("FOOT_ORIENTEERING")),
             Map.entry("Patinagem de Velocidade", List.of(
@@ -147,6 +148,10 @@ final class CommunityRoundEventType {
         }
         if ("SWIM_LCM".equals(type)) {
             CommunitySwimmingResults.validate(sport, entries);
+            return;
+        }
+        if ("CANOE_SPRINT".equals(type)) {
+            CommunityCanoeSprintResults.validate(sport, entries);
             return;
         }
         if ("STRENGTH_TRAINING".equals(type)) {
@@ -382,6 +387,8 @@ final class CommunityRoundEventType {
         if (sport == null) return false;
         if ("Atletismo".equals(sport)) return "TRACK".equals(eventType);
         if ("Natação".equals(sport)) return eventType == null || "SWIM_LCM".equals(eventType);
+        if ("Canoagem Velocidade".equals(sport))
+            return eventType == null || "CANOE_SPRINT".equals(eventType);
         if ("Natação em Águas Abertas".equals(sport))
             return eventType == null || "OWS_INDIVIDUAL".equals(eventType);
         if ("Orientação".equals(sport))
@@ -407,6 +414,8 @@ final class CommunityRoundEventType {
         // Untyped historical race records retain their prior classification behavior.
         if ("Natação em Águas Abertas".equals(sport) && "OWS_INDIVIDUAL".equals(eventType))
             return false;
+        if ("Canoagem Velocidade".equals(sport) && "CANOE_SPRINT".equals(eventType))
+            return false; // K1 distances are timed separately, not general race points.
         // Different routes cannot be compared without verified controls.
         if ("Orientação".equals(sport) && "FOOT_ORIENTEERING".equals(eventType))
             return false;
