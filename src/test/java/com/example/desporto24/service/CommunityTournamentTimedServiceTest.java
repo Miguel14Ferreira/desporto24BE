@@ -99,6 +99,48 @@ class CommunityTournamentTimedServiceTest {
         assertTrue(result.standings().isEmpty());
     }
 
+    @Test void canoeOnlyListsMatchingK1DistanceNeverOtherBoatsOrSports() {
+        tournament.setSport("Canoagem Velocidade");
+        tournament.setEventType("CANOE_SPRINT");
+        tournament.setEventDiscipline("K1_500");
+        tournament.setScoringMode(TournamentScoringMode.CANOE_BEST_TIME);
+        member(CommunityRole.MEMBER);
+        when(tournaments.findById(15L)).thenReturn(Optional.of(tournament));
+        when(links.findByTournamentIdOrderByIdAsc(15L)).thenReturn(List.of());
+        var k1_500 = new CommunityRoundResponse(20L,"500m",Instant.now(),
+                List.of(timed(1,"112.125"),timed(2,"115.007")),
+                "Canoagem Velocidade",null,List.of(),"CANOE_SPRINT","K1_500");
+        var k1_200 = new CommunityRoundResponse(21L,"200m",Instant.now(),
+                List.of(timed(1,"45.123"),timed(2,"46.555")),
+                "Canoagem Velocidade",null,List.of(),"CANOE_SPRINT","K1_200");
+        var untyped = new CommunityRoundResponse(22L,"Legacy",Instant.now(),
+                List.of(timed(1,"100.125"),timed(2,"101.555")),
+                "Canoagem Velocidade",null,List.of(),null,null);
+        var swimming = new CommunityRoundResponse(23L,"Swim",Instant.now(),
+                List.of(timed(1,"100.125"),timed(2,"101.555")),
+                "Natação",null,List.of(),"SWIM_LCM","FREE_50");
+        when(competition.overview(7L,"owner",null))
+                .thenReturn(overview(k1_500,k1_200,untyped,swimming));
+        var response=service.overview(7L,15L,"owner");
+        assertEquals(List.of(20L),response.availableRounds().stream()
+                .map(CommunityRoundResponse::id).toList());
+        assertTrue(response.standings().isEmpty());
+    }
+
+    @Test void canoeRejectsLinkingARecordedRoundFromAnotherK1Distance() {
+        tournament.setSport("Canoagem Velocidade");
+        tournament.setEventType("CANOE_SPRINT");
+        tournament.setEventDiscipline("K1_500");
+        tournament.setScoringMode(TournamentScoringMode.CANOE_BEST_TIME);
+        member(CommunityRole.OWNER);
+        when(tournaments.findByIdForUpdate(15L)).thenReturn(Optional.of(tournament));
+        when(rounds.findById(20L)).thenReturn(Optional.of(CommunityRound.builder().id(20L)
+                .community(community).sport("Canoagem Velocidade")
+                .eventType("CANOE_SPRINT").eventDiscipline("K1_200").build()));
+        assertThrows(ResponseStatusException.class, ()->service.link(7L,15L,20L,"owner"));
+        verify(links,never()).save(any());
+    }
+
     @Test void trackOnlyListsMatchingDistanceAndExcludesHistoricalUntypedRounds() {
         tournament.setSport("Atletismo");
         tournament.setEventType("TRACK");

@@ -263,6 +263,41 @@ class CommunityTournamentServiceTest {
     }
 
     @Test
+    void canoeSprintCreatesOnlyTypedK1BestTimeTournaments() {
+        actingAsOwner(CommunityRole.OWNER);
+        when(tournamentRepository.save(any(CommunityTournament.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        for (String discipline : List.of("K1_200","K1_500","K1_1000")) {
+            var request = new CreateCommunityTournamentRequest(
+                    "K1 " + discipline, null,null,null,"Canoagem Velocidade",
+                    TournamentEntryType.INDIVIDUAL, null,null,null,
+                    TournamentFormat.LEAGUE,null,TournamentScoringMode.CANOE_BEST_TIME,
+                    "CANOE_SPRINT",discipline);
+            var created = service.create(7L,"owner",request);
+            assertEquals("Canoagem Velocidade",created.sport());
+            assertEquals("CANOE_SPRINT",created.eventType());
+            assertEquals(discipline,created.eventDiscipline());
+            assertEquals(TournamentScoringMode.CANOE_BEST_TIME,created.scoringMode());
+            assertEquals(TournamentStatus.DRAFT,created.status());
+        }
+        for (String invalid : List.of("K2_500","FREE_50")) {
+            var bad = new CreateCommunityTournamentRequest(
+                    "Incompatível",null,null,null,"Canoagem Velocidade",
+                    TournamentEntryType.INDIVIDUAL,null,null,null,
+                    TournamentFormat.LEAGUE,null,TournamentScoringMode.CANOE_BEST_TIME,
+                    "CANOE_SPRINT",invalid);
+            assertThrows(ResponseStatusException.class, () -> service.create(7L,"owner",bad));
+        }
+        var football = new CreateCommunityTournamentRequest(
+                "Pontuação de futebol",3,1,0,"Canoagem Velocidade",
+                TournamentEntryType.INDIVIDUAL,null,null,null,
+                TournamentFormat.LEAGUE,null,TournamentScoringMode.CANOE_BEST_TIME,
+                "CANOE_SPRINT","K1_200");
+        assertThrows(ResponseStatusException.class, () -> service.create(7L,"owner",football));
+        verify(tournamentRepository,times(3)).save(any(CommunityTournament.class));
+    }
+
+    @Test
     void createsExplicitKartingRaceModeWithItsOwnPointsAndNoFakeMatchRules() {
         actingAsOwner(CommunityRole.OWNER);
         when(tournamentRepository.save(any(CommunityTournament.class)))

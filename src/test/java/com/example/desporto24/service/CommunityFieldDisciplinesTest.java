@@ -4,6 +4,20 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CommunityFieldDisciplinesTest {
+    @Test void canoeSprintRequiresAnExplicitSingleBoatDistance() {
+        for (String code : new String[]{"K1_200","K1_500","K1_1000"}) {
+            assertEquals(code, CommunityFieldDisciplines.validate("Canoagem Velocidade","CANOE_SPRINT",code));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityFieldDisciplines.validate("Canoagem Velocidade","CANOE_SPRINT",null));
+        for (String bad : new String[]{"K2_500","K4_500","FREE_50","TRACK_200"}) {
+            assertThrows(IllegalArgumentException.class, () ->
+                    CommunityFieldDisciplines.validate("Canoagem Velocidade","CANOE_SPRINT",bad));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                CommunityFieldDisciplines.validate("Canoagem","CANOE_SPRINT","K1_500"));
+    }
+
     @Test void jumpsRequireOneOfTheJumpDisciplines() {
         assertEquals("LONG_JUMP", CommunityFieldDisciplines.validate(
                 "Atletismo", "JUMP", "LONG_JUMP"));

@@ -4,6 +4,18 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CommunityRoundEventTypeTest {
+    @Test void canoeSprintRequiresItsOwnEventAndNeverUsesPositionPoints() {
+        assertEquals("CANOE_SPRINT", CommunityRoundEventType.validate("Canoagem Velocidade", "CANOE_SPRINT"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validate("Canoagem Velocidade", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityRoundEventType.validate("Canoagem Velocidade", "SWIM_LCM"));
+        assertTrue(CommunityRoundEventType.isRaceEvent("Canoagem Velocidade", "CANOE_SPRINT"));
+        assertFalse(CommunityRoundEventType.isChampionshipRaceEvent("Canoagem Velocidade", "CANOE_SPRINT"));
+        assertFalse(CommunityRoundEventType.isRaceEvent("Canoagem Velocidade", "TRACK"));
+        assertFalse(CommunityTournamentRaceService.supportsRaceChampionship("Canoagem Velocidade"));
+    }
+
     @Test void requiresAnExplicitChoiceForMultiEventSports() {
         assertEquals("RACE", CommunityRoundEventType.validate("BMX", "RACE"));
         assertEquals("FREESTYLE", CommunityRoundEventType.validate("Snowboard", "FREESTYLE"));
