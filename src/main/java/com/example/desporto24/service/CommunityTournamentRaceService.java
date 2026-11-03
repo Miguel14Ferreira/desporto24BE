@@ -36,7 +36,8 @@ public class CommunityTournamentRaceService {
     public static final String DEFAULT_POINTS = "25,18,15,12,10,8,6,4,2,1";
     private static final int MAX_ROUNDS = 100;
     private static final Set<String> SUPPORTED_SPORTS =
-            Set.of("karting", "bmx", "ciclismo", "mountain bike", "ciclocrosse", "ciclismo de estrada", "ciclismo de pista");
+            Set.of("karting", "bmx", "ciclismo", "mountain bike", "ciclocrosse", "ciclismo de estrada", "ciclismo de pista",
+                    "automobilismo", "motociclismo", "motocross");
 
     /** Explicitly limited to sports with validated generic race-result contracts. */
     public static boolean supportsRaceChampionship(String sport) {

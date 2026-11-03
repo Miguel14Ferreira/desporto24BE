@@ -231,6 +231,50 @@ class CommunityTournamentRaceServiceTest {
     }
 
     @Test
+    void automobileRacesReuseRealFinishesWithoutMixedSports() {
+        verifiesCyclingRaceChampionship("Automobilismo");
+    }
+
+    @Test
+    void motorcycleRacesReuseRealFinishesWithoutMixedSports() {
+        verifiesCyclingRaceChampionship("Motociclismo");
+    }
+
+    @Test
+    void motocrossRacesReuseRealFinishesWithoutMixedSports() {
+        verifiesCyclingRaceChampionship("Motocross");
+    }
+
+    @Test
+    void motocrossRejectsMotorcycleCarAndNonRaceResults() {
+        tournament.setSport("Motocross");
+        admin();
+        var recorded = CommunityRound.builder().id(50L).community(community)
+                .sport("Motociclismo").eventType(null).build();
+        when(rounds.findById(50L)).thenReturn(Optional.of(recorded));
+        for (String wrongSport : List.of("Motociclismo", "Automobilismo", "Karting")) {
+            recorded.setSport(wrongSport);
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        }
+        recorded.setSport("Motocross");
+        for (String wrongType : List.of("RACE", "TIME_TRIAL", "FREESTYLE")) {
+            recorded.setEventType(wrongType);
+            assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                    assertThrows(ResponseStatusException.class,
+                            () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        }
+        recorded.setEventType(null);
+        recorded.setCommunity(Community.builder().id(8L).build());
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY,
+                assertThrows(ResponseStatusException.class,
+                        () -> service.link(7L, 19L, 50L, "owner")).getStatusCode());
+        verifyNoInteractions(competition);
+        verify(links, never()).save(any());
+    }
+
+    @Test
     void ciclocrosseRejectsOtherCyclingDisciplinesAndUnsupportedEventTypes() {
         tournament.setSport("Ciclocrosse");
         admin();

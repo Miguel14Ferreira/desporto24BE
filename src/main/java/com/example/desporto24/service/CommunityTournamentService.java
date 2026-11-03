@@ -146,7 +146,7 @@ public class CommunityTournamentService {
                     || request.winPoints() != null || request.drawPoints() != null
                     || request.lossPoints() != null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Campeonatos por posições disponíveis para Karting, BMX Racing, Ciclismo, Mountain Bike, Ciclocrosse, provas em linha de Estrada e Scratch de Pista individual");
+                        "Formato por posições: apenas modalidades suportadas, individual, liga e sem pontos por vitória/empate/derrota");
             }
         }
 
