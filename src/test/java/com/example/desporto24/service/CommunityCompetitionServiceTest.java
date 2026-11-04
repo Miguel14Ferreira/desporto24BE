@@ -169,6 +169,58 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void overviewSeparatesTeamStandingsBySportWithoutChangingLegacyTotals() {
+        Profile owner = profile(1L, "owner", "Organizador");
+        Community group = Community.builder()
+                .id(7L).name("Multidesporto").owner(owner)
+                .sports(List.of("Futebol", "Futsal", "Karting"))
+                .winPoints(3).drawPoints(1).lossPoints(0).build();
+
+        CommunityRound footballRound = CommunityRound.builder()
+                .id(11L).community(group).sport("Futebol").build();
+        CommunityRound futsalRound = CommunityRound.builder()
+                .id(12L).community(group).sport("Futsal").build();
+        CommunityRound kartingRound = CommunityRound.builder()
+                .id(13L).community(group).sport("Karting").build();
+        CommunityRound unknownRound = CommunityRound.builder()
+                .id(14L).community(group).sport(null).build();
+
+        var football = entry(owner, CommunityMatchResult.WIN, 2, 1, false, false);
+        football.setRound(footballRound);
+        var futsal = entry(owner, CommunityMatchResult.LOSS, 0, 0, false, false);
+        futsal.setRound(futsalRound);
+        var karting = entry(owner, CommunityMatchResult.WIN, 0, 0, false, false);
+        karting.setRound(kartingRound);
+        var ambiguous = entry(owner, CommunityMatchResult.DRAW, 0, 0, false, false);
+        ambiguous.setRound(unknownRound);
+
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(group));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(group, owner, CommunityRole.OWNER)));
+        when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
+                .thenReturn(List.of());
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+        when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
+                .thenReturn(List.of(football, futsal, karting, ambiguous));
+
+        var overview = service.overview(7L, "owner");
+        assertEquals(3, overview.sportStandings().size() == 2
+                ? overview.standings().get(0).games() : -1);
+        assertEquals(List.of("Futebol", "Futsal"),
+                overview.sportStandings().stream().map(g -> g.sport()).toList());
+        assertEquals(1, overview.sportStandings().get(0).standings().get(0).games());
+        assertEquals(3, overview.sportStandings().get(0).standings().get(0).points());
+        assertEquals(1, overview.sportStandings().get(1).standings().get(0).games());
+        assertEquals(0, overview.sportStandings().get(1).standings().get(0).points());
+        assertEquals(3, overview.standings().get(0).games());
+        assertEquals(4, overview.standings().get(0).points());
+    }
+
+    @Test
     void createsAnActiveSeasonWhenNoSeasonIsOpen() {
         Profile miguel = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder()
