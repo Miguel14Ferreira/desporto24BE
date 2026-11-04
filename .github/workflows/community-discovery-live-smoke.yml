@@ -46,3 +46,28 @@ jobs:
           assert isinstance(result.get('hasMore'),bool), 'Missing pagination hasMore'
           print('Anonymous public discovery passed; response shape verified')
           PY
+          # Read-only mobile discovery: sessions and paginated venue suggestions.
+          sessions_file="$(mktemp)"
+          venues_file="$(mktemp)"
+          trap 'rm -f "$health_file" "$search_file" "$sessions_file" "$venues_file"' EXIT
+          sessions_code="$(curl --retry 2 --retry-delay 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$sessions_file" -w '%{http_code}' "$API_BASE/api/sessions?sort=date")"
+          echo "Public sessions HTTP status: $sessions_code"
+          test "$sessions_code" = "200"
+          python3 - "$sessions_file" <<'PY'
+          import json,sys
+          with open(sys.argv[1],encoding='utf-8') as fp:
+              result=json.load(fp)
+          assert isinstance(result,list), 'Expected public sessions array'
+          print('Public session discovery passed')
+          PY
+          venues_code="$(curl --retry 2 --retry-delay 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$venues_file" -w '%{http_code}' "$API_BASE/api/venues/suggest?page=0")"
+          echo "Public venue suggestions HTTP status: $venues_code"
+          test "$venues_code" = "200"
+          python3 - "$venues_file" <<'PY'
+          import json,sys
+          with open(sys.argv[1],encoding='utf-8') as fp:
+              result=json.load(fp)
+          assert isinstance(result.get('venues'),list), 'Missing venues array'
+          assert isinstance(result.get('hasMore'),bool), 'Missing pagination flag'
+          print('Public venue discovery passed')
+          PY
