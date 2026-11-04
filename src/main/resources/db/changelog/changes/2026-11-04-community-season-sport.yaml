@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-04-community-season-sport
+      author: jynlo
+      changes:
+        - addColumn:
+            schemaName: desporto24
+            tableName: community_season
+            columns:
+              - column:
+                  name: sport
+                  type: VARCHAR(100)
+                  remarks: "NULL for historical shared community seasons"
