@@ -311,6 +311,36 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void taggedSeasonOnlyShowsItsOwnSportEvenBeforeFirstMatch() {
+        Profile owner = profile(1L, "owner", "Organizador");
+        Community community = Community.builder().id(7L).owner(owner)
+                .sports(List.of("Futebol", "Futsal", "Karting"))
+                .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L)
+                .community(community).sport("Futsal").name("Futsal 2026/27")
+                .active(true).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(season));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
+                .thenReturn(List.of());
+        when(entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(44L))
+                .thenReturn(List.of());
+
+        var result = service.overview(7L, "owner", 44L);
+        assertEquals(List.of("Futsal"),
+                result.sportStandings().stream().map(g -> g.sport()).toList());
+        assertEquals("Futsal", result.seasons().getFirst().sport());
+        assertTrue(result.sportStandings().getFirst().standings().isEmpty());
+    }
+
+    @Test
     void createsAnActiveSeasonWhenNoSeasonIsOpen() {
         Profile miguel = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder()
