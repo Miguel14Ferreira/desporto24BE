@@ -7,6 +7,10 @@ import java.time.Instant;
 
 public record CreateCommunitySeasonRequest(
         @NotBlank @Size(max = 120) String name,
-        Instant startsAt
+        Instant startsAt,
+        String sport
 ) {
+    public CreateCommunitySeasonRequest(String name, Instant startsAt) {
+        this(name, startsAt, null);
+    }
 }
