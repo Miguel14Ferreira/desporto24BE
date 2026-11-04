@@ -2301,7 +2301,9 @@ public class CommunityCompetitionService {
         // Explicit season selection is validated under a row lock; older
         // clients without seasonId retain the existing single-active behavior.
         CommunitySeason activeSeason = request.seasonId() == null
-                ? seasonRepository.findByCommunityIdAndActiveTrue(communityId).orElse(null)
+                ? CommunityRoundSeasonPolicy.selectForRound(
+                        seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(communityId),
+                        resolvedSport)
                 : seasonRepository.lockByIdAndCommunityId(request.seasonId(), communityId)
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
