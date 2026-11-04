@@ -12,6 +12,37 @@ import org.springframework.web.server.ResponseStatusException;
 final class CommunityRoundSeasonPolicy {
     private CommunityRoundSeasonPolicy() {}
 
+    /**
+     * Select an active season for the recorded sport. Prefer a sport-tagged
+     * season to a legacy shared season; never guess between multiple matches.
+     * This also supports communities as they migrate to per-sport seasons.
+     */
+    static CommunitySeason selectForRound(
+            java.util.List<CommunitySeason> activeSeasons, String roundSport) {
+        if (activeSeasons == null || activeSeasons.isEmpty()) return null;
+        if (activeSeasons.size() == 1) return activeSeasons.get(0);
+
+        if (roundSport == null || roundSport.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Seleciona a modalidade e a época da jornada");
+        }
+        java.util.List<CommunitySeason> tagged = activeSeasons.stream()
+                .filter(s -> s.getSport() != null && !s.getSport().isBlank()
+                        && CommunityRoundSport.belongsToSeason(s.getSport(), roundSport))
+                .toList();
+        if (tagged.size() == 1) return tagged.get(0);
+        if (tagged.size() > 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Existem várias épocas ativas para esta modalidade");
+        }
+        java.util.List<CommunitySeason> shared = activeSeasons.stream()
+                .filter(s -> s.getSport() == null || s.getSport().isBlank())
+                .toList();
+        if (shared.size() == 1) return shared.get(0);
+        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "Não existe uma época ativa única para esta modalidade");
+    }
+
     static CommunitySeason validate(Long communityId, CommunitySeason season,
                                     String roundSport, boolean explicit) {
         if (explicit && season == null) {
