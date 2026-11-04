@@ -30,8 +30,10 @@ import com.example.desporto24.repository.community.CommunityTrackSprintReviewRep
 import com.example.desporto24.repository.community.CommunityTournamentRepository;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
+import com.example.desporto24.repository.community.CommunitySportPointsRuleRepository;
 import com.example.desporto24.model.community.CommunityRaceRule;
 import com.example.desporto24.model.community.CommunityRacketRule;
+import com.example.desporto24.model.community.CommunitySportPointsRule;
 import com.example.desporto24.repository.community.CommunitySeasonRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRepository;
 import com.example.desporto24.repository.community.CommunityStandingsArchiveRowRepository;
@@ -62,6 +64,7 @@ public class CommunityCompetitionService {
     private final CommunityTrackSprintReviewRepository sprintReviewRepository;
     private final CommunityRacketRuleRepository racketRuleRepository;
     private final CommunityRaceRuleRepository raceRuleRepository;
+    private final CommunitySportPointsRuleRepository sportPointsRuleRepository;
     private final CommunityRoundEntryRepository entryRepository;
     private final CommunitySeasonRepository seasonRepository;
     private final CommunityStandingsArchiveRepository standingsArchiveRepository;
@@ -109,6 +112,8 @@ public class CommunityCompetitionService {
                 .map(rule -> new CommunityRaceRuleResponse(
                         rule.getSport(), CommunityRaceStandings.parsePoints(rule.getPointsByPlace())))
                 .toList();
+        List<CommunitySportPointsRule> sportPointsRules = seasonId == null ? List.of()
+                : sportPointsRuleRepository.findBySeasonId(seasonId);
         List<CommunityRoundResponse> roundResponses = rounds.stream()
                 .map(round -> roundResponse(round, confirmedAliases)).toList();
         List<CommunityRoundEntry> standingEntries = standingEntries(communityId, seasonId);
@@ -124,7 +129,7 @@ public class CommunityCompetitionService {
                 standings(community, confirmedAliases, standingEntries, null),
                 CommunityRacketStandings.calculate(roundResponses, racketRules),
                 CommunityRaceStandings.calculate(roundResponses, raceRules),
-                standingsBySport(community, confirmedAliases, standingEntries)
+                standingsBySport(community, confirmedAliases, standingEntries, sportPointsRules)
         );
     }
 
@@ -2443,7 +2448,8 @@ public class CommunityCompetitionService {
      * are intentionally left out. The original standings field is unchanged.
      */
     private List<CommunitySportStandingGroupResponse> standingsBySport(
-            Community community, AcceptedAliases aliases, List<CommunityRoundEntry> entries) {
+            Community community, AcceptedAliases aliases, List<CommunityRoundEntry> entries,
+            List<CommunitySportPointsRule> rules) {
         List<String> declared = community.getSports() != null && !community.getSports().isEmpty()
                 ? community.getSports()
                 : community.getSport() == null ? List.of() : List.of(community.getSport());
@@ -2455,12 +2461,18 @@ public class CommunityCompetitionService {
         }
         List<CommunitySportStandingGroupResponse> groups = new ArrayList<>();
         for (String sport : sports.values()) {
-            // Avoid recomputing a full leaderboard for modalities without W/D/L entries.
             if (entries.stream().noneMatch(entry -> isSportStandingEntry(entry, community, sport))) continue;
+            CommunitySportPointsRule rule = rules.stream()
+                    .filter(item -> normalizeStandingSport(item.getSport()).equals(normalizeStandingSport(sport)))
+                    .findFirst().orElse(null);
+            int winPoints = rule == null ? pointsOrDefault(community.getWinPoints(), 3) : rule.getWinPoints();
+            int drawPoints = rule == null ? pointsOrDefault(community.getDrawPoints(), 1) : rule.getDrawPoints();
+            int lossPoints = rule == null ? pointsOrDefault(community.getLossPoints(), 0) : rule.getLossPoints();
             List<CommunityStandingResponse> rows = standings(
-                    community, aliases, entries, sport).stream()
+                    community, aliases, entries, sport, winPoints, drawPoints, lossPoints).stream()
                     .filter(row -> row.games() > 0).toList();
-            if (!rows.isEmpty()) groups.add(new CommunitySportStandingGroupResponse(sport, rows));
+            if (!rows.isEmpty()) groups.add(new CommunitySportStandingGroupResponse(sport, rows,
+                    new CommunitySportPointsRuleResponse(sport, winPoints, drawPoints, lossPoints)));
         }
         return groups;
     }
@@ -2511,6 +2523,16 @@ public class CommunityCompetitionService {
     private List<CommunityStandingResponse> standings(
             Community community, AcceptedAliases aliases,
             List<CommunityRoundEntry> sourceEntries, String sportFilter) {
+        return standings(community, aliases, sourceEntries, sportFilter,
+                pointsOrDefault(community.getWinPoints(), 3),
+                pointsOrDefault(community.getDrawPoints(), 1),
+                pointsOrDefault(community.getLossPoints(), 0));
+    }
+
+    private List<CommunityStandingResponse> standings(
+            Community community, AcceptedAliases aliases,
+            List<CommunityRoundEntry> sourceEntries, String sportFilter,
+            int winPoints, int drawPoints, int lossPoints) {
         Map<Long, Profile> linkedProfiles = aliases.profilesByHistoricalId();
         Map<String, StandingAccumulator> table = new LinkedHashMap<>();
         Set<Long> linkedProfileIds = new HashSet<>();
@@ -2557,10 +2579,6 @@ public class CommunityCompetitionService {
             );
             row.add(entry);
         }
-
-        int winPoints = pointsOrDefault(community.getWinPoints(), 3);
-        int drawPoints = pointsOrDefault(community.getDrawPoints(), 1);
-        int lossPoints = pointsOrDefault(community.getLossPoints(), 0);
 
         List<StandingAccumulator> ordered = table.values().stream()
                 .sorted(
