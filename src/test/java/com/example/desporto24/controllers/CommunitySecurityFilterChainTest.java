@@ -7,6 +7,9 @@ import com.example.desporto24.filter.JwtAuthenticationEntryPoint;
 import com.example.desporto24.filter.JwtAuthorizationFilter;
 import com.example.desporto24.model.Profile;
 import com.example.desporto24.repository.ProfileRepository;
+import com.example.desporto24.repository.community.CommunityRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 import com.example.desporto24.repository.RefreshTokenSessionRepository;
 import com.example.desporto24.service.CommunityCompetitionService;
 import com.example.desporto24.service.CommunityHistoricalMatchArchiveService;
@@ -52,7 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The application uses a custom anonymous authentication entry point returning
  * 403 (rather than 401). Keep expectations aligned with that explicit policy.
  */
-@WebMvcTest(controllers = {CommunityController.class, SessionGuestRequestController.class})
+@WebMvcTest(controllers = {CommunityController.class, CommunityDiscoveryController.class, SessionGuestRequestController.class})
 @AutoConfigureMockMvc(addFilters = false)
 @Import({
         SecurityConfiguration.class,
@@ -76,6 +79,7 @@ class CommunitySecurityFilterChainTest {
     @MockitoBean private ProfileRepository profiles;
     @MockitoBean private RefreshTokenSessionRepository refreshSessionRepository;
     @MockitoBean private CommunityManagementService communities;
+    @MockitoBean private CommunityRepository discoveryRepository;
     @MockitoBean private CommunityCompetitionService competitions;
     @MockitoBean private CommunityHistoricalPlayerLinkService historicalPlayers;
     @MockitoBean private CommunityImportService imports;
@@ -125,6 +129,23 @@ class CommunitySecurityFilterChainTest {
         mvc.perform(post("/api/communities/12/join-requests/99/accept"))
                 .andExpect(status().isForbidden());
 
+        verifyNoInteractions(communities);
+    }
+
+    @Test
+    void anonymousCommunityDiscoveryIsReadOnlyAndDoesNotExposeMembers() throws Exception {
+        when(discoveryRepository.searchPresentations(eq(""), eq(""), eq(PageRequest.of(0, 20))))
+                .thenReturn(new SliceImpl<>(List.of()));
+        mvc.perform(get("/api/communities/search"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.communities").isArray())
+                .andExpect(jsonPath("$.communities").isEmpty());
+        mvc.perform(get("/api/communities/42/presentation"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/communities/mine"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/communities"))
+                .andExpect(status().isForbidden());
         verifyNoInteractions(communities);
     }
 

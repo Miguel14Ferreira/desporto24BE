@@ -4,7 +4,6 @@ import com.example.desporto24.model.dto.community.CommunityDiscoveryResponse;
 import com.example.desporto24.repository.community.CommunityRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -15,7 +14,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/communities")
-@PreAuthorize("isAuthenticated()")
 public class CommunityDiscoveryController {
     private final CommunityRepository repository;
 
