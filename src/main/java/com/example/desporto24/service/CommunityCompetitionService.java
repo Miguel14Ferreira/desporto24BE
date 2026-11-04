@@ -1914,6 +1914,53 @@ public class CommunityCompetitionService {
                 .findFirst().orElseThrow();
     }
 
+    /**
+     * Update W/D/L scoring only for a selected community discipline and an active
+     * season. No historical rounds, other seasons or global points are modified.
+     */
+    public CommunitySportPointsRuleResponse updateSportPointsRule(
+            Long communityId, Long seasonId, String username,
+            UpdateCommunitySportPointsRuleRequest request) {
+        Profile actor = profile(username);
+        requireAdmin(communityId, actor);
+        CommunitySeason season = seasonRepository.lockByIdAndCommunityId(seasonId, communityId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
+        if (!season.isActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "As regras de uma época encerrada não podem ser modificadas");
+        }
+        Community community = season.getCommunity();
+        if (!community.isRankingsEnabled()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Ativa as classificações antes de configurar pontos");
+        }
+        String sport;
+        try {
+            sport = CommunityRoundSport.resolve(community, request.sport());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+        if (sport == null || sport.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seleciona uma modalidade");
+        }
+        if (request.winPoints() < 0 || request.winPoints() > 1000
+                || request.drawPoints() < 0 || request.drawPoints() > 1000
+                || request.lossPoints() < 0 || request.lossPoints() > 1000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Os pontos devem estar entre 0 e 1000");
+        }
+        CommunitySportPointsRule rule = sportPointsRuleRepository
+                .findBySeasonIdAndSportIgnoreCase(seasonId, sport)
+                .orElseGet(() -> CommunitySportPointsRule.builder().season(season).sport(sport).build());
+        rule.setWinPoints(request.winPoints());
+        rule.setDrawPoints(request.drawPoints());
+        rule.setLossPoints(request.lossPoints());
+        CommunitySportPointsRule saved = sportPointsRuleRepository.save(rule);
+        return new CommunitySportPointsRuleResponse(saved.getSport(),
+                saved.getWinPoints(), saved.getDrawPoints(), saved.getLossPoints());
+    }
+
     public CommunityRacketRuleResponse updateRacketRule(
             Long communityId, Long seasonId, String username,
             UpdateCommunityRacketRuleRequest request) {
