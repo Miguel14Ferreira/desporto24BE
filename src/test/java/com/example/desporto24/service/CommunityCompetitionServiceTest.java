@@ -523,6 +523,58 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void closingKartingSeasonInMultiSportCommunityStoresOnlyRaceChampion() {
+        Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
+        Profile challenger = profile(2L, "other", "Other Player");
+        Community community = Community.builder()
+                .id(7L).name("Mixed sports").sport("Futebol")
+                .sports(List.of("Futebol", "Karting"))
+                .visibility(CommunityVisibility.PRIVATE).owner(owner)
+                .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0)
+                .createdAt(Instant.now()).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community)
+                .name("Karting 2026/27").sport("Karting").startsAt(Instant.now())
+                .active(true).createdAt(Instant.now()).build();
+        CommunityRound race = CommunityRound.builder().id(99L).community(community)
+                .season(season).name("Corrida 1").sport("Karting")
+                .playedAt(Instant.now()).build();
+        CommunityPlayer p1 = CommunityPlayer.builder().id(11L)
+                .community(community).profile(owner).displayName("Miguel Ferreira").build();
+        CommunityPlayer p2 = CommunityPlayer.builder().id(22L)
+                .community(community).profile(challenger).displayName("Other Player").build();
+        CommunityRoundEntry e1 = CommunityRoundEntry.builder().id(101L).round(race)
+                .communityPlayer(p1).profile(owner).result(CommunityMatchResult.DRAW)
+                .finishPosition(1).build();
+        CommunityRoundEntry e2 = CommunityRoundEntry.builder().id(102L).round(race)
+                .communityPlayer(p2).profile(challenger).result(CommunityMatchResult.DRAW)
+                .finishPosition(2).build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("TMF14"))
+                .thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.save(season)).thenReturn(season);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER),
+                        membership(community, challenger, CommunityRole.MEMBER)));
+        when(raceRuleRepository.findBySeasonId(44L)).thenReturn(List.of(
+                CommunityRaceRule.builder().season(season).sport("Karting")
+                        .pointsByPlace("25,18").build()));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L,44L))
+                .thenReturn(List.of(race));
+        when(entryRepository.findByRoundIdOrderByIdAsc(99L)).thenReturn(List.of(e1,e2));
+
+        var closed = service.closeSeason(7L,44L,"TMF14");
+        assertEquals("TMF14", closed.championUsername());
+        assertEquals("Miguel Ferreira", closed.championDisplayName());
+        assertEquals(25, closed.championPoints());
+        assertTrue(season.isChampionFinalized());
+        assertEquals(false, season.isActive());
+    }
+
+    @Test
     void closingSeasonWithoutGamesFinalizesTrophyWithNoChampion() {
         Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder()
