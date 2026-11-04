@@ -56,6 +56,43 @@ class CommunityRoundSeasonPolicyTest {
     }
 
     @Test
+    void choosesMatchingSportSeasonOverLegacySharedSeason() {
+        var football = season(7L, "Futebol", true);
+        var karting = season(7L, "Karting", true);
+        var legacy = season(7L, null, true);
+        assertSame(karting, CommunityRoundSeasonPolicy.selectForRound(
+                java.util.List.of(football, legacy, karting), "karting"));
+        assertSame(football, CommunityRoundSeasonPolicy.selectForRound(
+                java.util.List.of(karting, football), "FUTEBOL"));
+        assertSame(legacy, CommunityRoundSeasonPolicy.selectForRound(
+                java.util.List.of(football, legacy), "Ténis"));
+    }
+
+    @Test
+    void ambiguousOrUnmatchedActiveSeasonsRequireExplicitSelection() {
+        var football = season(7L, "Futebol", true);
+        var karting = season(7L, "Karting", true);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.selectForRound(
+                        java.util.List.of(football, karting), null)).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.selectForRound(
+                        java.util.List.of(football, karting), "Ténis")).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.selectForRound(
+                        java.util.List.of(football, season(7L, "futebol", true)), "Futebol"))
+                .getStatusCode());
+    }
+
+    @Test
+    void legacyZeroOrSingleActiveSeasonBehaviorRemainsStable() {
+        var football = season(7L, "Futebol", true);
+        assertNull(CommunityRoundSeasonPolicy.selectForRound(java.util.List.of(), "Futebol"));
+        assertSame(football, CommunityRoundSeasonPolicy.selectForRound(
+                java.util.List.of(football), "Karting"));
+    }
+
+    @Test
     void olderClientsCanStillCreateUnassignedRounds() {
         assertNull(CommunityRoundSeasonPolicy.validate(7L, null, "Futsal", false));
     }
