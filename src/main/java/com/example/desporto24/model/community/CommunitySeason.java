@@ -25,6 +25,10 @@ public class CommunitySeason {
     @Column(nullable = false, length = 120)
     private String name;
 
+    /** Null denotes an existing shared community season. */
+    @Column(name = "sport", length = 100)
+    private String sport;
+
     @Column(name = "starts_at", nullable = false)
     private Instant startsAt;
 
