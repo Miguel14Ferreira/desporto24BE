@@ -2298,9 +2298,17 @@ public class CommunityCompetitionService {
             }
         }
 
-        CommunitySeason activeSeason = seasonRepository
-                .findByCommunityIdAndActiveTrue(communityId)
-                .orElse(null);
+        // Explicit season selection is validated under a row lock; older
+        // clients without seasonId retain the existing single-active behavior.
+        CommunitySeason activeSeason = request.seasonId() == null
+                ? seasonRepository.findByCommunityIdAndActiveTrue(communityId).orElse(null)
+                : seasonRepository.lockByIdAndCommunityId(request.seasonId(), communityId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
+        if (request.seasonId() != null && !activeSeason.isActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Não é possível associar uma jornada a uma época encerrada");
+        }
         // A sport-tagged season must never collect a round of another sport.
         // Null preserves all existing community-wide seasons and older rounds.
         if (activeSeason != null && !CommunityRoundSport.belongsToSeason(
