@@ -813,7 +813,7 @@ class CommunityCompetitionServiceTest {
     void cannotModifySportScoringOfClosedSeasonOrUnselectedSport() {
         Profile owner = profile(1L, "owner", "Owner");
         Community community = Community.builder().id(7L).owner(owner)
-                .rankingsEnabled(true).sports(List.of("Futebol", "Futsal")).build();
+                .rankingsEnabled(true).sports(List.of("Futebol", "Futsal", "Karting")).build();
         CommunitySeason season = CommunitySeason.builder().id(44L)
                 .community(community).active(false).build();
         when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
@@ -830,6 +830,10 @@ class CommunityCompetitionServiceTest {
                 () -> service.updateSportPointsRule(7L, 44L, "owner",
                         new UpdateCommunitySportPointsRuleRequest("Padel", 2, 1, 0)));
         assertEquals(HttpStatus.BAD_REQUEST, invalid.getStatusCode());
+        var incompatible = assertThrows(ResponseStatusException.class,
+                () -> service.updateSportPointsRule(7L, 44L, "owner",
+                        new UpdateCommunitySportPointsRuleRequest("Karting", 25, 18, 15)));
+        assertEquals(HttpStatus.BAD_REQUEST, incompatible.getStatusCode());
         verify(sportPointsRuleRepository, never()).save(any());
     }
 
