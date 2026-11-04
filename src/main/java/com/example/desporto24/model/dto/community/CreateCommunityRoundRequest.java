@@ -27,8 +27,23 @@ public record CreateCommunityRoundRequest(
         @Valid CommunityTeamFinalScore teamScore,
         @Valid CommunityCricketDetails cricketDetails,
         @Size(max = 40) String sprintSeriesKey,
-        @Min(1) @Max(3) Integer sprintHeatNumber
+        @Min(1) @Max(3) Integer sprintHeatNumber,
+    Long seasonId
 ) {
+    // Preserve the previous 14-field record constructor for Java callers.
+    public CreateCommunityRoundRequest(String name, Instant playedAt,
+            List<CommunityRoundEntryRequest> entries, String sport,
+            String matchFormat, List<CommunitySetScore> setScores,
+            String eventType, String eventDiscipline,
+            List<CommunityGroupRoutineScore> groupScores,
+            CommunityBasketballScore basketballScore,
+            CommunityTeamFinalScore teamScore, CommunityCricketDetails cricketDetails,
+            String sprintSeriesKey, Integer sprintHeatNumber) {
+        this(name, playedAt, entries, sport, matchFormat, setScores, eventType,
+                eventDiscipline, groupScores, basketballScore, teamScore, cricketDetails,
+                sprintSeriesKey, sprintHeatNumber, null);
+    }
+
     // Preserve existing canonical callers; the new fields are optional.
     public CreateCommunityRoundRequest(String name, Instant playedAt,
             List<CommunityRoundEntryRequest> entries, String sport,
