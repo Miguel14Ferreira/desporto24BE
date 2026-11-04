@@ -2194,15 +2194,16 @@ public class CommunityCompetitionService {
         if (sport == null || !CommunityTournamentRaceService.supportsRaceChampionship(sport))
             return null;
         Long seasonId = season.getId();
+        final String raceSport = sport;
         List<CommunityRaceRuleResponse> scoring = raceRuleRepository.findBySeasonId(seasonId)
-                .stream().filter(rule -> sport.equalsIgnoreCase(rule.getSport()))
+                .stream().filter(rule -> raceSport.equalsIgnoreCase(rule.getSport()))
                 .map(rule -> new CommunityRaceRuleResponse(rule.getSport(),
                         CommunityRaceStandings.parsePoints(rule.getPointsByPlace()))).toList();
         if (scoring.size() != 1) return null;
         List<CommunityRoundResponse> results = roundRepository
                 .findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(community.getId(), seasonId)
                 .stream()
-                .filter(round -> sport.equalsIgnoreCase(round.getSport())
+                .filter(round -> raceSport.equalsIgnoreCase(round.getSport())
                         && CommunityRoundEventType.isChampionshipRaceEvent(
                                 round.getSport(), round.getEventType()))
                 .map(round -> roundResponse(round, aliases)).toList();
