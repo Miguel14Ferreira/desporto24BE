@@ -26,4 +26,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
   CMD curl --fail --silent "http://127.0.0.1:${PORT:-${CONTAINER_PORT:-8080}}/actuator/health" >/dev/null || exit 1
 
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Constrain the heap to leave native memory for Tomcat, threads and the AWS SDK
+# on Render's 512 MiB instance. The default container-based heap (~25%)
+# exhausted under load; keep the heap adjustable through JAVA_TOOL_OPTIONS.
+ENTRYPOINT ["java", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=50.0", "-XX:+UseSerialGC", "-jar", "/app/app.jar"]
