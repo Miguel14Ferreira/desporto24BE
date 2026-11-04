@@ -2299,6 +2299,14 @@ public class CommunityCompetitionService {
         CommunitySeason activeSeason = seasonRepository
                 .findByCommunityIdAndActiveTrue(communityId)
                 .orElse(null);
+        // A sport-tagged season must never collect a round of another sport.
+        // Null preserves all existing community-wide seasons and older rounds.
+        if (activeSeason != null && activeSeason.getSport() != null
+                && (resolvedSport == null || !normalizeStandingSport(activeSeason.getSport())
+                        .equals(normalizeStandingSport(resolvedSport)))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta época está associada a outra modalidade");
+        }
         if (!community.isRankingsEnabled() && activeSeason == null) {
             throw new IllegalStateException(
                     "Cria uma época ativa antes de registares mangas de Patinagem de Velocidade");
