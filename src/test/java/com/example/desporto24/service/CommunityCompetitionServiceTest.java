@@ -208,8 +208,7 @@ class CommunityCompetitionServiceTest {
                 .thenReturn(List.of(football, futsal, karting, ambiguous));
 
         var overview = service.overview(7L, "owner");
-        assertEquals(3, overview.sportStandings().size() == 2
-                ? overview.standings().get(0).games() : -1);
+        assertEquals(2, overview.sportStandings().size());
         assertEquals(List.of("Futebol", "Futsal"),
                 overview.sportStandings().stream().map(g -> g.sport()).toList());
         assertEquals(1, overview.sportStandings().get(0).standings().get(0).games());
