@@ -71,3 +71,13 @@ jobs:
           assert isinstance(result.get('hasMore'),bool), 'Missing pagination flag'
           print('Public venue discovery passed')
           PY
+          # Never expose authenticated-only data to visitors.
+          for private_path in /api/sessions/mine /api/auth/sessions; do
+            private_code="$(curl --retry 2 --retry-delay 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o /dev/null -w '%{http_code}' "$API_BASE$private_path")"
+            echo "Anonymous protected endpoint $private_path: HTTP $private_code"
+            case "$private_code" in
+              401|403) ;;
+              *) echo "::error::Protected endpoint returned unexpected HTTP $private_code"; exit 1 ;;
+            esac
+          done
+          echo "Anonymous private routes correctly denied"
