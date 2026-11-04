@@ -2305,17 +2305,9 @@ public class CommunityCompetitionService {
                 : seasonRepository.lockByIdAndCommunityId(request.seasonId(), communityId)
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.NOT_FOUND, "Época não encontrada nesta comunidade"));
-        if (request.seasonId() != null && !activeSeason.isActive()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Não é possível associar uma jornada a uma época encerrada");
-        }
-        // A sport-tagged season must never collect a round of another sport.
-        // Null preserves all existing community-wide seasons and older rounds.
-        if (activeSeason != null && !CommunityRoundSport.belongsToSeason(
-                activeSeason.getSport(), resolvedSport)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Esta época está associada a outra modalidade");
-        }
+        // Preserve shared historical seasons, but reject explicit invalid attribution.
+        CommunityRoundSeasonPolicy.validate(communityId, activeSeason, resolvedSport,
+                request.seasonId() != null);
         if (!community.isRankingsEnabled() && activeSeason == null) {
             throw new IllegalStateException(
                     "Cria uma época ativa antes de registares mangas de Patinagem de Velocidade");
