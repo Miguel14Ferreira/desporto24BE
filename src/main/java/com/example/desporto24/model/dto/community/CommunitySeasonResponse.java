@@ -10,6 +10,13 @@ public record CommunitySeasonResponse(
         boolean active,
         String championUsername,
         String championDisplayName,
-        Integer championPoints
+        Integer championPoints,
+        String sport
 ) {
+    public CommunitySeasonResponse(Long id, String name, Instant startsAt,
+            Instant endedAt, boolean active, String championUsername,
+            String championDisplayName, Integer championPoints) {
+        this(id, name, startsAt, endedAt, active, championUsername,
+                championDisplayName, championPoints, null);
+    }
 }
