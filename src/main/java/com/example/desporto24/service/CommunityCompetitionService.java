@@ -2509,7 +2509,9 @@ public class CommunityCompetitionService {
         }
         List<CommunitySportStandingGroupResponse> groups = new ArrayList<>();
         for (String sport : sports.values()) {
-            if (entries.stream().noneMatch(entry -> isSportStandingEntry(entry, community, sport))) continue;
+            // Expose configurable team sports before the first match is recorded.
+            // Never create a generic W/D/L panel for races or judged/duel events.
+            if (!CommunityMatchPointsSport.supports(sport)) continue;
             CommunitySportPointsRule rule = rules.stream()
                     .filter(item -> normalizeStandingSport(item.getSport()).equals(normalizeStandingSport(sport)))
                     .findFirst().orElse(null);
@@ -2519,7 +2521,7 @@ public class CommunityCompetitionService {
             List<CommunityStandingResponse> rows = standings(
                     community, aliases, entries, sport, winPoints, drawPoints, lossPoints).stream()
                     .filter(row -> row.games() > 0).toList();
-            if (!rows.isEmpty()) groups.add(new CommunitySportStandingGroupResponse(sport, rows,
+            groups.add(new CommunitySportStandingGroupResponse(sport, rows,
                     new CommunitySportPointsRuleResponse(sport, winPoints, drawPoints, lossPoints)));
         }
         return groups;
