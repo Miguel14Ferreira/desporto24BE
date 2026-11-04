@@ -349,7 +349,39 @@ class CommunityCompetitionServiceTest {
 
         assertEquals(44L, result.id());
         assertEquals("Época 2026/27", result.name());
+        assertNull(result.sport());
         assertEquals(true, result.active());
+    }
+
+    @Test
+    void createsSportTaggedSeasonUsingCommunityCatalogueWithoutChangingLegacySeasons() {
+        Profile owner = profile(1L, "owner", "Organizador");
+        Community community = Community.builder().id(7L).owner(owner)
+                .sports(List.of("Futebol", "Ténis", "Karting")).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
+                .thenReturn(Optional.empty());
+        when(seasonRepository.save(any(CommunitySeason.class)))
+                .thenAnswer(invocation -> {
+                    CommunitySeason season = invocation.getArgument(0);
+                    season.setId(51L);
+                    return season;
+                });
+
+        var result = service.createSeason(7L, "owner",
+                new CreateCommunitySeasonRequest("Ténis 2026/27", null, "  TENIS  "));
+        assertEquals("Ténis", result.sport());
+        assertEquals(51L, result.id());
+
+        var invalid = assertThrows(ResponseStatusException.class,
+                () -> service.createSeason(7L, "owner",
+                        new CreateCommunitySeasonRequest("Outra", null, "Padel")));
+        assertEquals(HttpStatus.BAD_REQUEST, invalid.getStatusCode());
+        verify(seasonRepository).save(any(CommunitySeason.class));
     }
 
     @Test
