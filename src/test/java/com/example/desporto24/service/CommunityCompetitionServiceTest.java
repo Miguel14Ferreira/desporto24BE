@@ -13,6 +13,9 @@ import com.example.desporto24.model.community.CommunityHistoricalPlayerLink;
 import com.example.desporto24.model.community.CommunitySeason;
 import com.example.desporto24.model.community.CommunityRacketRule;
 import com.example.desporto24.model.community.CommunityRaceRule;
+import com.example.desporto24.model.community.CommunitySportPointsRule;
+import com.example.desporto24.model.dto.community.UpdateCommunitySportPointsRuleRequest;
+import com.example.desporto24.repository.community.CommunitySportPointsRuleRepository;
 import com.example.desporto24.model.dto.community.UpdateCommunityRacketRuleRequest;
 import com.example.desporto24.repository.community.CommunityRacketRuleRepository;
 import com.example.desporto24.repository.community.CommunityRaceRuleRepository;
@@ -65,6 +68,7 @@ class CommunityCompetitionServiceTest {
     @Mock private CommunityTournamentRepository tournamentRepository;
     @Mock private CommunityRacketRuleRepository racketRuleRepository;
     @Mock private CommunityRaceRuleRepository raceRuleRepository;
+    @Mock private CommunitySportPointsRuleRepository sportPointsRuleRepository;
     @Mock private CommunityRoundEntryRepository entryRepository;
     @Mock private CommunitySeasonRepository seasonRepository;
     @Mock private CommunityStandingsArchiveRepository standingsArchiveRepository;
@@ -731,6 +735,57 @@ class CommunityCompetitionServiceTest {
         verify(racketRuleRepository).save(captor.capture());
         assertEquals(44L, captor.getValue().getSeason().getId());
         assertEquals("Ténis", captor.getValue().getSport());
+    }
+
+    @Test
+    void ownerCanSaveIndependentPointsForOneSportInActiveSeason() {
+        Profile owner = profile(1L, "owner", "Owner");
+        Community community = Community.builder().id(7L).owner(owner)
+                .rankingsEnabled(true).sports(List.of("Futebol", "Futsal", "Karting")).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L)
+                .community(community).active(true).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L)).thenReturn(Optional.of(season));
+        when(sportPointsRuleRepository.save(any(CommunitySportPointsRule.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.updateSportPointsRule(7L, 44L, "owner",
+                new UpdateCommunitySportPointsRuleRequest("  FUTSAL ", 2, 1, 0));
+        assertEquals("Futsal", result.sport());
+        assertEquals(2, result.winPoints());
+        assertEquals(1, result.drawPoints());
+        org.mockito.ArgumentCaptor<CommunitySportPointsRule> saved =
+                org.mockito.ArgumentCaptor.forClass(CommunitySportPointsRule.class);
+        verify(sportPointsRuleRepository).save(saved.capture());
+        assertEquals(44L, saved.getValue().getSeason().getId());
+        assertEquals("Futsal", saved.getValue().getSport());
+        assertNull(community.getWinPoints());
+    }
+
+    @Test
+    void cannotModifySportScoringOfClosedSeasonOrUnselectedSport() {
+        Profile owner = profile(1L, "owner", "Owner");
+        Community community = Community.builder().id(7L).owner(owner)
+                .rankingsEnabled(true).sports(List.of("Futebol", "Futsal")).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L)
+                .community(community).active(false).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.lockByIdAndCommunityId(44L, 7L)).thenReturn(Optional.of(season));
+        var request = new UpdateCommunitySportPointsRuleRequest("Futsal", 2, 1, 0);
+        var closed = assertThrows(ResponseStatusException.class,
+                () -> service.updateSportPointsRule(7L, 44L, "owner", request));
+        assertEquals(HttpStatus.CONFLICT, closed.getStatusCode());
+
+        season.setActive(true);
+        var invalid = assertThrows(ResponseStatusException.class,
+                () -> service.updateSportPointsRule(7L, 44L, "owner",
+                        new UpdateCommunitySportPointsRuleRequest("Padel", 2, 1, 0)));
+        assertEquals(HttpStatus.BAD_REQUEST, invalid.getStatusCode());
+        verify(sportPointsRuleRepository, never()).save(any());
     }
 
     @Test
