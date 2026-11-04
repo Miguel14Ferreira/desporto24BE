@@ -362,8 +362,8 @@ class CommunityCompetitionServiceTest {
                         community, miguel, CommunityRole.OWNER)));
         when(communityRepository.findById(7L))
                 .thenReturn(Optional.of(community));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
-                .thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.save(any(CommunitySeason.class)))
                 .thenAnswer(invocation -> {
                     CommunitySeason season = invocation.getArgument(0);
@@ -393,8 +393,8 @@ class CommunityCompetitionServiceTest {
         when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
                 .thenReturn(Optional.of(membership(community, owner, CommunityRole.OWNER)));
         when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
-                .thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.save(any(CommunitySeason.class)))
                 .thenAnswer(invocation -> {
                     CommunitySeason season = invocation.getArgument(0);
