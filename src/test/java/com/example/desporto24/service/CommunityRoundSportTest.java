@@ -31,6 +31,19 @@ class CommunityRoundSportTest {
         assertNull(CommunityRoundSport.resolve(community, "  "));
         assertEquals("Surf", CommunityRoundSport.resolve(community, "surf"));
     }
+    @Test void duplicateSportLabelsDoNotMakeSingleSportCommunityAmbiguous() {
+        Community community = Community.builder()
+                .sports(List.of("Ténis", "  TENIS ", "ténis")).build();
+        assertEquals("Ténis", CommunityRoundSport.resolve(community, null));
+        assertEquals("Ténis", CommunityRoundSport.resolve(community, "tenis"));
+    }
+    @Test void duplicateLabelsDoNotHideTrueMultiSportAmbiguity() {
+        Community community = Community.builder()
+                .sports(List.of("Karting", "KARTING", "Futebol")).build();
+        assertNull(CommunityRoundSport.resolve(community, null));
+        assertEquals("Karting", CommunityRoundSport.resolve(community, "karting"));
+        assertEquals("Futebol", CommunityRoundSport.resolve(community, "futebol"));
+    }
     @Test void sportTaggedSeasonsOnlyAcceptMatchingRounds() {
         assertTrue(CommunityRoundSport.belongsToSeason("Ténis", "tenis"));
         assertTrue(CommunityRoundSport.belongsToSeason("  FUTEBOL ", "Futebol"));
