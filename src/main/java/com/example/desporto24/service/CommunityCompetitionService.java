@@ -2437,6 +2437,49 @@ public class CommunityCompetitionService {
                                    Map<Long, String> namesByProfileId) {
     }
 
+    /**
+     * Read-only per-sport W/D/L contract. Only played entries with a reliably
+     * identified discipline contribute. Historical ambiguous multi-sport rounds
+     * are intentionally left out. The original standings field is unchanged.
+     */
+    private List<CommunitySportStandingGroupResponse> standingsBySport(
+            Community community, AcceptedAliases aliases, List<CommunityRoundEntry> entries) {
+        List<String> declared = community.getSports() != null && !community.getSports().isEmpty()
+                ? community.getSports()
+                : community.getSport() == null ? List.of() : List.of(community.getSport());
+        Map<String, String> sports = new LinkedHashMap<>();
+        for (String sport : declared) {
+            if (sport != null && !sport.isBlank()) {
+                sports.putIfAbsent(normalizeStandingSport(sport), sport.trim());
+            }
+        }
+        List<CommunitySportStandingGroupResponse> groups = new ArrayList<>();
+        for (String sport : sports.values()) {
+            List<CommunityStandingResponse> rows = standings(
+                    community, aliases, entries, sport).stream()
+                    .filter(row -> row.games() > 0).toList();
+            if (!rows.isEmpty()) groups.add(new CommunitySportStandingGroupResponse(sport, rows));
+        }
+        return groups;
+    }
+
+    private String sportOfEntry(CommunityRoundEntry entry, Community community) {
+        if (entry.getRound() == null) return null;
+        String selected = entry.getRound().getSport();
+        if (selected == null || selected.isBlank()) {
+            List<String> sports = community.getSports() != null && !community.getSports().isEmpty()
+                    ? community.getSports()
+                    : community.getSport() == null ? List.of() : List.of(community.getSport());
+            return sports.size() == 1 ? sports.get(0) : null;
+        }
+        return selected;
+    }
+
+    private String normalizeStandingSport(String sport) {
+        return java.text.Normalizer.normalize(sport.trim(), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT);
+    }
+
     private List<CommunityStandingResponse> standings(Community community, Long seasonId) {
         return standings(community, seasonId, acceptedAliasProfiles(community.getId()));
     }
@@ -2472,7 +2515,9 @@ public class CommunityCompetitionService {
         }
 
         for (CommunityRoundEntry entry : sourceEntries) {
-            if (sportFilter != null && !sportFilter.equals(sportOfEntry(entry, community))) continue;
+            if (sportFilter != null && !(sportOfEntry(entry, community) != null
+                    && normalizeStandingSport(sportFilter).equals(
+                            normalizeStandingSport(sportOfEntry(entry, community))))) continue;
             // Race results have positions/times, not football's 3-1-0 points.
             // Preserve historical rows but never award W/D/L leaderboard points
             // from race events. A separate race championship is a later feature.
