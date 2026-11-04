@@ -108,8 +108,8 @@ class CommunityCompetitionServiceTest {
                 ));
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
                 .thenReturn(List.of());
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
-                .thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
                 .thenReturn(List.of());
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
@@ -160,7 +160,8 @@ class CommunityCompetitionServiceTest {
                 .thenReturn(List.of(membership(group, owner, CommunityRole.OWNER)));
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
                 .thenReturn(List.of());
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
                 .thenReturn(List.of(race, football));
@@ -211,7 +212,8 @@ class CommunityCompetitionServiceTest {
                 .thenReturn(List.of(membership(group, owner, CommunityRole.OWNER)));
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
                 .thenReturn(List.of());
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
                 .thenReturn(List.of(football, futsal, karting, ambiguous));
@@ -252,7 +254,8 @@ class CommunityCompetitionServiceTest {
         when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
                 .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER)));
         when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(season));
         when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
                 .thenReturn(List.of());
@@ -289,7 +292,8 @@ class CommunityCompetitionServiceTest {
         when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
                 .thenReturn(List.of(membership(group, owner, CommunityRole.OWNER)));
         when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
                 .thenReturn(List.of(season));
         when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
@@ -326,7 +330,8 @@ class CommunityCompetitionServiceTest {
         when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
                 .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER)));
         when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(season));
         when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
                 .thenReturn(List.of());
@@ -454,8 +459,8 @@ class CommunityCompetitionServiceTest {
         // but the finalized season trophy must remain with its original champion.
         community.setWinPoints(0);
         community.setDrawPoints(10);
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L))
-                .thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
                 .thenReturn(List.of(season));
         when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L))
@@ -578,7 +583,8 @@ class CommunityCompetitionServiceTest {
                 .thenReturn(List.of(older, recent));
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L))
                 .thenReturn(List.of(round2, round1));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
         when(entryRepository.findByRoundIdOrderByIdAsc(21L)).thenReturn(List.of(older));
         when(entryRepository.findByRoundIdOrderByIdAsc(22L)).thenReturn(List.of(recent));
@@ -621,7 +627,8 @@ class CommunityCompetitionServiceTest {
                 .thenReturn(List.of(membership(community, target, CommunityRole.OWNER)));
         when(playerRepository.findByCommunityIdAndProfileId(7L, 1L)).thenReturn(Optional.of(fromExcel));
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L)).thenReturn(List.of(round));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
                 .thenReturn(List.of(historical));
@@ -649,7 +656,8 @@ class CommunityCompetitionServiceTest {
         when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
         when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
         when(roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(7L)).thenReturn(List.of(round));
-        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.empty());
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of());
         when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
         when(entryRepository.findByRoundIdOrderByIdAsc(20L)).thenReturn(List.of(original));
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
