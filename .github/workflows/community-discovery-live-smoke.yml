@@ -1,0 +1,48 @@
+name: Jynlo community discovery live smoke
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - '.github/workflows/community-discovery-live-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-discovery:
+    name: Check deployed public discovery without credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check backend health and public community listing
+        shell: bash
+        env:
+          API_BASE: https://desporto24-preview-api.onrender.com
+        run: |
+          set -euo pipefail
+          health_file="$(mktemp)"
+          search_file="$(mktemp)"
+          trap 'rm -f "$health_file" "$search_file"' EXIT
+          health_code="$(curl --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$health_file" -w '%{http_code}' "$API_BASE/actuator/health")"
+          echo "Health status: $health_code"
+          test "$health_code" = "200"
+          python3 - "$health_file" <<'PY'
+          import json,sys
+          with open(sys.argv[1],encoding='utf-8') as fp:
+              health=json.load(fp)
+          assert health.get('status')=='UP', 'Health endpoint did not report UP'
+          print('Health endpoint reports UP')
+          PY
+          search_code="$(curl --retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o "$search_file" -w '%{http_code}' "$API_BASE/api/communities/search?page=0")"
+          echo "Anonymous discovery HTTP status: $search_code"
+          test "$search_code" = "200"
+          python3 - "$search_file" <<'PY'
+          import json,sys
+          with open(sys.argv[1],encoding='utf-8') as fp:
+              result=json.load(fp)
+          assert isinstance(result.get('communities'),list), 'Missing public communities array'
+          assert isinstance(result.get('hasMore'),bool), 'Missing pagination hasMore'
+          print('Anonymous public discovery passed; response shape verified')
+          PY
