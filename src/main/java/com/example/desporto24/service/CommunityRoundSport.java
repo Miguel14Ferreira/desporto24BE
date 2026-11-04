@@ -16,13 +16,26 @@ final class CommunityRoundSport {
         List<String> sports = community.getSports() != null && !community.getSports().isEmpty()
                 ? community.getSports()
                 : community.getSport() == null ? List.of() : List.of(community.getSport());
+        // Imported and edited communities can contain repeated labels with
+        // different casing or accents. Count distinct sports, not raw entries,
+        // without guessing a sport when genuinely several are configured.
+        java.util.Map<String, String> distinctSports = new java.util.LinkedHashMap<>();
+        for (String sport : sports) {
+            if (sport != null && !sport.isBlank()) {
+                distinctSports.putIfAbsent(normalize(sport), sport.trim());
+            }
+        }
         if (requested == null || requested.isBlank()) {
-            return sports.size() == 1 ? sports.get(0) : null;
+            return distinctSports.size() == 1
+                    ? distinctSports.values().iterator().next() : null;
         }
         String normalizedRequested = normalize(requested);
-        return sports.stream().filter(s -> normalize(s).equals(normalizedRequested)).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "A modalidade da jornada tem de pertencer às modalidades da comunidade"));
+        String selectedSport = distinctSports.get(normalizedRequested);
+        if (selectedSport == null) {
+            throw new IllegalArgumentException(
+                    "A modalidade da jornada tem de pertencer às modalidades da comunidade");
+        }
+        return selectedSport;
     }
 
     /** Null denotes a historic community-wide season, which accepts every declared sport. */
