@@ -1,6 +1,8 @@
 package com.example.desporto24.service;
 
 import java.util.Set;
+import java.text.Normalizer;
+import java.util.Locale;
 
 /**
  * Team-result sports eligible for configurable generic W/D/L season points.
@@ -17,7 +19,15 @@ final class CommunityMatchPointsSport {
             "Hóquei no Gelo", "Lacrosse", "Polo Aquático", "Rugby", "Rugby Sevens",
             "Softbol", "Voleibol", "Voleibol de Praia");
 
+    private static final Set<String> NORMALIZED_TEAM_SPORTS = TEAM_SPORTS.stream()
+            .map(CommunityMatchPointsSport::normalize).collect(java.util.stream.Collectors.toUnmodifiableSet());
+
     static boolean supports(String sport) {
-        return sport != null && TEAM_SPORTS.contains(sport);
+        return sport != null && NORMALIZED_TEAM_SPORTS.contains(normalize(sport));
+    }
+
+    private static String normalize(String sport) {
+        return Normalizer.normalize(sport.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT);
     }
 }
