@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface CommunitySeasonRepository extends JpaRepository<CommunitySeason, Long> {
     List<CommunitySeason> findByCommunityIdOrderByCreatedAtDesc(Long communityId);
     Optional<CommunitySeason> findByCommunityIdAndActiveTrue(Long communityId);
+    List<CommunitySeason> findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(Long communityId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select season from CommunitySeason season where season.id = :id and season.community.id = :communityId")
