@@ -2,6 +2,8 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.model.community.Community;
 import java.util.List;
+import java.text.Normalizer;
+import java.util.Locale;
 
 /**
  * A round can use one of the community's declared disciplines.
@@ -17,9 +19,15 @@ final class CommunityRoundSport {
         if (requested == null || requested.isBlank()) {
             return sports.size() == 1 ? sports.get(0) : null;
         }
-        String trimmed = requested.trim();
-        return sports.stream().filter(s -> s.equalsIgnoreCase(trimmed)).findFirst()
+        String normalizedRequested = normalize(requested);
+        return sports.stream().filter(s -> normalize(s).equals(normalizedRequested)).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "A modalidade da jornada tem de pertencer às modalidades da comunidade"));
+    }
+
+    private static String normalize(String sport) {
+        return Normalizer.normalize(sport.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT);
     }
 }
