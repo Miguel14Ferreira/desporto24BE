@@ -85,10 +85,11 @@ public class CommunityCompetitionService {
         Community community = community(communityId);
         requireAccess(community, actor);
 
+        CommunitySeason selectedSeason = null;
         if (seasonId != null) {
-            CommunitySeason selected = seasonRepository.findById(seasonId)
+            selectedSeason = seasonRepository.findById(seasonId)
                     .orElseThrow(() -> new IllegalArgumentException("Época não encontrada"));
-            if (!selected.getCommunity().getId().equals(communityId)) {
+            if (!selectedSeason.getCommunity().getId().equals(communityId)) {
                 throw new IllegalArgumentException("A época não pertence a esta comunidade");
             }
         }
@@ -130,7 +131,8 @@ public class CommunityCompetitionService {
                 standings(community, confirmedAliases, standingEntries, null),
                 CommunityRacketStandings.calculate(roundResponses, racketRules),
                 CommunityRaceStandings.calculate(roundResponses, raceRules),
-                standingsBySport(community, confirmedAliases, standingEntries, sportPointsRules)
+                standingsBySport(community, confirmedAliases, standingEntries, sportPointsRules,
+                        selectedSeason == null ? null : selectedSeason.getSport())
         );
     }
 
@@ -2515,7 +2517,7 @@ public class CommunityCompetitionService {
      */
     private List<CommunitySportStandingGroupResponse> standingsBySport(
             Community community, AcceptedAliases aliases, List<CommunityRoundEntry> entries,
-            List<CommunitySportPointsRule> rules) {
+            List<CommunitySportPointsRule> rules, String seasonSport) {
         List<String> declared = community.getSports() != null && !community.getSports().isEmpty()
                 ? community.getSports()
                 : community.getSport() == null ? List.of() : List.of(community.getSport());
@@ -2527,6 +2529,8 @@ public class CommunityCompetitionService {
         }
         List<CommunitySportStandingGroupResponse> groups = new ArrayList<>();
         for (String sport : sports.values()) {
+            // A tagged season must never display unrelated sport standings.
+            if (!CommunityRoundSport.belongsToSeason(seasonSport, sport)) continue;
             // Expose configurable team sports before the first match is recorded.
             // Never create a generic W/D/L panel for races or judged/duel events.
             if (!CommunityMatchPointsSport.supports(sport)) continue;
