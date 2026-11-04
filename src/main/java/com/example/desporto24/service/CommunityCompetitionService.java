@@ -2022,8 +2022,18 @@ public class CommunityCompetitionService {
                     );
                 });
 
+        String seasonSport = null;
+        if (request.sport() != null && !request.sport().isBlank()) {
+            try {
+                seasonSport = CommunityRoundSport.resolve(community, request.sport());
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+            }
+        }
+
         CommunitySeason season = seasonRepository.save(CommunitySeason.builder()
                 .community(community)
+                .sport(seasonSport)
                 .name(request.name().trim())
                 .startsAt(request.startsAt() == null ? Instant.now() : request.startsAt())
                 .active(true)
@@ -2776,7 +2786,8 @@ public class CommunityCompetitionService {
                 season.isActive(),
                 championUsername,
                 championDisplayName,
-                championPoints
+                championPoints,
+                season.getSport()
         );
     }
 
