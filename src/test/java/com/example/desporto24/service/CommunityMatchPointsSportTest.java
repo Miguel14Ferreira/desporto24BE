@@ -15,6 +15,13 @@ class CommunityMatchPointsSportTest {
     }
 
     @Test
+    void acceptsCaseSpacingAndAccentsForLegacyCommunitySportNames() {
+        assertTrue(CommunityMatchPointsSport.supports("  futebol  "));
+        assertTrue(CommunityMatchPointsSport.supports("VOLEIBOL DE PRAIA"));
+        assertTrue(CommunityMatchPointsSport.supports("Hoquei em Patins"));
+    }
+
+    @Test
     void neverOffersTeamPointsForIncompatibleResultFormats() {
         for (String sport : new String[] {
                 "Karting", "Ciclismo", "Natação", "Atletismo",
