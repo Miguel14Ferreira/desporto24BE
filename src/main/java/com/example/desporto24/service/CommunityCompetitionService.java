@@ -113,7 +113,8 @@ public class CommunityCompetitionService {
                         rule.getSport(), CommunityRaceStandings.parsePoints(rule.getPointsByPlace())))
                 .toList();
         List<CommunitySportPointsRule> sportPointsRules = seasonId == null ? List.of()
-                : sportPointsRuleRepository.findBySeasonId(seasonId);
+                : Optional.ofNullable(sportPointsRuleRepository.findBySeasonId(seasonId))
+                        .orElse(List.of());
         List<CommunityRoundResponse> roundResponses = rounds.stream()
                 .map(round -> roundResponse(round, confirmedAliases)).toList();
         List<CommunityRoundEntry> standingEntries = standingEntries(communityId, seasonId);
