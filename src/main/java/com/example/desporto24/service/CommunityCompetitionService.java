@@ -2017,13 +2017,6 @@ public class CommunityCompetitionService {
         requireAdmin(communityId, actor);
         Community community = community(communityId);
 
-        seasonRepository.findByCommunityIdAndActiveTrue(communityId)
-                .ifPresent(existing -> {
-                    throw new IllegalStateException(
-                            "Encerra a época ativa antes de criares outra"
-                    );
-                });
-
         String seasonSport = null;
         if (request.sport() != null && !request.sport().isBlank()) {
             try {
@@ -2032,6 +2025,10 @@ public class CommunityCompetitionService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
             }
         }
+
+        CommunitySeasonCreationPolicy.check(
+                seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(communityId),
+                seasonSport);
 
         CommunitySeason season = seasonRepository.save(CommunitySeason.builder()
                 .community(community)
