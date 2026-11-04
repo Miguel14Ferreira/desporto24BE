@@ -141,6 +141,7 @@ class CommunityCompetitionServiceTest {
         Profile owner = profile(1L, "TMF14", "Miguel Ferreira");
         Community group = Community.builder()
                 .id(7L).name("CNG").owner(owner).rankingsEnabled(true)
+                .sports(List.of("Karting", "Futebol"))
                 .winPoints(3).drawPoints(1).lossPoints(0).build();
         var race = entry(owner, CommunityMatchResult.WIN, 0, 0, false, false);
         race.setRound(CommunityRound.builder().id(11L).community(group).sport("Karting").build());
@@ -160,7 +161,11 @@ class CommunityCompetitionServiceTest {
         when(entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(7L))
                 .thenReturn(List.of(race, football));
 
-        var standings = service.overview(7L, "TMF14").standings();
+        var overview = service.overview(7L, "TMF14");
+        var standings = overview.standings();
+        assertEquals(List.of("Futebol"),
+                overview.sportStandings().stream().map(g -> g.sport()).toList());
+        assertEquals(1, overview.sportStandings().get(0).standings().get(0).games());
         assertEquals(1, standings.size());
         assertEquals(1, standings.get(0).games());
         assertEquals(1, standings.get(0).wins());
