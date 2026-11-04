@@ -1,0 +1,32 @@
+name: Validate community discovery security on develop
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - '.github/workflows/community-discovery-security-develop-ci.yml'
+      - 'src/main/java/com/example/desporto24/controllers/CommunityDiscoveryController.java'
+      - 'src/main/java/com/example/desporto24/constant/SecurityConstant.java'
+      - 'src/main/java/com/example/desporto24/configuration/SecurityConfiguration.java'
+      - 'src/test/java/com/example/desporto24/controllers/CommunityDiscoveryControllerTest.java'
+      - 'src/test/java/com/example/desporto24/controllers/CommunitySecurityFilterChainTest.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  community-discovery-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AES_ENCRYPTION_KEY: ciKey1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Run discovery and security filter-chain tests
+        run: bash ./mvnw -B -ntp '-Dtest=CommunityDiscoveryControllerTest,CommunitySecurityFilterChainTest' test
