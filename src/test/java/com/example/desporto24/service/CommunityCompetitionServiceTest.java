@@ -229,6 +229,51 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void overviewUsesDifferentSeasonPointsForTwoTeamSportsWithoutChangingGlobalTotals() {
+        Profile owner = profile(1L, "owner", "Owner");
+        Community community = Community.builder().id(7L).owner(owner)
+                .sports(List.of("Futebol", "Futsal"))
+                .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community)
+                .name("2026/27").active(true).build();
+        CommunityRound footballRound = CommunityRound.builder()
+                .id(10L).community(community).season(season).sport("Futebol").build();
+        CommunityRound futsalRound = CommunityRound.builder()
+                .id(11L).community(community).season(season).sport("Futsal").build();
+        CommunityRoundEntry football = entry(owner, CommunityMatchResult.WIN, 2, 0, false, false);
+        football.setRound(footballRound);
+        CommunityRoundEntry futsal = entry(owner, CommunityMatchResult.WIN, 1, 0, false, false);
+        futsal.setRound(futsalRound);
+
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(season));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
+                .thenReturn(List.of());
+        when(entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(44L))
+                .thenReturn(List.of(football, futsal));
+        when(sportPointsRuleRepository.findBySeasonId(44L)).thenReturn(List.of(
+                CommunitySportPointsRule.builder().season(season).sport("Futsal")
+                        .winPoints(2).drawPoints(1).lossPoints(0).build()));
+
+        var overview = service.overview(7L, "owner", 44L);
+        assertEquals(6, overview.standings().getFirst().points());
+        assertEquals(List.of("Futebol", "Futsal"),
+                overview.sportStandings().stream().map(g -> g.sport()).toList());
+        assertEquals(3, overview.sportStandings().get(0).standings().getFirst().points());
+        assertEquals(2, overview.sportStandings().get(1).standings().getFirst().points());
+        assertEquals(3, overview.sportStandings().get(0).scoring().winPoints());
+        assertEquals(2, overview.sportStandings().get(1).scoring().winPoints());
+        assertEquals(44L, overview.selectedSeasonId());
+    }
+
+    @Test
     void createsAnActiveSeasonWhenNoSeasonIsOpen() {
         Profile miguel = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder()
