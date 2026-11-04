@@ -25,6 +25,12 @@ final class CommunityRoundSport {
                         "A modalidade da jornada tem de pertencer às modalidades da comunidade"));
     }
 
+    /** Null denotes a historic community-wide season, which accepts every declared sport. */
+    static boolean belongsToSeason(String seasonSport, String roundSport) {
+        return seasonSport == null || seasonSport.isBlank()
+                || (roundSport != null && normalize(seasonSport).equals(normalize(roundSport)));
+    }
+
     private static String normalize(String sport) {
         return Normalizer.normalize(sport.trim(), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "")
