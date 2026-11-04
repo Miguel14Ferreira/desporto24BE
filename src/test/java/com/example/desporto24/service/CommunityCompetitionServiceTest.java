@@ -274,6 +274,43 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void teamSportsCanConfigureSeasonPointsBeforeRecordingAnyMatches() {
+        Profile owner = profile(1L, "owner", "Owner");
+        Community group = Community.builder().id(7L).owner(owner)
+                .sports(List.of("Futebol", "Futsal", "Karting", "Padel", "Surf"))
+                .rankingsEnabled(true).winPoints(3).drawPoints(1).lossPoints(0).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L)
+                .community(group).name("2026/27").active(true).build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(group));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(group, owner, CommunityRole.OWNER)));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrue(7L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
+                .thenReturn(List.of());
+        when(entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(44L))
+                .thenReturn(List.of());
+        when(sportPointsRuleRepository.findBySeasonId(44L)).thenReturn(List.of(
+                CommunitySportPointsRule.builder().season(season).sport("Futsal")
+                        .winPoints(2).drawPoints(1).lossPoints(0).build()));
+
+        var result = service.overview(7L, "owner", 44L);
+        assertEquals(List.of("Futebol", "Futsal"),
+                result.sportStandings().stream().map(g -> g.sport()).toList());
+        assertTrue(result.sportStandings().stream().allMatch(g -> g.standings().isEmpty()));
+        assertEquals(3, result.sportStandings().get(0).scoring().winPoints());
+        assertEquals(2, result.sportStandings().get(1).scoring().winPoints());
+        assertEquals(1, result.standings().size());
+        assertEquals(0, result.standings().getFirst().games());
+    }
+
+    @Test
     void createsAnActiveSeasonWhenNoSeasonIsOpen() {
         Profile miguel = profile(1L, "TMF14", "Miguel Ferreira");
         Community community = Community.builder()
