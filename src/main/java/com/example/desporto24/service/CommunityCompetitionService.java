@@ -1941,8 +1941,9 @@ public class CommunityCompetitionService {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
         }
-        if (sport == null || sport.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seleciona uma modalidade");
+        if (sport == null || !CommunityMatchPointsSport.supports(sport)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Esta modalidade utiliza outro modelo de classificação");
         }
         if (request.winPoints() < 0 || request.winPoints() > 1000
                 || request.drawPoints() < 0 || request.drawPoints() > 1000
