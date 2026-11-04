@@ -2146,12 +2146,16 @@ public class CommunityCompetitionService {
         // race season with a configured points table must not inherit football
         // W/D/L (or silently award a trophy for merely taking part).
         AcceptedAliases aliases = acceptedAliasProfiles(communityId);
-        List<CommunityStandingResponse> finalStandings = standings(community, seasonId, aliases);
+        List<CommunityStandingResponse> finalStandings = season.getSport() == null
+                || season.getSport().isBlank()
+                ? standings(community, seasonId, aliases)
+                : standings(community, aliases, standingEntries(communityId, seasonId),
+                        season.getSport());
         CommunityStandingResponse champion = !finalStandings.isEmpty()
                 && finalStandings.get(0).games() > 0
                 ? finalStandings.get(0) : null;
         CommunityRaceStandingResponse raceChampion = champion == null
-                ? raceChampionForSeason(community, seasonId, aliases) : null;
+                ? raceChampionForSeason(community, season, aliases) : null;
         season.setChampionUsername(champion != null ? champion.username()
                 : raceChampion == null ? null : raceChampion.username());
         season.setChampionDisplayName(champion != null ? champion.fullName()
@@ -2168,20 +2172,28 @@ public class CommunityCompetitionService {
     }
 
     /**
-     * The season trophy is global: infer a racing champion only for an explicitly
-     * single-sport community, never by choosing arbitrarily among several sports.
-     * Only recorded finish positions and an opted-in points schedule are eligible.
+     * Sport-tagged seasons use their own race results. Legacy shared seasons
+     * may award a race trophy only when the community has one distinct sport.
      * A shared first place remains unresolved rather than inventing a winner.
      */
     private CommunityRaceStandingResponse raceChampionForSeason(
-            Community community, Long seasonId, AcceptedAliases aliases) {
-        List<String> sports = community.getSports() != null && !community.getSports().isEmpty()
-                ? community.getSports()
-                : community.getSport() == null ? List.of() : List.of(community.getSport());
-        if (sports.size() != 1
-                || !CommunityTournamentRaceService.supportsRaceChampionship(sports.get(0)))
+            Community community, CommunitySeason season, AcceptedAliases aliases) {
+        String sport = season.getSport();
+        if (sport == null || sport.isBlank()) {
+            List<String> sports = community.getSports() != null && !community.getSports().isEmpty()
+                    ? community.getSports()
+                    : community.getSport() == null ? List.of() : List.of(community.getSport());
+            Set<String> distinct = new LinkedHashSet<>();
+            for (String item : sports) {
+                if (item != null && !item.isBlank()) distinct.add(normalizeStandingSport(item));
+            }
+            if (distinct.size() != 1) return null;
+            sport = sports.stream().filter(item -> item != null && !item.isBlank())
+                    .findFirst().orElse(null);
+        }
+        if (sport == null || !CommunityTournamentRaceService.supportsRaceChampionship(sport))
             return null;
-        String sport = sports.get(0);
+        Long seasonId = season.getId();
         List<CommunityRaceRuleResponse> scoring = raceRuleRepository.findBySeasonId(seasonId)
                 .stream().filter(rule -> sport.equalsIgnoreCase(rule.getSport()))
                 .map(rule -> new CommunityRaceRuleResponse(rule.getSport(),
