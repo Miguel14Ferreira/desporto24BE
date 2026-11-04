@@ -2455,12 +2455,25 @@ public class CommunityCompetitionService {
         }
         List<CommunitySportStandingGroupResponse> groups = new ArrayList<>();
         for (String sport : sports.values()) {
+            // Avoid recomputing a full leaderboard for modalities without W/D/L entries.
+            if (entries.stream().noneMatch(entry -> isSportStandingEntry(entry, community, sport))) continue;
             List<CommunityStandingResponse> rows = standings(
                     community, aliases, entries, sport).stream()
                     .filter(row -> row.games() > 0).toList();
             if (!rows.isEmpty()) groups.add(new CommunitySportStandingGroupResponse(sport, rows));
         }
         return groups;
+    }
+
+    private boolean isSportStandingEntry(
+            CommunityRoundEntry entry, Community community, String sport) {
+        String entrySport = sportOfEntry(entry, community);
+        if (entrySport == null || !normalizeStandingSport(sport).equals(
+                normalizeStandingSport(entrySport))) return false;
+        if (entry.getRound() == null) return false;
+        return !CommunityRoundEventType.isRaceEvent(sport, entry.getRound().getEventType())
+                && !CommunityRoundEventType.isNeutralEvent(sport, entry.getRound().getEventType())
+                && entry.getRound().getMatchFormat() == null;
     }
 
     private String sportOfEntry(CommunityRoundEntry entry, Community community) {
@@ -2515,16 +2528,7 @@ public class CommunityCompetitionService {
         }
 
         for (CommunityRoundEntry entry : sourceEntries) {
-            String entrySport = sportOfEntry(entry, community);
-            if (sportFilter != null && (entrySport == null
-                    || !normalizeStandingSport(sportFilter).equals(
-                            normalizeStandingSport(entrySport)))) continue;
-            // Historical single-sport rounds may have no explicit sport stored.
-            // Use the resolved discipline only for the NEW scoped groups,
-            // retaining the legacy global standings behavior unchanged.
-            if (sportFilter != null && entry.getRound() != null
-                    && (CommunityRoundEventType.isRaceEvent(sportFilter, entry.getRound().getEventType())
-                    || CommunityRoundEventType.isNeutralEvent(sportFilter, entry.getRound().getEventType()))) continue;
+            if (sportFilter != null && !isSportStandingEntry(entry, community, sportFilter)) continue;
             // Race results have positions/times, not football's 3-1-0 points.
             // Preserve historical rows but never award W/D/L leaderboard points
             // from race events. A separate race championship is a later feature.
