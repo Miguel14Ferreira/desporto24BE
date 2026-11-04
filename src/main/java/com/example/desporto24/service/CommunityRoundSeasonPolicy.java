@@ -14,8 +14,14 @@ final class CommunityRoundSeasonPolicy {
 
     static CommunitySeason validate(Long communityId, CommunitySeason season,
                                     String roundSport, boolean explicit) {
-        if (explicit) {
-            if (season == null || season.getCommunity() == null
+        if (explicit && season == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Época não encontrada nesta comunidade");
+        }
+        // Protect both explicit selections and legacy automatic attribution:
+        // an archived or foreign season must never receive a new round.
+        if (season != null) {
+            if (season.getCommunity() == null
                     || !communityId.equals(season.getCommunity().getId())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Época não encontrada nesta comunidade");
