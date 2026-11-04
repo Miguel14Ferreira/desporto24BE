@@ -111,6 +111,7 @@ public class CommunityCompetitionService {
                 .toList();
         List<CommunityRoundResponse> roundResponses = rounds.stream()
                 .map(round -> roundResponse(round, confirmedAliases)).toList();
+        List<CommunityRoundEntry> standingEntries = standingEntries(communityId, seasonId);
         return new CommunityCompetitionOverviewResponse(
                 settings(community),
                 seasonRepository.findByCommunityIdOrderByCreatedAtDesc(communityId)
@@ -120,9 +121,10 @@ public class CommunityCompetitionService {
                 seasonId,
                 activeSeasonId,
                 roundResponses,
-                standings(community, seasonId, confirmedAliases),
+                standings(community, confirmedAliases, standingEntries, null),
                 CommunityRacketStandings.calculate(roundResponses, racketRules),
-                CommunityRaceStandings.calculate(roundResponses, raceRules)
+                CommunityRaceStandings.calculate(roundResponses, raceRules),
+                standingsBySport(community, confirmedAliases, standingEntries)
         );
     }
 
@@ -2441,6 +2443,18 @@ public class CommunityCompetitionService {
 
     private List<CommunityStandingResponse> standings(Community community, Long seasonId,
                                                        AcceptedAliases aliases) {
+        return standings(community, aliases, standingEntries(community.getId(), seasonId), null);
+    }
+
+    private List<CommunityRoundEntry> standingEntries(Long communityId, Long seasonId) {
+        return seasonId == null
+                ? entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(communityId)
+                : entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(seasonId);
+    }
+
+    private List<CommunityStandingResponse> standings(
+            Community community, AcceptedAliases aliases,
+            List<CommunityRoundEntry> sourceEntries, String sportFilter) {
         Map<Long, Profile> linkedProfiles = aliases.profilesByHistoricalId();
         Map<String, StandingAccumulator> table = new LinkedHashMap<>();
         Set<Long> linkedProfileIds = new HashSet<>();
@@ -2457,11 +2471,8 @@ public class CommunityCompetitionService {
                     new StandingAccumulator(communityPlayer, profile, aliases.namesByProfileId().get(profile.getId())));
         }
 
-        List<CommunityRoundEntry> sourceEntries = seasonId == null
-                ? entryRepository.findByRoundCommunityIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(community.getId())
-                : entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(seasonId);
-
         for (CommunityRoundEntry entry : sourceEntries) {
+            if (sportFilter != null && !sportFilter.equals(sportOfEntry(entry, community))) continue;
             // Race results have positions/times, not football's 3-1-0 points.
             // Preserve historical rows but never award W/D/L leaderboard points
             // from race events. A separate race championship is a later feature.
