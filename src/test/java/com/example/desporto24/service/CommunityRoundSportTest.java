@@ -31,6 +31,16 @@ class CommunityRoundSportTest {
         assertNull(CommunityRoundSport.resolve(community, "  "));
         assertEquals("Surf", CommunityRoundSport.resolve(community, "surf"));
     }
+    @Test void sportTaggedSeasonsOnlyAcceptMatchingRounds() {
+        assertTrue(CommunityRoundSport.belongsToSeason("Ténis", "tenis"));
+        assertTrue(CommunityRoundSport.belongsToSeason("  FUTEBOL ", "Futebol"));
+        assertFalse(CommunityRoundSport.belongsToSeason("Ténis", "Padel"));
+        assertFalse(CommunityRoundSport.belongsToSeason("Karting", null));
+    }
+    @Test void legacySharedSeasonsContinueToAcceptAllDeclaredSports() {
+        assertTrue(CommunityRoundSport.belongsToSeason(null, "Padel"));
+        assertTrue(CommunityRoundSport.belongsToSeason(" ", "Futebol"));
+    }
     @Test void legacyCommunityPrimarySportStillWorks() {
         Community community = Community.builder().sport("Futebol").build();
         assertEquals("Futebol", CommunityRoundSport.resolve(community, null));
