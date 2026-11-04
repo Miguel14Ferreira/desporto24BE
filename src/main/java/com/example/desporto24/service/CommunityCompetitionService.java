@@ -94,9 +94,12 @@ public class CommunityCompetitionService {
             }
         }
 
-        Long activeSeasonId = seasonRepository.findByCommunityIdAndActiveTrue(communityId)
-                .map(CommunitySeason::getId)
-                .orElse(null);
+        // The legacy overview field can represent a single active season only.
+        // Multiple sport-specific seasons are returned in the seasons collection.
+        List<CommunitySeason> activeSeasons =
+                seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(communityId);
+        Long activeSeasonId = activeSeasons.size() == 1
+                ? activeSeasons.get(0).getId() : null;
 
         List<CommunityRound> rounds = seasonId == null
                 ? roundRepository.findByCommunityIdOrderByPlayedAtDescIdDesc(communityId)
