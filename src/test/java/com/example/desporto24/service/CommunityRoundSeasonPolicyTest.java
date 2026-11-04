@@ -42,6 +42,20 @@ class CommunityRoundSeasonPolicyTest {
     }
 
     @Test
+    void automaticSeasonAttributionNeverUsesForeignOrClosedSeasons() {
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.validate(
+                        7L, season(8L, "Futsal", true), "Futsal", false))
+                .getStatusCode());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.validate(
+                        7L, season(7L, "Futsal", false), "Futsal", false))
+                .getStatusCode());
+        var active = season(7L, "Futsal", true);
+        assertSame(active, CommunityRoundSeasonPolicy.validate(7L, active, "Futsal", false));
+    }
+
+    @Test
     void olderClientsCanStillCreateUnassignedRounds() {
         assertNull(CommunityRoundSeasonPolicy.validate(7L, null, "Futsal", false));
     }
