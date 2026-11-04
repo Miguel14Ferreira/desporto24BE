@@ -3,12 +3,17 @@ package com.example.desporto24.model.dto.community;
 import java.util.List;
 
 /**
- * W/D/L standings for one explicitly selected community sport.
- * In this initial contract scoring still uses the community's shared
- * win/draw/loss settings; do not mistake it for a per-sport ruleset.
+ * W/D/L standings for one identified community sport.
+ * Default scoring inherits the community's existing points; an explicit
+ * season-specific rule overrides it without changing legacy aggregates.
  */
 public record CommunitySportStandingGroupResponse(
         String sport,
-        List<CommunityStandingResponse> standings
+        List<CommunityStandingResponse> standings,
+        CommunitySportPointsRuleResponse scoring
 ) {
+    public CommunitySportStandingGroupResponse(
+            String sport, List<CommunityStandingResponse> standings) {
+        this(sport, standings, null);
+    }
 }
