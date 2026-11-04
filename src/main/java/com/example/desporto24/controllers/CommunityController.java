@@ -307,6 +307,15 @@ public class CommunityController {
                 id, roundId, entryId, authentication.getName(), request));
     }
 
+    @PutMapping("/{id}/seasons/{seasonId}/sport-points")
+    public ResponseEntity<CommunitySportPointsRuleResponse> updateSportPointsRule(
+            @PathVariable Long id, @PathVariable Long seasonId,
+            @RequestBody @Valid UpdateCommunitySportPointsRuleRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(competitionService.updateSportPointsRule(
+                id, seasonId, authentication.getName(), request));
+    }
+
     @PutMapping("/{id}/seasons/{seasonId}/racket-rules")
     public ResponseEntity<CommunityRacketRuleResponse> updateRacketRule(
             @PathVariable Long id, @PathVariable Long seasonId,
