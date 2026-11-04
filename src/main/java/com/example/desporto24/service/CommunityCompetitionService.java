@@ -2301,9 +2301,8 @@ public class CommunityCompetitionService {
                 .orElse(null);
         // A sport-tagged season must never collect a round of another sport.
         // Null preserves all existing community-wide seasons and older rounds.
-        if (activeSeason != null && activeSeason.getSport() != null
-                && (resolvedSport == null || !normalizeStandingSport(activeSeason.getSport())
-                        .equals(normalizeStandingSport(resolvedSport)))) {
+        if (activeSeason != null && !CommunityRoundSport.belongsToSeason(
+                activeSeason.getSport(), resolvedSport)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Esta época está associada a outra modalidade");
         }
