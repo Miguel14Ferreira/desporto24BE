@@ -56,6 +56,73 @@ class CommunityRaceStandingsTest {
         assertEquals(1, maria.wins());
     }
 
+    @Test void mixedCommunitySeparatesTennisKartingCyclingAndMeasuredAthletics() {
+        // A community may use the same identity across completely different sports.
+        // Race championship points must never be confused with Tennis sets,
+        // road time trials or measured athletics events.
+        var karting = race(301, "Karting",
+                driver(3011, 11, "Maria", 1, 0),
+                driver(3012, 22, "Ana", 2, 0));
+        var roadRace = new CommunityRoundResponse(302L, "Prova em linha",
+                Instant.parse("2026-10-20T18:00:00Z"),
+                List.of(driver(3021, 22, "Ana", 1, 0),
+                        driver(3022, 11, "Maria", 2, 0)),
+                "Ciclismo de Estrada", null, List.of(), "ROAD_RACE");
+        var timeTrial = new CommunityRoundResponse(303L, "Contrarrelógio",
+                Instant.parse("2026-10-21T18:00:00Z"),
+                List.of(driver(3031, 11, "Maria", 1, 0),
+                        driver(3032, 22, "Ana", 2, 0)),
+                "Ciclismo de Estrada", null, List.of(), "TIME_TRIAL");
+        var athletics = new CommunityRoundResponse(304L, "100 m",
+                Instant.parse("2026-10-22T18:00:00Z"),
+                List.of(driver(3041, 11, "Maria", 1, 0)),
+                "Atletismo", null, List.of(), "TRACK", "TRACK_100");
+        var tennis = new CommunityRoundResponse(305L, "Ténis singulares",
+                Instant.parse("2026-10-23T18:00:00Z"),
+                List.of(
+                        new CommunityRoundEntryResponse(11L, "maria", "Maria", null,
+                                "A", CommunityMatchResult.WIN, 0, 0, false, false),
+                        new CommunityRoundEntryResponse(22L, "ana", "Ana", null,
+                                "B", CommunityMatchResult.LOSS, 0, 0, false, false)),
+                "Ténis", "SINGLES",
+                List.of(new CommunitySetScore(6, 3), new CommunitySetScore(6, 4)));
+        var allRounds = List.of(karting, roadRace, timeTrial, athletics, tennis);
+        var scoring = List.of(
+                new CommunityRaceRuleResponse("Karting", List.of(25, 18)),
+                new CommunityRaceRuleResponse("Ciclismo de Estrada", List.of(10, 6)),
+                // Even an explicit race rule must not convert a timed
+                // athletics discipline into a generic race championship.
+                new CommunityRaceRuleResponse("Atletismo", List.of(30, 20)));
+        var raceGroups = CommunityRaceStandings.calculate(allRounds, scoring);
+        assertEquals(2, raceGroups.size());
+        assertEquals(List.of("Ciclismo de Estrada", "Karting"),
+                raceGroups.stream().map(CommunityRaceStandingGroupResponse::sport).toList());
+
+        var cycling = raceGroups.get(0).standings();
+        assertEquals(22L, cycling.get(0).playerId());
+        assertEquals(10, cycling.get(0).championshipPoints());
+        assertEquals(1, cycling.get(0).races());
+        assertEquals(11L, cycling.get(1).playerId());
+        assertEquals(6, cycling.get(1).championshipPoints());
+        assertEquals(1, cycling.get(1).races());
+
+        var kartingRows = raceGroups.get(1).standings();
+        assertEquals(11L, kartingRows.get(0).playerId());
+        assertEquals(25, kartingRows.get(0).championshipPoints());
+        assertEquals(22L, kartingRows.get(1).playerId());
+        assertEquals(18, kartingRows.get(1).championshipPoints());
+
+        var racketGroups = CommunityRacketStandings.calculate(allRounds);
+        assertEquals(1, racketGroups.size());
+        assertEquals("Ténis", racketGroups.get(0).sport());
+        assertEquals("SINGLES", racketGroups.get(0).matchFormat());
+        assertEquals(2, racketGroups.get(0).standings().size());
+        assertEquals(11L, racketGroups.get(0).standings().get(0).profileId());
+        assertEquals(2, racketGroups.get(0).standings().get(0).setsWon());
+        assertEquals(0, racketGroups.get(0).standings().get(0).setsLost());
+        assertNull(racketGroups.get(0).standings().get(0).championshipPoints());
+    }
+
     @Test void scoresNeverCrossSportsAndNoRuleNeverGeneratesPoints() {
         var rounds = List.of(
                 race(1, "Karting", driver(1, 11, "Mesmo nome", 1, 0)),
