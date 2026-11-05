@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import java.util.Set;
+import java.util.List;
 import java.text.Normalizer;
 import java.util.Locale;
 
@@ -24,6 +25,19 @@ final class CommunityMatchPointsSport {
 
     static boolean supports(String sport) {
         return sport != null && NORMALIZED_TEAM_SPORTS.contains(normalize(sport));
+    }
+
+    /**
+     * Legacy W/D/L standings are meaningful only for team-points sports.
+     * The modern per-sport/race/racket sections remain available independently.
+     * An unknown untagged historical community keeps legacy compatibility.
+     */
+    static boolean showLegacyMatchStandings(List<String> declaredSports, String selectedSeasonSport) {
+        if (selectedSeasonSport != null && !selectedSeasonSport.isBlank()) {
+            return supports(selectedSeasonSport);
+        }
+        if (declaredSports == null || declaredSports.isEmpty()) return true;
+        return declaredSports.stream().anyMatch(CommunityMatchPointsSport::supports);
     }
 
     private static String normalize(String sport) {
