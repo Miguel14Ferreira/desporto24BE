@@ -175,6 +175,41 @@ class CommunityTournamentTeamServiceTest {
     }
 
     @Test
+    void invitationCannotJoinTeamFromAnotherTournament() {
+        invitee();
+        draft();
+        var unrelatedTournament = CommunityTournament.builder().id(20L).build();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(
+                CommunityTournamentTeam.builder().id(10L).tournament(unrelatedTournament).build()));
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana"));
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        verifyNoInteractions(playerRepository);
+    }
+
+    @Test
+    void invitationCannotJoinAfterTournamentStarts() {
+        invitee();
+        teamTournament.setStatus(TournamentStatus.IN_PROGRESS);
+        draft();
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana"));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verifyNoInteractions(teamRepository, playerRepository);
+    }
+
+    @Test
+    void invitationCannotJoinAnIndividualTournament() {
+        invitee();
+        teamTournament.setEntryType(TournamentEntryType.INDIVIDUAL);
+        draft();
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana"));
+        assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
+        verifyNoInteractions(teamRepository, playerRepository);
+    }
+
+    @Test
     void invitationRequiresExistingCommunityMembership() {
         when(profileRepository.findUserByUsernameIgnoreCase("ana")).thenReturn(Optional.of(player));
         assertThrows(AccessDeniedException.class,
