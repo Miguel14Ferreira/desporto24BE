@@ -85,6 +85,7 @@ public class CommunityImportService {
         CommunitySeason season = communitySeasonRepository.findById(request.seasonId())
                 .filter(candidate -> candidate.getCommunity().getId().equals(communityId))
                 .orElseThrow(() -> new IllegalArgumentException("A época selecionada não pertence a esta comunidade"));
+        CommunityRoundSeasonPolicy.validateImport(communityId, season, request.sport());
 
         return new CommunityImportContextValidationResponse(
                 season.getId(),
@@ -645,6 +646,8 @@ public class CommunityImportService {
         // Serialize confirmations of this season without introducing a global
         // UNIQUE(date) constraint: multiple legitimate games may share a date.
         entityManager.lock(season, LockModeType.PESSIMISTIC_WRITE);
+        // Check again under the persistence lock immediately before writes.
+        CommunityRoundSeasonPolicy.validateImport(communityId, season, context.sport());
 
         java.util.Map<String, CommunityImportRoundsPlanResponse.RoundPlan> roundsBySource =
                 plan.rounds().stream().collect(java.util.stream.Collectors.toMap(
