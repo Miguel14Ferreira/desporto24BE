@@ -277,6 +277,46 @@ class CommunityCompetitionServiceTest {
     }
 
     @Test
+    void sportTaggedSeasonExcludesOtherSportsFromLegacyMatchTable() {
+        Profile owner = profile(1L, "owner", "Owner");
+        Community community = Community.builder().id(7L).owner(owner)
+                .sports(List.of("Futebol", "Futsal")).rankingsEnabled(true)
+                .winPoints(3).drawPoints(1).lossPoints(0).build();
+        CommunitySeason season = CommunitySeason.builder().id(44L).community(community)
+                .name("Futebol 2026/27").sport("Futebol").active(true).build();
+        CommunityRound footballRound = CommunityRound.builder()
+                .id(10L).community(community).season(season).sport("Futebol").build();
+        CommunityRound futsalRound = CommunityRound.builder()
+                .id(11L).community(community).season(season).sport("Futsal").build();
+        CommunityRoundEntry football = entry(owner, CommunityMatchResult.WIN, 2, 0, false, false);
+        football.setRound(footballRound);
+        CommunityRoundEntry futsal = entry(owner, CommunityMatchResult.WIN, 1, 0, false, false);
+        futsal.setRound(futsalRound);
+
+        when(profileRepository.findUserByUsernameIgnoreCase("owner"))
+                .thenReturn(Optional.of(owner));
+        when(communityRepository.findById(7L)).thenReturn(Optional.of(community));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(memberRepository.findByCommunityIdOrderByJoinedAtAsc(7L))
+                .thenReturn(List.of(membership(community, owner, CommunityRole.OWNER)));
+        when(seasonRepository.findById(44L)).thenReturn(Optional.of(season));
+        when(seasonRepository.findByCommunityIdAndActiveTrueOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
+        when(seasonRepository.findByCommunityIdOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(season));
+        when(roundRepository.findByCommunityIdAndSeasonIdOrderByPlayedAtDescIdDesc(7L, 44L))
+                .thenReturn(List.of());
+        when(entryRepository.findByRoundSeasonIdOrderByRoundPlayedAtAscRoundIdAscIdAsc(44L))
+                .thenReturn(List.of(football, futsal));
+
+        var overview = service.overview(7L, "owner", 44L);
+        assertEquals(1, overview.standings().getFirst().games());
+        assertEquals(3, overview.standings().getFirst().points());
+        assertEquals(List.of("Futebol"),
+                overview.sportStandings().stream().map(g -> g.sport()).toList());
+    }
+
+    @Test
     void teamSportsCanConfigureSeasonPointsBeforeRecordingAnyMatches() {
         Profile owner = profile(1L, "owner", "Owner");
         Community group = Community.builder().id(7L).owner(owner)
