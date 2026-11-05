@@ -93,6 +93,34 @@ class CommunityRoundSeasonPolicyTest {
     }
 
     @Test
+    void historicalImportMayUseClosedSportTaggedSeasonOnlyForMatchingSport() {
+        var community = Community.builder().id(7L)
+                .sports(java.util.List.of("Futebol", "Karting", "Ténis")).build();
+        var archived = CommunitySeason.builder().id(55L).community(community)
+                .sport("Ténis").active(false).build();
+        assertSame(archived, CommunityRoundSeasonPolicy.validateImport(7L, archived, "TENIS"));
+        assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.validateImport(7L, archived, "Karting"))
+                .getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
+                () -> CommunityRoundSeasonPolicy.validateImport(8L, archived, "Ténis"))
+                .getStatusCode());
+    }
+
+    @Test
+    void importPreservesLegacySharedSeasonsAndSingleSportRequestCompatibility() {
+        var single = Community.builder().id(7L).sport("Futebol").build();
+        var season = CommunitySeason.builder().community(single)
+                .sport("Futebol").active(false).build();
+        assertSame(season, CommunityRoundSeasonPolicy.validateImport(7L, season, null));
+        var shared = CommunitySeason.builder()
+                .community(Community.builder().id(7L)
+                        .sports(java.util.List.of("Futebol", "Karting")).build())
+                .sport(null).active(false).build();
+        assertSame(shared, CommunityRoundSeasonPolicy.validateImport(7L, shared, "Karting"));
+    }
+
+    @Test
     void olderClientsCanStillCreateUnassignedRounds() {
         assertNull(CommunityRoundSeasonPolicy.validate(7L, null, "Futsal", false));
     }
