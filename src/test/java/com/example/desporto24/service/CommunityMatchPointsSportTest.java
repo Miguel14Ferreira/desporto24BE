@@ -22,6 +22,31 @@ class CommunityMatchPointsSportTest {
     }
 
     @Test
+    void legacyApiOmitsFootballTableForKartingAndRaceOnlyCommunities() {
+        assertFalse(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Karting"), null));
+        assertFalse(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Karting", "Ciclismo de Estrada", "Atletismo"), null));
+        assertFalse(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Futebol", "Karting"), "Karting"));
+        assertFalse(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Futebol", "Ténis"), "Ténis"));
+    }
+
+    @Test
+    void legacyApiRetainsWdlForFootballAndMixedCommunityTeamSeasons() {
+        assertTrue(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Futebol"), null));
+        assertTrue(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Karting", "Futebol"), null));
+        assertTrue(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of("Karting", "Futebol"), "Futebol"));
+        assertTrue(CommunityMatchPointsSport.showLegacyMatchStandings(
+                java.util.List.of(), null));
+        assertTrue(CommunityMatchPointsSport.showLegacyMatchStandings(null, null));
+    }
+
+    @Test
     void neverOffersTeamPointsForIncompatibleResultFormats() {
         for (String sport : new String[] {
                 "Karting", "Ciclismo", "Natação", "Atletismo",
