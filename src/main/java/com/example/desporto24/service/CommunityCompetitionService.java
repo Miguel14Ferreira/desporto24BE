@@ -131,7 +131,10 @@ public class CommunityCompetitionService {
                 seasonId,
                 activeSeasonId,
                 roundResponses,
-                standings(community, confirmedAliases, standingEntries, null),
+                // Selected sport-tagged seasons must not expose the legacy
+                // aggregated match table for unrelated sports.
+                standings(community, confirmedAliases, standingEntries,
+                        selectedSeason == null ? null : selectedSeason.getSport()),
                 CommunityRacketStandings.calculate(roundResponses, racketRules),
                 CommunityRaceStandings.calculate(roundResponses, raceRules),
                 standingsBySport(community, confirmedAliases, standingEntries, sportPointsRules,
