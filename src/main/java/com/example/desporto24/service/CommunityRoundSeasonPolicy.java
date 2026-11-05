@@ -43,6 +43,31 @@ final class CommunityRoundSeasonPolicy {
                 "Não existe uma época ativa única para esta modalidade");
     }
 
+    /**
+     * Imports may legitimately target closed historical seasons. Unlike new
+     * rounds, only community ownership and sport compatibility are required.
+     * Reuse the community catalogue to resolve older single-sport requests.
+     */
+    static CommunitySeason validateImport(Long communityId, CommunitySeason season,
+                                           String requestedSport) {
+        if (season == null || season.getCommunity() == null
+                || !communityId.equals(season.getCommunity().getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Época não encontrada nesta comunidade");
+        }
+        String sport;
+        try {
+            sport = CommunityRoundSport.resolve(season.getCommunity(), requestedSport);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+        if (!CommunityRoundSport.belongsToSeason(season.getSport(), sport)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A modalidade da importação não corresponde à época selecionada");
+        }
+        return season;
+    }
+
     static CommunitySeason validate(Long communityId, CommunitySeason season,
                                     String roundSport, boolean explicit) {
         if (explicit && season == null) {
