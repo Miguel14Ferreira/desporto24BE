@@ -16,6 +16,17 @@ public interface CommunityTournamentSuspensionRepository extends JpaRepository<C
     long countActive(@Param("communityId") Long communityId,
                      @Param("profileId") Long profileId, @Param("now") Instant now);
 
+    /** One query for all currently suspended roster members, never one query per player. */
+    @Query("""
+            select s from CommunityTournamentSuspension s
+            where s.communityId = :communityId and s.targetProfileId in :profileIds
+              and s.startsAt <= :now and s.endsAt > :now and s.revokedAt is null
+            """)
+    List<CommunityTournamentSuspension> findActiveForProfiles(
+            @Param("communityId") Long communityId,
+            @Param("profileIds") List<Long> profileIds,
+            @Param("now") Instant now);
+
     List<CommunityTournamentSuspension> findTop100ByCommunityIdOrderByStartsAtDescIdDesc(Long communityId);
     List<CommunityTournamentSuspension> findTop100ByCommunityIdAndTargetProfileIdOrderByStartsAtDescIdDesc(
             Long communityId, Long targetProfileId);
