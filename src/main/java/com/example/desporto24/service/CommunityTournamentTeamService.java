@@ -37,6 +37,7 @@ public class CommunityTournamentTeamService {
     private final CommunityTournamentRepository tournamentRepository;
     private final CommunityTournamentTeamRepository teamRepository;
     private final CommunityTournamentTeamPlayerRepository playerRepository;
+    private final CommunityTournamentSuspensionService suspensionService;
 
     public CommunityTournamentTeamResponse createTeam(
             Long communityId, Long tournamentId, String username, String name) {
@@ -77,6 +78,7 @@ public class CommunityTournamentTeamService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Só podes incluir membros atuais desta comunidade");
         }
+        suspensionService.requireEligible(communityId, profileId);
         if (playerRepository.existsByTournamentIdAndProfileId(tournamentId, profileId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "O jogador já pertence a uma equipa desta competição");
@@ -106,6 +108,7 @@ public class CommunityTournamentTeamService {
         CommunityTournament tournament = lockedTeamTournament(communityId, tournamentId);
         requireDraft(tournament);
         CommunityTournamentTeam target = team(tournamentId, teamId);
+        suspensionService.requireEligible(communityId, player.getId());
 
         var existing = playerRepository.findByTournamentIdAndProfileId(tournamentId, player.getId());
         if (existing.isPresent()) {
