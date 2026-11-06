@@ -46,6 +46,14 @@ public class ProfileController extends ExceptionHandling {
         );
     }
 
+    @GetMapping("/me/mobile")
+    public ResponseEntity<ProfileDTO> getMyProfileForMobile(Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.findMyProfileForMobile(authentication.getName()),
+                OK
+        );
+    }
+
     @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProfileDTO> updateMyProfile(
             @RequestPart("profile") @Valid UpdateProfileRequest request,
