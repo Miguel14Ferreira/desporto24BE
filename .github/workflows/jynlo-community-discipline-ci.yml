@@ -31,6 +31,9 @@ on:
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentTeamServiceTest.java'
       - 'src/test/java/com/example/desporto24/controllers/CommunityTournamentIsolatedRoleHttpH2Test.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentEligibilityService.java'
+      - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentEligibilityController.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentEligibilityServiceTest.java'
   workflow_dispatch:
 permissions:
   contents: read
@@ -47,4 +50,4 @@ jobs:
       - name: Compile backend and test community warning permissions
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityDisciplineServiceTest,CommunityWarningAppealServiceTest,CommunityWarningAppealReviewServiceTest,CommunityTournamentSuspensionServiceTest,CommunityTournamentServiceTest,CommunityTournamentTeamServiceTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityDisciplineServiceTest,CommunityWarningAppealServiceTest,CommunityWarningAppealReviewServiceTest,CommunityTournamentSuspensionServiceTest,CommunityTournamentServiceTest,CommunityTournamentTeamServiceTest,CommunityTournamentEligibilityServiceTest test
