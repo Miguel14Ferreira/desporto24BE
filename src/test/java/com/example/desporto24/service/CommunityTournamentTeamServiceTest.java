@@ -369,4 +369,33 @@ class CommunityTournamentTeamServiceTest {
                 () -> service.deleteTeam(7L, 19L, 10L, "owner")).getStatusCode());
         verify(teamRepository, never()).delete(any());
     }
+    @Test
+    void suspendedMemberCannotBeAddedToTournamentTeamByManager() {
+        manager();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Suspenso"))
+                .when(suspensionService).requireEligible(7L, 2L);
+
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.assignPlayer(7L, 19L, 10L, "owner", 2L));
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(playerRepository, never()).save(any());
+    }
+
+    @Test
+    void suspendedMemberCannotJoinTeamViaInvite() {
+        invitee();
+        draft();
+        when(teamRepository.findById(10L)).thenReturn(Optional.of(team(10L, "Azul")));
+        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Suspenso"))
+                .when(suspensionService).requireEligible(7L, 2L);
+
+        var error = assertThrows(ResponseStatusException.class,
+                () -> service.joinInvitedTeam(7L, 19L, 10L, "ana"));
+        assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());
+        verify(playerRepository, never()).save(any());
+    }
+
 }
