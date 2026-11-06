@@ -30,6 +30,7 @@ on:
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentSuspensionServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentTeamServiceTest.java'
+      - 'src/test/java/com/example/desporto24/controllers/CommunityTournamentIsolatedRoleHttpH2Test.java'
   workflow_dispatch:
 permissions:
   contents: read
