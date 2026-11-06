@@ -1,0 +1,32 @@
+name: Push backend safety checks
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'src/main/java/com/example/desporto24/service/MobilePush*.java'
+      - 'src/main/java/com/example/desporto24/model/MobilePush*.java'
+      - 'src/main/java/com/example/desporto24/repository/MobilePush*.java'
+      - 'src/main/java/com/example/desporto24/configuration/JynloPushAsyncConfiguration.java'
+      - 'src/main/java/com/example/desporto24/service/impl/NotificationServiceImpl.java'
+      - 'src/test/java/com/example/desporto24/service/MobilePush*.java'
+      - 'src/main/resources/db/changelog/changes/*mobile-push*.yaml'
+      - '.github/workflows/push-backend-safety.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Compile backend and test mobile push paths
+        run: mvn -B -ntp -Dtest=MobilePushDeviceServiceTest,MobilePushDeliveryServiceTest,MobilePushReceiptPollerTest test
