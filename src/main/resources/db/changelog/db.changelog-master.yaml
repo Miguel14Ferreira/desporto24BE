@@ -313,3 +313,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-11-06-community-discipline-warnings.yaml
   - include:
       file: db/changelog/changes/2026-11-06-community-warning-appeals.yaml
+  - include:
+      file: db/changelog/changes/2026-11-06-community-warning-appeal-decisions.yaml
