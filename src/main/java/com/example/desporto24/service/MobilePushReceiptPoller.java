@@ -85,19 +85,18 @@ public class MobilePushReceiptPoller {
             }
             for(var item:due){
                 JsonNode receipt=results.path(item.getTicketId());
-                String status=receipt.path("status").asText("");
-                if("ok".equals(status)){
-                    receipts.delete(item);
-                } else if("error".equals(status)){
-                    if("DeviceNotRegistered".equals(receipt.path("details").path("error").asText())){
-                        // Never delete a re-registered device whose token has since rotated.
+                switch (MobilePushReceiptPolicy.classify(receipt)) {
+                    case CONFIRMED, FAILED -> receipts.delete(item);
+                    case REVOKE_DEVICE -> {
+                        // A rotated token must not be removed by an older receipt.
                         devices.findById(item.getDeviceId()).ifPresent(device -> {
                             if(fingerprint(device.getPushToken()).equals(item.getTokenHash()))
                                 devices.delete(device);
                         });
+                        receipts.delete(item);
                     }
-                    receipts.delete(item);
-                } else defer(List.of(item),now);
+                    case PENDING -> defer(List.of(item),now);
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
