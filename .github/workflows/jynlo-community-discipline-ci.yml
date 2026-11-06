@@ -21,6 +21,15 @@ on:
       - 'src/main/java/com/example/desporto24/service/CommunityWarningAppealReviewService.java'
       - 'src/main/resources/db/changelog/changes/2026-11-06-community-warning-appeal-decisions.yaml'
       - 'src/test/java/com/example/desporto24/service/CommunityWarningAppealReviewServiceTest.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentSuspensionService.java'
+      - 'src/main/java/com/example/desporto24/model/community/CommunityTournamentSuspension.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityTournamentSuspensionRepository.java'
+      - 'src/main/resources/db/changelog/changes/2026-11-06-community-tournament-suspensions.yaml'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentService.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityTournamentTeamService.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentSuspensionServiceTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentServiceTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityTournamentTeamServiceTest.java'
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,4 +46,4 @@ jobs:
       - name: Compile backend and test community warning permissions
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityDisciplineServiceTest,CommunityWarningAppealServiceTest,CommunityWarningAppealReviewServiceTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityDisciplineServiceTest,CommunityWarningAppealServiceTest,CommunityWarningAppealReviewServiceTest,CommunityTournamentSuspensionServiceTest,CommunityTournamentServiceTest,CommunityTournamentTeamServiceTest test
