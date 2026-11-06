@@ -35,6 +35,23 @@ class ProfileControllerTest {
     private ProfileController controller;
 
     @Test
+    void sportsCatalogMatchesExactlyBackendValidation() {
+        var response = controller.getSportsCatalog();
+
+        assertEquals(200, response.getStatusCode().value());
+        var sports = response.getBody();
+        org.junit.jupiter.api.Assertions.assertNotNull(sports);
+        assertEquals(com.example.desporto24.constant.SportsCatalog.ALLOWED.size(), sports.size());
+        org.junit.jupiter.api.Assertions.assertTrue(sports.contains("Karting"));
+        org.junit.jupiter.api.Assertions.assertTrue(sports.contains("Padel"));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                sports.stream().allMatch(sport ->
+                        com.example.desporto24.constant.SportsCatalog.isValidSelection(sport)));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                sports.stream().sorted().toList(), sports);
+    }
+
+    @Test
     void myProfileUsesAuthenticatedIdentity() {
         when(authentication.getName()).thenReturn("miguel");
         ProfileDTO profile = new ProfileDTO();

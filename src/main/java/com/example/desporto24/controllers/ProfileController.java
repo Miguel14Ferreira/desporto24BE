@@ -37,6 +37,18 @@ public class ProfileController extends ExceptionHandling {
     private final ProfileService profileService;
     private final AccountDeletionService accountDeletionService;
 
+    /**
+     * Single authoritative list for native profile sport selection.
+     * Values match the validation performed by SportsCatalog.isValidSelection.
+     */
+    @GetMapping("/sports-catalog")
+    public ResponseEntity<List<String>> getSportsCatalog() {
+        return new ResponseEntity<>(
+                com.example.desporto24.constant.SportsCatalog.ALLOWED.stream().sorted().toList(),
+                OK
+        );
+    }
+
     // User Profile Endpoints
     @GetMapping("/me")
     public ResponseEntity<ProfileDTO> getMyProfile(Authentication authentication) {
