@@ -71,6 +71,15 @@ public class MobilePushDeviceService {
         return new RegistrationStatus(true);
     }
 
+    @Transactional(readOnly = true)
+    public RegistrationStatus status(String actor,String rawId) {
+        String id=validId(rawId);
+        boolean owned=repository.findById(id)
+                .map(device->username(actor).equals(device.getUsername()))
+                .orElse(false);
+        return new RegistrationStatus(owned);
+    }
+
     @Transactional
     public void unregister(String actor,String rawId) {
         String deviceId=validId(rawId);
