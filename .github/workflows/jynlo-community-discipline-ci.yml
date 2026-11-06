@@ -11,6 +11,11 @@ on:
       - 'src/main/resources/db/changelog/changes/2026-11-06-community-discipline-warnings.yaml'
       - 'src/main/resources/db/changelog/db.changelog-master.yaml'
       - 'src/test/java/com/example/desporto24/service/CommunityDisciplineServiceTest.java'
+      - 'src/main/java/com/example/desporto24/service/CommunityWarningAppealService.java'
+      - 'src/main/java/com/example/desporto24/model/community/CommunityWarningAppeal.java'
+      - 'src/main/java/com/example/desporto24/repository/community/CommunityWarningAppealRepository.java'
+      - 'src/main/resources/db/changelog/changes/2026-11-06-community-warning-appeals.yaml'
+      - 'src/test/java/com/example/desporto24/service/CommunityWarningAppealServiceTest.java'
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,4 +32,4 @@ jobs:
       - name: Compile backend and test community warning permissions
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityDisciplineServiceTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityDisciplineServiceTest,CommunityWarningAppealServiceTest test
