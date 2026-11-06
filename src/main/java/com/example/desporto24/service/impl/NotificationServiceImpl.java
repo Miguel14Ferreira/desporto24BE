@@ -193,7 +193,8 @@ public class NotificationServiceImpl implements NotificationService {
         if (pushEvents != null) {
             pushEvents.publishEvent(new com.example.desporto24.service.MobilePushDeliveryService.StoredNotification(
                     saved.getUsername(), saved.getId(),
-                    com.example.desporto24.service.NotificationPreferencesService.category(saved), true));
+                    com.example.desporto24.service.NotificationPreferencesService.category(saved),
+                    saved.getSessionId(), saved.getCommunityId(), saved.getRelatedUsername(), true));
         }
     }
 
