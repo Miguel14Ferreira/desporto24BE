@@ -29,4 +29,4 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Compile backend and test mobile push paths
-        run: mvn -B -ntp -Dtest=MobilePushDeviceServiceTest,MobilePushDeliveryServiceTest,MobilePushReceiptPollerTest test
+        run: mvn -B -ntp -Dtest=MobilePushDeviceServiceTest,MobilePushDeliveryServiceTest,MobilePushReceiptPollerTest,MobilePushReceiptPolicyTest test
