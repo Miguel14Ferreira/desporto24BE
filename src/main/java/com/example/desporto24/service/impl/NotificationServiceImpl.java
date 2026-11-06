@@ -54,6 +54,9 @@ public class NotificationServiceImpl implements NotificationService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.example.desporto24.service.NotificationPreferencesService preferenceService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher pushEvents;
+
     @Value("${ui.app.url}")
     private String uiAppUrl;
 
@@ -182,9 +185,15 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void save(Notifications notifications) {
-        if (preferenceService == null
-                || preferenceService.allowsInApp(notifications.getUsername(), notifications)) {
-            notificationsRepository.save(notifications);
+        boolean allowed = preferenceService == null
+                || preferenceService.allowsInApp(notifications.getUsername(), notifications);
+        if (!allowed) return;
+        Notifications saved = notificationsRepository.save(notifications);
+        // Dispatch only once the enclosing DB transaction commits successfully.
+        if (pushEvents != null) {
+            pushEvents.publishEvent(new com.example.desporto24.service.MobilePushDeliveryService.StoredNotification(
+                    saved.getUsername(), saved.getId(),
+                    com.example.desporto24.service.NotificationPreferencesService.category(saved), true));
         }
     }
 
