@@ -81,7 +81,7 @@ public class MobilePushDeliveryService {
             JsonNode ticket = tickets.isArray() && !tickets.isEmpty() ? tickets.get(0) : tickets;
             if ("error".equals(ticket.path("status").asText())
                     && "DeviceNotRegistered".equals(ticket.path("details").path("error").asText())) {
-                devices.deleteByPushToken(token);
+                devices.findByPushToken(token).ifPresent(devices::delete);
             }
             // Expo receipt collection and permanent-error handling are a separate
             // required step before treating push delivery as production-ready.
