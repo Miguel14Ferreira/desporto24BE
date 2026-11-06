@@ -20,6 +20,7 @@ import java.util.List;
 public class CommunityDisciplineController {
     private final CommunityDisciplineService service;
     private final com.example.desporto24.service.CommunityWarningAppealService appealService;
+    private final com.example.desporto24.service.CommunityWarningAppealReviewService reviewService;
 
     public record IssueWarningRequest(@NotNull Long targetProfileId,
                                       @NotBlank @Size(max = 1000) String reason) {}
@@ -65,6 +66,31 @@ public class CommunityDisciplineController {
     public List<com.example.desporto24.service.CommunityWarningAppealService.AppealResponse> appeals(
             @PathVariable Long communityId, Authentication authentication) {
         return appealService.forManagers(communityId, authentication.getName());
+    }
+
+    public record DecideAppealRequest(
+            @NotNull com.example.desporto24.model.community.CommunityWarningAppealDecision.Outcome outcome,
+            @NotBlank @Size(max = 1000) String reason) {}
+
+    @PostMapping("/appeals/{appealId}/decision")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.example.desporto24.service.CommunityWarningAppealReviewService.DecisionResponse decideAppeal(
+            @PathVariable Long communityId, @PathVariable Long appealId,
+            @RequestBody @Valid DecideAppealRequest request, Authentication authentication) {
+        return reviewService.decide(communityId, appealId, authentication.getName(),
+                request.outcome(), request.reason());
+    }
+
+    @GetMapping("/appeals/decisions")
+    public List<com.example.desporto24.service.CommunityWarningAppealReviewService.DecisionResponse> appealDecisions(
+            @PathVariable Long communityId, Authentication authentication) {
+        return reviewService.forManagers(communityId, authentication.getName());
+    }
+
+    @GetMapping("/appeals/decisions/me")
+    public List<com.example.desporto24.service.CommunityWarningAppealReviewService.DecisionResponse> myAppealDecisions(
+            @PathVariable Long communityId, Authentication authentication) {
+        return reviewService.mine(communityId, authentication.getName());
     }
 
 }
