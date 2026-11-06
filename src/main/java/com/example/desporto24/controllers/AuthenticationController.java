@@ -247,6 +247,17 @@ public class AuthenticationController {
         return registerUser(request, photo, null);
     }
 
+    /**
+     * Native mobile signup uses the exact same validation and registration service
+     * as the website. No photo or browser cookies are required for initial signup.
+     */
+    @PostMapping(value = "/register/mobile", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<HttpResponse> registerMobileUser(
+            @RequestBody @Valid RegistrationRequest request) {
+        authenticationService.signUpProfile(request, null, null);
+        return buildResponse(NEW_USER_REGISTERED);
+    }
+
     @GetMapping("/register/confirm")
     public ResponseEntity<HttpResponse> confirmRegistration(@RequestParam String token) {
         authenticationService.confirmToken(token);

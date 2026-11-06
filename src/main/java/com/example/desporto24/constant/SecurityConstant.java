@@ -36,6 +36,7 @@ public final class SecurityConstant {
             "/api/auth/google/**",
             "/api/auth/refresh",
             "/api/auth/register",
+            "/api/auth/register/mobile",
             "/api/auth/register/confirm",
             "/api/auth/register/resend-confirmation",
             "/api/auth/reset-password/**",
