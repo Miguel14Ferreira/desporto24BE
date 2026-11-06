@@ -27,7 +27,7 @@ class MobilePushDeliveryServiceTest {
     void missingExpoCredentialFailsClosedEvenIfFlagEnabled() {
         ReflectionTestUtils.setField(sender,"enabled",true);
         ReflectionTestUtils.setField(sender,"accessToken","");
-        sender.afterCommit(new MobilePushDeliveryService.StoredNotification("player",42L,"CHAT",true));
+        sender.afterCommit(new MobilePushDeliveryService.StoredNotification("player",42L,"CHAT",null,null,null,true));
         verifyNoInteractions(devices,preferences);
     }
 
