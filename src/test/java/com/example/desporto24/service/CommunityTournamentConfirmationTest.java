@@ -36,6 +36,7 @@ class CommunityTournamentConfirmationTest {
     @Mock CommunityTournamentRepository tournaments;
     @Mock CommunityTournamentParticipantRepository participants;
     @Mock ProfileRepository profiles;
+    @Mock CommunityTournamentSuspensionService suspensionService;
     @InjectMocks CommunityTournamentService service;
 
     private final Profile organizer = profile(5L, "ana");

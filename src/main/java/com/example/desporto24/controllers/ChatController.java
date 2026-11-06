@@ -30,6 +30,27 @@ import static org.springframework.http.HttpStatus.OK;
 public class ChatController {
 
     private final ChatService chatService;
+    private final com.example.desporto24.Chat.ChatRepository chatRepository;
+
+    /** Lists existing direct conversations for the signed-in user. Never accepts an actor from client input.
+     * Chat access is rechecked for each candidate to avoid revealing blocked/removed friendships.
+     */
+    @GetMapping("/me/peers")
+    public List<String> myConversationPeers(Authentication authentication) {
+        String actor = authentication.getName();
+        return chatRepository.findConversationPeers(actor,
+                org.springframework.data.domain.PageRequest.of(0, 150))
+                .stream().filter(peer -> {
+                    try {
+                        chatService.getChatInfo(actor, peer);
+                        return true;
+                    } catch (org.springframework.security.access.AccessDeniedException
+                             | org.springframework.web.server.ResponseStatusException
+                             | com.example.desporto24.exception.ChatBlockedException exception) {
+                        return false;
+                    }
+                }).toList();
+    }
 
     @GetMapping("/me/{username}")
     public ResponseEntity<List<Chat>> getMyChat(

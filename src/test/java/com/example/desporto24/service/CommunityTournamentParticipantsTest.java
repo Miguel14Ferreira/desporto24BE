@@ -40,6 +40,7 @@ class CommunityTournamentParticipantsTest {
     @Mock CommunityTournamentRepository tournaments;
     @Mock CommunityTournamentParticipantRepository participants;
     @Mock ProfileRepository profiles;
+    @Mock CommunityTournamentSuspensionService suspensionService;
     @InjectMocks CommunityTournamentService service;
 
     private final Profile actor = profile(5L, "ana");
