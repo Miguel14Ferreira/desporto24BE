@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-06-mobile-push-receipts-v1
+      author: jynlo
+      comment: "Durably track Expo push tickets while awaiting receipt confirmation."
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: mobile_push_receipt
+            columns:
+              - column:
+                  name: ticket_id
+                  type: varchar(80)
+                  constraints: {primaryKey: true, nullable: false}
+              - column:
+                  name: device_id
+                  type: varchar(36)
+                  constraints: {nullable: false}
+              - column:
+                  name: token_hash
+                  type: varchar(64)
+                  constraints: {nullable: false}
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: {nullable: false}
+              - column:
+                  name: next_check_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: {nullable: false}
+              - column:
+                  name: attempts
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints: {nullable: false}
+        - createIndex:
+            schemaName: desporto24
+            tableName: mobile_push_receipt
+            indexName: ix_mobile_push_receipt_due
+            columns:
+              - column: {name: next_check_at}
