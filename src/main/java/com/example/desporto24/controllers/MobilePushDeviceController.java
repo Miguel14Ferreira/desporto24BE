@@ -20,6 +20,12 @@ public class MobilePushDeviceController {
         return devices.register(authentication.getName(), registration);
     }
 
+    @GetMapping("/{deviceId}")
+    public MobilePushDeviceService.RegistrationStatus status(
+            Authentication authentication,@PathVariable String deviceId) {
+        return devices.status(authentication.getName(),deviceId);
+    }
+
     @DeleteMapping("/{deviceId}")
     public ResponseEntity<Void> unregister(Authentication authentication,
                                            @PathVariable String deviceId) {
