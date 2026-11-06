@@ -142,7 +142,8 @@ class CommunityTournamentIsolatedRoleHttpH2Test {
                 joinRequests, profiles, mock(NotificationsRepository.class),
                 mock(ApplicationEventPublisher.class));
         var tournamentService = new CommunityTournamentService(
-                communities, members, tournaments, participants, matches, teamMatches, profiles);
+                communities, members, tournaments, participants, matches, teamMatches, profiles,
+                mock(com.example.desporto24.service.CommunityTournamentSuspensionService.class));
         var schedule = new CommunityTournamentScheduleService(
                 profiles, members, tournaments, participants, matches);
         var result = new CommunityTournamentResultService(
