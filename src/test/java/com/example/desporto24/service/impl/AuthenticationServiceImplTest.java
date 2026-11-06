@@ -442,7 +442,7 @@ class AuthenticationServiceImplTest {
         assertTrue(html.getValue().contains("Confirmar email / Confirm email"));
         assertTrue(html.getValue().contains("15 minutos"));
         assertTrue(html.getValue().contains("15 minutes"));
-        assertTrue(html.getValue().contains("https://example.test/?confirmRegistration="));
+        assertTrue(html.getValue().contains("https://example.test/login/registerNewUser/confirmTokenRegistration/"));
         assertTrue(html.getValue().contains("returnSessionId=42"));
     }
 
@@ -523,7 +523,7 @@ class AuthenticationServiceImplTest {
 
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
-        assertTrue(html.getValue().contains("confirmRegistration="));
+        assertTrue(html.getValue().contains("/login/registerNewUser/confirmTokenRegistration/"));
         assertFalse(html.getValue().contains("returnSessionId="));
     }
 
