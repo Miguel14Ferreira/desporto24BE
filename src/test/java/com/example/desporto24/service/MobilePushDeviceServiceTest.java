@@ -60,4 +60,17 @@ class MobilePushDeviceServiceTest {
         service.unregister("PLAYER",DEVICE);
         verify(repository).delete(previous);
     }
+    @Test
+    void statusNeverExposesDeviceFromAnotherAccount() {
+        var other=new MobilePushDevice();
+        other.setDeviceId(DEVICE);
+        other.setUsername("other");
+        other.setPushToken(TOKEN);
+        when(repository.findById(DEVICE)).thenReturn(Optional.of(other));
+        assertFalse(service.status("player",DEVICE).registered());
+        assertTrue(service.status("OTHER",DEVICE).registered());
+        assertThrows(ResponseStatusException.class,()->
+                service.status("player","invalid-id"));
+    }
+
 }
