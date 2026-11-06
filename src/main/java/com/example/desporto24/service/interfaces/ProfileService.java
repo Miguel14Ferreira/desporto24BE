@@ -14,6 +14,7 @@ import java.util.Optional;
 
 public interface ProfileService {
     ProfileDTO findUserByUsername(String username);
+    ProfileDTO findMyProfileForMobile(String username);
     PublicProfileResponse findPublicProfile(String username);
     PublicProfileResponse findPublicProfile(String actorUsername, String username);
     ProfileDTO findUserByEmail(String email);

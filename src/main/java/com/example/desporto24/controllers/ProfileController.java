@@ -46,9 +46,31 @@ public class ProfileController extends ExceptionHandling {
         );
     }
 
+    @GetMapping("/me/mobile")
+    public ResponseEntity<ProfileDTO> getMyProfileForMobile(Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.findMyProfileForMobile(authentication.getName()),
+                OK
+        );
+    }
+
     @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ProfileDTO> updateMyProfile(
             @RequestPart("profile") @Valid UpdateProfileRequest request,
+            Authentication authentication) {
+        return new ResponseEntity<>(
+                profileService.updateMyProfile(authentication.getName(), request),
+                OK
+        );
+    }
+
+    /**
+     * Mobile clients send JSON without multipart encoding. Reuse the exact same
+     * validation and authenticated profile service as the website.
+     */
+    @PutMapping(value = "/me", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProfileDTO> updateMyProfileJson(
+            @RequestBody @Valid UpdateProfileRequest request,
             Authentication authentication) {
         return new ResponseEntity<>(
                 profileService.updateMyProfile(authentication.getName(), request),
