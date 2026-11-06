@@ -26,10 +26,26 @@ class ChatControllerTest {
     private ChatService chatService;
 
     @Mock
+    private com.example.desporto24.Chat.ChatRepository chatRepository;
+
+    @Mock
     private Authentication authentication;
 
     @InjectMocks
     private ChatController controller;
+
+    @Test
+    void ownConversationPeersAreFilteredThroughFriendshipAuthorization() {
+        when(authentication.getName()).thenReturn("miguel");
+        when(chatRepository.findConversationPeers(
+                org.mockito.ArgumentMatchers.eq("miguel"),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of("ana", "bloqueado"));
+        when(chatService.getChatInfo("miguel", "ana")).thenReturn(new Friend());
+        when(chatService.getChatInfo("miguel", "bloqueado")).thenThrow(
+                new org.springframework.security.access.AccessDeniedException("Not a friend"));
+        assertEquals(List.of("ana"), controller.myConversationPeers(authentication));
+    }
 
     @Test
     void legacyChatHistoryCannotChooseUnrelatedParticipants() {
