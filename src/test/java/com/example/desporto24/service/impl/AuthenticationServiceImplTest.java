@@ -442,8 +442,29 @@ class AuthenticationServiceImplTest {
         assertTrue(html.getValue().contains("Confirmar email / Confirm email"));
         assertTrue(html.getValue().contains("15 minutos"));
         assertTrue(html.getValue().contains("15 minutes"));
-        assertTrue(html.getValue().contains("https://example.test/login/registerNewUser/confirmTokenRegistration/"));
+        assertTrue(html.getValue().contains("https://example.test/?confirmRegistration="));
         assertTrue(html.getValue().contains("returnSessionId=42"));
+    }
+
+    @Test
+    void regularConfirmationUsesVerifiedNativeAppLinkPathWithoutChangingInvitationFlows() {
+        Profile pending = new Profile();
+        pending.setUsername(TEST_USERNAME);
+        pending.setEnabled(false);
+        ProfileDTO dto = new ProfileDTO();
+        dto.setUsername(TEST_USERNAME);
+        dto.setEmail("fixture@example.test");
+        when(profileRepository.findUserByUsernameIgnoreCase(TEST_USERNAME))
+                .thenReturn(Optional.of(pending));
+        when(profileMapper.toDto(pending)).thenReturn(dto);
+
+        service().resendRegistrationConfirmation(TEST_USERNAME);
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).send(eq("fixture@example.test"), anyString(), html.capture());
+        assertTrue(html.getValue().contains("https://example.test/login/registerNewUser/confirmTokenRegistration/"));
+        assertFalse(html.getValue().contains("returnSessionId="));
+        assertFalse(html.getValue().contains("returnCommunityId="));
     }
 
     @Test
