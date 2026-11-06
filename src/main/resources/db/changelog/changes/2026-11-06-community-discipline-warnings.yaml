@@ -1,0 +1,70 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-06-community-discipline-warnings
+      author: jynlo
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: community_disciplinary_warning
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: community_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: issued_by_profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reason
+                  type: VARCHAR(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: desporto24
+            baseTableName: community_disciplinary_warning
+            baseColumnNames: community_id
+            referencedTableSchemaName: desporto24
+            referencedTableName: community
+            referencedColumnNames: id
+            constraintName: fk_community_warning_community
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_disciplinary_warning
+            indexName: idx_community_warning_recent
+            columns:
+              - column:
+                  name: community_id
+              - column:
+                  name: created_at
+        - createIndex:
+            schemaName: desporto24
+            tableName: community_disciplinary_warning
+            indexName: idx_community_warning_person
+            columns:
+              - column:
+                  name: community_id
+              - column:
+                  name: target_profile_id
+              - column:
+                  name: created_at
