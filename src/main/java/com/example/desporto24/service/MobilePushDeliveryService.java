@@ -27,6 +27,7 @@ public class MobilePushDeliveryService {
     private static final URI EXPO_SEND = URI.create("https://exp.host/--/api/v2/push/send");
     private final MobilePushDeviceRepository devices;
     private final NotificationPreferencesService preferences;
+    private final ConversationNotificationMuteService mutes;
     private final ObjectMapper json;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(3)).build();
@@ -37,7 +38,8 @@ public class MobilePushDeliveryService {
     private String accessToken;
 
     public record StoredNotification(String username, Long notificationId,
-                                      String category, boolean permitted) {}
+            String category, Long sessionId, Long communityId, String relatedUsername,
+            boolean permitted) {}
 
     /**
      * No delivery on transaction rollback. Notifications are only a cue to reopen
@@ -52,6 +54,21 @@ public class MobilePushDeliveryService {
         // Re-evaluate account preferences at delivery time.
         var rules = preferences.get(account);
         if (!rules.inAppEnabled() || rules.disabledInAppTypes().contains(event.category())) return;
+        if ("CHAT_MESSAGE".equals(event.category())) {
+            // A chat push without a trustworthy conversation reference cannot
+            // be checked against per-conversation mutes: fail closed.
+            String kind;
+            String key;
+            if (event.sessionId()!=null && event.sessionId()>0) {
+                kind="session"; key=event.sessionId().toString();
+            } else if (event.communityId()!=null && event.communityId()>0) {
+                kind="community"; key=event.communityId().toString();
+            } else if (event.relatedUsername()!=null
+                    && event.relatedUsername().toLowerCase(Locale.ROOT).matches("[a-z0-9._-]{1,128}")) {
+                kind="direct"; key=event.relatedUsername().toLowerCase(Locale.ROOT);
+            } else return;
+            if (mutes.muted(account,kind,key)) return;
+        }
         List<com.example.desporto24.model.MobilePushDevice> recipients =
                 devices.findTop20ByUsernameOrderByUpdatedAtDesc(account);
         for (var device : recipients) {
