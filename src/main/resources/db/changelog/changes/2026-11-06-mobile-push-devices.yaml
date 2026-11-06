@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2026-11-06-mobile-push-devices-v1
+      author: jynlo
+      comment: "Authenticated, revocable device registrations. This does not enable sending push notifications."
+      changes:
+        - createTable:
+            schemaName: desporto24
+            tableName: mobile_push_device
+            columns:
+              - column:
+                  name: device_id
+                  type: varchar(36)
+                  constraints: {primaryKey: true, nullable: false}
+              - column:
+                  name: username
+                  type: varchar(128)
+                  constraints: {nullable: false}
+              - column:
+                  name: push_token
+                  type: varchar(240)
+                  constraints: {nullable: false}
+              - column:
+                  name: platform
+                  type: varchar(16)
+                  constraints: {nullable: false}
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: {nullable: false}
+        - addUniqueConstraint:
+            schemaName: desporto24
+            tableName: mobile_push_device
+            columnNames: push_token
+            constraintName: uq_mobile_push_token
+        - createIndex:
+            schemaName: desporto24
+            tableName: mobile_push_device
+            indexName: ix_mobile_push_device_username
+            columns:
+              - column: {name: username}
