@@ -50,6 +50,7 @@ public class CommunityTournamentService {
     private final CommunityTournamentMatchRepository matchRepository;
     private final CommunityTournamentTeamMatchRepository teamMatchRepository;
     private final ProfileRepository profileRepository;
+    private final CommunityTournamentSuspensionService suspensionService;
 
     public CommunityTournamentResponse create(Long communityId, String username,
                                                CreateCommunityTournamentRequest request) {
@@ -352,6 +353,7 @@ public class CommunityTournamentService {
         requireMember(communityId, actor);
         CommunityTournament tournament = tournament(communityId, tournamentId);
         requireDraft(tournament);
+        suspensionService.requireEligible(communityId, actor.getId());
         return participantRepository.findByTournamentIdAndProfileId(tournamentId, actor.getId())
                 .map(this::participantResponse)
                 .orElseGet(() -> participantResponse(participantRepository.save(
@@ -386,6 +388,7 @@ public class CommunityTournamentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "O jogador já não pertence à comunidade");
         }
+        suspensionService.requireEligible(communityId, profileId);
         if (enrollment.getStatus() == TournamentParticipantStatus.CONFIRMED) {
             return participantResponse(enrollment);
         }
