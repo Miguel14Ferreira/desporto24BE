@@ -154,6 +154,26 @@ class ProfileControllerTest {
     }
 
     @Test
+    void nativeJsonProfileUpdateReusesAuthenticatedWebValidationAndService() {
+        when(authentication.getName()).thenReturn("miguel");
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                "Miguel Ferreira", "Miguel", "1990-01-01",
+                "Rua Teste", "Portugal", "Lisboa", "1000-000",
+                "351", "912345678", "masculino", "miguel@example.com",
+                "Padel", false
+        );
+        ProfileDTO updated = new ProfileDTO();
+        updated.setUsername("miguel");
+        when(profileService.updateMyProfile("miguel", request)).thenReturn(updated);
+
+        var response = controller.updateMyProfileJson(request, authentication);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("miguel", response.getBody().getUsername());
+        verify(profileService).updateMyProfile("miguel", request);
+    }
+
+    @Test
     void deleteMyAccountUsesAuthenticatedIdentityAndClearsRefreshCookie() {
         when(authentication.getName()).thenReturn("miguel");
 
