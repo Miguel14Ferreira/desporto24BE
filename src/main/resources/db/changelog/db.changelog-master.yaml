@@ -309,3 +309,5 @@ databaseChangeLog:
       file: db/changelog/changes/2026-11-04-community-sport-points-rule.yaml
   - include:
       file: db/changelog/changes/2026-11-04-community-season-sport.yaml
+  - include:
+      file: db/changelog/changes/2026-11-06-community-discipline-warnings.yaml
