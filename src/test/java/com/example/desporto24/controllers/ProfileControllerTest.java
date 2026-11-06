@@ -154,6 +154,23 @@ class ProfileControllerTest {
     }
 
     @Test
+    void nativeEditorReadsAuthenticatedProfileUsingDecryptedContactContract() {
+        when(authentication.getName()).thenReturn("miguel");
+        ProfileDTO profile = new ProfileDTO();
+        profile.setUsername("miguel");
+        profile.setAddress("Rua Teste");
+        profile.setPhone("912345678");
+        when(profileService.findMyProfileForMobile("miguel")).thenReturn(profile);
+
+        var response = controller.getMyProfileForMobile(authentication);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("Rua Teste", response.getBody().getAddress());
+        assertEquals("912345678", response.getBody().getPhone());
+        verify(profileService).findMyProfileForMobile("miguel");
+    }
+
+    @Test
     void nativeJsonProfileUpdateReusesAuthenticatedWebValidationAndService() {
         when(authentication.getName()).thenReturn("miguel");
         UpdateProfileRequest request = new UpdateProfileRequest(
