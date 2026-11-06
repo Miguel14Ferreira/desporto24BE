@@ -546,11 +546,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         confirmationTokenService.saveConfirmationToken(confirmationToken);
 
         String link = uiAppUrl.replaceAll("/+$", "")
-                + "/?confirmRegistration=" + token
+                + "/login/registerNewUser/confirmTokenRegistration/" + token
                 + (returnSessionId != null && returnSessionId > 0
-                        ? "&returnSessionId=" + returnSessionId
+                        ? "?returnSessionId=" + returnSessionId
                         : returnCommunityId != null && returnCommunityId > 0
-                            ? "&returnCommunityId=" + returnCommunityId
+                            ? "?returnCommunityId=" + returnCommunityId
                             : "");
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
         emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Jynlo",
