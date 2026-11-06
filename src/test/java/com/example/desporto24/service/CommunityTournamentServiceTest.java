@@ -47,6 +47,7 @@ class CommunityTournamentServiceTest {
     @Mock private CommunityTournamentParticipantRepository participantRepository;
     @Mock private CommunityTournamentMatchRepository matchRepository;
     @Mock private ProfileRepository profileRepository;
+    @Mock private CommunityTournamentSuspensionService suspensionService;
     @InjectMocks private CommunityTournamentService service;
 
     private final Profile owner = ownerProfile();
