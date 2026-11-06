@@ -2,6 +2,7 @@ package com.example.desporto24.service;
 
 import com.example.desporto24.model.dto.NotificationPreferencesRequest;
 import com.example.desporto24.repository.MobilePushDeviceRepository;
+import com.example.desporto24.repository.MobilePushReceiptRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -10,10 +11,11 @@ import static org.mockito.Mockito.*;
 
 class MobilePushDeliveryServiceTest {
     private final MobilePushDeviceRepository devices=mock(MobilePushDeviceRepository.class);
+    private final MobilePushReceiptRepository receipts=mock(MobilePushReceiptRepository.class);
     private final NotificationPreferencesService preferences=mock(NotificationPreferencesService.class);
     private final ConversationNotificationMuteService mutes=mock(ConversationNotificationMuteService.class);
     private final MobilePushDeliveryService sender=
-            new MobilePushDeliveryService(devices,preferences,mutes,new ObjectMapper());
+            new MobilePushDeliveryService(devices,receipts,preferences,mutes,new ObjectMapper());
 
     @Test
     void disabledByDefaultNeverLooksUpDeviceTokens() {
