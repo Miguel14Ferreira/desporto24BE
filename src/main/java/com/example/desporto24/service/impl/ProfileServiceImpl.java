@@ -72,6 +72,20 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public ProfileDTO findMyProfileForMobile(String username) {
+        Profile profile = profileRepository.findUserByUsername(username)
+                .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
+        ProfileDTO dto = profileMapper.toDto(profile);
+        // The existing GET /me contract is unchanged for older clients.
+        // Only the authenticated mobile editor receives decrypted edit values.
+        dto.setAddress(profile.getAddress() == null ? null
+                : AES.decryptString(profile.getAddress(), profile.getUserId()));
+        dto.setPhone(profile.getPhone() == null ? null
+                : AES.decryptString(profile.getPhone(), profile.getUserId()));
+        return dto;
+    }
+
+    @Override
     public PublicProfileResponse findPublicProfile(String username) {
         Profile profile = profileRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(NO_USER_FOUND_BY_USERNAME));
