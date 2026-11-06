@@ -21,6 +21,7 @@ public class CommunityDisciplineController {
     private final CommunityDisciplineService service;
     private final com.example.desporto24.service.CommunityWarningAppealService appealService;
     private final com.example.desporto24.service.CommunityWarningAppealReviewService reviewService;
+    private final com.example.desporto24.service.CommunityTournamentSuspensionService suspensionService;
 
     public record IssueWarningRequest(@NotNull Long targetProfileId,
                                       @NotBlank @Size(max = 1000) String reason) {}
@@ -93,4 +94,38 @@ public class CommunityDisciplineController {
         return reviewService.mine(communityId, authentication.getName());
     }
 
+    public record IssueTournamentSuspensionRequest(
+            @NotNull Long targetProfileId,
+            @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(30) int days,
+            @NotBlank @Size(max = 1000) String reason) {}
+
+    @PostMapping("/tournament-suspensions")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.example.desporto24.service.CommunityTournamentSuspensionService.SuspensionResponse suspendTournaments(
+            @PathVariable Long communityId,
+            @RequestBody @Valid IssueTournamentSuspensionRequest request, Authentication authentication) {
+        return suspensionService.issue(communityId, authentication.getName(),
+                request.targetProfileId(), request.days(), request.reason());
+    }
+
+    @GetMapping("/tournament-suspensions")
+    public List<com.example.desporto24.service.CommunityTournamentSuspensionService.SuspensionResponse> tournamentSuspensions(
+            @PathVariable Long communityId, Authentication authentication) {
+        return suspensionService.forManagers(communityId, authentication.getName());
+    }
+
+    @GetMapping("/tournament-suspensions/me")
+    public List<com.example.desporto24.service.CommunityTournamentSuspensionService.SuspensionResponse> myTournamentSuspensions(
+            @PathVariable Long communityId, Authentication authentication) {
+        return suspensionService.mine(communityId, authentication.getName());
+    }
+
+    public record LiftTournamentSuspensionRequest(@NotBlank @Size(max = 1000) String reason) {}
+
+    @PostMapping("/tournament-suspensions/{suspensionId}/lift")
+    public com.example.desporto24.service.CommunityTournamentSuspensionService.SuspensionResponse liftTournamentSuspension(
+            @PathVariable Long communityId, @PathVariable Long suspensionId,
+            @RequestBody @Valid LiftTournamentSuspensionRequest request, Authentication authentication) {
+        return suspensionService.revoke(communityId, suspensionId, authentication.getName(), request.reason());
+    }
 }
