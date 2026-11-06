@@ -26,6 +26,7 @@ import java.util.Map;
 public class MobilePushDeliveryService {
     private static final URI EXPO_SEND = URI.create("https://exp.host/--/api/v2/push/send");
     private final MobilePushDeviceRepository devices;
+    private final com.example.desporto24.repository.MobilePushReceiptRepository receipts;
     private final NotificationPreferencesService preferences;
     private final ConversationNotificationMuteService mutes;
     private final ObjectMapper json;
@@ -73,11 +74,11 @@ public class MobilePushDeliveryService {
                 devices.findTop20ByUsernameOrderByUpdatedAtDesc(account);
         for (var device : recipients) {
             if (!account.equals(device.getUsername())) continue;
-            deliver(device.getPushToken(), event.notificationId());
+            deliver(device.getDeviceId(),device.getPushToken(), event.notificationId());
         }
     }
 
-    private void deliver(String token, Long notificationId) {
+    private void deliver(String deviceId,String token, Long notificationId) {
         try {
             byte[] body = json.writeValueAsBytes(Map.of(
                     "to", token,
@@ -96,6 +97,19 @@ public class MobilePushDeliveryService {
             if (response.statusCode() != 200) return;
             JsonNode tickets = json.readTree(response.body()).path("data");
             JsonNode ticket = tickets.isArray() && !tickets.isEmpty() ? tickets.get(0) : tickets;
+            if ("ok".equals(ticket.path("status").asText())) {
+                String ticketId=ticket.path("id").asText("");
+                if(ticketId.matches("[A-Za-z0-9_-]{8,80}")) {
+                    var pending=new com.example.desporto24.model.MobilePushReceipt();
+                    pending.setTicketId(ticketId);
+                    pending.setDeviceId(deviceId);
+                    pending.setTokenHash(com.example.desporto24.service.MobilePushReceiptPoller.fingerprint(token));
+                    pending.setCreatedAt(java.time.Instant.now());
+                    pending.setNextCheckAt(pending.getCreatedAt().plus(java.time.Duration.ofMinutes(15)));
+                    pending.setAttempts(0);
+                    receipts.save(pending);
+                }
+            }
             if ("error".equals(ticket.path("status").asText())
                     && "DeviceNotRegistered".equals(ticket.path("details").path("error").asText())) {
                 devices.findByPushToken(token).ifPresent(devices::delete);
