@@ -134,6 +134,19 @@ class AuthenticationControllerTest {
     }
 
     @Test
+    void mobileRegistrationUsesSameValidatedServiceWithoutPhoto() {
+        RegistrationRequest request = new RegistrationRequest(
+                "jynlotest", "safe-password-123", null, "1995-06-20",
+                "Portugal", null, null, null, "mobile@example.com", true
+        );
+
+        var response = controller.registerMobileUser(request);
+
+        assertEquals(OK, response.getStatusCode());
+        verify(authenticationService).signUpProfile(request, null, null);
+    }
+
+    @Test
     void resendConfirmationForwardsOptionalSessionDestination() {
         var response = controller.resendRegistrationConfirmation("miguel", 42L);
 
