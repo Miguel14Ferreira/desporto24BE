@@ -87,5 +87,15 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
     int redactRepliesToDeleted(@Param("messageId") Long messageId,
                                @Param("replacement") String replacement);
 
+    /** Enumerate only peers from the authenticated actor's own conversations. */
+    @Query("""
+        select distinct case when lower(c.username1) = lower(:username)
+            then c.username2 else c.username1 end
+        from Chat c
+        where lower(c.username1) = lower(:username)
+           or lower(c.username2) = lower(:username)
+        """)
+    List<String> findConversationPeers(@Param("username") String username, Pageable page);
+
     long deleteByUsername1OrUsername2(String username1, String username2);
 }
