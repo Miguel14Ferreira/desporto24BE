@@ -19,6 +19,7 @@ import java.util.List;
 @PreAuthorize("isAuthenticated()")
 public class CommunityDisciplineController {
     private final CommunityDisciplineService service;
+    private final com.example.desporto24.service.CommunityWarningAppealService appealService;
 
     public record IssueWarningRequest(@NotNull Long targetProfileId,
                                       @NotBlank @Size(max = 1000) String reason) {}
@@ -44,4 +45,26 @@ public class CommunityDisciplineController {
             @PathVariable Long communityId, Authentication authentication) {
         return service.mine(communityId, authentication.getName());
     }
+    public record SubmitAppealRequest(@NotBlank @Size(max = 2000) String statement) {}
+
+    @PostMapping("/warnings/{warningId}/appeal")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.example.desporto24.service.CommunityWarningAppealService.AppealResponse submitAppeal(
+            @PathVariable Long communityId, @PathVariable Long warningId,
+            @RequestBody @Valid SubmitAppealRequest request, Authentication authentication) {
+        return appealService.submit(communityId, warningId, authentication.getName(), request.statement());
+    }
+
+    @GetMapping("/appeals/me")
+    public List<com.example.desporto24.service.CommunityWarningAppealService.AppealResponse> myAppeals(
+            @PathVariable Long communityId, Authentication authentication) {
+        return appealService.mine(communityId, authentication.getName());
+    }
+
+    @GetMapping("/appeals")
+    public List<com.example.desporto24.service.CommunityWarningAppealService.AppealResponse> appeals(
+            @PathVariable Long communityId, Authentication authentication) {
+        return appealService.forManagers(communityId, authentication.getName());
+    }
+
 }
