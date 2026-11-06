@@ -545,13 +545,17 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         );
         confirmationTokenService.saveConfirmationToken(confirmationToken);
 
+        // Invitation redirects still rely on the website's existing return-flow handler.
+        // Only ordinary registrations use the path recognized by verified Android App Links.
+        boolean inviteReturn = (returnSessionId != null && returnSessionId > 0)
+                || (returnCommunityId != null && returnCommunityId > 0);
         String link = uiAppUrl.replaceAll("/+$", "")
-                + "/login/registerNewUser/confirmTokenRegistration/" + token
-                + (returnSessionId != null && returnSessionId > 0
-                        ? "?returnSessionId=" + returnSessionId
-                        : returnCommunityId != null && returnCommunityId > 0
-                            ? "?returnCommunityId=" + returnCommunityId
-                            : "");
+                + (inviteReturn
+                    ? "/?confirmRegistration=" + token
+                        + (returnSessionId != null && returnSessionId > 0
+                            ? "&returnSessionId=" + returnSessionId
+                            : "&returnCommunityId=" + returnCommunityId)
+                    : "/login/registerNewUser/confirmTokenRegistration/" + token);
         log.info("Registration confirmation link created for {}", profileDTO.getUsername());
         emailService.send(profileDTO.getEmail(), "Confirma o teu email | Confirm your email — Jynlo",
                 buildRegistrationEmail(profileDTO.getUsername(), link));
