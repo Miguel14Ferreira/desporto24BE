@@ -815,4 +815,52 @@ class CommunityTournamentServiceTest {
         assertThrows(ResponseStatusException.class, () -> service.list(7L, "owner", -1));
         verifyNoInteractions(tournamentRepository, memberRepository, communityRepository, profileRepository);
     }
+    @Test
+    void suspendedPlayerCannotJoinIndividualTournamentEvenByRepeatedEnrollment() {
+        var draft = CommunityTournament.builder().id(19L).community(community)
+                .entryType(TournamentEntryType.INDIVIDUAL).status(TournamentStatus.DRAFT).build();
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 1L)).thenReturn(true);
+        when(tournamentRepository.findByIdForUpdate(19L)).thenReturn(Optional.of(draft));
+        doThrow(new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Suspenso"))
+                .when(suspensionService).requireEligible(7L, 1L);
+
+        var result = assertThrows(ResponseStatusException.class,
+                () -> service.join(7L, 19L, "owner"));
+        assertEquals(org.springframework.http.HttpStatus.FORBIDDEN, result.getStatusCode());
+        verify(participantRepository, never()).save(any());
+        verify(participantRepository, never()).findByTournamentIdAndProfileId(any(), any());
+    }
+
+    @Test
+    void suspendedPlayerCannotBeConfirmedByTournamentManager() {
+        var draft = CommunityTournament.builder().id(19L).community(community)
+                .entryType(TournamentEntryType.INDIVIDUAL).status(TournamentStatus.DRAFT).build();
+        var memberProfile = new Profile();
+        memberProfile.setId(2L);
+        memberProfile.setUsername("player");
+        var enrollment = com.example.desporto24.model.community.CommunityTournamentParticipant.builder()
+                .tournament(draft).profile(memberProfile)
+                .status(com.example.desporto24.enumeration.TournamentParticipantStatus.PENDING)
+                .joinedAt(Instant.now()).build();
+
+        when(profileRepository.findUserByUsernameIgnoreCase("owner")).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndProfileId(7L, 1L))
+                .thenReturn(Optional.of(CommunityMember.builder()
+                        .community(community).profile(owner).role(CommunityRole.OWNER).build()));
+        when(tournamentRepository.findByIdForUpdate(19L)).thenReturn(Optional.of(draft));
+        when(participantRepository.findByTournamentIdAndProfileId(19L, 2L))
+                .thenReturn(Optional.of(enrollment));
+        when(memberRepository.existsByCommunityIdAndProfileId(7L, 2L)).thenReturn(true);
+        doThrow(new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Suspenso"))
+                .when(suspensionService).requireEligible(7L, 2L);
+
+        var result = assertThrows(ResponseStatusException.class,
+                () -> service.confirmParticipant(7L, 19L, 2L, "owner"));
+        assertEquals(org.springframework.http.HttpStatus.FORBIDDEN, result.getStatusCode());
+        verify(participantRepository, never()).save(any());
+        assertEquals(com.example.desporto24.enumeration.TournamentParticipantStatus.PENDING,
+                enrollment.getStatus());
+    }
+
 }
