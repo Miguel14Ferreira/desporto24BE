@@ -234,6 +234,20 @@ public class CommunityTournamentService {
             }
         }
 
+        // Golf tournaments use gross strokes, never match points or race placements.
+        if (scoringMode == TournamentScoringMode.GOLF_GROSS_STROKES) {
+            if (!"Golfe".equals(selectedSport)
+                    || type != TournamentEntryType.INDIVIDUAL
+                    || format != TournamentFormat.LEAGUE
+                    || request.winPoints() != null || request.drawPoints() != null
+                    || request.lossPoints() != null || request.playersPerTeam() != null
+                    || request.roundRobinLegs() != null || request.teamTieBreakPriority() != null
+                    || request.groupCount() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Golfe stroke play exige torneio individual sem pontos por vitórias");
+            }
+        }
+
         // An explicit event type is accepted only for an implemented result
         // contract. Never let freestyle, timed trials or a judged heat inherit
         // positional race or numeric match scoring by accident.
