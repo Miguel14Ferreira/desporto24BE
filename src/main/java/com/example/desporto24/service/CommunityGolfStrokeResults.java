@@ -19,10 +19,11 @@ final class CommunityGolfStrokeResults {
     }
 
     static void validate(String sport, String type, List<CommunityRoundEntryRequest> entries) {
-        if (!"Golfe".equals(sport) || !isGolfStrokeEvent(type) || entries.isEmpty())
+        if (!"Golfe".equals(sport) || !isGolfStrokeEvent(type) || entries == null || entries.isEmpty())
             throw new IllegalArgumentException("Formato de Golfe inválido");
         int holes = "GOLF_STROKE_9".equals(type) ? 9 : 18;
         for (CommunityRoundEntryRequest e : entries) {
+            if (e == null) throw new IllegalArgumentException("Entrada de golfe inválida");
             BigDecimal strokes = e.performanceValue();
             if (strokes == null
                     || strokes.compareTo(BigDecimal.valueOf(holes)) < 0
