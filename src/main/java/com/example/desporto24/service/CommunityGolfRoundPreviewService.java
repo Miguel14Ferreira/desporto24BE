@@ -22,6 +22,8 @@ public class CommunityGolfRoundPreviewService {
     @Transactional(readOnly = true)
     public List<CommunityGolfRoundStandingResponse> preview(
             Long communityId, Long roundId, String username) {
+        if (communityId == null || communityId <= 0 || roundId == null || roundId <= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificadores inválidos");
         CommunityRoundResponse round = competition.overview(communityId, username, null)
                 .rounds().stream().filter(item -> roundId.equals(item.id()))
                 .findFirst().orElseThrow(() -> new ResponseStatusException(
