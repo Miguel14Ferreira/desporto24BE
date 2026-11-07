@@ -60,7 +60,12 @@ public class CommunityTournamentGolfService {
                         "Resultados da jornada indisponíveis"));
         if (!eligible(tournament, confirmed.sport(), confirmed.eventType()))
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Prova incompatível");
-        validate(confirmed);
+        try {
+            validate(confirmed);
+        } catch (IllegalArgumentException invalid) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "A jornada exige resultados completos de pelo menos dois jogadores", invalid);
+        }
         links.save(CommunityTournamentRaceRound.builder().tournament(tournament).round(source).build());
         if (tournament.getStatus() == TournamentStatus.DRAFT) {
             tournament.setStatus(TournamentStatus.IN_PROGRESS);
@@ -100,7 +105,12 @@ public class CommunityTournamentGolfService {
                             "Jornada associada indisponível"));
             if (!eligible(tournament, round.sport(), round.eventType()))
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Jornada associada alterada");
-            standings = validate(round);
+            try {
+                standings = validate(round);
+            } catch (IllegalArgumentException invalid) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Resultados da jornada associada inválidos", invalid);
+            }
             linked = List.of(round);
         }
         List<CommunityRoundResponse> available = saved.isEmpty() ? all.stream()
