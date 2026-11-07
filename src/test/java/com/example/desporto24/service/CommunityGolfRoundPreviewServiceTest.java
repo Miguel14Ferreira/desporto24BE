@@ -21,6 +21,18 @@ class CommunityGolfRoundPreviewServiceTest {
                 () -> service.preview(5L, 10L, "visitor"));
     }
 
+    @Test void invalidIdentifiersAreRejectedWithoutAccessingCommunity() {
+        for (Long id : new Long[]{null, 0L, -1L}) {
+            var invalidCommunity = assertThrows(ResponseStatusException.class,
+                    () -> service.preview(id, 10L, "member"));
+            assertEquals(HttpStatus.BAD_REQUEST, invalidCommunity.getStatusCode());
+            var invalidRound = assertThrows(ResponseStatusException.class,
+                    () -> service.preview(5L, id, "member"));
+            assertEquals(HttpStatus.BAD_REQUEST, invalidRound.getStatusCode());
+        }
+        verifyNoInteractions(competition);
+    }
+
     @Test void missingRoundReturnsNotFound() {
         var overview = mock(CommunityCompetitionOverviewResponse.class);
         when(overview.rounds()).thenReturn(List.of());
