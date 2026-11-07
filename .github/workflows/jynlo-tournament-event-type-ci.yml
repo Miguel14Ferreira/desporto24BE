@@ -17,6 +17,7 @@ on:
       - 'src/test/java/com/example/desporto24/service/CommunityTournamentGolfEventTypeTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityGolfTournamentStandingsTest.java'
       - 'src/test/java/com/example/desporto24/service/CommunityGolfTournamentRoundAdapterTest.java'
+      - 'src/test/java/com/example/desporto24/service/CommunityGolfRoundPreviewServiceTest.java'
       - 'src/main/java/com/example/desporto24/service/CommunityTournamentMeasuredService.java'
       - 'src/main/java/com/example/desporto24/service/CommunityMeasuredStandings.java'
       - 'src/main/java/com/example/desporto24/controllers/CommunityTournamentMeasuredController.java'
@@ -102,4 +103,4 @@ jobs:
       - name: Validate tournament request, DTO, persistence and event contracts
         env:
           AES_ENCRYPTION_KEY: ciKey1
-        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityFieldDisciplinesTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest,CommunityRelayStandingsTest,CommunityTournamentRelayServiceTest,CommunityTournamentRaceServiceTest,CommunityRoundEventTypeTest,CommunityCanoeSprintResultsTest,CommunityRowingResultsTest,CommunityRaceStandingsTest,CommunityCompetitionServiceTest,CreateCommunityRoundSeasonRequestTest,CommunityRoundSeasonPolicyTest,CommunityImportSeasonValidationTest,CommunitySeasonCreationPolicyTest,CommunityMatchPointsSportTest,CommunityTournamentTeamScheduleServiceTest,CommunityTournamentTeamServiceTest,CommunityGolfStrokeResultsTest,CommunityTournamentGolfEventTypeTest,CommunityGolfTournamentStandingsTest,CommunityGolfTournamentRoundAdapterTest test
+        run: bash ./mvnw -B -ntp -Dtest=CommunityTournamentServiceTest,CommunityTournamentControllerTest,CommunityTournamentPersistenceTest,CommunityTournamentTimedServiceTest,CommunityTimedStandingsTest,CommunityFieldDisciplinesTest,CommunityMeasuredStandingsTest,CommunityTournamentMeasuredServiceTest,CommunityRelayStandingsTest,CommunityTournamentRelayServiceTest,CommunityTournamentRaceServiceTest,CommunityRoundEventTypeTest,CommunityCanoeSprintResultsTest,CommunityRowingResultsTest,CommunityRaceStandingsTest,CommunityCompetitionServiceTest,CreateCommunityRoundSeasonRequestTest,CommunityRoundSeasonPolicyTest,CommunityImportSeasonValidationTest,CommunitySeasonCreationPolicyTest,CommunityMatchPointsSportTest,CommunityTournamentTeamScheduleServiceTest,CommunityTournamentTeamServiceTest,CommunityGolfStrokeResultsTest,CommunityTournamentGolfEventTypeTest,CommunityGolfTournamentStandingsTest,CommunityGolfTournamentRoundAdapterTest,CommunityGolfRoundPreviewServiceTest test
