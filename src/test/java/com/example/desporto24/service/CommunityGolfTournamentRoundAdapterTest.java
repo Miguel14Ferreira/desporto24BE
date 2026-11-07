@@ -32,6 +32,23 @@ class CommunityGolfTournamentRoundAdapterTest {
                 new CommunityGolfTournamentStandings.Standing(3, 3, 45)), standings);
     }
 
+    @Test void rejectsStoredFootballAndRaceMetricsInsteadOfRankingThem() {
+        var football = new CommunityRoundEntryResponse(null, null, "Player 1", null,
+                "A", CommunityMatchResult.WIN, 2, 0, true, false,
+                null, null, null, null, null, 1L, 0, null,
+                null, null, false, null, new BigDecimal("36"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityGolfTournamentRoundAdapter.calculate(
+                        round("Golfe", "GOLF_STROKE_9", List.of(football))));
+        var race = new CommunityRoundEntryResponse(null, null, "Player 2", null,
+                null, CommunityMatchResult.DRAW, 0, 0, false, false,
+                1, null, null, null, null, 2L, 0, null,
+                null, null, false, null, new BigDecimal("36"));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityGolfTournamentRoundAdapter.calculate(
+                        round("Golfe", "GOLF_STROKE_9", List.of(race))));
+    }
+
     @Test void rejectsOtherSportsAndIncompleteStoredRounds() {
         assertThrows(IllegalArgumentException.class,
                 () -> CommunityGolfTournamentRoundAdapter.calculate(
