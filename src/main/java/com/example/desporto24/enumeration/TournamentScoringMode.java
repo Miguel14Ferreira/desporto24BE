@@ -12,5 +12,6 @@ public enum TournamentScoringMode {
     ROWING_BEST_TIME,
     FIELD_BEST_MARK,
     TRACK_BEST_TIME,
-    RELAY_BEST_TIME
+    RELAY_BEST_TIME,
+    GOLF_GROSS_STROKES
 }
