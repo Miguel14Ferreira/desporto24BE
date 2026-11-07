@@ -1,6 +1,7 @@
 package com.example.desporto24.service;
 
 import com.example.desporto24.model.dto.community.CommunityRoundResponse;
+import com.example.desporto24.model.dto.community.CommunityGolfRoundStandingResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,14 +20,16 @@ public class CommunityGolfRoundPreviewService {
     private final CommunityCompetitionService competition;
 
     @Transactional(readOnly = true)
-    public List<CommunityGolfTournamentStandings.Standing> preview(
+    public List<CommunityGolfRoundStandingResponse> preview(
             Long communityId, Long roundId, String username) {
         CommunityRoundResponse round = competition.overview(communityId, username, null)
                 .rounds().stream().filter(item -> roundId.equals(item.id()))
                 .findFirst().orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Jornada não encontrada"));
         try {
-            return CommunityGolfTournamentRoundAdapter.calculate(round);
+            return CommunityGolfTournamentRoundAdapter.calculate(round).stream()
+                    .map(s -> new CommunityGolfRoundStandingResponse(
+                            s.position(), s.playerId(), s.grossStrokes())).toList();
         } catch (IllegalArgumentException invalid) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                     "A jornada não contém resultados completos de golfe", invalid);
