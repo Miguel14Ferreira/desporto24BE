@@ -22,7 +22,14 @@ final class CommunityGolfTournamentRoundAdapter {
         List<CommunityGolfTournamentStandings.Score> scores = new ArrayList<>();
         for (CommunityRoundEntryResponse entry : round.entries()) {
             if (entry == null || entry.communityPlayerId() == null
-                    || entry.raceDisqualified() || entry.performanceValue() == null)
+                    || entry.raceDisqualified() || entry.performanceValue() == null
+                    || entry.result() != com.example.desporto24.enumeration.CommunityMatchResult.DRAW
+                    || entry.team() != null && !entry.team().isBlank()
+                    || entry.goals() != 0 || entry.assists() != 0
+                    || entry.mvp() || entry.cleanSheet()
+                    || entry.finishPosition() != null || entry.elapsedSeconds() != null
+                    || entry.bestLapSeconds() != null || entry.lapsCompleted() != null
+                    || entry.waveScore1() != null || entry.waveScore2() != null)
                 throw new IllegalArgumentException("Resultados de golfe incompletos");
             scores.add(new CommunityGolfTournamentStandings.Score(
                     entry.communityPlayerId(), entry.performanceValue()));
