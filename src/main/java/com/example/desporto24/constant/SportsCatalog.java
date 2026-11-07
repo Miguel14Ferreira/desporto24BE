@@ -12,6 +12,7 @@ public final class SportsCatalog {
     public static final Set<String> ALLOWED = Set.of(
             "Aeromodelismo",
             "Aikido",
+            "Airsoft",
             "Andebol",
             "Apneia",
             "Artes Marciais Chinesas",
