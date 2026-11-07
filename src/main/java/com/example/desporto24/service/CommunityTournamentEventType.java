@@ -23,6 +23,12 @@ final class CommunityTournamentEventType {
 
     static String validate(String sport, String requested, TournamentEntryType entryType,
                            TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.GOLF_GROSS_STROKES) {
+            if ("Golfe".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
+                    && CommunityGolfStrokeResults.isGolfStrokeEvent(requested)) return requested;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Golfe exige stroke play individual de 9 ou 18 buracos");
+        }
         if (scoringMode == TournamentScoringMode.ROWING_BEST_TIME) {
             if ("Remo".equals(sport) && entryType == TournamentEntryType.INDIVIDUAL
                     && "ROWING_SINGLE".equals(requested)) return requested;
@@ -96,6 +102,12 @@ final class CommunityTournamentEventType {
 
     static String validateDiscipline(String sport, String eventType,
             String requested, TournamentScoringMode scoringMode) {
+        if (scoringMode == TournamentScoringMode.GOLF_GROSS_STROKES) {
+            if ("Golfe".equals(sport) && CommunityGolfStrokeResults.isGolfStrokeEvent(eventType)
+                    && requested == null) return null;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Golfe stroke play não admite disciplina adicional");
+        }
         if (scoringMode == TournamentScoringMode.ROWING_BEST_TIME) {
             if ("Remo".equals(sport) && "ROWING_SINGLE".equals(eventType)
                     && requested != null && ROWING_DISCIPLINES.contains(requested)) return requested;
