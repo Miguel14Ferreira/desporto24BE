@@ -19,8 +19,6 @@ public class CommunityGolfRoundPreviewController {
     public List<CommunityGolfRoundStandingResponse> standings(
             @PathVariable Long communityId, @PathVariable Long roundId,
             Authentication authentication) {
-        return preview.preview(communityId, roundId, authentication.getName()).stream()
-                .map(s -> new CommunityGolfRoundStandingResponse(
-                        s.position(), s.playerId(), s.grossStrokes())).toList();
+        return preview.preview(communityId, roundId, authentication.getName());
     }
 }
