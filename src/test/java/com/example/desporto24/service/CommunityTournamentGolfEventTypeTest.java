@@ -29,6 +29,32 @@ class CommunityTournamentGolfEventTypeTest {
     }
 
     @Test
+    void dedicatedGolfModeAcceptsOnlyIndividualNineOrEighteenHoleEvents() {
+        for (String event : new String[] {"GOLF_STROKE_9", "GOLF_STROKE_18"}) {
+            assertEquals(event, CommunityTournamentEventType.validate(
+                    "Golfe", event, TournamentEntryType.INDIVIDUAL,
+                    TournamentScoringMode.GOLF_GROSS_STROKES));
+            assertNull(CommunityTournamentEventType.validateDiscipline(
+                    "Golfe", event, null, TournamentScoringMode.GOLF_GROSS_STROKES));
+            assertThrows(ResponseStatusException.class,
+                    () -> CommunityTournamentEventType.validate(
+                            "Golfe", event, TournamentEntryType.TEAM,
+                            TournamentScoringMode.GOLF_GROSS_STROKES));
+            assertThrows(ResponseStatusException.class,
+                    () -> CommunityTournamentEventType.validateDiscipline(
+                            "Golfe", event, "EXTRA", TournamentScoringMode.GOLF_GROSS_STROKES));
+        }
+        assertThrows(ResponseStatusException.class,
+                () -> CommunityTournamentEventType.validate(
+                        "Golfe", "GOLF_STABLEFORD", TournamentEntryType.INDIVIDUAL,
+                        TournamentScoringMode.GOLF_GROSS_STROKES));
+        assertThrows(ResponseStatusException.class,
+                () -> CommunityTournamentEventType.validate(
+                        "Futebol", "GOLF_STROKE_9", TournamentEntryType.INDIVIDUAL,
+                        TournamentScoringMode.GOLF_GROSS_STROKES));
+    }
+
+    @Test
     void golfStrokeFormatsCannotBeReusedByOtherSports() {
         assertThrows(ResponseStatusException.class,
                 () -> CommunityTournamentEventType.validate("Futebol", "GOLF_STROKE_9",
