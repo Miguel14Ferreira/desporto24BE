@@ -51,6 +51,16 @@ class CommunityGolfStrokeResultsTest {
                         List.of(strokes("one", "34"))));
     }
 
+    @Test void rejectsNullOrEmptyRoundEntriesWithValidationErrors() {
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityGolfStrokeResults.validate("Golfe", "GOLF_STROKE_9", null));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityGolfStrokeResults.validate("Golfe", "GOLF_STROKE_18", List.of()));
+        assertThrows(IllegalArgumentException.class,
+                () -> CommunityGolfStrokeResults.validate("Golfe", "GOLF_STROKE_9",
+                        java.util.Arrays.asList(strokes("one", "35"), null)));
+    }
+
     @Test void rejectsUnrelatedTeamFootballOrRaceMetrics() {
         var football = new CommunityRoundEntryRequest("one", "A", CommunityMatchResult.WIN,
                 2, 0, true, false, null, null, null, null, new BigDecimal("70"));
